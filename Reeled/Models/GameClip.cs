@@ -52,6 +52,21 @@ public partial class GameClip : ObservableObject
 
     public ObservableCollection<ClipBookmark> Bookmarks { get; set; } = new();
 
+    public GameClip()
+    {
+        Bookmarks.CollectionChanged += (s, e) =>
+        {
+            OnPropertyChanged(nameof(BookmarkCount));
+            OnPropertyChanged(nameof(HasBookmarks));
+            OnPropertyChanged(nameof(FormattedBookmarkCount));
+        };
+    }
+
+    public int BookmarkCount => Bookmarks.Count;
+    public bool HasBookmarks => Bookmarks.Count > 0;
+    public string FormattedBookmarkCount =>
+        $"{Bookmarks.Count} {(Bookmarks.Count == 1 ? "moment" : "moments")}";
+
     public string FormattedDuration =>
         Duration.Hours > 0
             ? Duration.ToString(@"hh\:mm\:ss")

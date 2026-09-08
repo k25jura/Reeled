@@ -20,6 +20,9 @@
             <converters:VolumeGlyphConverter x:Key="VolumeGlyphConverter" />
             <converters:FavoriteGlyphConverter x:Key="FavoriteGlyphConverter" />
             <converters:FavoriteOpacityConverter x:Key="FavoriteOpacityConverter" />
+            <converters:SectionActiveBackgroundConverter x:Key="SectionActiveBackgroundConverter" />
+            <converters:SectionActiveForegroundConverter x:Key="SectionActiveForegroundConverter" />
+            <converters:SectionActiveFontWeightConverter x:Key="SectionActiveFontWeightConverter" />
 
             <!-- SplitView Custom Animation Durations for Smooth Windows 11 Transitions -->
             <x:String x:Key="SplitViewPaneAnimationOpenDuration">00:00:00.3</x:String>

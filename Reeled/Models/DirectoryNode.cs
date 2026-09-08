@@ -18,6 +18,7 @@ public partial class DirectoryNode : ObservableObject
     private int _clipCount;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IconGlyph))]
     private bool _isExpanded = true;
 
     [ObservableProperty]
@@ -28,5 +29,5 @@ public partial class DirectoryNode : ObservableObject
     public string DisplayName =>
         !string.IsNullOrEmpty(Name) ? Name : System.IO.Path.GetFileName(FullPath);
 
-    public string IconGlyph => IsWatchRoot ? "\uE838" : "\uED25"; // FolderHorizontal vs Folder
+    public string IconGlyph => IsExpanded ? "\uE838" : "\uED25";
 }

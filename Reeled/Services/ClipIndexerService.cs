@@ -43,16 +43,16 @@ public class ClipIndexerService : IClipIndexerService
                     .ToList();
 
                 List<string> files;
-                if (topFiles.Count > 0 || !recursive)
-                {
-                    files = topFiles.OrderByDescending(f => File.GetLastWriteTimeUtc(f)).ToList();
-                }
-                else
+                if (recursive)
                 {
                     files = Directory.EnumerateFiles(directoryPath, "*.*", SearchOption.AllDirectories)
                         .Where(f => VideoExtensions.Contains(Path.GetExtension(f)))
                         .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
                         .ToList();
+                }
+                else
+                {
+                    files = topFiles.OrderByDescending(f => File.GetLastWriteTimeUtc(f)).ToList();
                 }
 
                 foreach (var file in files)

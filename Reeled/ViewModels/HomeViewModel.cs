@@ -15,6 +15,14 @@ using Reeled.Services;
 
 namespace Reeled.ViewModels;
 
+public enum NavigationSection
+{
+    Home,
+    Favorites,
+    SavedMoments,
+    Folder
+}
+
 public partial class HomeViewModel : ObservableObject
 {
     private readonly IClipIndexerService _indexerService;
@@ -23,8 +31,34 @@ public partial class HomeViewModel : ObservableObject
     private readonly DispatcherQueue _dispatcherQueue;
 
     public ObservableCollection<DirectoryNode> Directories { get; } = new();
+    public ObservableCollection<GameClip> AllClips { get; } = new();
     public ObservableCollection<GameClip> Clips { get; } = new();
     public ObservableCollection<GameClip> FilteredClips { get; } = new();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsHomeSelected))]
+    [NotifyPropertyChangedFor(nameof(IsFavoritesSelected))]
+    [NotifyPropertyChangedFor(nameof(IsSavedMomentsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsFolderSelected))]
+    [NotifyPropertyChangedFor(nameof(CurrentDirectoryTitle))]
+    [NotifyPropertyChangedFor(nameof(CurrentDirectoryPath))]
+    [NotifyPropertyChangedFor(nameof(CanOpenDirectoryInExplorer))]
+    [NotifyPropertyChangedFor(nameof(EmptyStateGlyph))]
+    [NotifyPropertyChangedFor(nameof(EmptyStateTitle))]
+    [NotifyPropertyChangedFor(nameof(EmptyStateSubtitle))]
+    private NavigationSection _currentSection = NavigationSection.Home;
+
+    public bool IsHomeSelected => CurrentSection == NavigationSection.Home;
+    public bool IsFavoritesSelected => CurrentSection == NavigationSection.Favorites;
+    public bool IsSavedMomentsSelected => CurrentSection == NavigationSection.SavedMoments;
+    public bool IsFolderSelected => CurrentSection == NavigationSection.Folder;
+
+    public int AllClipsCount => AllClips.Count;
+    public int FavoritesCount => AllClips.Count(c => c.IsFavorite);
+    public int SavedMomentsCount => AllClips.Count(c => c.Bookmarks.Count > 0);
+
+    public bool CanOpenDirectoryInExplorer =>
+        CurrentSection == NavigationSection.Folder && !string.IsNullOrEmpty(SelectedDirectory?.FullPath);
 
     [ObservableProperty]
     private DirectoryNode? _selectedDirectory;
@@ -47,18 +81,55 @@ public partial class HomeViewModel : ObservableObject
     public bool HasDirectories => Directories.Count > 0;
     public bool HasClips => FilteredClips.Count > 0;
 
-    public string CurrentDirectoryTitle =>
-        SelectedDirectory != null
+    public string CurrentDirectoryTitle => CurrentSection switch
+    {
+        NavigationSection.Home => "Home",
+        NavigationSection.Favorites => "Favorites",
+        NavigationSection.SavedMoments => "Saved Moments",
+        NavigationSection.Folder => SelectedDirectory != null
             ? (!string.IsNullOrEmpty(SelectedDirectory.Name) ? SelectedDirectory.Name : "Library")
-            : "Gameplay Library";
+            : "Gameplay Library",
+        _ => "Home"
+    };
 
-    public string CurrentDirectoryPath =>
-        SelectedDirectory?.FullPath ?? string.Empty;
+    public string CurrentDirectoryPath => CurrentSection switch
+    {
+        NavigationSection.Home => AllClips.Count > 0 ? "All watch folders" : string.Empty,
+        NavigationSection.Favorites => FavoritesCount > 0 ? $"{FavoritesCount} starred clips" : string.Empty,
+        NavigationSection.SavedMoments => SavedMomentsCount > 0 ? $"{SavedMomentsCount} clips with moments" : string.Empty,
+        NavigationSection.Folder => SelectedDirectory?.FullPath ?? string.Empty,
+        _ => string.Empty
+    };
+
+    public string EmptyStateGlyph => CurrentSection switch
+    {
+        NavigationSection.Home => "\uE80F",
+        NavigationSection.Favorites => "\uE735",
+        NavigationSection.SavedMoments => "\uE8A4",
+        _ => "\uE8B7"
+    };
+
+    public string EmptyStateTitle => CurrentSection switch
+    {
+        NavigationSection.Home => "No clips in library",
+        NavigationSection.Favorites => "No favorites yet",
+        NavigationSection.SavedMoments => "No saved moments yet",
+        _ => "No clips in this folder"
+    };
+
+    public string EmptyStateSubtitle => CurrentSection switch
+    {
+        NavigationSection.Home => "Add your captures folder or drop video files to start watching.",
+        NavigationSection.Favorites => "Click the star icon on any clip to pin it to your favorites.",
+        NavigationSection.SavedMoments => "Add bookmarks and timestamps during video playback to revisit key highlights.",
+        _ => "Choose another folder or add MP4/MKV video files to this directory."
+    };
 
     partial void OnSelectedDirectoryChanged(DirectoryNode? value)
     {
         OnPropertyChanged(nameof(CurrentDirectoryTitle));
         OnPropertyChanged(nameof(CurrentDirectoryPath));
+        OnPropertyChanged(nameof(CanOpenDirectoryInExplorer));
         OnPropertyChanged(nameof(ClipsCountSummary));
     }
 
@@ -141,6 +212,46 @@ public partial class HomeViewModel : ObservableObject
         await SyncDirectoriesAsync();
     }
 
+    [RelayCommand]
+    public Task SelectHomeAsync()
+    {
+        CurrentSection = NavigationSection.Home;
+        SelectedDirectory = null;
+        RefreshCurrentViewClips();
+        return Task.CompletedTask;
+    }
+
+    [RelayCommand]
+    public Task SelectFavoritesAsync()
+    {
+        CurrentSection = NavigationSection.Favorites;
+        SelectedDirectory = null;
+        RefreshCurrentViewClips();
+        return Task.CompletedTask;
+    }
+
+    [RelayCommand]
+    public Task SelectSavedMomentsAsync()
+    {
+        CurrentSection = NavigationSection.SavedMoments;
+        SelectedDirectory = null;
+        RefreshCurrentViewClips();
+        return Task.CompletedTask;
+    }
+
+    public Task SelectDirectoryAsync(DirectoryNode node)
+    {
+        CurrentSection = NavigationSection.Folder;
+        SelectedDirectory = node;
+
+        var settings = _storageService.CurrentSettings;
+        settings.LastActiveDirectory = node.FullPath;
+        _ = _storageService.SaveSettingsAsync(settings);
+
+        RefreshCurrentViewClips();
+        return Task.CompletedTask;
+    }
+
     public async Task SyncDirectoriesAsync()
     {
         IsLoading = true;
@@ -158,51 +269,22 @@ public partial class HomeViewModel : ObservableObject
         _indexerService.UpdateWatchers(settings.WatchDirectories);
         OnPropertyChanged(nameof(HasDirectories));
 
-        // Restore last active directory or first available
-        DirectoryNode? target = null;
-        if (!string.IsNullOrEmpty(settings.LastActiveDirectory))
+        var allClipsList = new List<GameClip>();
+        foreach (var dir in settings.WatchDirectories)
         {
-            target = FindNodeByPath(Directories, settings.LastActiveDirectory);
+            if (Directory.Exists(dir))
+            {
+                var dirClips = await _indexerService.ScanDirectoryClipsAsync(dir, recursive: true);
+                allClipsList.AddRange(dirClips);
+            }
         }
-        target ??= Directories.FirstOrDefault();
 
-        if (target != null)
+        AllClips.Clear();
+        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var clip in allClipsList)
         {
-            await SelectDirectoryAsync(target);
-        }
-        else
-        {
-            Clips.Clear();
-            FilteredClips.Clear();
-            SelectedDirectory = null;
-            IsLoading = false;
-            OnPropertyChanged(nameof(HasClips));
-            OnPropertyChanged(nameof(TotalClipsCount));
-            OnPropertyChanged(nameof(TotalStorageUsedFormatted));
-            OnPropertyChanged(nameof(CurrentDirectoryTitle));
-            OnPropertyChanged(nameof(CurrentDirectoryPath));
-            StatusMessage = "No folders added. Click '+' to add a folder with clips.";
-        }
-    }
+            if (!seenPaths.Add(clip.FilePath)) continue;
 
-    public async Task SelectDirectoryAsync(DirectoryNode node)
-    {
-        SelectedDirectory = node;
-        OnPropertyChanged(nameof(CurrentDirectoryTitle));
-        OnPropertyChanged(nameof(CurrentDirectoryPath));
-
-        IsLoading = true;
-        StatusMessage = $"Scanning {node.Name}...";
-
-        var settings = _storageService.CurrentSettings;
-        settings.LastActiveDirectory = node.FullPath;
-        _ = _storageService.SaveSettingsAsync(settings);
-
-        var clips = await _indexerService.ScanDirectoryClipsAsync(node.FullPath, recursive: node.IsWatchRoot);
-
-        Clips.Clear();
-        foreach (var clip in clips)
-        {
             if (settings.Favorites.Contains(clip.FilePath))
             {
                 clip.IsFavorite = true;
@@ -216,17 +298,98 @@ public partial class HomeViewModel : ObservableObject
                 }
             }
 
-            Clips.Add(clip);
+            AllClips.Add(clip);
         }
 
-        node.ClipCount = clips.Count;
-        ApplyFilterAndSort();
-
         IsLoading = false;
-        StatusMessage = Clips.Count > 0 ? $"{Clips.Count} clips loaded" : "No clips in this folder";
+
+        // Restore last active selection or default to Home
+        if (CurrentSection == NavigationSection.Folder && !string.IsNullOrEmpty(settings.LastActiveDirectory))
+        {
+            var target = FindNodeByPath(Directories, settings.LastActiveDirectory);
+            if (target != null)
+            {
+                SelectedDirectory = target;
+                RefreshCurrentViewClips();
+            }
+            else
+            {
+                await SelectHomeAsync();
+            }
+        }
+        else if (CurrentSection == NavigationSection.Favorites)
+        {
+            await SelectFavoritesAsync();
+        }
+        else if (CurrentSection == NavigationSection.SavedMoments)
+        {
+            await SelectSavedMomentsAsync();
+        }
+        else
+        {
+            await SelectHomeAsync();
+        }
+    }
+
+    private void RefreshCurrentViewClips()
+    {
+        Clips.Clear();
+        switch (CurrentSection)
+        {
+            case NavigationSection.Home:
+                foreach (var clip in AllClips)
+                {
+                    Clips.Add(clip);
+                }
+                StatusMessage = Clips.Count > 0 ? $"{Clips.Count} clips loaded" : "No clips in library";
+                break;
+
+            case NavigationSection.Favorites:
+                foreach (var clip in AllClips.Where(c => c.IsFavorite))
+                {
+                    Clips.Add(clip);
+                }
+                StatusMessage = Clips.Count > 0 ? $"{Clips.Count} favorite clips" : "No favorites yet";
+                break;
+
+            case NavigationSection.SavedMoments:
+                foreach (var clip in AllClips.Where(c => c.Bookmarks.Count > 0))
+                {
+                    Clips.Add(clip);
+                }
+                StatusMessage = Clips.Count > 0 ? $"{Clips.Count} clips with moments" : "No saved moments yet";
+                break;
+
+            case NavigationSection.Folder:
+                if (SelectedDirectory != null)
+                {
+                    var folderClips = SelectedDirectory.IsWatchRoot
+                        ? AllClips.Where(c => c.FilePath.StartsWith(SelectedDirectory.FullPath, StringComparison.OrdinalIgnoreCase))
+                        : AllClips.Where(c => string.Equals(c.DirectoryPath, SelectedDirectory.FullPath, StringComparison.OrdinalIgnoreCase));
+
+                    foreach (var clip in folderClips)
+                    {
+                        Clips.Add(clip);
+                    }
+                    SelectedDirectory.ClipCount = Clips.Count;
+                    StatusMessage = Clips.Count > 0 ? $"{Clips.Count} clips loaded" : "No clips in this folder";
+                }
+                break;
+        }
+
+        ApplyFilterAndSort();
+        UpdateCounts();
+    }
+
+    private void UpdateCounts()
+    {
+        OnPropertyChanged(nameof(AllClipsCount));
+        OnPropertyChanged(nameof(FavoritesCount));
+        OnPropertyChanged(nameof(SavedMomentsCount));
         OnPropertyChanged(nameof(TotalClipsCount));
         OnPropertyChanged(nameof(ClipsCountSummary));
         OnPropertyChanged(nameof(TotalStorageUsedFormatted));
+        OnPropertyChanged(nameof(CurrentDirectoryPath));
         OnPropertyChanged(nameof(HasClips));
     }
 
@@ -279,10 +442,7 @@ public partial class HomeViewModel : ObservableObject
     [RelayCommand]
     public async Task RefreshClipsAsync()
     {
-        if (SelectedDirectory != null)
-        {
-            await SelectDirectoryAsync(SelectedDirectory);
-        }
+        await SyncDirectoriesAsync();
     }
 
     [RelayCommand]
@@ -302,14 +462,14 @@ public partial class HomeViewModel : ObservableObject
         bool success = _indexerService.DeleteClipToRecycleBin(clip.FilePath);
         if (success)
         {
+            AllClips.Remove(clip);
             Clips.Remove(clip);
             FilteredClips.Remove(clip);
             if (SelectedDirectory != null)
             {
                 SelectedDirectory.ClipCount = Clips.Count;
             }
-            OnPropertyChanged(nameof(TotalClipsCount));
-            OnPropertyChanged(nameof(TotalStorageUsedFormatted));
+            UpdateCounts();
             StatusMessage = $"Deleted {clip.FileName} to Recycle Bin";
         }
         else
@@ -386,6 +546,14 @@ public partial class HomeViewModel : ObservableObject
             settings.Favorites.Remove(clip.FilePath);
         }
         await _storageService.SaveSettingsAsync(settings);
+
+        if (CurrentSection == NavigationSection.Favorites && !clip.IsFavorite)
+        {
+            Clips.Remove(clip);
+            ApplyFilterAndSort();
+        }
+
+        UpdateCounts();
     }
 
     [RelayCommand]
@@ -435,11 +603,7 @@ public partial class HomeViewModel : ObservableObject
     {
         _dispatcherQueue.TryEnqueue(async () =>
         {
-            if (SelectedDirectory != null &&
-                string.Equals(Path.GetDirectoryName(filePath), SelectedDirectory.FullPath, StringComparison.OrdinalIgnoreCase))
-            {
-                await RefreshClipsAsync();
-            }
+            await SyncDirectoriesAsync();
         });
     }
 
@@ -447,6 +611,12 @@ public partial class HomeViewModel : ObservableObject
     {
         _dispatcherQueue.TryEnqueue(() =>
         {
+            var existingAll = AllClips.FirstOrDefault(c => string.Equals(c.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
+            if (existingAll != null)
+            {
+                AllClips.Remove(existingAll);
+            }
+
             var existing = Clips.FirstOrDefault(c => string.Equals(c.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
             if (existing != null)
             {
@@ -456,9 +626,8 @@ public partial class HomeViewModel : ObservableObject
                 {
                     SelectedDirectory.ClipCount = Clips.Count;
                 }
-                OnPropertyChanged(nameof(TotalClipsCount));
-                OnPropertyChanged(nameof(TotalStorageUsedFormatted));
             }
+            UpdateCounts();
         });
     }
 
@@ -466,6 +635,13 @@ public partial class HomeViewModel : ObservableObject
     {
         _dispatcherQueue.TryEnqueue(() =>
         {
+            var existingAll = AllClips.FirstOrDefault(c => string.Equals(c.FilePath, oldPath, StringComparison.OrdinalIgnoreCase));
+            if (existingAll != null)
+            {
+                existingAll.FilePath = newPath;
+                existingAll.FileName = Path.GetFileName(newPath);
+            }
+
             var existing = Clips.FirstOrDefault(c => string.Equals(c.FilePath, oldPath, StringComparison.OrdinalIgnoreCase));
             if (existing != null)
             {

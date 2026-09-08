@@ -216,6 +216,130 @@ public sealed partial class HomePage : Page
         await ViewModel.SyncDirectoriesAsync();
     }
 
+    private async void OnHomeTabClick(object sender, RoutedEventArgs e)
+    {
+        DirectoriesTreeView.SelectedItem = null;
+        await ViewModel.SelectHomeAsync();
+    }
+
+    private async void OnFavoritesTabClick(object sender, RoutedEventArgs e)
+    {
+        DirectoriesTreeView.SelectedItem = null;
+        await ViewModel.SelectFavoritesAsync();
+    }
+
+    private async void OnSavedMomentsTabClick(object sender, RoutedEventArgs e)
+    {
+        DirectoriesTreeView.SelectedItem = null;
+        await ViewModel.SelectSavedMomentsAsync();
+    }
+
+    private void OnDirectoryExpanding(TreeView sender, TreeViewExpandingEventArgs args)
+    {
+        if (args.Item is DirectoryNode dirNode)
+        {
+            dirNode.IsExpanded = true;
+        }
+        else if (args.Node?.Content is DirectoryNode dn)
+        {
+            dn.IsExpanded = true;
+        }
+    }
+
+    private void OnDirectoryCollapsed(TreeView sender, TreeViewCollapsedEventArgs args)
+    {
+        if (args.Item is DirectoryNode dirNode)
+        {
+            dirNode.IsExpanded = false;
+        }
+        else if (args.Node?.Content is DirectoryNode dn)
+        {
+            dn.IsExpanded = false;
+        }
+    }
+
+    private void OnItemPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is UIElement el)
+        {
+            AnimateElementScale(el, 0.97, 80);
+        }
+    }
+
+    private void OnItemPointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is UIElement el)
+        {
+            AnimateElementScale(el, 1.0, 160);
+        }
+    }
+
+    private void OnItemPointerCanceled(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is UIElement el)
+        {
+            AnimateElementScale(el, 1.0, 160);
+        }
+    }
+
+    private void OnClipCardPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is UIElement el)
+        {
+            AnimateElementScale(el, 0.98, 80);
+        }
+    }
+
+    private void OnClipCardPointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is UIElement el)
+        {
+            AnimateElementScale(el, 1.0, 160);
+        }
+    }
+
+    private static void AnimateElementScale(UIElement element, double targetScale, int durationMs)
+    {
+        element.RenderTransformOrigin = new Windows.Foundation.Point(0.5, 0.5);
+        Microsoft.UI.Xaml.Media.ScaleTransform scale;
+        if (element.RenderTransform is Microsoft.UI.Xaml.Media.ScaleTransform st)
+        {
+            scale = st;
+        }
+        else
+        {
+            scale = new Microsoft.UI.Xaml.Media.ScaleTransform { ScaleX = 1.0, ScaleY = 1.0 };
+            element.RenderTransform = scale;
+        }
+
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        var ease = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+        {
+            EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut
+        };
+
+        var animX = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            To = targetScale,
+            Duration = TimeSpan.FromMilliseconds(durationMs),
+            EasingFunction = ease
+        };
+        var animY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            To = targetScale,
+            Duration = TimeSpan.FromMilliseconds(durationMs),
+            EasingFunction = ease
+        };
+
+        sb.Children.Add(animX);
+        sb.Children.Add(animY);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animX, scale);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animX, "ScaleX");
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, scale);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "ScaleY");
+        sb.Begin();
+    }
+
     private async void OnDirectoryTreeItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
     {
         if (args.InvokedItem is DirectoryNode dirNode)

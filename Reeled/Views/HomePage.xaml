@@ -231,7 +231,7 @@
                 </Grid>
 
                 <!-- Row 4: Folders TreeView -->
-                <Grid Grid.Row="4" Margin="10,0,10,0">
+                <Grid Grid.Row="4" Margin="10,0,10,0" x:Name="FoldersContainerGrid">
                     <TreeView x:Name="DirectoriesTreeView"
                               ItemsSource="{x:Bind ViewModel.Directories, Mode=OneWay}"
                               ItemInvoked="OnDirectoryTreeItemInvoked"
@@ -240,6 +240,11 @@
                               SelectionMode="Single"
                               Padding="0,0,6,0"
                               Visibility="{x:Bind ViewModel.HasDirectories, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TreeView.Resources>
+                            <SolidColorBrush x:Key="TreeViewItemSelectionIndicatorBrush" Color="Transparent" />
+                            <SolidColorBrush x:Key="TreeViewSelectionIndicatorForeground" Color="Transparent" />
+                            <SolidColorBrush x:Key="TreeViewSelectionIndicatorBackground" Color="Transparent" />
+                        </TreeView.Resources>
                         <TreeView.ItemContainerStyle>
                             <Style TargetType="TreeViewItem">
                                 <Setter Property="MinHeight" Value="36" />
@@ -294,6 +299,25 @@
                             </DataTemplate>
                         </TreeView.ItemTemplate>
                     </TreeView>
+
+                    <!-- Windows 11 Settings Style Sliding Active Selection Indicator for Folders -->
+                    <Border x:Name="FolderActiveIndicatorPill"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                            Width="3"
+                            Height="16"
+                            CornerRadius="1.5"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                            IsHitTestVisible="False"
+                            Opacity="0"
+                            RenderTransformOrigin="0.5,0.5">
+                        <Border.RenderTransform>
+                            <TransformGroup>
+                                <TranslateTransform x:Name="FolderIndicatorTranslation" X="0" Y="0" />
+                                <ScaleTransform x:Name="FolderIndicatorScale" ScaleX="1" ScaleY="0" />
+                            </TransformGroup>
+                        </Border.RenderTransform>
+                    </Border>
 
                     <!-- Fallback Prompt if No Folders -->
                     <StackPanel Visibility="{x:Bind ViewModel.HasDirectories, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
@@ -639,13 +663,31 @@
                     </GridView.ItemTemplate>
                 </GridView>
 
-                <!-- Loading Indicator -->
-                <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" 
-                              Width="48" Height="48" 
-                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <!-- Loading Indicator with Fluent Elevated Card Backdrop -->
+                <Grid Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      Background="#4D000000">
+                    <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="16"
+                            Padding="24,20"
+                            MinWidth="90">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                            <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" 
+                                          Width="36" Height="36" 
+                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <TextBlock Text="Loading..." 
+                                       FontSize="12" 
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
 
-                <!-- Empty State View -->
-                <StackPanel Visibility="{x:Bind ViewModel.HasClips, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                <!-- Empty State View (Shown only when loading is complete and no clips) -->
+                <StackPanel Visibility="{x:Bind ViewModel.ShowEmptyState, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                             HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
                     <FontIcon Glyph="{x:Bind ViewModel.EmptyStateGlyph, Mode=OneWay}" FontSize="48" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" />
                     <TextBlock Text="{x:Bind ViewModel.EmptyStateTitle, Mode=OneWay}" Style="{ThemeResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />

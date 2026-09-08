@@ -73,6 +73,7 @@ public partial class HomeViewModel : ObservableObject
     private int _sortIndex = 0; // 0: Newest, 1: Oldest, 2: Name, 3: Duration, 4: Size
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
     private bool _isLoading;
 
     [ObservableProperty]
@@ -80,6 +81,7 @@ public partial class HomeViewModel : ObservableObject
 
     public bool HasDirectories => Directories.Count > 0;
     public bool HasClips => FilteredClips.Count > 0;
+    public bool ShowEmptyState => !IsLoading && !HasClips;
 
     public string CurrentDirectoryTitle => CurrentSection switch
     {
@@ -391,6 +393,7 @@ public partial class HomeViewModel : ObservableObject
         OnPropertyChanged(nameof(TotalStorageUsedFormatted));
         OnPropertyChanged(nameof(CurrentDirectoryPath));
         OnPropertyChanged(nameof(HasClips));
+        OnPropertyChanged(nameof(ShowEmptyState));
     }
 
     [RelayCommand]
@@ -597,6 +600,7 @@ public partial class HomeViewModel : ObservableObject
             FilteredClips.Add(c);
         }
         OnPropertyChanged(nameof(HasClips));
+        OnPropertyChanged(nameof(ShowEmptyState));
     }
 
     private void OnClipAdded(string filePath)

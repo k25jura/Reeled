@@ -16,6 +16,8 @@ public partial class PlayerViewModel : ObservableObject
     private readonly ILocalStorageService _storageService;
     private readonly INavigationService _navigationService;
 
+    public ILibVlcPlaybackService PlaybackService => _playbackService;
+
     [ObservableProperty]
     private GameClip? _currentClip;
 

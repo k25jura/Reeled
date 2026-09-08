@@ -120,7 +120,6 @@
                 Padding="16,10,16,12" 
                 MinWidth="640" 
                 MaxWidth="880"
-                Shadow="{ThemeResource Elevation4}"
                 Visibility="{x:Bind ViewModel.IsControlsVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>

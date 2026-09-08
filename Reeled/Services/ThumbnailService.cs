@@ -92,33 +92,40 @@ public class ThumbnailService : IThumbnailService
     {
         try
         {
-            var tcs = new TaskCompletionSource<BitmapImage?>();
-            var dispatcher = DispatcherQueue.GetForCurrentThread();
+            if (!File.Exists(filePath))
+                return null;
 
-            if (dispatcher != null)
+            var dispatcher = App.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
+            if (dispatcher == null)
+                return null;
+
+            var tcs = new TaskCompletionSource<BitmapImage?>();
+            bool enqueued = dispatcher.TryEnqueue(async () =>
             {
-                dispatcher.TryEnqueue(() =>
+                try
                 {
-                    try
-                    {
-                        var bitmap = new BitmapImage(new Uri(filePath));
-                        tcs.SetResult(bitmap);
-                    }
-                    catch (Exception ex)
-                    {
-                        tcs.SetException(ex);
-                    }
-                });
-                return await tcs.Task;
-            }
-            else
-            {
-                var bitmap = new BitmapImage(new Uri(filePath));
-                return bitmap;
-            }
+                    var file = await StorageFile.GetFileFromPathAsync(filePath);
+                    using var stream = await file.OpenReadAsync();
+                    var bitmap = new BitmapImage();
+                    bitmap.DecodePixelWidth = 480;
+                    await bitmap.SetSourceAsync(stream);
+                    tcs.TrySetResult(bitmap);
+                }
+                catch (Exception ex)
+                {
+                    try { File.AppendAllText("reeled_crash.log", $"[LoadBitmap Error] {filePath}: {ex.Message}\n"); } catch { }
+                    tcs.TrySetResult(null);
+                }
+            });
+
+            if (!enqueued)
+                return null;
+
+            return await tcs.Task;
         }
-        catch
+        catch (Exception ex)
         {
+            try { File.AppendAllText("reeled_crash.log", $"[LoadBitmap Outer Error] {filePath}: {ex.Message}\n"); } catch { }
             return null;
         }
     }

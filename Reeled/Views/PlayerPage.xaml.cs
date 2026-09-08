@@ -33,6 +33,11 @@ public sealed partial class PlayerPage : Page
         {
             this.Focus(FocusState.Programmatic);
             _inactivityTimer.Start();
+
+            if (PlayerVideoView.MediaPlayer == null && ViewModel.PlaybackService.CurrentMediaPlayer != null)
+            {
+                PlayerVideoView.MediaPlayer = ViewModel.PlaybackService.CurrentMediaPlayer;
+            }
         };
 
         Unloaded += (s, e) =>
@@ -46,6 +51,11 @@ public sealed partial class PlayerPage : Page
         base.OnNavigatedTo(e);
         this.Focus(FocusState.Programmatic);
         ViewModel.IsControlsVisible = true;
+
+        if (PlayerVideoView.MediaPlayer == null && ViewModel.PlaybackService.CurrentMediaPlayer != null)
+        {
+            PlayerVideoView.MediaPlayer = ViewModel.PlaybackService.CurrentMediaPlayer;
+        }
     }
 
     private void OnVideoViewInitialized(object? sender, LibVLCSharp.Platforms.Windows.InitializedEventArgs e)

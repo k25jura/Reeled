@@ -58,41 +58,45 @@
                 <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                     <Grid>
                         <TreeView x:Name="DirectoriesTreeView"
+                                  ItemsSource="{x:Bind ViewModel.Directories, Mode=OneWay}"
                                   ItemInvoked="OnDirectoryTreeItemInvoked"
                                   SelectionMode="Single"
                                   Visibility="{x:Bind ViewModel.HasDirectories, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                             <TreeView.ItemTemplate>
                                 <DataTemplate x:DataType="models:DirectoryNode">
-                                    <Grid Margin="0,3" ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
+                                    <TreeViewItem ItemsSource="{x:Bind SubDirectories, Mode=OneWay}"
+                                                  IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}">
+                                        <Grid Margin="0,3" ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
 
-                                        <FontIcon Grid.Column="0" 
-                                                  Glyph="{x:Bind IconGlyph}" 
-                                                  FontSize="15" 
-                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                            <FontIcon Grid.Column="0" 
+                                                      Glyph="{x:Bind IconGlyph}" 
+                                                      FontSize="15" 
+                                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
 
-                                        <TextBlock Grid.Column="1" 
-                                                   Text="{x:Bind DisplayName}" 
-                                                   TextTrimming="CharacterEllipsis" 
-                                                   VerticalAlignment="Center" 
-                                                   ToolTipService.ToolTip="{x:Bind FullPath}" />
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="{x:Bind DisplayName}" 
+                                                       TextTrimming="CharacterEllipsis" 
+                                                       VerticalAlignment="Center" 
+                                                       ToolTipService.ToolTip="{x:Bind FullPath}" />
 
-                                        <Border Grid.Column="2" 
-                                                Background="{ThemeResource LayerFillColorAltBrush}" 
-                                                CornerRadius="10" 
-                                                Padding="6,2" 
-                                                VerticalAlignment="Center"
-                                                Visibility="{x:Bind ClipCount, Converter={StaticResource BoolToVisibilityConverter}}">
-                                            <TextBlock Text="{x:Bind ClipCount, Mode=OneWay}" 
-                                                       FontSize="11" 
-                                                       FontWeight="SemiBold" 
-                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                        </Border>
-                                    </Grid>
+                                            <Border Grid.Column="2" 
+                                                    Background="{ThemeResource LayerFillColorAltBrush}" 
+                                                    CornerRadius="10" 
+                                                    Padding="6,2" 
+                                                    VerticalAlignment="Center"
+                                                    Visibility="{x:Bind ClipCount, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <TextBlock Text="{x:Bind ClipCount, Mode=OneWay}" 
+                                                           FontSize="11" 
+                                                           FontWeight="SemiBold" 
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            </Border>
+                                        </Grid>
+                                    </TreeViewItem>
                                 </DataTemplate>
                             </TreeView.ItemTemplate>
                         </TreeView>
@@ -217,28 +221,30 @@
                 </Grid>
             </Border>
 
-            <!-- Clip Cards Grid -->
-            <ScrollViewer Grid.Row="1" Padding="20,16,20,16">
-                <Grid>
-                    <!-- GridView of Clips -->
-                    <GridView ItemsSource="{x:Bind ViewModel.FilteredClips, Mode=OneWay}"
-                              SelectedItem="{x:Bind ViewModel.SelectedClip, Mode=TwoWay}"
-                              ItemClick="OnClipItemClick"
-                              IsItemClickEnabled="True"
-                              SelectionMode="Single">
-                        <GridView.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="-1" />
-                            </ItemsPanelTemplate>
-                        </GridView.ItemsPanel>
+            <!-- Clip Cards Grid Container -->
+            <Grid Grid.Row="1">
+                <!-- GridView of Clips -->
+                <GridView ItemsSource="{x:Bind ViewModel.FilteredClips, Mode=OneWay}"
+                          SelectedItem="{x:Bind ViewModel.SelectedClip, Mode=TwoWay}"
+                          ItemClick="OnClipItemClick"
+                          IsItemClickEnabled="True"
+                          SelectionMode="Single"
+                          Padding="20,16,20,16">
+                    <GridView.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="-1" />
+                        </ItemsPanelTemplate>
+                    </GridView.ItemsPanel>
 
-                        <GridView.ItemTemplate>
-                            <DataTemplate x:DataType="models:GameClip">
-                                <Grid Width="250" Height="220" Margin="6" CornerRadius="8"
-                                      Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                      BorderThickness="1"
-                                      RightTapped="OnClipCardRightTapped">
+                    <GridView.ItemTemplate>
+                        <DataTemplate x:DataType="models:GameClip">
+                            <Grid Width="250" Height="220" Margin="6" CornerRadius="8"
+                                  Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                  BorderThickness="1"
+                                  Tapped="OnClipCardTapped"
+                                  DoubleTapped="OnClipCardDoubleTapped"
+                                  RightTapped="OnClipCardRightTapped">
 
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="140" />
@@ -347,7 +353,6 @@
                                    HorizontalAlignment="Center" />
                     </StackPanel>
                 </Grid>
-            </ScrollViewer>
 
             <!-- Bottom Status Bar -->
             <Border Grid.Row="2" Padding="16,6" Background="{ThemeResource LayerFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">

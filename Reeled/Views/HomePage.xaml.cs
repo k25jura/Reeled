@@ -22,69 +22,23 @@ public sealed partial class HomePage : Page
     {
         base.OnNavigatedTo(e);
         await ViewModel.SyncDirectoriesAsync();
-        RefreshTreeNodes();
-    }
-
-    private void RefreshTreeNodes()
-    {
-        DirectoriesTreeView.RootNodes.Clear();
-        foreach (var dir in ViewModel.Directories)
-        {
-            var rootNode = CreateTreeNode(dir);
-            DirectoriesTreeView.RootNodes.Add(rootNode);
-        }
-
-        if (ViewModel.SelectedDirectory != null)
-        {
-            SelectNodeInTree(DirectoriesTreeView.RootNodes, ViewModel.SelectedDirectory.FullPath);
-        }
-    }
-
-    private TreeViewNode CreateTreeNode(DirectoryNode dir)
-    {
-        var node = new TreeViewNode
-        {
-            Content = dir,
-            IsExpanded = true
-        };
-        foreach (var sub in dir.SubDirectories)
-        {
-            node.Children.Add(CreateTreeNode(sub));
-        }
-        return node;
-    }
-
-    private bool SelectNodeInTree(System.Collections.Generic.IList<TreeViewNode> nodes, string path)
-    {
-        foreach (var n in nodes)
-        {
-            if (n.Content is DirectoryNode d && string.Equals(d.FullPath, path, StringComparison.OrdinalIgnoreCase))
-            {
-                DirectoriesTreeView.SelectedNode = n;
-                return true;
-            }
-            if (SelectNodeInTree(n.Children, path))
-                return true;
-        }
-        return false;
     }
 
     private async void OnDirectoryTreeItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
     {
-        if (args.InvokedItem is TreeViewNode tvNode && tvNode.Content is DirectoryNode dirNode)
+        if (args.InvokedItem is DirectoryNode dirNode)
         {
             await ViewModel.SelectDirectoryAsync(dirNode);
         }
-        else if (args.InvokedItem is DirectoryNode dNode)
+        else if (args.InvokedItem is TreeViewItem tvi && tvi.DataContext is DirectoryNode dn)
         {
-            await ViewModel.SelectDirectoryAsync(dNode);
+            await ViewModel.SelectDirectoryAsync(dn);
         }
     }
 
     private async void OnAddFolderClick(object sender, RoutedEventArgs e)
     {
         await ViewModel.AddDirectoryAsync(App.WindowHandle);
-        RefreshTreeNodes();
     }
 
     private void OnClipItemClick(object sender, ItemClickEventArgs e)
@@ -93,6 +47,41 @@ public sealed partial class HomePage : Page
         {
             ViewModel.PlayClip(clip);
         }
+    }
+
+    private void OnClipCardTapped(object sender, TappedRoutedEventArgs e)
+    {
+        if (e.OriginalSource is DependencyObject dep && IsDescendantOf<Button>(dep))
+        {
+            return;
+        }
+        if (sender is FrameworkElement element && element.DataContext is GameClip clip)
+        {
+            ViewModel.PlayClip(clip);
+        }
+    }
+
+    private void OnClipCardDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        if (e.OriginalSource is DependencyObject dep && IsDescendantOf<Button>(dep))
+        {
+            return;
+        }
+        if (sender is FrameworkElement element && element.DataContext is GameClip clip)
+        {
+            ViewModel.PlayClip(clip);
+        }
+    }
+
+    private static bool IsDescendantOf<T>(DependencyObject element) where T : DependencyObject
+    {
+        DependencyObject? current = element;
+        while (current != null)
+        {
+            if (current is T) return true;
+            current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current);
+        }
+        return false;
     }
 
     private void OnFavoriteClick(object sender, RoutedEventArgs e)

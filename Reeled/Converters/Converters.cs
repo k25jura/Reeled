@@ -49,7 +49,8 @@ public class NullToVisibilityConverter : IValueConverter
     {
         bool isNotNull = value != null;
         if (value is string s) isNotNull = !string.IsNullOrEmpty(s);
-        if (Invert) isNotNull = !isNotNull;
+        bool shouldInvert = Invert || (parameter is string p && p.Equals("invert", StringComparison.OrdinalIgnoreCase));
+        if (shouldInvert) isNotNull = !isNotNull;
         return isNotNull ? Visibility.Visible : Visibility.Collapsed;
     }
 

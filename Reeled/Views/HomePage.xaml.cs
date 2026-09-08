@@ -20,9 +20,7 @@ public sealed partial class HomePage : Page
         MainSplitView.Loaded += (s, e) =>
         {
             AdjustSplitViewAnimationSpeed();
-            HookTreeScrollViewer();
             UpdateActiveIndicator(animate: false);
-            UpdateFolderActiveIndicator(animate: false);
         };
 
         ViewModel.PropertyChanged += (s, e) =>
@@ -34,11 +32,6 @@ public sealed partial class HomePage : Page
                 or nameof(HomeViewModel.IsFolderSelected))
             {
                 UpdateActiveIndicator(animate: true);
-                UpdateFolderActiveIndicator(animate: true);
-            }
-            else if (e.PropertyName is nameof(HomeViewModel.SelectedDirectory))
-            {
-                UpdateFolderActiveIndicator(animate: true);
             }
         };
     }
@@ -145,7 +138,7 @@ public sealed partial class HomePage : Page
         }
 
         _indicatorStoryboard?.Stop();
-        double fromY = _currentIndicatorY;
+        double fromY = IndicatorTranslation.Y;
         _targetIndicatorY = targetY;
 
         if (!animate)
@@ -212,6 +205,11 @@ public sealed partial class HomePage : Page
 
         _indicatorStoryboard?.Stop();
 
+        if (!isVisible)
+        {
+            _targetIndicatorY = -1;
+        }
+
         if (!animate)
         {
             ActiveIndicatorPill.Opacity = isVisible ? 1.0 : 0.0;
@@ -249,266 +247,6 @@ public sealed partial class HomePage : Page
         _indicatorStoryboard = sb;
         sb.Begin();
         _isIndicatorVisible = isVisible;
-    }
-
-    private double _currentFolderIndicatorY = 0;
-    private double _targetFolderIndicatorY = 0;
-    private bool _isFolderIndicatorVisible = false;
-    private Microsoft.UI.Xaml.Media.Animation.Storyboard? _folderIndicatorStoryboard;
-    private ScrollViewer? _treeScrollViewer;
-
-    private void HookTreeScrollViewer()
-    {
-        if (_treeScrollViewer != null || DirectoriesTreeView == null) return;
-        _treeScrollViewer = FindVisualChild<ScrollViewer>(DirectoriesTreeView);
-        if (_treeScrollViewer != null)
-        {
-            _treeScrollViewer.ViewChanged += (s, e) =>
-            {
-                if (_isFolderIndicatorVisible && ViewModel.IsFolderSelected && ViewModel.SelectedDirectory != null)
-                {
-                    if (TryGetFolderIndicatorY(ViewModel.SelectedDirectory, out double newY))
-                    {
-                        if (FoldersContainerGrid != null && newY >= -8 && newY <= FoldersContainerGrid.ActualHeight - 8)
-                        {
-                            FolderIndicatorTranslation.Y = newY;
-                            _currentFolderIndicatorY = newY;
-                            _targetFolderIndicatorY = newY;
-                            FolderActiveIndicatorPill.Opacity = 1.0;
-                        }
-                        else
-                        {
-                            FolderActiveIndicatorPill.Opacity = 0.0;
-                        }
-                    }
-                    else
-                    {
-                        FolderActiveIndicatorPill.Opacity = 0.0;
-                    }
-                }
-            };
-        }
-    }
-
-    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
-    {
-        int count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(parent);
-        for (int i = 0; i < count; i++)
-        {
-            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(parent, i);
-            if (child is T typedChild) return typedChild;
-            var sub = FindVisualChild<T>(child);
-            if (sub != null) return sub;
-        }
-        return null;
-    }
-
-    private void UpdateFolderActiveIndicator(bool animate = true)
-    {
-        if (FolderActiveIndicatorPill == null || FolderIndicatorTranslation == null || FolderIndicatorScale == null)
-            return;
-
-        if (ViewModel.IsFolderSelected && ViewModel.SelectedDirectory != null)
-        {
-            if (TryGetFolderIndicatorY(ViewModel.SelectedDirectory, out double targetY))
-            {
-                AnimateFolderIndicatorTo(targetY, animate);
-            }
-            else
-            {
-                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-                {
-                    if (ViewModel.IsFolderSelected && ViewModel.SelectedDirectory != null &&
-                        TryGetFolderIndicatorY(ViewModel.SelectedDirectory, out double retryY))
-                    {
-                        AnimateFolderIndicatorTo(retryY, animate);
-                    }
-                });
-            }
-        }
-        else
-        {
-            AnimateFolderIndicatorVisibility(false, animate);
-        }
-    }
-
-    private bool TryGetFolderIndicatorY(DirectoryNode node, out double targetY)
-    {
-        targetY = 0;
-        try
-        {
-            if (DirectoriesTreeView == null || FoldersContainerGrid == null) return false;
-
-            var container = DirectoriesTreeView.ContainerFromItem(node) as FrameworkElement;
-            if (container != null && container.ActualHeight > 0 && FoldersContainerGrid.ActualHeight > 0)
-            {
-                var transform = container.TransformToVisual(FoldersContainerGrid);
-                var point = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
-                double pillHeight = FolderActiveIndicatorPill.ActualHeight > 0 ? FolderActiveIndicatorPill.ActualHeight : 16.0;
-                targetY = point.Y + (container.ActualHeight - pillHeight) / 2.0;
-                return true;
-            }
-        }
-        catch { }
-        return false;
-    }
-
-    private void AnimateFolderIndicatorTo(double targetY, bool animate)
-    {
-        if (!_isFolderIndicatorVisible)
-        {
-            _folderIndicatorStoryboard?.Stop();
-            _targetFolderIndicatorY = targetY;
-            _currentFolderIndicatorY = targetY;
-            FolderIndicatorTranslation.Y = targetY;
-
-            if (!animate)
-            {
-                FolderIndicatorScale.ScaleY = 1.0;
-                FolderActiveIndicatorPill.Opacity = 1.0;
-                _isFolderIndicatorVisible = true;
-                return;
-            }
-
-            var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
-            var ease = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
-
-            var animOpacity = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
-            {
-                From = 0.0,
-                To = 1.0,
-                Duration = TimeSpan.FromMilliseconds(200),
-                EasingFunction = ease
-            };
-            var animScaleY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
-            {
-                From = 0.0,
-                To = 1.0,
-                Duration = TimeSpan.FromMilliseconds(250),
-                EasingFunction = ease
-            };
-
-            sb.Children.Add(animOpacity);
-            sb.Children.Add(animScaleY);
-            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOpacity, FolderActiveIndicatorPill);
-            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animOpacity, "Opacity");
-            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animScaleY, FolderIndicatorScale);
-            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animScaleY, "ScaleY");
-
-            _folderIndicatorStoryboard = sb;
-            sb.Begin();
-            _isFolderIndicatorVisible = true;
-            return;
-        }
-
-        if (Math.Abs(_targetFolderIndicatorY - targetY) < 1.0 && _isFolderIndicatorVisible)
-        {
-            return;
-        }
-
-        _folderIndicatorStoryboard?.Stop();
-        double fromY = _currentFolderIndicatorY;
-        _targetFolderIndicatorY = targetY;
-
-        if (!animate)
-        {
-            _currentFolderIndicatorY = targetY;
-            FolderIndicatorTranslation.Y = targetY;
-            FolderIndicatorScale.ScaleY = 1.0;
-            FolderActiveIndicatorPill.Opacity = 1.0;
-            return;
-        }
-
-        double distance = Math.Abs(targetY - fromY);
-        var moveSb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
-        var easeOut = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
-
-        var animTranslate = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
-        {
-            From = fromY,
-            To = targetY,
-            Duration = TimeSpan.FromMilliseconds(260),
-            EasingFunction = easeOut
-        };
-        moveSb.Children.Add(animTranslate);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animTranslate, FolderIndicatorTranslation);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animTranslate, "Y");
-
-        if (distance > 5.0)
-        {
-            double stretch = Math.Min(1.45, 1.0 + (distance / 120.0));
-            var animScaleKeyFrames = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
-            animScaleKeyFrames.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.LinearDoubleKeyFrame
-            {
-                Value = 1.0,
-                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)
-            });
-            animScaleKeyFrames.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
-            {
-                Value = stretch,
-                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(100)),
-                EasingFunction = easeOut
-            });
-            animScaleKeyFrames.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
-            {
-                Value = 1.0,
-                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(260)),
-                EasingFunction = easeOut
-            });
-
-            moveSb.Children.Add(animScaleKeyFrames);
-            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animScaleKeyFrames, FolderIndicatorScale);
-            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animScaleKeyFrames, "ScaleY");
-        }
-
-        _currentFolderIndicatorY = targetY;
-        _folderIndicatorStoryboard = moveSb;
-        moveSb.Begin();
-    }
-
-    private void AnimateFolderIndicatorVisibility(bool isVisible, bool animate)
-    {
-        if (_isFolderIndicatorVisible == isVisible) return;
-
-        _folderIndicatorStoryboard?.Stop();
-
-        if (!animate)
-        {
-            FolderActiveIndicatorPill.Opacity = isVisible ? 1.0 : 0.0;
-            FolderIndicatorScale.ScaleY = isVisible ? 1.0 : 0.0;
-            _isFolderIndicatorVisible = isVisible;
-            return;
-        }
-
-        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
-        var ease = new Microsoft.UI.Xaml.Media.Animation.CubicEase
-        {
-            EasingMode = isVisible ? Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut : Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseIn
-        };
-
-        var animOpacity = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
-        {
-            To = isVisible ? 1.0 : 0.0,
-            Duration = TimeSpan.FromMilliseconds(160),
-            EasingFunction = ease
-        };
-        var animScaleY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
-        {
-            To = isVisible ? 1.0 : 0.0,
-            Duration = TimeSpan.FromMilliseconds(160),
-            EasingFunction = ease
-        };
-
-        sb.Children.Add(animOpacity);
-        sb.Children.Add(animScaleY);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOpacity, FolderActiveIndicatorPill);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animOpacity, "Opacity");
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animScaleY, FolderIndicatorScale);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animScaleY, "ScaleY");
-
-        _folderIndicatorStoryboard = sb;
-        sb.Begin();
-        _isFolderIndicatorVisible = isVisible;
     }
 
     private void AdjustSplitViewAnimationSpeed()
@@ -712,7 +450,6 @@ public sealed partial class HomePage : Page
         DirectoriesTreeView.SelectedItem = null;
         await ViewModel.SelectHomeAsync();
         UpdateActiveIndicator(animate: true);
-        UpdateFolderActiveIndicator(animate: true);
     }
 
     private async void OnFavoritesTabClick(object sender, RoutedEventArgs e)
@@ -720,7 +457,6 @@ public sealed partial class HomePage : Page
         DirectoriesTreeView.SelectedItem = null;
         await ViewModel.SelectFavoritesAsync();
         UpdateActiveIndicator(animate: true);
-        UpdateFolderActiveIndicator(animate: true);
     }
 
     private async void OnSavedMomentsTabClick(object sender, RoutedEventArgs e)
@@ -728,7 +464,6 @@ public sealed partial class HomePage : Page
         DirectoriesTreeView.SelectedItem = null;
         await ViewModel.SelectSavedMomentsAsync();
         UpdateActiveIndicator(animate: true);
-        UpdateFolderActiveIndicator(animate: true);
     }
 
     private void OnDirectoryExpanding(TreeView sender, TreeViewExpandingEventArgs args)
@@ -741,7 +476,6 @@ public sealed partial class HomePage : Page
         {
             dn.IsExpanded = true;
         }
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => UpdateFolderActiveIndicator(animate: true));
     }
 
     private void OnDirectoryCollapsed(TreeView sender, TreeViewCollapsedEventArgs args)
@@ -754,7 +488,6 @@ public sealed partial class HomePage : Page
         {
             dn.IsExpanded = false;
         }
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => UpdateFolderActiveIndicator(animate: true));
     }
 
     private void OnFolderPointerPressed(object sender, PointerRoutedEventArgs e)
@@ -762,19 +495,6 @@ public sealed partial class HomePage : Page
         if (sender is UIElement el)
         {
             AnimateElementClickPulse(el, 0.96);
-
-            if (sender is FrameworkElement fe && FoldersContainerGrid != null)
-            {
-                try
-                {
-                    var transform = fe.TransformToVisual(FoldersContainerGrid);
-                    var point = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
-                    double pillHeight = FolderActiveIndicatorPill.ActualHeight > 0 ? FolderActiveIndicatorPill.ActualHeight : 16.0;
-                    double targetY = point.Y + (fe.ActualHeight - pillHeight) / 2.0;
-                    AnimateFolderIndicatorTo(targetY, animate: true);
-                }
-                catch { }
-            }
         }
     }
 
@@ -959,7 +679,6 @@ public sealed partial class HomePage : Page
         {
             await ViewModel.SelectDirectoryAsync(targetNode);
             UpdateActiveIndicator(animate: true);
-            UpdateFolderActiveIndicator(animate: true);
         }
     }
 

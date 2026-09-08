@@ -165,3 +165,27 @@ public class SectionActiveFontWeightConverter : IValueConverter
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
 }
+
+public class SliderTimestampTooltipConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is double progress)
+        {
+            try
+            {
+                var playerVM = App.GetService<ViewModels.PlayerViewModel>();
+                if (playerVM.TotalTime > TimeSpan.Zero)
+                {
+                    double seconds = (Math.Clamp(progress, 0.0, 100.0) / 100.0) * playerVM.TotalTime.TotalSeconds;
+                    var time = TimeSpan.FromSeconds(seconds);
+                    return time.Hours > 0 ? time.ToString(@"hh\:mm\:ss") : time.ToString(@"mm\:ss");
+                }
+            }
+            catch { }
+        }
+        return "00:00";
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+}

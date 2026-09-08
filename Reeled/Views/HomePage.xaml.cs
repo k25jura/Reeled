@@ -783,25 +783,17 @@ public sealed partial class HomePage : Page
                 AnimateCardHover(element, isHovered: false);
             };
 
+            // Section 1: Playback
             var playItem = new MenuFlyoutItem { Text = "Play", Icon = new FontIcon { Glyph = "\uE768" } };
             playItem.Click += (s, args) => ViewModel.PlayClip(clip);
             flyout.Items.Add(playItem);
 
             flyout.Items.Add(new MenuFlyoutSeparator());
 
-            var explorerItem = new MenuFlyoutItem { Text = "Reveal in File Explorer", Icon = new FontIcon { Glyph = "\uEC50" } };
-            explorerItem.Click += (s, args) => ViewModel.OpenInExplorer(clip);
-            flyout.Items.Add(explorerItem);
-
-            var copyItem = new MenuFlyoutItem { Text = "Copy File Path", Icon = new FontIcon { Glyph = "\uE8C8" } };
-            copyItem.Click += (s, args) => ViewModel.CopyPath(clip);
-            flyout.Items.Add(copyItem);
-
-            var renameItem = new MenuFlyoutItem { Text = "Rename", Icon = new FontIcon { Glyph = "\uE8AC" } };
-            renameItem.Click += async (s, args) => await ShowRenameDialogAsync(clip);
-            flyout.Items.Add(renameItem);
-
-            flyout.Items.Add(new MenuFlyoutSeparator());
+            // Section 2: Clip Info & Management
+            var infoItem = new MenuFlyoutItem { Text = "Clip Information", Icon = new FontIcon { Glyph = "\uE946" } };
+            infoItem.Click += async (s, args) => await ShowClipInfoDialogAsync(clip);
+            flyout.Items.Add(infoItem);
 
             var favItem = new MenuFlyoutItem
             {
@@ -811,6 +803,24 @@ public sealed partial class HomePage : Page
             favItem.Click += (s, args) => _ = ViewModel.ToggleFavoriteAsync(clip);
             flyout.Items.Add(favItem);
 
+            var renameItem = new MenuFlyoutItem { Text = "Rename", Icon = new FontIcon { Glyph = "\uE8AC" } };
+            renameItem.Click += async (s, args) => await ShowRenameDialogAsync(clip);
+            flyout.Items.Add(renameItem);
+
+            flyout.Items.Add(new MenuFlyoutSeparator());
+
+            // Section 3: File Location & System
+            var explorerItem = new MenuFlyoutItem { Text = "Reveal in File Explorer", Icon = new FontIcon { Glyph = "\uEC50" } };
+            explorerItem.Click += (s, args) => ViewModel.OpenInExplorer(clip);
+            flyout.Items.Add(explorerItem);
+
+            var copyItem = new MenuFlyoutItem { Text = "Copy File Path", Icon = new FontIcon { Glyph = "\uE8C8" } };
+            copyItem.Click += (s, args) => ViewModel.CopyPath(clip);
+            flyout.Items.Add(copyItem);
+
+            flyout.Items.Add(new MenuFlyoutSeparator());
+
+            // Section 4: Destructive
             var deleteItem = new MenuFlyoutItem { Text = "Delete to Recycle Bin", Icon = new FontIcon { Glyph = "\uE74D" } };
             deleteItem.Click += async (s, args) => await ShowDeleteConfirmDialogAsync(clip);
             flyout.Items.Add(deleteItem);
@@ -818,6 +828,77 @@ public sealed partial class HomePage : Page
             flyout.ShowAt(element, e.GetPosition(element));
             e.Handled = true;
         }
+    }
+
+    private async System.Threading.Tasks.Task ShowClipInfoDialogAsync(GameClip clip)
+    {
+        var panel = new StackPanel { Spacing = 12, MinWidth = 340, MaxWidth = 440 };
+
+        // File name
+        var nameBlock = new StackPanel { Spacing = 2 };
+        nameBlock.Children.Add(new TextBlock { Text = "File Name", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        nameBlock.Children.Add(new TextBlock { Text = clip.FileName, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
+        panel.Children.Add(nameBlock);
+
+        // Grid for 2-column info (Duration, File Size)
+        var grid1 = new Grid { ColumnSpacing = 16 };
+        grid1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var durBlock = new StackPanel { Spacing = 2 };
+        durBlock.Children.Add(new TextBlock { Text = "Duration", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        durBlock.Children.Add(new TextBlock { Text = clip.FormattedDuration, FontSize = 13 });
+        Grid.SetColumn(durBlock, 0);
+        grid1.Children.Add(durBlock);
+
+        var sizeBlock = new StackPanel { Spacing = 2 };
+        sizeBlock.Children.Add(new TextBlock { Text = "File Size", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        sizeBlock.Children.Add(new TextBlock { Text = clip.FormattedFileSize, FontSize = 13 });
+        Grid.SetColumn(sizeBlock, 1);
+        grid1.Children.Add(sizeBlock);
+        panel.Children.Add(grid1);
+
+        // Grid for 2-column info (Resolution/FPS, Moments)
+        var grid2 = new Grid { ColumnSpacing = 16 };
+        grid2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var resBlock = new StackPanel { Spacing = 2 };
+        resBlock.Children.Add(new TextBlock { Text = "Resolution", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        string resText = clip.VideoWidth > 0 ? $"{clip.VideoWidth} x {clip.VideoHeight}" + (clip.Framerate > 0 ? $" ({clip.Framerate:F0} fps)" : "") : "Unknown";
+        resBlock.Children.Add(new TextBlock { Text = resText, FontSize = 13 });
+        Grid.SetColumn(resBlock, 0);
+        grid2.Children.Add(resBlock);
+
+        var momentBlock = new StackPanel { Spacing = 2 };
+        momentBlock.Children.Add(new TextBlock { Text = "Saved Moments", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        momentBlock.Children.Add(new TextBlock { Text = clip.Bookmarks.Count > 0 ? $"{clip.Bookmarks.Count} marked" : "None", FontSize = 13 });
+        Grid.SetColumn(momentBlock, 1);
+        grid2.Children.Add(momentBlock);
+        panel.Children.Add(grid2);
+
+        // Date modified
+        var dateBlock = new StackPanel { Spacing = 2 };
+        dateBlock.Children.Add(new TextBlock { Text = "Date Modified", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        dateBlock.Children.Add(new TextBlock { Text = clip.FormattedDate, FontSize = 13 });
+        panel.Children.Add(dateBlock);
+
+        // File path
+        var pathBlock = new StackPanel { Spacing = 2 };
+        pathBlock.Children.Add(new TextBlock { Text = "Location", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        pathBlock.Children.Add(new TextBlock { Text = clip.FilePath, FontSize = 12, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorTertiaryBrush"], TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true });
+        panel.Children.Add(pathBlock);
+
+        var dialog = new ContentDialog
+        {
+            Title = "Clip Information",
+            Content = panel,
+            CloseButtonText = "Close",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = this.XamlRoot
+        };
+
+        await dialog.ShowAsync();
     }
 
     private async System.Threading.Tasks.Task ShowRenameDialogAsync(GameClip clip)

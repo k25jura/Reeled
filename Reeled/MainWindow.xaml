@@ -13,28 +13,27 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid MinWidth="760" MinHeight="500">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+    <Grid x:Name="RootWindowGrid" MinWidth="760" MinHeight="500">
+        <!-- Solid background transition layer for video playback -->
+        <Border x:Name="PlayerBackdropLayer" 
+                Background="#08080A" 
+                Opacity="0" 
+                IsHitTestVisible="False" />
 
-        <TitleBar x:Name="AppTitleBar" Title="Reeled">
-            <TitleBar.IconSource>
-                <ImageIconSource ImageSource="Assets/AppIcon.ico" />
-            </TitleBar.IconSource>
-        </TitleBar>
+        <!-- Library / Settings Content Frame (fills the entire window so sidebar extends fully upwards) -->
+        <Frame x:Name="RootFrame" />
 
-        <!-- Library / Settings Content Frame -->
-        <Frame x:Name="RootFrame" Grid.Row="1" />
+        <!-- Integrated TitleBar drag region (leaves top-left 48px free for sidebar hamburger button and top-right 140px for OS caption buttons) -->
+        <Border x:Name="AppTitleBar" 
+                VerticalAlignment="Top" 
+                Background="Transparent" 
+                Height="36" 
+                Margin="48,0,140,0" />
 
-        <!-- Telegram-style In-App Media Player Overlay (Persistent so DirectX SwapChain & LibVLC are never destroyed) -->
-        <Grid x:Name="PlayerOverlayContainer" Grid.Row="1" Visibility="Collapsed">
-            <Grid.ChildrenTransitions>
-                <TransitionCollection>
-                    <EntranceThemeTransition FromVerticalOffset="40" />
-                </TransitionCollection>
-            </Grid.ChildrenTransitions>
+        <!-- Telegram-style In-App Media Player Overlay (Spans entire window) -->
+        <Grid x:Name="PlayerOverlayContainer" 
+              Visibility="Collapsed" 
+              Opacity="0">
             <views:PlayerPage x:Name="PlayerViewControl" />
         </Grid>
     </Grid>

@@ -32,7 +32,8 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
     public long Length => _mediaPlayer?.Length ?? 0L;
     public int Volume => _mediaPlayer?.Volume ?? 100;
     public bool IsMuted => _mediaPlayer?.Mute ?? false;
-    public float PlaybackRate => _mediaPlayer?.Rate ?? 1.0f;
+    private float _storedPlaybackRate = 1.0f;
+    public float PlaybackRate => _mediaPlayer != null ? _mediaPlayer.Rate : _storedPlaybackRate;
 
     public LibVlcPlaybackService()
     {
@@ -145,7 +146,14 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         player.PositionChanged += (s, e) => Dispatch(() => PositionChanged?.Invoke(e.Position));
         player.TimeChanged += (s, e) => Dispatch(() => TimeChanged?.Invoke(e.Time));
         player.LengthChanged += (s, e) => Dispatch(() => LengthChanged?.Invoke(e.Length));
-        player.Playing += (s, e) => Dispatch(() => PlaybackStarted?.Invoke());
+        player.Playing += (s, e) => Dispatch(() =>
+        {
+            if (Math.Abs(_storedPlaybackRate - 1.0f) > 0.01f)
+            {
+                _mediaPlayer?.SetRate(_storedPlaybackRate);
+            }
+            PlaybackStarted?.Invoke();
+        });
         player.Paused += (s, e) => Dispatch(() => PlaybackPaused?.Invoke());
         player.Stopped += (s, e) => Dispatch(() => PlaybackStopped?.Invoke());
         player.EndReached += (s, e) => Dispatch(() => MediaEnded?.Invoke());
@@ -276,6 +284,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
 
     public void SetPlaybackRate(float rate)
     {
+        _storedPlaybackRate = rate;
         if (_mediaPlayer == null) return;
         _mediaPlayer.SetRate(rate);
     }

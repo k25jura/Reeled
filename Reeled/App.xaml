@@ -23,6 +23,7 @@
             <converters:SectionActiveBackgroundConverter x:Key="SectionActiveBackgroundConverter" />
             <converters:SectionActiveForegroundConverter x:Key="SectionActiveForegroundConverter" />
             <converters:SectionActiveFontWeightConverter x:Key="SectionActiveFontWeightConverter" />
+            <converters:SliderTimestampTooltipConverter x:Key="SliderTimestampTooltipConverter" />
 
             <!-- SplitView Custom Animation Durations for Smooth Windows 11 Transitions -->
             <x:String x:Key="SplitViewPaneAnimationOpenDuration">00:00:00.3</x:String>

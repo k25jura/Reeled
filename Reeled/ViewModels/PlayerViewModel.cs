@@ -49,6 +49,9 @@ public partial class PlayerViewModel : ObservableObject
     private bool _isControlsVisible = true;
 
     [ObservableProperty]
+    private RepeatMode _repeatMode = RepeatMode.Off;
+
+    [ObservableProperty]
     private bool _isFullscreen;
 
     [ObservableProperty]
@@ -69,8 +72,46 @@ public partial class PlayerViewModel : ObservableObject
 
     public string FullscreenGlyph => IsFullscreen ? "\uE73F" : "\uE740";
 
+    public string VolumeGlyph
+    {
+        get
+        {
+            if (IsMuted || Volume == 0) return "\uE74F";
+            if (Volume < 33) return "\uE992";
+            if (Volume < 66) return "\uE993";
+            return "\uE994";
+        }
+    }
+
+    public string RepeatGlyph => RepeatMode switch
+    {
+        RepeatMode.One => "\uE8ED",
+        _ => "\uE8EE"
+    };
+
+    public string RepeatTooltip => RepeatMode switch
+    {
+        RepeatMode.All => "Repeat: All (Click to repeat current clip)",
+        RepeatMode.One => "Repeat: Current Clip (Click to turn off)",
+        _ => "Repeat: Off (Click to repeat queue)"
+    };
+
+    public bool IsRepeatActive => RepeatMode != RepeatMode.Off;
+
+    public double RepeatOpacity => RepeatMode == RepeatMode.Off ? 0.45 : 1.0;
+
+    partial void OnRepeatModeChanged(RepeatMode value)
+    {
+        OnPropertyChanged(nameof(RepeatGlyph));
+        OnPropertyChanged(nameof(RepeatTooltip));
+        OnPropertyChanged(nameof(IsRepeatActive));
+        OnPropertyChanged(nameof(RepeatOpacity));
+    }
+
     partial void OnPlaybackRateChanged(float value) => OnPropertyChanged(nameof(FormattedPlaybackRate));
     partial void OnIsFullscreenChanged(bool value) => OnPropertyChanged(nameof(FullscreenGlyph));
+    partial void OnVolumeChanged(int value) => OnPropertyChanged(nameof(VolumeGlyph));
+    partial void OnIsMutedChanged(bool value) => OnPropertyChanged(nameof(VolumeGlyph));
 
     public bool HasPreviousClip =>
         CurrentClip != null && Playlist.IndexOf(CurrentClip) > 0;
@@ -98,6 +139,7 @@ public partial class PlayerViewModel : ObservableObject
         Volume = _storageService.CurrentSettings.Volume;
         IsMuted = _storageService.CurrentSettings.IsMuted;
         PlaybackRate = (float)_storageService.CurrentSettings.PlaybackSpeed;
+        RepeatMode = _storageService.CurrentSettings.RepeatMode;
     }
 
     public void LoadClip(GameClip clip, IEnumerable<GameClip> playlist)
@@ -169,9 +211,17 @@ public partial class PlayerViewModel : ObservableObject
     private void OnMediaEnded()
     {
         IsPlaying = false;
-        if (HasNextClip)
+        if (RepeatMode == RepeatMode.One && CurrentClip != null)
+        {
+            SetClip(CurrentClip);
+        }
+        else if (HasNextClip)
         {
             PlayNext();
+        }
+        else if (RepeatMode == RepeatMode.All && Playlist.Count > 0)
+        {
+            SetClip(Playlist[0]);
         }
     }
 
@@ -180,6 +230,18 @@ public partial class PlayerViewModel : ObservableObject
     {
         _playbackService.TogglePlayPause();
         IsPlaying = _playbackService.IsPlaying;
+        ShowToast(IsPlaying ? "▶" : "❚❚");
+    }
+
+    [RelayCommand]
+    public void Stop()
+    {
+        _playbackService.Stop();
+        ProgressValue = 0;
+        CurrentTime = TimeSpan.Zero;
+        IsPlaying = false;
+        OnPropertyChanged(nameof(FormattedCurrentTime));
+        ShowToast("■");
     }
 
     [RelayCommand]
@@ -300,6 +362,28 @@ public partial class PlayerViewModel : ObservableObject
             list.RemoveAll(b => b.Id == bookmark.Id);
             await _storageService.SaveSettingsAsync(settings);
         }
+        ShowToast("Removed moment");
+    }
+
+    public async Task UpdateBookmarkLabelAsync(ClipBookmark bookmark, string newLabel)
+    {
+        if (CurrentClip == null || bookmark == null) return;
+
+        string trimmed = string.IsNullOrWhiteSpace(newLabel) ? $"Mark at {bookmark.FormattedTimestamp}" : newLabel.Trim();
+        bookmark.Label = trimmed;
+
+        var settings = _storageService.CurrentSettings;
+        if (settings.Bookmarks.TryGetValue(CurrentClip.FilePath, out var list))
+        {
+            var match = list.Find(b => b.Id == bookmark.Id);
+            if (match != null)
+            {
+                match.Label = trimmed;
+            }
+            await _storageService.SaveSettingsAsync(settings);
+        }
+
+        ShowToast($"Renamed to \"{trimmed}\"");
     }
 
     [RelayCommand]
@@ -314,10 +398,18 @@ public partial class PlayerViewModel : ObservableObject
     public void SetVolume(int newVolume)
     {
         Volume = Math.Clamp(newVolume, 0, 100);
+        if (Volume > 0 && IsMuted)
+        {
+            IsMuted = false;
+            _playbackService.SetMute(false);
+        }
         _playbackService.SetVolume(Volume);
+        OnPropertyChanged(nameof(VolumeGlyph));
+        ShowToast(IsMuted ? "Muted" : $"Volume {Volume}%");
 
         var settings = _storageService.CurrentSettings;
         settings.Volume = Volume;
+        settings.IsMuted = IsMuted;
         _ = _storageService.SaveSettingsAsync(settings);
     }
 
@@ -325,11 +417,41 @@ public partial class PlayerViewModel : ObservableObject
     public void ToggleMute()
     {
         IsMuted = !IsMuted;
-        _playbackService.ToggleMute();
+        if (!IsMuted && Volume == 0)
+        {
+            Volume = 50;
+            _playbackService.SetVolume(50);
+        }
+        _playbackService.SetMute(IsMuted);
+        OnPropertyChanged(nameof(VolumeGlyph));
         ShowToast(IsMuted ? "Muted" : $"Volume {Volume}%");
 
         var settings = _storageService.CurrentSettings;
         settings.IsMuted = IsMuted;
+        settings.Volume = Volume;
+        _ = _storageService.SaveSettingsAsync(settings);
+    }
+
+    [RelayCommand]
+    public void ToggleRepeatMode()
+    {
+        RepeatMode = RepeatMode switch
+        {
+            RepeatMode.Off => RepeatMode.All,
+            RepeatMode.All => RepeatMode.One,
+            _ => RepeatMode.Off
+        };
+
+        var toast = RepeatMode switch
+        {
+            RepeatMode.All => "Repeat: All",
+            RepeatMode.One => "Repeat: Current Clip",
+            _ => "Repeat: Off"
+        };
+        ShowToast(toast);
+
+        var settings = _storageService.CurrentSettings;
+        settings.RepeatMode = RepeatMode;
         _ = _storageService.SaveSettingsAsync(settings);
     }
 
@@ -338,6 +460,7 @@ public partial class PlayerViewModel : ObservableObject
     {
         PlaybackRate = (float)speed;
         _playbackService.SetPlaybackRate(PlaybackRate);
+        OnPropertyChanged(nameof(FormattedPlaybackRate));
         ShowToast($"{speed:0.##}x Speed");
 
         var settings = _storageService.CurrentSettings;
@@ -354,7 +477,14 @@ public partial class PlayerViewModel : ObservableObject
     [RelayCommand]
     public void ToggleFullscreen()
     {
-        IsFullscreen = !IsFullscreen;
+        if (App.Window is MainWindow mainWindow)
+        {
+            mainWindow.ToggleFullscreen();
+        }
+        else
+        {
+            IsFullscreen = !IsFullscreen;
+        }
     }
 
     [RelayCommand]
@@ -381,15 +511,12 @@ public partial class PlayerViewModel : ObservableObject
         }
     }
 
-    private void ShowToast(string message)
+    public void ShowToast(string message)
     {
-        StatusToast = message;
-        _ = Task.Delay(1500).ContinueWith(_ =>
+        if (StatusToast == message)
         {
-            if (StatusToast == message)
-            {
-                StatusToast = string.Empty;
-            }
-        });
+            StatusToast = string.Empty;
+        }
+        StatusToast = message;
     }
 }

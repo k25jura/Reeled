@@ -9,7 +9,7 @@
     mc:Ignorable="d">
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <ScrollViewer Padding="32,24,32,32">
+        <ScrollViewer Padding="32,48,32,32">
             <StackPanel MaxWidth="720" HorizontalAlignment="Left" Spacing="24">
                 <!-- Header with Back button -->
                 <Grid ColumnSpacing="16">

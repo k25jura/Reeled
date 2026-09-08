@@ -11,7 +11,37 @@
     mc:Ignorable="d"
     Background="#0F0F12"
     KeyDown="OnPageKeyDown"
-    PointerMoved="OnPagePointerMoved">
+    PointerMoved="OnPagePointerMoved"
+    PointerWheelChanged="OnPlayerPointerWheelChanged"
+    PointerPressed="OnPlayerPagePointerPressed">
+
+    <Page.Resources>
+        <Style x:Key="CleanMediaOverlayButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PlayerIconButtonStyle" TargetType="Button" BasedOn="{StaticResource SubtleButtonStyle}">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+    </Page.Resources>
 
     <Grid x:Name="RootContainer">
         <!-- Main Video Viewport (Centered) -->
@@ -24,46 +54,63 @@
                            Initialized="OnVideoViewInitialized" />
 
             <!-- Pause / Play Big Overlay Indicator on Click -->
-            <Button Background="Transparent" 
-                    BorderThickness="0" 
-                    HorizontalAlignment="Stretch" 
+            <Button HorizontalAlignment="Stretch" 
                     VerticalAlignment="Stretch" 
                     Command="{x:Bind ViewModel.TogglePlayPauseCommand}"
-                    Style="{ThemeResource SubtleButtonStyle}" />
+                    DoubleTapped="OnVideoOverlayDoubleTapped"
+                    Style="{StaticResource CleanMediaOverlayButtonStyle}" />
         </Grid>
 
-        <!-- Centered HUD Toast Notification (e.g. +5s, 1.5x, Muted) -->
-        <Border HorizontalAlignment="Center" 
-                VerticalAlignment="Center" 
-                Background="#B3000000" 
-                CornerRadius="8" 
-                Padding="20,12" 
-                Visibility="{x:Bind ViewModel.StatusToast, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}">
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" 
-                       FontSize="18" 
-                       FontWeight="SemiBold" 
-                       Foreground="White" 
-                       HorizontalAlignment="Center" />
-        </Border>
+        <!-- VLC-style OSD Notification in Top Right Corner with solid black outline stroke -->
+        <Grid x:Name="OsdToastContainer" 
+              HorizontalAlignment="Right" 
+              VerticalAlignment="Top" 
+              Margin="0,48,48,0" 
+              IsHitTestVisible="False"
+              Visibility="Collapsed"
+              Opacity="0">
+            <!-- 8-Directional Black Outline Layers for solid 2px stroke -->
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="-2,-2,2,2" />
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="2,-2,-2,2" />
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="-2,2,2,-2" />
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="2,2,-2,-2" />
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="0,-2,0,2" />
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="0,2,0,-2" />
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="-2,0,2,0" />
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="2,0,-2,0" />
+
+            <!-- Main White Foreground Text -->
+            <TextBlock x:Name="OsdToastText"
+                       Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}"
+                       FontSize="64" 
+                       FontWeight="Normal" 
+                       Foreground="White" />
+        </Grid>
 
         <!-- Top Header Overlay (Telegram style) -->
-        <Border VerticalAlignment="Top" 
+        <Border x:Name="TopHeaderBar"
+                VerticalAlignment="Top" 
                 Background="#D916161A" 
                 BorderBrush="#2A2A30" 
                 BorderThickness="0,0,0,1" 
-                Padding="16,10,16,10"
-                Visibility="{x:Bind ViewModel.IsControlsVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-            <Grid ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+                Padding="16,8,16,8">
+            <Grid>
+                <!-- Centered File Title (Dead Center of Window) -->
+                <TextBlock Text="{x:Bind ViewModel.CurrentClip.FileName, Mode=OneWay}" 
+                           FontSize="14" 
+                           FontWeight="SemiBold" 
+                           Foreground="White" 
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" 
+                           MaxWidth="550" />
 
-                <!-- Back Button -->
-                <Button Grid.Column="0" 
+                <!-- Left: Back Button -->
+                <Button HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
                         Command="{x:Bind ViewModel.BackToHomeCommand}" 
                         ToolTipService.ToolTip="Back to Library (Esc)"
+                        IsTabStop="False"
                         Style="{ThemeResource SubtleButtonStyle}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE72B;" FontSize="14" Foreground="White" />
@@ -71,194 +118,374 @@
                     </StackPanel>
                 </Button>
 
-                <!-- Clip Info (Title & Badges) -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                    <TextBlock Text="{x:Bind ViewModel.CurrentClip.FileName, Mode=OneWay}" 
-                               FontSize="14" 
-                               FontWeight="SemiBold" 
-                               Foreground="White" 
-                               TextTrimming="CharacterEllipsis" 
-                               MaxWidth="600" />
-
-                    <Border Background="#33FFFFFF" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                        <TextBlock Text="{x:Bind ViewModel.CurrentClip.FormattedQuality, Mode=OneWay}" 
-                                   FontSize="11" 
-                                   FontWeight="SemiBold" 
-                                   Foreground="#DDD" />
-                    </Border>
-                </StackPanel>
-
-                <!-- Top Right Options -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
-                    <Button ToolTipService.ToolTip="Timeline Bookmarks / Moments"
-                            Click="OnBookmarksButtonClick"
-                            Style="{ThemeResource SubtleButtonStyle}">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon Glyph="&#xE8A4;" FontSize="14" Foreground="#FFD700" />
-                            <TextBlock Text="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" FontSize="12" Foreground="White" />
-                        </StackPanel>
-                    </Button>
-
-                    <Button ToolTipService.ToolTip="Clip Queue / Playlist"
-                            Command="{x:Bind ViewModel.ToggleSidebarCommand}"
-                            Style="{ThemeResource SubtleButtonStyle}">
-                        <FontIcon Glyph="&#xE90B;" FontSize="14" Foreground="White" />
-                    </Button>
-                </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Bottom Floating Control Bar (Telegram style) -->
-        <Border VerticalAlignment="Bottom" 
-                HorizontalAlignment="Center" 
-                Margin="0,0,0,24" 
-                Background="#E61A1A20" 
-                BorderBrush="#383842" 
-                BorderThickness="1" 
-                CornerRadius="16" 
-                Padding="16,10,16,12" 
-                MinWidth="640" 
-                MaxWidth="880"
-                Visibility="{x:Bind ViewModel.IsControlsVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-            <Grid RowSpacing="8">
+        <!-- Bottom Control Bar (Full-width edge-to-edge, VLC layout, WinUI styling) -->
+        <Border x:Name="BottomControlBar"
+                VerticalAlignment="Bottom" 
+                HorizontalAlignment="Stretch" 
+                Margin="0" 
+                Background="#D916161A" 
+                BorderBrush="#2A2A30" 
+                BorderThickness="0,1,0,0" 
+                CornerRadius="0" 
+                MinHeight="82"
+                Padding="16,6,16,10">
+            <Grid RowSpacing="6">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <!-- Row 1: Scrubbing Slider & Visual Timeline Bookmark Pins -->
-                <Grid Grid.Row="0">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-
-                    <!-- Interactive Scrubbing Slider -->
-                    <Slider x:Name="TimelineSlider" 
-                            Grid.Row="0"
-                            Minimum="0" 
-                            Maximum="100" 
-                            Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}"
-                            ValueChanged="OnTimelineSliderValueChanged"
-                            Margin="0,0,0,-4" />
-
-                    <!-- Timestamp Indicators (Current / Total) -->
-                    <Grid Grid.Row="1" Margin="2,0,2,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-
-                        <TextBlock Grid.Column="0" 
-                                   Text="{x:Bind ViewModel.FormattedCurrentTime, Mode=OneWay}" 
-                                   FontSize="12" 
-                                   FontFamily="Consolas, Segoe UI" 
-                                   Foreground="#C0C0C0" />
-
-                        <!-- Active Bookmark Chip Indicator (if near a mark) -->
-                        <TextBlock Grid.Column="1" 
-                                   HorizontalAlignment="Center" 
-                                   Text="{x:Bind ViewModel.CurrentClip.FormattedDuration, Mode=OneWay}" 
-                                   FontSize="11" 
-                                   Foreground="#808080" />
-
-                        <TextBlock Grid.Column="2" 
-                                   Text="{x:Bind ViewModel.FormattedTotalTime, Mode=OneWay}" 
-                                   FontSize="12" 
-                                   FontFamily="Consolas, Segoe UI" 
-                                   Foreground="#C0C0C0" />
-                    </Grid>
-                </Grid>
-
-                <!-- Row 2: Media Action Controls -->
-                <Grid Grid.Row="1">
+                <!-- Row 0: Full-Width Scrubbing Slider with Left/Right Timestamps -->
+                <Grid Grid.Row="0" ColumnSpacing="10" VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- Left: Previous, Play/Pause, Next, Skip -5s/+5s -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                        <!-- Prev Clip -->
+                    <TextBlock Grid.Column="0" 
+                               Text="{x:Bind ViewModel.FormattedCurrentTime, Mode=OneWay}" 
+                               FontSize="12" 
+                               Foreground="#C0C0C0" 
+                               VerticalAlignment="Center" 
+                               MinWidth="42" />
+
+                    <!-- Timeline Slider with Overlaid Moments Markers -->
+                    <Grid Grid.Column="1" VerticalAlignment="Center">
+                        <Slider x:Name="TimelineSlider" 
+                                Minimum="0" 
+                                Maximum="100" 
+                                ThumbToolTipValueConverter="{StaticResource SliderTimestampTooltipConverter}"
+                                Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}"
+                                ValueChanged="OnTimelineSliderValueChanged"
+                                SizeChanged="OnTimelineSliderSizeChanged"
+                                IsTabStop="False"
+                                HorizontalAlignment="Stretch"
+                                Margin="0" />
+
+                        <!-- Moments Markers Canvas (Yellow ticks on the timeline) -->
+                        <Canvas x:Name="TimelineMarkersCanvas"
+                                IsHitTestVisible="False"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch" />
+                    </Grid>
+
+                    <TextBlock Grid.Column="2" 
+                               Text="{x:Bind ViewModel.FormattedTotalTime, Mode=OneWay}" 
+                               FontSize="12" 
+                               Foreground="#C0C0C0" 
+                               VerticalAlignment="Center" 
+                               MinWidth="42" 
+                               TextAlignment="Right" />
+                </Grid>
+
+                <!-- Row 1: Controls (Left: Playback/Actions, Right: Fullscreen/Volume) -->
+                <Grid Grid.Row="1" Margin="0,0,0,2" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left: Grouped playback/seek/moments/tools sections with AppBarSeparators -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <!-- Section 1: Playback Controls -->
+                        <Button ToolTipService.ToolTip="Play / Pause (Space)"
+                                Command="{x:Bind ViewModel.TogglePlayPauseCommand}"
+                                Width="34" Height="34"
+                                Padding="0"
+                                MinWidth="0" MinHeight="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                IsTabStop="False"
+                                Style="{StaticResource PlayerIconButtonStyle}">
+                            <FontIcon Glyph="{x:Bind ViewModel.IsPlaying, Mode=OneWay, Converter={StaticResource PlayPauseGlyphConverter}}" 
+                                      FontSize="15" Foreground="White" />
+                        </Button>
+
                         <Button ToolTipService.ToolTip="Previous Clip"
                                 IsEnabled="{x:Bind ViewModel.HasPreviousClip, Mode=OneWay}"
                                 Command="{x:Bind ViewModel.PlayPreviousCommand}"
-                                Style="{ThemeResource SubtleButtonStyle}">
+                                Width="32" Height="32"
+                                Padding="0"
+                                MinWidth="0" MinHeight="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                IsTabStop="False"
+                                Style="{StaticResource PlayerIconButtonStyle}">
                             <FontIcon Glyph="&#xE892;" FontSize="13" Foreground="White" />
                         </Button>
 
-                        <!-- Skip -5s -->
-                        <Button ToolTipService.ToolTip="Skip 5s Back (Left Arrow)"
-                                Command="{x:Bind ViewModel.SkipBackwardCommand}"
-                                Style="{ThemeResource SubtleButtonStyle}">
-                            <FontIcon Glyph="&#xE7A6;" FontSize="13" Foreground="White" />
+                        <Button ToolTipService.ToolTip="Stop (S)"
+                                Command="{x:Bind ViewModel.StopCommand}"
+                                Width="32" Height="32"
+                                Padding="0"
+                                MinWidth="0" MinHeight="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                IsTabStop="False"
+                                Style="{StaticResource PlayerIconButtonStyle}">
+                            <FontIcon Glyph="&#xE71A;" FontSize="13" Foreground="White" />
                         </Button>
 
-                        <!-- Big Play/Pause Toggle -->
-                        <Button ToolTipService.ToolTip="Play / Pause (Space)"
-                                Command="{x:Bind ViewModel.TogglePlayPauseCommand}"
-                                Width="42" Height="42" CornerRadius="21"
-                                Background="{ThemeResource AccentFillColorDefaultBrush}"
-                                BorderThickness="0"
-                                Padding="0">
-                            <FontIcon Glyph="{x:Bind ViewModel.IsPlaying, Mode=OneWay, Converter={StaticResource PlayPauseGlyphConverter}}" 
-                                      FontSize="16" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Button>
-
-                        <!-- Skip +5s -->
-                        <Button ToolTipService.ToolTip="Skip 5s Forward (Right Arrow)"
-                                Command="{x:Bind ViewModel.SkipForwardCommand}"
-                                Style="{ThemeResource SubtleButtonStyle}">
-                            <FontIcon Glyph="&#xE7A7;" FontSize="13" Foreground="White" />
-                        </Button>
-
-                        <!-- Next Clip -->
                         <Button ToolTipService.ToolTip="Next Clip"
                                 IsEnabled="{x:Bind ViewModel.HasNextClip, Mode=OneWay}"
                                 Command="{x:Bind ViewModel.PlayNextCommand}"
-                                Style="{ThemeResource SubtleButtonStyle}">
+                                Width="32" Height="32"
+                                Padding="0"
+                                MinWidth="0" MinHeight="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                IsTabStop="False"
+                                Style="{StaticResource PlayerIconButtonStyle}">
                             <FontIcon Glyph="&#xE893;" FontSize="13" Foreground="White" />
                         </Button>
-                    </StackPanel>
 
-                    <!-- Center: Add Timeline Marker Button -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" VerticalAlignment="Center">
+                        <Button ToolTipService.ToolTip="{x:Bind ViewModel.RepeatTooltip, Mode=OneWay}"
+                                Command="{x:Bind ViewModel.ToggleRepeatModeCommand}"
+                                Width="32" Height="32"
+                                Padding="0"
+                                MinWidth="0" MinHeight="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                IsTabStop="False"
+                                Style="{StaticResource PlayerIconButtonStyle}">
+                            <FontIcon Glyph="{x:Bind ViewModel.RepeatGlyph, Mode=OneWay}" 
+                                      FontSize="13" 
+                                      Foreground="White"
+                                      Opacity="{x:Bind ViewModel.RepeatOpacity, Mode=OneWay}" />
+                        </Button>
+
+                        <AppBarSeparator Height="20" Margin="4,0" />
+
+                        <!-- Section 2: Seek Controls -->
+                        <Button ToolTipService.ToolTip="Skip 5s Back (Left Arrow)"
+                                Command="{x:Bind ViewModel.SkipBackwardCommand}"
+                                Width="32" Height="32"
+                                Padding="0"
+                                MinWidth="0" MinHeight="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                IsTabStop="False"
+                                Style="{StaticResource PlayerIconButtonStyle}">
+                            <FontIcon Glyph="&#xE7A6;" FontSize="13" Foreground="White" />
+                        </Button>
+
+                        <Button ToolTipService.ToolTip="Skip 5s Forward (Right Arrow)"
+                                Command="{x:Bind ViewModel.SkipForwardCommand}"
+                                Width="32" Height="32"
+                                Padding="0"
+                                MinWidth="0" MinHeight="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                IsTabStop="False"
+                                Style="{StaticResource PlayerIconButtonStyle}">
+                            <FontIcon Glyph="&#xE7A7;" FontSize="13" Foreground="White" />
+                        </Button>
+
+                        <AppBarSeparator Height="20" Margin="4,0" />
+
+                        <!-- Section 3: Moments Controls -->
                         <Button ToolTipService.ToolTip="Mark Moment (B)"
                                 Click="OnAddMarkerClick"
-                                Style="{ThemeResource SubtleButtonStyle}">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <FontIcon Glyph="&#xE7C1;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                <TextBlock Text="Mark Moment" FontSize="12" Foreground="White" />
-                            </StackPanel>
+                                Width="32" Height="32"
+                                Padding="0"
+                                MinWidth="0" MinHeight="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                IsTabStop="False"
+                                Style="{StaticResource PlayerIconButtonStyle}">
+                            <FontIcon Glyph="&#xE7C1;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                         </Button>
-                    </StackPanel>
 
-                    <!-- Right: Volume, Speed, Fullscreen -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                        <!-- Volume Button with Flyout Slider -->
-                        <DropDownButton ToolTipService.ToolTip="Volume (Up/Down Arrow)"
-                                        Style="{ThemeResource SubtleButtonStyle}">
-                            <FontIcon Glyph="{x:Bind ViewModel.IsMuted, Mode=OneWay, Converter={StaticResource VolumeGlyphConverter}}" 
-                                      FontSize="14" Foreground="White" />
-                            <DropDownButton.Flyout>
-                                <Flyout>
-                                    <StackPanel Orientation="Horizontal" Spacing="10" Padding="8,4" Width="180">
-                                        <Button Command="{x:Bind ViewModel.ToggleMuteCommand}" Style="{ThemeResource SubtleButtonStyle}">
-                                            <FontIcon Glyph="{x:Bind ViewModel.IsMuted, Mode=OneWay, Converter={StaticResource VolumeGlyphConverter}}" FontSize="13" />
-                                        </Button>
-                                        <Slider Minimum="0" Maximum="100" 
-                                                Value="{x:Bind ViewModel.Volume, Mode=TwoWay}" 
-                                                ValueChanged="OnVolumeSliderValueChanged"
-                                                Width="120" />
-                                    </StackPanel>
+                        <Button ToolTipService.ToolTip="Timeline Bookmarks / Moments"
+                                IsTabStop="False"
+                                Padding="6,4"
+                                MinHeight="32" MinWidth="32"
+                                Style="{ThemeResource SubtleButtonStyle}">
+                            <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xE8A4;" FontSize="13" Foreground="#FFD700" />
+                                <TextBlock Text="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" FontSize="12" Foreground="White" />
+                            </StackPanel>
+                            <Button.Flyout>
+                                <Flyout Placement="Top">
+                                    <Flyout.FlyoutPresenterStyle>
+                                        <Style TargetType="FlyoutPresenter">
+                                            <Setter Property="Background" Value="#202024" />
+                                            <Setter Property="BorderBrush" Value="#383840" />
+                                            <Setter Property="BorderThickness" Value="1" />
+                                            <Setter Property="CornerRadius" Value="12" />
+                                            <Setter Property="Padding" Value="16,14" />
+                                            <Setter Property="MinWidth" Value="350" />
+                                            <Setter Property="MaxWidth" Value="420" />
+                                        </Style>
+                                    </Flyout.FlyoutPresenterStyle>
+                                    <Grid MaxHeight="360" RowSpacing="12">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Moments Flyout Header -->
+                                        <Grid Grid.Row="0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE8A4;" FontSize="15" Foreground="#FFD700" />
+                                                <TextBlock Text="Moments" FontWeight="Bold" FontSize="15" Foreground="White" />
+                                                <Border Background="#2C2C32" BorderBrush="#3E3E48" BorderThickness="1" CornerRadius="10" Padding="8,2" Margin="2,0,0,0">
+                                                    <TextBlock Text="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" FontSize="11" FontWeight="Bold" Foreground="#D0D0D0" />
+                                                </Border>
+                                            </StackPanel>
+                                            <Button Grid.Column="1" 
+                                                    ToolTipService.ToolTip="Mark Moment at Current Time (B)"
+                                                    Click="OnAddMarkerClick"
+                                                    Padding="12,6"
+                                                    CornerRadius="6"
+                                                    Background="#2C2C32"
+                                                    BorderBrush="#3E3E48"
+                                                    BorderThickness="1"
+                                                    Style="{ThemeResource SubtleButtonStyle}">
+                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                    <FontIcon Glyph="&#xE710;" FontSize="11" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                                    <TextBlock Text="Add" FontSize="12" FontWeight="Bold" Foreground="White" />
+                                                </StackPanel>
+                                            </Button>
+                                        </Grid>
+
+                                        <!-- Empty State -->
+                                        <StackPanel Grid.Row="1" 
+                                                    Spacing="6" 
+                                                    Padding="16,28" 
+                                                    HorizontalAlignment="Center" 
+                                                    VerticalAlignment="Center"
+                                                    Visibility="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                            <FontIcon Glyph="&#xE8A4;" FontSize="28" Foreground="#555560" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                                            <TextBlock Text="No moments marked yet" FontSize="13" FontWeight="SemiBold" Foreground="#A0A0A8" HorizontalAlignment="Center" />
+                                            <TextBlock Text="Press 'B' while watching to mark a moment" FontSize="11" Foreground="#707078" HorizontalAlignment="Center" />
+                                        </StackPanel>
+
+                                        <!-- Moments List (ItemsControl inside ScrollViewer for authentic styling) -->
+                                        <ScrollViewer Grid.Row="1" 
+                                                      MaxHeight="280" 
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      Visibility="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <ItemsControl ItemsSource="{x:Bind ViewModel.Bookmarks, Mode=OneWay}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:ClipBookmark">
+                                                        <Border Background="#26262C" 
+                                                                BorderBrush="#383840" 
+                                                                BorderThickness="1" 
+                                                                CornerRadius="8" 
+                                                                Padding="10,8"
+                                                                Margin="0,4">
+                                                            <Grid ColumnSpacing="10">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <!-- Jump Button (matching Screenshot 2 Focus button style) -->
+                                                                <Button Grid.Column="0"
+                                                                        Click="OnJumpToBookmarkItemClick"
+                                                                        Tag="{x:Bind}"
+                                                                        Padding="10,6"
+                                                                        CornerRadius="6"
+                                                                        Background="#32323A"
+                                                                        BorderBrush="#484854"
+                                                                        BorderThickness="1"
+                                                                        ToolTipService.ToolTip="Jump to this moment"
+                                                                        Style="{ThemeResource SubtleButtonStyle}">
+                                                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                                        <FontIcon Glyph="&#xE768;" FontSize="10" Foreground="#FFD700" VerticalAlignment="Center" />
+                                                                        <TextBlock Text="Jump" FontSize="11" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                                                                        <Border Background="#33FFD700" CornerRadius="4" Padding="5,1">
+                                                                            <TextBlock Text="{x:Bind FormattedTimestamp, Mode=OneWay}" 
+                                                                                       FontSize="11" 
+                                                                                       FontWeight="Bold" 
+                                                                                       Foreground="#FFD700" 
+                                                                                       VerticalAlignment="Center" />
+                                                                        </Border>
+                                                                    </StackPanel>
+                                                                </Button>
+
+                                                                <!-- Label -->
+                                                                <TextBlock Grid.Column="1" 
+                                                                           Text="{x:Bind Label, Mode=OneWay}" 
+                                                                           FontSize="12" 
+                                                                           Foreground="White" 
+                                                                           VerticalAlignment="Center" 
+                                                                           TextTrimming="CharacterEllipsis" 
+                                                                           ToolTipService.ToolTip="{x:Bind Label, Mode=OneWay}" />
+
+                                                                <!-- Rename / Edit Button -->
+                                                                <Button Grid.Column="2" 
+                                                                        Click="OnEditBookmarkItemClick"
+                                                                        Tag="{x:Bind}"
+                                                                        ToolTipService.ToolTip="Rename Moment"
+                                                                        Width="30" Height="30"
+                                                                        Padding="0" MinWidth="0" MinHeight="0"
+                                                                        CornerRadius="6"
+                                                                        Background="#2C2C32"
+                                                                        BorderBrush="#383842"
+                                                                        BorderThickness="1"
+                                                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                                                        Style="{StaticResource PlayerIconButtonStyle}">
+                                                                    <FontIcon Glyph="&#xE70F;" FontSize="11" Foreground="#C0C0C8" />
+                                                                </Button>
+
+                                                                <!-- Delete / Remove Button -->
+                                                                <Button Grid.Column="3" 
+                                                                        Click="OnRemoveBookmarkItemClick"
+                                                                        Tag="{x:Bind}"
+                                                                        ToolTipService.ToolTip="Remove Moment"
+                                                                        Width="30" Height="30"
+                                                                        Padding="0" MinWidth="0" MinHeight="0"
+                                                                        CornerRadius="6"
+                                                                        Background="#2C2C32"
+                                                                        BorderBrush="#383842"
+                                                                        BorderThickness="1"
+                                                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                                                        Style="{StaticResource PlayerIconButtonStyle}">
+                                                                    <FontIcon Glyph="&#xE74D;" FontSize="11" Foreground="#FF6B6B" />
+                                                                </Button>
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </Grid>
                                 </Flyout>
-                            </DropDownButton.Flyout>
-                        </DropDownButton>
+                            </Button.Flyout>
+                        </Button>
 
-                        <!-- Speed Button with Dropdown -->
-                        <DropDownButton ToolTipService.ToolTip="Playback Speed" Style="{ThemeResource SubtleButtonStyle}">
+                        <AppBarSeparator Height="20" Margin="4,0" />
+
+                        <!-- Section 4: Queue, Speed & Info Controls -->
+                        <Button ToolTipService.ToolTip="Clip Queue (Q)"
+                                Command="{x:Bind ViewModel.ToggleSidebarCommand}"
+                                Width="32" Height="32"
+                                Padding="0"
+                                MinWidth="0" MinHeight="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                IsTabStop="False"
+                                Style="{StaticResource PlayerIconButtonStyle}">
+                            <FontIcon Glyph="&#xE90B;" FontSize="13" Foreground="White" />
+                        </Button>
+
+                        <DropDownButton ToolTipService.ToolTip="Playback Speed" 
+                                        Padding="6,4"
+                                        MinWidth="0" MinHeight="32"
+                                        IsTabStop="False"
+                                        Style="{ThemeResource SubtleButtonStyle}">
                             <TextBlock Text="{x:Bind ViewModel.FormattedPlaybackRate, Mode=OneWay}" 
                                        FontSize="12" FontWeight="SemiBold" Foreground="White" />
                             <DropDownButton.Flyout>
@@ -273,11 +500,101 @@
                             </DropDownButton.Flyout>
                         </DropDownButton>
 
-                        <!-- Fullscreen Toggle -->
+                        <Button ToolTipService.ToolTip="Clip Information"
+                                Width="32" Height="32"
+                                Padding="0"
+                                MinWidth="0" MinHeight="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                IsTabStop="False"
+                                Style="{StaticResource PlayerIconButtonStyle}">
+                            <FontIcon Glyph="&#xE700;" FontSize="13" Foreground="White" />
+                            <Button.Flyout>
+                                <Flyout Placement="Top">
+                                    <StackPanel Spacing="10" MinWidth="260" MaxWidth="340" Padding="8,6">
+                                        <TextBlock Text="Clip Information" FontWeight="SemiBold" FontSize="14" Foreground="White" />
+                                        
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="File Name" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            <TextBlock Text="{x:Bind ViewModel.CurrentClip.FileName, Mode=OneWay}" FontSize="12" Foreground="White" TextWrapping="Wrap" />
+                                        </StackPanel>
+
+                                        <Grid ColumnSpacing="16">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            
+                                             <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="Duration" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                <TextBlock Text="{x:Bind ViewModel.FormattedTotalTime, Mode=OneWay}" FontSize="12" Foreground="White" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" Spacing="2">
+                                                <TextBlock Text="Bookmarks" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                <TextBlock Text="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" FontSize="12" Foreground="White" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Date Modified" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            <TextBlock Text="{x:Bind ViewModel.CurrentClip.FormattedDate, Mode=OneWay}" FontSize="12" Foreground="White" />
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="File Path" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            <TextBlock Text="{x:Bind ViewModel.CurrentClip.FilePath, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Right: Mute Button, Volume Slider, Percentage Text, Separator, Fullscreen Button (Far Right) -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Button ToolTipService.ToolTip="Mute / Unmute (M)"
+                                Command="{x:Bind ViewModel.ToggleMuteCommand}"
+                                Width="32" Height="32"
+                                Padding="0"
+                                MinWidth="0" MinHeight="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                IsTabStop="False"
+                                Style="{StaticResource PlayerIconButtonStyle}">
+                            <FontIcon Glyph="{x:Bind ViewModel.VolumeGlyph, Mode=OneWay}" 
+                                      FontSize="14" Foreground="White" />
+                        </Button>
+
+                        <Slider x:Name="VolumeSlider" 
+                                Minimum="0" Maximum="100" 
+                                Value="{x:Bind ViewModel.Volume, Mode=TwoWay}" 
+                                ValueChanged="OnVolumeSliderValueChanged"
+                                PointerWheelChanged="OnPlayerPointerWheelChanged"
+                                IsTabStop="False"
+                                Width="90" 
+                                VerticalAlignment="Center"
+                                Margin="0" />
+
+                        <TextBlock Text="{x:Bind ViewModel.Volume, Mode=OneWay}" 
+                                   FontSize="12" 
+                                   Foreground="#C0C0C0" 
+                                   VerticalAlignment="Center" 
+                                   MinWidth="24" 
+                                   TextAlignment="Right" />
+                        <TextBlock Text="%" FontSize="11" Foreground="#808080" VerticalAlignment="Center" Margin="-4,0,0,0" />
+
+                        <AppBarSeparator Height="20" Margin="4,0" />
+
                         <Button ToolTipService.ToolTip="Fullscreen (F)"
-                                Command="{x:Bind ViewModel.ToggleFullscreenCommand}"
                                 Click="OnFullscreenButtonClick"
-                                Style="{ThemeResource SubtleButtonStyle}">
+                                Width="32" Height="32"
+                                Padding="0"
+                                MinWidth="0" MinHeight="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                IsTabStop="False"
+                                Style="{StaticResource PlayerIconButtonStyle}">
                             <FontIcon Glyph="{x:Bind ViewModel.FullscreenGlyph, Mode=OneWay}" 
                                       FontSize="13" Foreground="White" />
                         </Button>
@@ -286,30 +603,157 @@
             </Grid>
         </Border>
 
-        <!-- Collapsible Playlist Queue Sidebar (Slide-in Right) -->
-        <Border HorizontalAlignment="Right" 
-                Width="320" 
-                Background="#F216161B" 
-                BorderBrush="#2E2E36" 
-                BorderThickness="1,0,0,0"
-                Visibility="{x:Bind ViewModel.IsSidebarOpen, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-            <Grid Padding="12,16,12,12">
+        <!-- Moments Jump Suggestion Popup (Bottom-Left) -->
+        <Border x:Name="MomentsJumpPopup"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Bottom"
+                Margin="24,0,0,96"
+                Width="350"
+                MaxHeight="290"
+                Background="#202024"
+                BorderBrush="#383840"
+                BorderThickness="1"
+                CornerRadius="12"
+                Padding="18,16"
+                Opacity="0"
+                Visibility="Collapsed"
+                PointerEntered="OnMomentsPopupPointerEntered"
+                PointerExited="OnMomentsPopupPointerExited">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="MomentsPopupTranslation" Y="24" />
+            </Border.RenderTransform>
+            <Grid RowSpacing="12">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <Grid Grid.Row="0" Margin="4,0,4,12">
+                <!-- Header: Icon + Title + Close button -->
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE8A4;" FontSize="15" Foreground="#FFD700" />
+                        <TextBlock Text="Moments in this clip" FontSize="15" FontWeight="Bold" Foreground="White" />
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Click="OnDismissMomentsPopupClick"
+                            Width="30" Height="30"
+                            Padding="0" MinWidth="0" MinHeight="0"
+                            CornerRadius="6"
+                            Background="#2C2C32"
+                            BorderBrush="#3E3E48"
+                            BorderThickness="1"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            ToolTipService.ToolTip="Dismiss"
+                            Style="{StaticResource PlayerIconButtonStyle}">
+                        <FontIcon Glyph="&#xE711;" FontSize="10" Foreground="#C0C0C8" />
+                    </Button>
+                </Grid>
+
+                <!-- List of Bookmarked Moments to Choose From -->
+                <ScrollViewer Grid.Row="1" MaxHeight="210" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="MomentsPopupItemsList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:ClipBookmark">
+                                <Button HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Stretch"
+                                        Margin="0,4"
+                                        Padding="10,8"
+                                        CornerRadius="8"
+                                        Background="#26262C"
+                                        BorderBrush="#383840"
+                                        BorderThickness="1"
+                                        Click="OnPopupBookmarkItemClick"
+                                        Tag="{x:Bind}"
+                                        Style="{ThemeResource SubtleButtonStyle}">
+                                    <Grid ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Jump Pill (styled like Screenshot 2 button) -->
+                                        <Border Grid.Column="0" 
+                                                Background="#32323A" 
+                                                BorderBrush="#484854" 
+                                                BorderThickness="1" 
+                                                CornerRadius="6" 
+                                                Padding="9,4">
+                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE768;" FontSize="9" Foreground="#FFD700" VerticalAlignment="Center" />
+                                                <TextBlock Text="Jump" FontSize="11" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                                                <Border Background="#33FFD700" CornerRadius="4" Padding="5,1">
+                                                    <TextBlock Text="{x:Bind FormattedTimestamp, Mode=OneWay}" 
+                                                               FontSize="10" FontWeight="Bold" Foreground="#FFD700" VerticalAlignment="Center" />
+                                                </Border>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Label -->
+                                        <TextBlock Grid.Column="1" 
+                                                   Text="{x:Bind Label, Mode=OneWay}" 
+                                                   FontSize="12" 
+                                                   Foreground="White" 
+                                                   VerticalAlignment="Center" 
+                                                   TextTrimming="CharacterEllipsis" 
+                                                   ToolTipService.ToolTip="{x:Bind Label, Mode=OneWay}" />
+
+                                        <!-- Jump Arrow Glyph -->
+                                        <FontIcon Grid.Column="2" Glyph="&#xE76C;" FontSize="11" Foreground="#A0A0A8" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- Collapsible Playlist Queue Sidebar (Slide-in Right) -->
+        <Border x:Name="PlaylistQueueSidebar"
+                HorizontalAlignment="Right" 
+                Width="320" 
+                Background="#F216161B" 
+                BorderBrush="#2E2E36" 
+                BorderThickness="1,0,0,0"
+                Opacity="0"
+                Visibility="Collapsed">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="SidebarTranslation" X="320" />
+            </Border.RenderTransform>
+            <Grid Padding="16,44,16,12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Header situated safely below the 36px OS titlebar / caption buttons -->
+                <Grid Grid.Row="0" Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Text="Folder Clips" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="16" Foreground="White" />
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE90B;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        <TextBlock Text="Clip Queue" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" FontWeight="SemiBold" Foreground="White" />
+                        <TextBlock Text="{x:Bind ViewModel.Playlist.Count, Mode=OneWay}" FontSize="12" Foreground="#808080" VerticalAlignment="Center" />
+                    </StackPanel>
 
                     <Button Grid.Column="1" 
+                            ToolTipService.ToolTip="Close Queue (Esc / Q)"
                             Command="{x:Bind ViewModel.ToggleSidebarCommand}" 
-                            Style="{ThemeResource SubtleButtonStyle}">
+                            Width="32" Height="32"
+                            Padding="0"
+                            MinWidth="0" MinHeight="0"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
+                            IsTabStop="False"
+                            Style="{StaticResource PlayerIconButtonStyle}">
                         <FontIcon Glyph="&#xE711;" FontSize="12" Foreground="White" />
                     </Button>
                 </Grid>

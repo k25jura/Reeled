@@ -11,4 +11,12 @@ public class AppSettings
     public double PlaybackSpeed { get; set; } = 1.0;
     public HashSet<string> Favorites { get; set; } = new();
     public Dictionary<string, List<ClipBookmark>> Bookmarks { get; set; } = new();
+    public RepeatMode RepeatMode { get; set; } = RepeatMode.Off;
+}
+
+public enum RepeatMode
+{
+    Off = 0,
+    All = 1,
+    One = 2
 }

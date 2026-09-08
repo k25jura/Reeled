@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Reeled (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Reeled (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

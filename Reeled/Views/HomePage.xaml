@@ -255,10 +255,9 @@
             <Grid Grid.Row="1">
                 <!-- GridView of Clips with Fluid Windows 11 Animations and Centered Layout -->
                 <GridView ItemsSource="{x:Bind ViewModel.FilteredClips, Mode=OneWay}"
-                          SelectedItem="{x:Bind ViewModel.SelectedClip, Mode=TwoWay}"
                           ItemClick="OnClipItemClick"
                           IsItemClickEnabled="True"
-                          SelectionMode="Single"
+                          SelectionMode="None"
                           Padding="24,18,24,24">
                     
                     <GridView.ItemContainerTransitions>
@@ -299,7 +298,7 @@
 
                     <GridView.ItemTemplate>
                         <DataTemplate x:DataType="models:GameClip">
-                            <Grid Width="254" Height="208" CornerRadius="8"
+                            <Grid Width="254" Height="236" CornerRadius="8"
                                   Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                   BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                   BorderThickness="1"
@@ -352,7 +351,7 @@
                                 </Grid>
 
                                 <!-- Card Info Section -->
-                                <Grid Grid.Row="1" Padding="12,8,10,8">
+                                <Grid Grid.Row="1" Padding="12,8,10,10">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="*" />
@@ -369,6 +368,8 @@
                                                    Text="{x:Bind FileName, Mode=OneWay}" 
                                                    Style="{ThemeResource BodyStrongTextBlockStyle}" 
                                                    FontSize="13" 
+                                                   MaxLines="2"
+                                                   TextWrapping="Wrap"
                                                    VerticalAlignment="Center"
                                                    TextTrimming="CharacterEllipsis" 
                                                    ToolTipService.ToolTip="{x:Bind FileName, Mode=OneWay}" />
@@ -390,7 +391,7 @@
                                     <Grid x:Name="MetadataRow" Grid.Row="1" VerticalAlignment="Bottom" Margin="0,4,0,0"
                                           Opacity="0">
                                         <Grid.RenderTransform>
-                                            <TranslateTransform x:Name="MetadataTransform" Y="6" />
+                                            <TranslateTransform x:Name="MetadataTransform" Y="4" />
                                         </Grid.RenderTransform>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />

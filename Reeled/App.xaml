@@ -21,6 +21,11 @@
             <converters:FavoriteGlyphConverter x:Key="FavoriteGlyphConverter" />
             <converters:FavoriteOpacityConverter x:Key="FavoriteOpacityConverter" />
 
+            <!-- SplitView Custom Animation Durations for Smooth Windows 11 Transitions -->
+            <x:String x:Key="SplitViewPaneAnimationOpenDuration">00:00:00.3</x:String>
+            <x:String x:Key="SplitViewPaneAnimationOpenPreDuration">00:00:00.29999</x:String>
+            <x:String x:Key="SplitViewPaneAnimationCloseDuration">00:00:00.3</x:String>
+
             <!-- LibVLCSharp VideoView Default Style for Unpackaged WinUI 3 -->
             <Style x:Key="VideoViewDefaultStyle" TargetType="vlc:VideoView">
                 <Setter Property="Template">

@@ -16,6 +16,61 @@ public sealed partial class HomePage : Page
     {
         ViewModel = App.GetService<HomeViewModel>();
         InitializeComponent();
+
+        MainSplitView.Loaded += (s, e) => AdjustSplitViewAnimationSpeed();
+    }
+
+    private void AdjustSplitViewAnimationSpeed()
+    {
+        try
+        {
+            if (Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(MainSplitView) == 0) return;
+            if (Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(MainSplitView, 0) is FrameworkElement root)
+            {
+                var groups = VisualStateManager.GetVisualStateGroups(root);
+                foreach (var group in groups)
+                {
+                    if (group.Name == "DisplayModeStates")
+                    {
+                        foreach (var transition in group.Transitions)
+                        {
+                            if (transition.Storyboard != null)
+                            {
+                                AdjustStoryboardDuration(transition.Storyboard, TimeSpan.FromMilliseconds(300));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+    }
+
+    private static void AdjustStoryboardDuration(Microsoft.UI.Xaml.Media.Animation.Storyboard sb, TimeSpan targetDuration)
+    {
+        foreach (var child in sb.Children)
+        {
+            if (child is Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames dak)
+            {
+                foreach (var kf in dak.KeyFrames)
+                {
+                    if (kf.KeyTime.TimeSpan > TimeSpan.Zero)
+                    {
+                        kf.KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(targetDuration);
+                    }
+                }
+            }
+            else if (child is Microsoft.UI.Xaml.Media.Animation.ObjectAnimationUsingKeyFrames oak)
+            {
+                foreach (var kf in oak.KeyFrames)
+                {
+                    if (kf.KeyTime.TimeSpan > TimeSpan.Zero)
+                    {
+                        kf.KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(targetDuration);
+                    }
+                }
+            }
+        }
     }
 
     private void OnToggleSidebarClick(object sender, RoutedEventArgs e)
@@ -41,11 +96,10 @@ public sealed partial class HomePage : Page
 
     private void AnimateCardHover(FrameworkElement card, bool isHovered)
     {
-        // 1. Unified Outline & Background Highlight
+        // 1. Unified Outline & Background Highlight (Active only when hovered or during right-click context menu)
         if (card is Grid grid)
         {
-            var isSelected = grid.DataContext is GameClip clip && clip == ViewModel.SelectedClip;
-            if (isHovered || isSelected)
+            if (isHovered)
             {
                 if (Application.Current.Resources.TryGetValue("AccentFillColorDefaultBrush", out var accentBrush))
                 {

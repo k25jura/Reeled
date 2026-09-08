@@ -38,13 +38,13 @@
                         CornerRadius="8" 
                         Padding="20">
                     <StackPanel Spacing="16">
-                        <Grid>
+                        <Grid ColumnSpacing="16">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="0">
+                            <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
                                 <TextBlock Text="Watch Folders" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="16" />
                                 <TextBlock Text="Directories scanned for MP4, MKV, and AVI gameplay clips" 
                                            Style="{ThemeResource CaptionTextBlockStyle}" 
@@ -53,18 +53,26 @@
 
                             <Button Grid.Column="1" 
                                     Click="OnAddFolderClick" 
+                                    VerticalAlignment="Center"
                                     Style="{ThemeResource AccentButtonStyle}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <FontIcon Glyph="&#xE710;" FontSize="13" />
+                                    <FontIcon Glyph="&#xE710;" FontSize="12" />
                                     <TextBlock Text="Add Folder" />
                                 </StackPanel>
                             </Button>
                         </Grid>
 
                         <ListView ItemsSource="{x:Bind ViewModel.WatchFolders, Mode=OneWay}" SelectionMode="None">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="Padding" Value="0,4" />
+                                    <Setter Property="MinHeight" Value="36" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="x:String">
-                                    <Grid Margin="0,4" ColumnSpacing="12">
+                                    <Grid Margin="0,2" ColumnSpacing="12">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
@@ -126,7 +134,7 @@
                         Padding="20">
                     <StackPanel Spacing="10">
                         <TextBlock Text="About Reeled" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="16" />
-                        <TextBlock Text="Reeled - Clip Player" FontWeight="Regular" />
+                        <TextBlock Text="Reeled - Clip Player" FontWeight="Normal" />
                         <TextBlock Text="Powered by LibVLCSharp &amp; VideoLAN LibVLC 3.0 Native Engine." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <TextBlock Text="Version 1.0.0 (.NET 8 Windows App SDK)" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                     </StackPanel>

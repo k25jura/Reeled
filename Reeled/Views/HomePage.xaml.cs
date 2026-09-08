@@ -25,11 +25,7 @@ public sealed partial class HomePage : Page
 
         ViewModel.PropertyChanged += (s, e) =>
         {
-            if (e.PropertyName is nameof(HomeViewModel.CurrentSection)
-                or nameof(HomeViewModel.IsHomeSelected)
-                or nameof(HomeViewModel.IsFavoritesSelected)
-                or nameof(HomeViewModel.IsSavedMomentsSelected)
-                or nameof(HomeViewModel.IsFolderSelected))
+            if (e.PropertyName == nameof(HomeViewModel.CurrentSection))
             {
                 UpdateActiveIndicator(animate: true);
             }
@@ -88,7 +84,11 @@ public sealed partial class HomePage : Page
     {
         if (!_isIndicatorVisible)
         {
-            _indicatorStoryboard?.Stop();
+            if (_indicatorStoryboard != null)
+            {
+                _indicatorStoryboard.Stop();
+                _indicatorStoryboard = null;
+            }
             _targetIndicatorY = targetY;
             _currentIndicatorY = targetY;
             IndicatorTranslation.Y = targetY;
@@ -108,14 +108,14 @@ public sealed partial class HomePage : Page
             {
                 From = 0.0,
                 To = 1.0,
-                Duration = TimeSpan.FromMilliseconds(200),
+                Duration = TimeSpan.FromMilliseconds(180),
                 EasingFunction = ease
             };
             var animScaleY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
             {
                 From = 0.0,
                 To = 1.0,
-                Duration = TimeSpan.FromMilliseconds(250),
+                Duration = TimeSpan.FromMilliseconds(200),
                 EasingFunction = ease
             };
 
@@ -125,6 +125,12 @@ public sealed partial class HomePage : Page
             Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animOpacity, "Opacity");
             Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animScaleY, IndicatorScale);
             Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animScaleY, "ScaleY");
+
+            sb.Completed += (s, e) =>
+            {
+                ActiveIndicatorPill.Opacity = 1.0;
+                IndicatorScale.ScaleY = 1.0;
+            };
 
             _indicatorStoryboard = sb;
             sb.Begin();
@@ -137,9 +143,16 @@ public sealed partial class HomePage : Page
             return;
         }
 
-        _indicatorStoryboard?.Stop();
-        double fromY = IndicatorTranslation.Y;
+        double fromY = _currentIndicatorY;
         _targetIndicatorY = targetY;
+
+        if (_indicatorStoryboard != null)
+        {
+            _indicatorStoryboard.Stop();
+            _indicatorStoryboard = null;
+            IndicatorTranslation.Y = fromY;
+            IndicatorScale.ScaleY = 1.0;
+        }
 
         if (!animate)
         {
@@ -159,19 +172,19 @@ public sealed partial class HomePage : Page
         {
             From = fromY,
             To = targetY,
-            Duration = TimeSpan.FromMilliseconds(260),
+            Duration = TimeSpan.FromMilliseconds(240),
             EasingFunction = easeOut
         };
         moveSb.Children.Add(animTranslate);
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animTranslate, IndicatorTranslation);
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animTranslate, "Y");
 
-        // 2. Windows 11 Signature Fluid Stretch-and-Snap Animation
+        // 2. Subtle fluid stretch
         if (distance > 5.0)
         {
-            double stretch = Math.Min(1.45, 1.0 + (distance / 120.0));
+            double stretch = Math.Min(1.15, 1.0 + (distance / 500.0));
             var animScaleKeyFrames = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
-            animScaleKeyFrames.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.LinearDoubleKeyFrame
+            animScaleKeyFrames.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
             {
                 Value = 1.0,
                 KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)
@@ -179,13 +192,13 @@ public sealed partial class HomePage : Page
             animScaleKeyFrames.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
             {
                 Value = stretch,
-                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(100)),
+                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(90)),
                 EasingFunction = easeOut
             });
             animScaleKeyFrames.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
             {
                 Value = 1.0,
-                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(260)),
+                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(240)),
                 EasingFunction = easeOut
             });
 
@@ -193,6 +206,13 @@ public sealed partial class HomePage : Page
             Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animScaleKeyFrames, IndicatorScale);
             Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animScaleKeyFrames, "ScaleY");
         }
+
+        moveSb.Completed += (s, e) =>
+        {
+            IndicatorTranslation.Y = targetY;
+            IndicatorScale.ScaleY = 1.0;
+            _currentIndicatorY = targetY;
+        };
 
         _currentIndicatorY = targetY;
         _indicatorStoryboard = moveSb;
@@ -203,7 +223,13 @@ public sealed partial class HomePage : Page
     {
         if (_isIndicatorVisible == isVisible) return;
 
-        _indicatorStoryboard?.Stop();
+        if (_indicatorStoryboard != null)
+        {
+            _indicatorStoryboard.Stop();
+            _indicatorStoryboard = null;
+            IndicatorTranslation.Y = _currentIndicatorY;
+            IndicatorScale.ScaleY = 1.0;
+        }
 
         if (!isVisible)
         {
@@ -243,6 +269,12 @@ public sealed partial class HomePage : Page
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animOpacity, "Opacity");
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animScaleY, IndicatorScale);
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animScaleY, "ScaleY");
+
+        sb.Completed += (s, e) =>
+        {
+            ActiveIndicatorPill.Opacity = isVisible ? 1.0 : 0.0;
+            IndicatorScale.ScaleY = isVisible ? 1.0 : 0.0;
+        };
 
         _indicatorStoryboard = sb;
         sb.Begin();

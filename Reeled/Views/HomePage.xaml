@@ -190,8 +190,8 @@
                             RenderTransformOrigin="0.5,0.5">
                         <Border.RenderTransform>
                             <TransformGroup>
-                                <TranslateTransform x:Name="IndicatorTranslation" X="0" Y="11" />
                                 <ScaleTransform x:Name="IndicatorScale" ScaleX="1" ScaleY="1" />
+                                <TranslateTransform x:Name="IndicatorTranslation" X="0" Y="11" />
                             </TransformGroup>
                         </Border.RenderTransform>
                     </Border>

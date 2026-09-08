@@ -25,7 +25,7 @@
                     </Button>
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="Settings &amp; Preferences" Style="{ThemeResource TitleTextBlockStyle}" FontSize="24" FontWeight="SemiBold" />
+                        <TextBlock Text="Settings" Style="{ThemeResource TitleTextBlockStyle}" FontSize="24" FontWeight="SemiBold" />
                         <TextBlock Text="Manage watch directories, caching, and playback behavior" 
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
@@ -126,7 +126,7 @@
                         Padding="20">
                     <StackPanel Spacing="10">
                         <TextBlock Text="About Reeled" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="16" />
-                        <TextBlock Text="Reeled - Unpackaged WinUI 3 Gameplay Clip Player" FontWeight="SemiBold" />
+                        <TextBlock Text="Reeled - Clip Player" FontWeight="Regular" />
                         <TextBlock Text="Powered by LibVLCSharp &amp; VideoLAN LibVLC 3.0 Native Engine." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <TextBlock Text="Version 1.0.0 (.NET 8 Windows App SDK)" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                     </StackPanel>

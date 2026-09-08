@@ -30,6 +30,11 @@
 
         <!-- Telegram-style In-App Media Player Overlay (Persistent so DirectX SwapChain & LibVLC are never destroyed) -->
         <Grid x:Name="PlayerOverlayContainer" Grid.Row="1" Visibility="Collapsed">
+            <Grid.ChildrenTransitions>
+                <TransitionCollection>
+                    <EntranceThemeTransition FromVerticalOffset="40" />
+                </TransitionCollection>
+            </Grid.ChildrenTransitions>
             <views:PlayerPage x:Name="PlayerViewControl" />
         </Grid>
     </Grid>

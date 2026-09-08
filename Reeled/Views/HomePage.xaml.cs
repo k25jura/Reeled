@@ -14,8 +14,67 @@ public sealed partial class HomePage : Page
 
     public HomePage()
     {
-        InitializeComponent();
         ViewModel = App.GetService<HomeViewModel>();
+        InitializeComponent();
+    }
+
+    private void OnToggleSidebarClick(object sender, RoutedEventArgs e)
+    {
+        ViewModel.ToggleSidebar();
+        AnimateSidebar(ViewModel.IsSidebarCollapsed);
+    }
+
+    private void AnimateSidebar(bool collapse)
+    {
+        var animation = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            From = collapse ? 280 : 0,
+            To = collapse ? 0 : 280,
+            Duration = new Duration(TimeSpan.FromMilliseconds(250)),
+            EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut }
+        };
+
+        var storyboard = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        storyboard.Children.Add(animation);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animation, SidebarBorder);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animation, "Width");
+
+        if (!collapse)
+        {
+            SidebarBorder.Visibility = Visibility.Visible;
+        }
+
+        storyboard.Completed += (s, e) =>
+        {
+            if (collapse)
+            {
+                SidebarBorder.Visibility = Visibility.Collapsed;
+            }
+        };
+
+        storyboard.Begin();
+    }
+
+    private void OnClipCardPointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Grid card)
+        {
+            if (Application.Current.Resources.TryGetValue("AccentFillColorDefaultBrush", out var accentBrush))
+            {
+                card.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)accentBrush;
+            }
+        }
+    }
+
+    private void OnClipCardPointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Grid card)
+        {
+            if (Application.Current.Resources.TryGetValue("CardStrokeColorDefaultBrush", out var defaultStroke))
+            {
+                card.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)defaultStroke;
+            }
+        }
     }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)

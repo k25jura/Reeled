@@ -40,11 +40,11 @@ public class ThumbnailService : IThumbnailService
                     return await LoadBitmapFromDiskAsync(cacheFile);
                 }
 
-                // Extract via Windows Shell
+                // Extract via Windows Shell at optimized 360px width
                 var storageFile = await StorageFile.GetFileFromPathAsync(path);
                 using var thumb = await storageFile.GetThumbnailAsync(
                     ThumbnailMode.VideosView,
-                    480,
+                    360,
                     ThumbnailOptions.ResizeThumbnail);
 
                 if (thumb != null && thumb.Size > 0)
@@ -107,7 +107,7 @@ public class ThumbnailService : IThumbnailService
                     var file = await StorageFile.GetFileFromPathAsync(filePath);
                     using var stream = await file.OpenReadAsync();
                     var bitmap = new BitmapImage();
-                    bitmap.DecodePixelWidth = 480;
+                    bitmap.DecodePixelWidth = 360;
                     await bitmap.SetSourceAsync(stream);
                     tcs.TrySetResult(bitmap);
                 }

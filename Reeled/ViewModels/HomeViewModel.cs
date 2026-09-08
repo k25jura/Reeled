@@ -59,9 +59,41 @@ public partial class HomeViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(CurrentDirectoryTitle));
         OnPropertyChanged(nameof(CurrentDirectoryPath));
+        OnPropertyChanged(nameof(ClipsCountSummary));
     }
 
     public int TotalClipsCount => Clips.Count;
+
+    public string ClipsCountSummary =>
+        $"{TotalClipsCount} {(TotalClipsCount == 1 ? "clip" : "clips")}";
+
+    [ObservableProperty]
+    private bool _isSidebarCollapsed;
+
+    [RelayCommand]
+    public void ToggleSidebar()
+    {
+        IsSidebarCollapsed = !IsSidebarCollapsed;
+    }
+
+    [RelayCommand]
+    public void OpenCurrentDirectory()
+    {
+        string? path = CurrentDirectoryPath;
+        if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = $"\"{path}\"",
+                    UseShellExecute = true
+                });
+            }
+            catch { }
+        }
+    }
 
     public string TotalStorageUsedFormatted
     {
@@ -180,6 +212,7 @@ public partial class HomeViewModel : ObservableObject
         IsLoading = false;
         StatusMessage = Clips.Count > 0 ? $"{Clips.Count} clips loaded" : "No clips in this folder";
         OnPropertyChanged(nameof(TotalClipsCount));
+        OnPropertyChanged(nameof(ClipsCountSummary));
         OnPropertyChanged(nameof(TotalStorageUsedFormatted));
         OnPropertyChanged(nameof(HasClips));
     }

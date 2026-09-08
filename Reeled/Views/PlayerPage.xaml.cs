@@ -175,7 +175,7 @@ public sealed partial class PlayerPage : Page
                     var item = new MenuFlyoutItem
                     {
                         Text = $"{bm.FormattedTimestamp} - {bm.Label}",
-                        Icon = new FontIcon { Glyph = "\uE735" }
+                        Icon = new FontIcon { Glyph = "\uE8A4" }
                     };
                     item.Click += (s, args) => ViewModel.JumpToBookmark(bm);
                     flyout.Items.Add(item);

@@ -17,7 +17,231 @@ public sealed partial class HomePage : Page
         ViewModel = App.GetService<HomeViewModel>();
         InitializeComponent();
 
-        MainSplitView.Loaded += (s, e) => AdjustSplitViewAnimationSpeed();
+        MainSplitView.Loaded += (s, e) =>
+        {
+            AdjustSplitViewAnimationSpeed();
+            UpdateActiveIndicator(animate: false);
+        };
+
+        ViewModel.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName is nameof(HomeViewModel.CurrentSection)
+                or nameof(HomeViewModel.IsHomeSelected)
+                or nameof(HomeViewModel.IsFavoritesSelected)
+                or nameof(HomeViewModel.IsSavedMomentsSelected)
+                or nameof(HomeViewModel.IsFolderSelected))
+            {
+                UpdateActiveIndicator(animate: true);
+            }
+        };
+    }
+
+    private double _currentIndicatorY = 11;
+    private double _targetIndicatorY = 11;
+    private bool _isIndicatorVisible = true;
+    private Microsoft.UI.Xaml.Media.Animation.Storyboard? _indicatorStoryboard;
+
+    private void UpdateActiveIndicator(bool animate = true)
+    {
+        if (ActiveIndicatorPill == null || IndicatorTranslation == null || IndicatorScale == null)
+            return;
+
+        if (ViewModel.IsHomeSelected)
+        {
+            double targetY = GetTargetIndicatorY(HomeNavButton, 11);
+            AnimateIndicatorTo(targetY, animate);
+        }
+        else if (ViewModel.IsFavoritesSelected)
+        {
+            double targetY = GetTargetIndicatorY(FavoritesNavButton, 52);
+            AnimateIndicatorTo(targetY, animate);
+        }
+        else if (ViewModel.IsSavedMomentsSelected)
+        {
+            double targetY = GetTargetIndicatorY(SavedMomentsNavButton, 93);
+            AnimateIndicatorTo(targetY, animate);
+        }
+        else
+        {
+            // When a folder or nothing in the top section is selected
+            AnimateIndicatorVisibility(false, animate);
+        }
+    }
+
+    private double GetTargetIndicatorY(Button targetButton, double fallbackY)
+    {
+        try
+        {
+            if (targetButton != null && TopNavContainer != null && targetButton.ActualHeight > 0 && TopNavContainer.ActualHeight > 0)
+            {
+                var transform = targetButton.TransformToVisual(TopNavContainer);
+                var point = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
+                double pillHeight = ActiveIndicatorPill.ActualHeight > 0 ? ActiveIndicatorPill.ActualHeight : 16.0;
+                return point.Y + (targetButton.ActualHeight - pillHeight) / 2.0;
+            }
+        }
+        catch { }
+        return fallbackY;
+    }
+
+    private void AnimateIndicatorTo(double targetY, bool animate)
+    {
+        if (!_isIndicatorVisible)
+        {
+            _indicatorStoryboard?.Stop();
+            _targetIndicatorY = targetY;
+            _currentIndicatorY = targetY;
+            IndicatorTranslation.Y = targetY;
+
+            if (!animate)
+            {
+                IndicatorScale.ScaleY = 1.0;
+                ActiveIndicatorPill.Opacity = 1.0;
+                _isIndicatorVisible = true;
+                return;
+            }
+
+            var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+            var ease = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
+
+            var animOpacity = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+            {
+                From = 0.0,
+                To = 1.0,
+                Duration = TimeSpan.FromMilliseconds(200),
+                EasingFunction = ease
+            };
+            var animScaleY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+            {
+                From = 0.0,
+                To = 1.0,
+                Duration = TimeSpan.FromMilliseconds(250),
+                EasingFunction = ease
+            };
+
+            sb.Children.Add(animOpacity);
+            sb.Children.Add(animScaleY);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOpacity, ActiveIndicatorPill);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animOpacity, "Opacity");
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animScaleY, IndicatorScale);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animScaleY, "ScaleY");
+
+            _indicatorStoryboard = sb;
+            sb.Begin();
+            _isIndicatorVisible = true;
+            return;
+        }
+
+        if (Math.Abs(_targetIndicatorY - targetY) < 1.0 && _isIndicatorVisible)
+        {
+            return;
+        }
+
+        _indicatorStoryboard?.Stop();
+        double fromY = _currentIndicatorY;
+        _targetIndicatorY = targetY;
+
+        if (!animate)
+        {
+            _currentIndicatorY = targetY;
+            IndicatorTranslation.Y = targetY;
+            IndicatorScale.ScaleY = 1.0;
+            ActiveIndicatorPill.Opacity = 1.0;
+            return;
+        }
+
+        double distance = Math.Abs(targetY - fromY);
+        var moveSb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        var easeOut = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
+
+        // 1. Vertical Glide Animation (Y translation)
+        var animTranslate = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            From = fromY,
+            To = targetY,
+            Duration = TimeSpan.FromMilliseconds(260),
+            EasingFunction = easeOut
+        };
+        moveSb.Children.Add(animTranslate);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animTranslate, IndicatorTranslation);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animTranslate, "Y");
+
+        // 2. Windows 11 Signature Fluid Stretch-and-Snap Animation
+        if (distance > 5.0)
+        {
+            double stretch = Math.Min(1.45, 1.0 + (distance / 120.0));
+            var animScaleKeyFrames = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
+            animScaleKeyFrames.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.LinearDoubleKeyFrame
+            {
+                Value = 1.0,
+                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)
+            });
+            animScaleKeyFrames.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
+            {
+                Value = stretch,
+                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(100)),
+                EasingFunction = easeOut
+            });
+            animScaleKeyFrames.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
+            {
+                Value = 1.0,
+                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(260)),
+                EasingFunction = easeOut
+            });
+
+            moveSb.Children.Add(animScaleKeyFrames);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animScaleKeyFrames, IndicatorScale);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animScaleKeyFrames, "ScaleY");
+        }
+
+        _currentIndicatorY = targetY;
+        _indicatorStoryboard = moveSb;
+        moveSb.Begin();
+    }
+
+    private void AnimateIndicatorVisibility(bool isVisible, bool animate)
+    {
+        if (_isIndicatorVisible == isVisible) return;
+
+        _indicatorStoryboard?.Stop();
+
+        if (!animate)
+        {
+            ActiveIndicatorPill.Opacity = isVisible ? 1.0 : 0.0;
+            IndicatorScale.ScaleY = isVisible ? 1.0 : 0.0;
+            _isIndicatorVisible = isVisible;
+            return;
+        }
+
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        var ease = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+        {
+            EasingMode = isVisible ? Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut : Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseIn
+        };
+
+        var animOpacity = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            To = isVisible ? 1.0 : 0.0,
+            Duration = TimeSpan.FromMilliseconds(160),
+            EasingFunction = ease
+        };
+        var animScaleY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            To = isVisible ? 1.0 : 0.0,
+            Duration = TimeSpan.FromMilliseconds(160),
+            EasingFunction = ease
+        };
+
+        sb.Children.Add(animOpacity);
+        sb.Children.Add(animScaleY);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOpacity, ActiveIndicatorPill);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animOpacity, "Opacity");
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animScaleY, IndicatorScale);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animScaleY, "ScaleY");
+
+        _indicatorStoryboard = sb;
+        sb.Begin();
+        _isIndicatorVisible = isVisible;
     }
 
     private void AdjustSplitViewAnimationSpeed()
@@ -258,11 +482,27 @@ public sealed partial class HomePage : Page
         }
     }
 
+    private void OnFolderPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is UIElement el)
+        {
+            AnimateElementClickPulse(el, 0.96);
+        }
+    }
+
+    private void OnFolderPointerReset(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is UIElement el)
+        {
+            ResetElementScale(el);
+        }
+    }
+
     private void OnItemPointerPressed(object sender, PointerRoutedEventArgs e)
     {
         if (sender is UIElement el)
         {
-            AnimateElementScale(el, 0.97, 80);
+            AnimateElementClickPulse(el, 0.97);
         }
     }
 
@@ -270,7 +510,7 @@ public sealed partial class HomePage : Page
     {
         if (sender is UIElement el)
         {
-            AnimateElementScale(el, 1.0, 160);
+            ResetElementScale(el);
         }
     }
 
@@ -278,7 +518,7 @@ public sealed partial class HomePage : Page
     {
         if (sender is UIElement el)
         {
-            AnimateElementScale(el, 1.0, 160);
+            ResetElementScale(el);
         }
     }
 
@@ -295,6 +535,81 @@ public sealed partial class HomePage : Page
         if (sender is UIElement el)
         {
             AnimateElementScale(el, 1.0, 160);
+        }
+    }
+
+    private static void AnimateElementClickPulse(UIElement element, double targetScale = 0.96)
+    {
+        element.RenderTransformOrigin = new Windows.Foundation.Point(0.5, 0.5);
+        Microsoft.UI.Xaml.Media.ScaleTransform scale;
+        if (element.RenderTransform is Microsoft.UI.Xaml.Media.ScaleTransform st)
+        {
+            scale = st;
+        }
+        else
+        {
+            scale = new Microsoft.UI.Xaml.Media.ScaleTransform { ScaleX = 1.0, ScaleY = 1.0 };
+            element.RenderTransform = scale;
+        }
+
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        var easeOut = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+        {
+            EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut
+        };
+
+        var animX = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
+        animX.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.LinearDoubleKeyFrame
+        {
+            Value = scale.ScaleX,
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)
+        });
+        animX.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
+        {
+            Value = targetScale,
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(75)),
+            EasingFunction = easeOut
+        });
+        animX.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
+        {
+            Value = 1.0,
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(220)),
+            EasingFunction = easeOut
+        });
+
+        var animY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
+        animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.LinearDoubleKeyFrame
+        {
+            Value = scale.ScaleY,
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)
+        });
+        animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
+        {
+            Value = targetScale,
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(75)),
+            EasingFunction = easeOut
+        });
+        animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
+        {
+            Value = 1.0,
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(220)),
+            EasingFunction = easeOut
+        });
+
+        sb.Children.Add(animX);
+        sb.Children.Add(animY);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animX, scale);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animX, "ScaleX");
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, scale);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "ScaleY");
+        sb.Begin();
+    }
+
+    private static void ResetElementScale(UIElement element)
+    {
+        if (element.RenderTransform is Microsoft.UI.Xaml.Media.ScaleTransform st && (st.ScaleX != 1.0 || st.ScaleY != 1.0))
+        {
+            AnimateElementScale(element, 1.0, 120);
         }
     }
 
@@ -444,7 +759,7 @@ public sealed partial class HomePage : Page
             var favItem = new MenuFlyoutItem
             {
                 Text = clip.IsFavorite ? "Remove from Favorites" : "Add to Favorites",
-                Icon = new FontIcon { Glyph = clip.IsFavorite ? "\uE734" : "\uE735" }
+                Icon = new FontIcon { Glyph = clip.IsFavorite ? "\uEB51" : "\uEB52" }
             };
             favItem.Click += (s, args) => _ = ViewModel.ToggleFavoriteAsync(clip);
             flyout.Items.Add(favItem);

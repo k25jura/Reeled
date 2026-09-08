@@ -95,7 +95,7 @@ public partial class HomeViewModel : ObservableObject
     public string CurrentDirectoryPath => CurrentSection switch
     {
         NavigationSection.Home => AllClips.Count > 0 ? "All watch folders" : string.Empty,
-        NavigationSection.Favorites => FavoritesCount > 0 ? $"{FavoritesCount} starred clips" : string.Empty,
+        NavigationSection.Favorites => FavoritesCount > 0 ? $"{FavoritesCount} favorite clips" : string.Empty,
         NavigationSection.SavedMoments => SavedMomentsCount > 0 ? $"{SavedMomentsCount} clips with moments" : string.Empty,
         NavigationSection.Folder => SelectedDirectory?.FullPath ?? string.Empty,
         _ => string.Empty
@@ -104,7 +104,7 @@ public partial class HomeViewModel : ObservableObject
     public string EmptyStateGlyph => CurrentSection switch
     {
         NavigationSection.Home => "\uE80F",
-        NavigationSection.Favorites => "\uE735",
+        NavigationSection.Favorites => "\uEB52",
         NavigationSection.SavedMoments => "\uE8A4",
         _ => "\uE8B7"
     };
@@ -120,7 +120,7 @@ public partial class HomeViewModel : ObservableObject
     public string EmptyStateSubtitle => CurrentSection switch
     {
         NavigationSection.Home => "Add your captures folder or drop video files to start watching.",
-        NavigationSection.Favorites => "Click the star icon on any clip to pin it to your favorites.",
+        NavigationSection.Favorites => "Click the heart icon on any clip to pin it to your favorites.",
         NavigationSection.SavedMoments => "Add bookmarks and timestamps during video playback to revisit key highlights.",
         _ => "Choose another folder or add MP4/MKV video files to this directory."
     };

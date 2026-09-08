@@ -100,8 +100,8 @@ public class FavoriteGlyphConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        // E735 = Filled Star, E734 = Outline Star
-        return value is bool isFav && isFav ? "\uE735" : "\uE734";
+        // Segoe Fluent Icons: EB52 = Filled Heart, EB51 = Outline Heart
+        return value is bool isFav && isFav ? "\uEB52" : "\uEB51";
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)

@@ -94,7 +94,7 @@
                             Click="OnBookmarksButtonClick"
                             Style="{ThemeResource SubtleButtonStyle}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon Glyph="&#xE734;" FontSize="14" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+                            <FontIcon Glyph="&#xE8A4;" FontSize="14" Foreground="#FFD700" />
                             <TextBlock Text="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" FontSize="12" Foreground="White" />
                         </StackPanel>
                     </Button>

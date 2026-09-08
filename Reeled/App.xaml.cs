@@ -19,6 +19,28 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
+
+        UnhandledException += (sender, args) =>
+        {
+            try
+            {
+                string log = $"[UnhandledException] {DateTime.Now}\nMessage: {args.Message}\nException: {args.Exception}\nStackTrace:\n{args.Exception?.StackTrace}\n\n";
+                System.IO.File.AppendAllText("reeled_crash.log", log);
+            }
+            catch { }
+            args.Handled = true;
+        };
+
+        AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+        {
+            try
+            {
+                string log = $"[AppDomain Unhandled] {DateTime.Now}\nExceptionObject: {args.ExceptionObject}\n\n";
+                System.IO.File.AppendAllText("reeled_crash.log", log);
+            }
+            catch { }
+        };
+
         Services = ConfigureServices();
     }
 

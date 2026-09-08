@@ -38,11 +38,22 @@ public class ClipIndexerService : IClipIndexerService
         {
             try
             {
-                var option = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-                var files = Directory.EnumerateFiles(directoryPath, "*.*", option)
+                var topFiles = Directory.EnumerateFiles(directoryPath, "*.*", SearchOption.TopDirectoryOnly)
                     .Where(f => VideoExtensions.Contains(Path.GetExtension(f)))
-                    .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
                     .ToList();
+
+                List<string> files;
+                if (topFiles.Count > 0 || !recursive)
+                {
+                    files = topFiles.OrderByDescending(f => File.GetLastWriteTimeUtc(f)).ToList();
+                }
+                else
+                {
+                    files = Directory.EnumerateFiles(directoryPath, "*.*", SearchOption.AllDirectories)
+                        .Where(f => VideoExtensions.Contains(Path.GetExtension(f)))
+                        .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
+                        .ToList();
+                }
 
                 foreach (var file in files)
                 {
@@ -59,7 +70,6 @@ public class ClipIndexerService : IClipIndexerService
             }
             catch (Exception)
             {
-                // Directory access error or permission failure
             }
         });
 
@@ -93,34 +103,42 @@ public class ClipIndexerService : IClipIndexerService
 
     private DirectoryNode CreateDirectoryNode(string path, bool isWatchRoot)
     {
+        string folderName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        if (string.IsNullOrEmpty(folderName)) folderName = path;
+
         var node = new DirectoryNode
         {
             FullPath = path,
-            Name = isWatchRoot ? path : Path.GetFileName(path),
+            Name = folderName,
             IsWatchRoot = isWatchRoot
         };
 
         try
         {
-            int clipCount = 0;
+            int directClips = 0;
             foreach (var file in Directory.EnumerateFiles(path, "*.*", SearchOption.TopDirectoryOnly))
             {
                 if (VideoExtensions.Contains(Path.GetExtension(file)))
-                    clipCount++;
+                    directClips++;
             }
-            node.ClipCount = clipCount;
 
             foreach (var dir in Directory.EnumerateDirectories(path))
             {
                 try
                 {
                     var subNode = CreateDirectoryNode(dir, isWatchRoot: false);
-                    node.SubDirectories.Add(subNode);
+                    if (subNode.ClipCount > 0 || subNode.SubDirectories.Count > 0)
+                    {
+                        node.SubDirectories.Add(subNode);
+                    }
                 }
                 catch (Exception)
                 {
                 }
             }
+
+            int subClipsTotal = node.SubDirectories.Sum(s => s.ClipCount);
+            node.ClipCount = directClips > 0 ? directClips : subClipsTotal;
         }
         catch (Exception)
         {

@@ -21,23 +21,70 @@ public sealed partial class HomePage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        if (ViewModel.Directories.Count == 0)
+        await ViewModel.SyncDirectoriesAsync();
+        RefreshTreeNodes();
+    }
+
+    private void RefreshTreeNodes()
+    {
+        DirectoriesTreeView.RootNodes.Clear();
+        foreach (var dir in ViewModel.Directories)
         {
-            await ViewModel.InitializeAsync();
+            var rootNode = CreateTreeNode(dir);
+            DirectoriesTreeView.RootNodes.Add(rootNode);
+        }
+
+        if (ViewModel.SelectedDirectory != null)
+        {
+            SelectNodeInTree(DirectoriesTreeView.RootNodes, ViewModel.SelectedDirectory.FullPath);
         }
     }
 
-    private async void OnDirectorySelectionChanged(object sender, SelectionChangedEventArgs e)
+    private TreeViewNode CreateTreeNode(DirectoryNode dir)
     {
-        if (e.AddedItems.Count > 0 && e.AddedItems[0] is DirectoryNode node)
+        var node = new TreeViewNode
         {
-            await ViewModel.SelectDirectoryAsync(node);
+            Content = dir,
+            IsExpanded = true
+        };
+        foreach (var sub in dir.SubDirectories)
+        {
+            node.Children.Add(CreateTreeNode(sub));
+        }
+        return node;
+    }
+
+    private bool SelectNodeInTree(System.Collections.Generic.IList<TreeViewNode> nodes, string path)
+    {
+        foreach (var n in nodes)
+        {
+            if (n.Content is DirectoryNode d && string.Equals(d.FullPath, path, StringComparison.OrdinalIgnoreCase))
+            {
+                DirectoriesTreeView.SelectedNode = n;
+                return true;
+            }
+            if (SelectNodeInTree(n.Children, path))
+                return true;
+        }
+        return false;
+    }
+
+    private async void OnDirectoryTreeItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
+    {
+        if (args.InvokedItem is TreeViewNode tvNode && tvNode.Content is DirectoryNode dirNode)
+        {
+            await ViewModel.SelectDirectoryAsync(dirNode);
+        }
+        else if (args.InvokedItem is DirectoryNode dNode)
+        {
+            await ViewModel.SelectDirectoryAsync(dNode);
         }
     }
 
     private async void OnAddFolderClick(object sender, RoutedEventArgs e)
     {
         await ViewModel.AddDirectoryAsync(App.WindowHandle);
+        RefreshTreeNodes();
     }
 
     private void OnClipItemClick(object sender, ItemClickEventArgs e)

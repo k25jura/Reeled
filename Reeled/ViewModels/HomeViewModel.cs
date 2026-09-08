@@ -44,6 +44,23 @@ public partial class HomeViewModel : ObservableObject
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
+    public bool HasDirectories => Directories.Count > 0;
+    public bool HasClips => FilteredClips.Count > 0;
+
+    public string CurrentDirectoryTitle =>
+        SelectedDirectory != null
+            ? (!string.IsNullOrEmpty(SelectedDirectory.Name) ? SelectedDirectory.Name : "Library")
+            : "Gameplay Library";
+
+    public string CurrentDirectoryPath =>
+        SelectedDirectory?.FullPath ?? string.Empty;
+
+    partial void OnSelectedDirectoryChanged(DirectoryNode? value)
+    {
+        OnPropertyChanged(nameof(CurrentDirectoryTitle));
+        OnPropertyChanged(nameof(CurrentDirectoryPath));
+    }
+
     public int TotalClipsCount => Clips.Count;
 
     public string TotalStorageUsedFormatted
@@ -76,6 +93,11 @@ public partial class HomeViewModel : ObservableObject
 
     public async Task InitializeAsync()
     {
+        await SyncDirectoriesAsync();
+    }
+
+    public async Task SyncDirectoriesAsync()
+    {
         IsLoading = true;
         StatusMessage = "Loading watch directories...";
 
@@ -89,6 +111,7 @@ public partial class HomeViewModel : ObservableObject
         }
 
         _indexerService.UpdateWatchers(settings.WatchDirectories);
+        OnPropertyChanged(nameof(HasDirectories));
 
         // Restore last active directory or first available
         DirectoryNode? target = null;
@@ -104,7 +127,15 @@ public partial class HomeViewModel : ObservableObject
         }
         else
         {
+            Clips.Clear();
+            FilteredClips.Clear();
+            SelectedDirectory = null;
             IsLoading = false;
+            OnPropertyChanged(nameof(HasClips));
+            OnPropertyChanged(nameof(TotalClipsCount));
+            OnPropertyChanged(nameof(TotalStorageUsedFormatted));
+            OnPropertyChanged(nameof(CurrentDirectoryTitle));
+            OnPropertyChanged(nameof(CurrentDirectoryPath));
             StatusMessage = "No folders added. Click '+' to add a folder with clips.";
         }
     }
@@ -112,6 +143,9 @@ public partial class HomeViewModel : ObservableObject
     public async Task SelectDirectoryAsync(DirectoryNode node)
     {
         SelectedDirectory = node;
+        OnPropertyChanged(nameof(CurrentDirectoryTitle));
+        OnPropertyChanged(nameof(CurrentDirectoryPath));
+
         IsLoading = true;
         StatusMessage = $"Scanning {node.Name}...";
 
@@ -119,7 +153,7 @@ public partial class HomeViewModel : ObservableObject
         settings.LastActiveDirectory = node.FullPath;
         _ = _storageService.SaveSettingsAsync(settings);
 
-        var clips = await _indexerService.ScanDirectoryClipsAsync(node.FullPath);
+        var clips = await _indexerService.ScanDirectoryClipsAsync(node.FullPath, recursive: node.IsWatchRoot);
 
         Clips.Clear();
         foreach (var clip in clips)
@@ -147,6 +181,7 @@ public partial class HomeViewModel : ObservableObject
         StatusMessage = Clips.Count > 0 ? $"{Clips.Count} clips loaded" : "No clips in this folder";
         OnPropertyChanged(nameof(TotalClipsCount));
         OnPropertyChanged(nameof(TotalStorageUsedFormatted));
+        OnPropertyChanged(nameof(HasClips));
     }
 
     [RelayCommand]
@@ -168,15 +203,7 @@ public partial class HomeViewModel : ObservableObject
                 {
                     settings.WatchDirectories.Add(path);
                     await _storageService.SaveSettingsAsync(settings);
-
-                    var trees = await _indexerService.BuildDirectoryTreesAsync(settings.WatchDirectories);
-                    Directories.Clear();
-                    foreach (var tree in trees)
-                    {
-                        Directories.Add(tree);
-                    }
-
-                    _indexerService.UpdateWatchers(settings.WatchDirectories);
+                    await SyncDirectoriesAsync();
 
                     var newNode = FindNodeByPath(Directories, path);
                     if (newNode != null)
@@ -200,25 +227,7 @@ public partial class HomeViewModel : ObservableObject
         var settings = _storageService.CurrentSettings;
         settings.WatchDirectories.Remove(node.FullPath);
         await _storageService.SaveSettingsAsync(settings);
-
-        Directories.Remove(node);
-        _indexerService.UpdateWatchers(settings.WatchDirectories);
-
-        if (SelectedDirectory == node)
-        {
-            var next = Directories.FirstOrDefault();
-            if (next != null)
-            {
-                await SelectDirectoryAsync(next);
-            }
-            else
-            {
-                Clips.Clear();
-                FilteredClips.Clear();
-                SelectedDirectory = null;
-                StatusMessage = "Add a folder to get started";
-            }
-        }
+        await SyncDirectoriesAsync();
     }
 
     [RelayCommand]
@@ -373,6 +382,7 @@ public partial class HomeViewModel : ObservableObject
         {
             FilteredClips.Add(c);
         }
+        OnPropertyChanged(nameof(HasClips));
     }
 
     private void OnClipAdded(string filePath)
@@ -419,7 +429,7 @@ public partial class HomeViewModel : ObservableObject
         });
     }
 
-    private static DirectoryNode? FindNodeByPath(IEnumerable<DirectoryNode> nodes, string path)
+    public static DirectoryNode? FindNodeByPath(IEnumerable<DirectoryNode> nodes, string path)
     {
         foreach (var n in nodes)
         {

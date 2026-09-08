@@ -25,5 +25,8 @@ public partial class DirectoryNode : ObservableObject
 
     public ObservableCollection<DirectoryNode> SubDirectories { get; set; } = new();
 
+    public string DisplayName =>
+        !string.IsNullOrEmpty(Name) ? Name : System.IO.Path.GetFileName(FullPath);
+
     public string IconGlyph => IsWatchRoot ? "\uE838" : "\uED25"; // FolderHorizontal vs Folder
 }

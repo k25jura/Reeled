@@ -10,7 +10,13 @@ public class BoolToVisibilityConverter : IValueConverter
 
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        bool b = value is bool flag && flag;
+        bool b = false;
+        if (value is bool flag) b = flag;
+        else if (value is int count) b = count > 0;
+        else if (value is long countL) b = countL > 0;
+        else if (value is System.Collections.ICollection col) b = col.Count > 0;
+        else if (value != null) b = true;
+
         if (Invert) b = !b;
         return b ? Visibility.Visible : Visibility.Collapsed;
     }

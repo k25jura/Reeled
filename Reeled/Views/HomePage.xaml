@@ -56,14 +56,14 @@
 
                 <!-- Folders Tree / List -->
                 <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-                    <StackPanel Spacing="4">
-                        <ListView ItemsSource="{x:Bind ViewModel.Directories, Mode=OneWay}"
-                                  SelectedItem="{x:Bind ViewModel.SelectedDirectory, Mode=TwoWay}"
-                                  SelectionChanged="OnDirectorySelectionChanged"
-                                  SelectionMode="Single">
-                            <ListView.ItemTemplate>
+                    <Grid>
+                        <TreeView x:Name="DirectoriesTreeView"
+                                  ItemInvoked="OnDirectoryTreeItemInvoked"
+                                  SelectionMode="Single"
+                                  Visibility="{x:Bind ViewModel.HasDirectories, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <TreeView.ItemTemplate>
                                 <DataTemplate x:DataType="models:DirectoryNode">
-                                    <Grid Margin="0,4" ColumnSpacing="10">
+                                    <Grid Margin="0,3" ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
@@ -72,11 +72,11 @@
 
                                         <FontIcon Grid.Column="0" 
                                                   Glyph="{x:Bind IconGlyph}" 
-                                                  FontSize="16" 
+                                                  FontSize="15" 
                                                   Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
 
                                         <TextBlock Grid.Column="1" 
-                                                   Text="{x:Bind Name}" 
+                                                   Text="{x:Bind DisplayName}" 
                                                    TextTrimming="CharacterEllipsis" 
                                                    VerticalAlignment="Center" 
                                                    ToolTipService.ToolTip="{x:Bind FullPath}" />
@@ -85,7 +85,8 @@
                                                 Background="{ThemeResource LayerFillColorAltBrush}" 
                                                 CornerRadius="10" 
                                                 Padding="6,2" 
-                                                VerticalAlignment="Center">
+                                                VerticalAlignment="Center"
+                                                Visibility="{x:Bind ClipCount, Converter={StaticResource BoolToVisibilityConverter}}">
                                             <TextBlock Text="{x:Bind ClipCount, Mode=OneWay}" 
                                                        FontSize="11" 
                                                        FontWeight="SemiBold" 
@@ -93,11 +94,11 @@
                                         </Border>
                                     </Grid>
                                 </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
 
                         <!-- Fallback Prompt if No Folders -->
-                        <StackPanel Visibility="{x:Bind ViewModel.Directories.Count, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                        <StackPanel Visibility="{x:Bind ViewModel.HasDirectories, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
                                     Spacing="8" Margin="8,24,8,8" HorizontalAlignment="Center">
                             <FontIcon Glyph="&#xE8B7;" FontSize="32" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" />
                             <TextBlock Text="No folders added" Style="{ThemeResource BodyStrongTextBlockStyle}" HorizontalAlignment="Center" />
@@ -108,7 +109,7 @@
                                        TextAlignment="Center" />
                             <Button Content="Choose Folder" HorizontalAlignment="Center" Margin="0,8,0,0" Click="OnAddFolderClick" />
                         </StackPanel>
-                    </StackPanel>
+                    </Grid>
                 </ScrollViewer>
 
                 <!-- Bottom Settings & Refresh -->
@@ -164,7 +165,7 @@
 
                     <!-- Folder Title and Count Info -->
                     <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                        <TextBlock Text="{x:Bind ViewModel.SelectedDirectory.Name, Mode=OneWay, FallbackValue='Gameplay Library'}" 
+                        <TextBlock Text="{x:Bind ViewModel.CurrentDirectoryTitle, Mode=OneWay}" 
                                    Style="{ThemeResource TitleTextBlockStyle}" 
                                    FontSize="22" 
                                    FontWeight="SemiBold" 
@@ -182,6 +183,15 @@
                             <TextBlock Text="{x:Bind ViewModel.TotalStorageUsedFormatted, Mode=OneWay}" 
                                        Style="{ThemeResource CaptionTextBlockStyle}" 
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <TextBlock Text="•" 
+                                       Style="{ThemeResource CaptionTextBlockStyle}" 
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                       Visibility="{x:Bind ViewModel.CurrentDirectoryPath, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}" />
+                            <TextBlock Text="{x:Bind ViewModel.CurrentDirectoryPath, Mode=OneWay}" 
+                                       Style="{ThemeResource CaptionTextBlockStyle}" 
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       MaxWidth="380" />
                         </StackPanel>
                     </StackPanel>
 
@@ -328,7 +338,7 @@
                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
 
                     <!-- Empty State View -->
-                    <StackPanel Visibility="{x:Bind ViewModel.FilteredClips.Count, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                    <StackPanel Visibility="{x:Bind ViewModel.HasClips, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
                                 HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
                         <FontIcon Glyph="&#xE8B7;" FontSize="48" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" />
                         <TextBlock Text="No clips to show" Style="{ThemeResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />

@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:converters="using:Reeled.Converters"
+    xmlns:vlc="using:LibVLCSharp.Platforms.Windows"
     xmlns:local="using:Reeled">
     <Application.Resources>
         <ResourceDictionary>
@@ -18,6 +19,18 @@
             <converters:PlayPauseGlyphConverter x:Key="PlayPauseGlyphConverter" />
             <converters:VolumeGlyphConverter x:Key="VolumeGlyphConverter" />
             <converters:FavoriteGlyphConverter x:Key="FavoriteGlyphConverter" />
+
+            <!-- LibVLCSharp VideoView Default Style for Unpackaged WinUI 3 -->
+            <Style x:Key="VideoViewDefaultStyle" TargetType="vlc:VideoView">
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="vlc:VideoView">
+                            <SwapChainPanel x:Name="SwapChainPanel" />
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style TargetType="vlc:VideoView" BasedOn="{StaticResource VideoViewDefaultStyle}" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

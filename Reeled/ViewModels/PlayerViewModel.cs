@@ -112,10 +112,6 @@ public partial class PlayerViewModel : ObservableObject
     public void AttachVideoView(LibVLCSharp.Platforms.Windows.VideoView videoView, string[] swapChainOptions)
     {
         _playbackService.AttachToVideoView(videoView, swapChainOptions);
-        if (CurrentClip != null)
-        {
-            _ = _playbackService.PlayMediaAsync(CurrentClip.FilePath);
-        }
     }
 
     private void SetClip(GameClip clip)

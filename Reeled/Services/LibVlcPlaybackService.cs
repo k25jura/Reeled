@@ -37,11 +37,19 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
         try
         {
-            Core.Initialize();
+            string libvlcDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "libvlc", "win-x64");
+            if (Directory.Exists(libvlcDir))
+            {
+                Core.Initialize(libvlcDir);
+            }
+            else
+            {
+                Core.Initialize();
+            }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Core.Initialize might already be initialized or throw if custom path is needed
+            try { File.AppendAllText("reeled_crash.log", $"[Core.Initialize Error] {ex}\n"); } catch { }
         }
     }
 
@@ -126,11 +134,12 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
             try
             {
                 _currentMedia?.Dispose();
-                _currentMedia = new Media(_libVLC, new Uri(filePath));
+                _currentMedia = new Media(_libVLC, filePath, FromType.FromPath);
                 _mediaPlayer.Play(_currentMedia);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                try { File.AppendAllText("reeled_crash.log", $"[PlayMediaAsync Error] {ex}\n"); } catch { }
             }
         });
     }

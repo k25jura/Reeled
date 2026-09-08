@@ -25,7 +25,7 @@
                     </Button>
 
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="Settings" Style="{ThemeResource TitleTextBlockStyle}" FontSize="24" FontWeight="SemiBold" />
+                        <TextBlock Text="Settings" Style="{ThemeResource TitleTextBlockStyle}" FontSize="24" FontWeight="SemiBold" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
                         <TextBlock Text="Manage watch directories, caching, and playback behavior" 
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </StackPanel>

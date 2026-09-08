@@ -586,8 +586,8 @@ public partial class HomeViewModel : ObservableObject
 
         query = SortIndex switch
         {
-            0 => query.OrderByDescending(c => c.CreatedDate != DateTime.MinValue ? c.CreatedDate : c.ModifiedDate),
-            1 => query.OrderBy(c => c.CreatedDate != DateTime.MinValue ? c.CreatedDate : c.ModifiedDate),
+            0 => query.OrderByDescending(c => c.EffectiveDate),
+            1 => query.OrderBy(c => c.EffectiveDate),
             2 => query.OrderBy(c => c.FileName, StringComparer.OrdinalIgnoreCase),
             3 => query.OrderByDescending(c => c.Duration),
             4 => query.OrderByDescending(c => c.FileSizeBytes),

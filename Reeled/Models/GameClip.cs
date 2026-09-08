@@ -24,10 +24,16 @@ public partial class GameClip : ObservableObject
     private long _fileSizeBytes;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FormattedDate))]
+    [NotifyPropertyChangedFor(nameof(EffectiveDate))]
     private DateTime _createdDate = DateTime.MinValue;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FormattedDate))]
+    [NotifyPropertyChangedFor(nameof(EffectiveDate))]
     private DateTime _modifiedDate = DateTime.MinValue;
+
+    public DateTime EffectiveDate => ModifiedDate != DateTime.MinValue ? ModifiedDate : CreatedDate;
 
     [ObservableProperty]
     private uint _videoWidth;
@@ -90,7 +96,7 @@ public partial class GameClip : ObservableObject
     {
         get
         {
-            var dt = CreatedDate != DateTime.MinValue ? CreatedDate : ModifiedDate;
+            var dt = EffectiveDate;
             if (dt == DateTime.MinValue) return string.Empty;
 
             var local = dt.ToLocalTime();

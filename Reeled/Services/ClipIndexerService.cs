@@ -61,7 +61,9 @@ public class ClipIndexerService : IClipIndexerService
                     {
                         FilePath = file,
                         FileName = Path.GetFileName(file),
-                        DirectoryPath = Path.GetDirectoryName(file) ?? string.Empty
+                        DirectoryPath = Path.GetDirectoryName(file) ?? string.Empty,
+                        ModifiedDate = File.GetLastWriteTimeUtc(file),
+                        CreatedDate = File.GetCreationTimeUtc(file)
                     };
 
                     await _metadataService.PopulateMetadataAsync(clip);

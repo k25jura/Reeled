@@ -139,9 +139,8 @@
                             Grid.Row="0"
                             Minimum="0" 
                             Maximum="100" 
-                            Value="{x:Bind ViewModel.ProgressValue, Mode=TwoWay}"
+                            Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}"
                             ValueChanged="OnTimelineSliderValueChanged"
-                            PointerCaptureLost="OnTimelineSliderPointerCaptureLost"
                             Margin="0,0,0,-4" />
 
                     <!-- Timestamp Indicators (Current / Total) -->

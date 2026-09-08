@@ -14,6 +14,7 @@ public sealed partial class PlayerPage : Page
 {
     public PlayerViewModel ViewModel { get; }
     private readonly DispatcherTimer _inactivityTimer;
+    private bool _isUserDraggingSlider;
 
     public PlayerPage()
     {
@@ -29,20 +30,22 @@ public sealed partial class PlayerPage : Page
             }
         };
 
+        // Wire up pointer handlers on TimelineSlider with handledEventsToo = true to detect manual scrubbing
+        TimelineSlider.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnTimelineSliderPointerPressed), true);
+        TimelineSlider.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(OnTimelineSliderPointerReleased), true);
+        TimelineSlider.AddHandler(UIElement.PointerCanceledEvent, new PointerEventHandler(OnTimelineSliderPointerReleased), true);
+        TimelineSlider.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(OnTimelineSliderPointerReleased), true);
+
         Loaded += (s, e) =>
         {
             this.Focus(FocusState.Programmatic);
             _inactivityTimer.Start();
-
-            if (PlayerVideoView.MediaPlayer == null && ViewModel.PlaybackService.CurrentMediaPlayer != null)
-            {
-                PlayerVideoView.MediaPlayer = ViewModel.PlaybackService.CurrentMediaPlayer;
-            }
         };
 
         Unloaded += (s, e) =>
         {
             _inactivityTimer.Stop();
+            PlayerVideoView.MediaPlayer = null;
         };
     }
 
@@ -51,11 +54,6 @@ public sealed partial class PlayerPage : Page
         base.OnNavigatedTo(e);
         this.Focus(FocusState.Programmatic);
         ViewModel.IsControlsVisible = true;
-
-        if (PlayerVideoView.MediaPlayer == null && ViewModel.PlaybackService.CurrentMediaPlayer != null)
-        {
-            PlayerVideoView.MediaPlayer = ViewModel.PlaybackService.CurrentMediaPlayer;
-        }
     }
 
     private void OnVideoViewInitialized(object? sender, LibVLCSharp.Platforms.Windows.InitializedEventArgs e)
@@ -70,18 +68,27 @@ public sealed partial class PlayerPage : Page
         _inactivityTimer.Start();
     }
 
-    private void OnTimelineSliderValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    private void OnTimelineSliderPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (Math.Abs(e.NewValue - e.OldValue) > 0.01)
+        _isUserDraggingSlider = true;
+        ViewModel.OnSliderDragStarted();
+    }
+
+    private void OnTimelineSliderPointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (_isUserDraggingSlider)
         {
-            // If user moved the slider thumb
-            ViewModel.OnSliderDeltaChanged(e.NewValue);
+            _isUserDraggingSlider = false;
+            ViewModel.OnSliderDragCompleted(TimelineSlider.Value);
         }
     }
 
-    private void OnTimelineSliderPointerCaptureLost(object sender, PointerRoutedEventArgs e)
+    private void OnTimelineSliderValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
-        ViewModel.OnSliderDragCompleted(TimelineSlider.Value);
+        if (_isUserDraggingSlider)
+        {
+            ViewModel.OnSliderDeltaChanged(e.NewValue);
+        }
     }
 
     private void OnVolumeSliderValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)

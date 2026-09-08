@@ -24,6 +24,7 @@ public interface ILibVlcPlaybackService : IDisposable
     float PlaybackRate { get; }
 
     void InitializeEngine(string[]? swapChainOptions = null);
+    void DisposeEngine();
     void AttachToVideoView(LibVLCSharp.Platforms.Windows.VideoView videoView, string[] swapChainOptions);
     Task PlayMediaAsync(string filePath);
     void Play();
@@ -34,6 +35,7 @@ public interface ILibVlcPlaybackService : IDisposable
     void SeekTime(long timeMs);
     void SkipSeconds(int seconds);
     void SetVolume(int volume);
+    void SetMute(bool isMuted);
     void ToggleMute();
     void SetPlaybackRate(float rate);
 }

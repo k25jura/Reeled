@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using LibVLCSharp.Shared;
@@ -13,6 +14,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
     private Media? _currentMedia;
     private DispatcherQueue? _dispatcherQueue;
     private string? _pendingFilePath;
+    private string[]? _currentSwapChainOptions;
     private bool _isDisposed;
 
     public event Action<float>? PositionChanged;
@@ -34,7 +36,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
 
     public LibVlcPlaybackService()
     {
-        _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+        _dispatcherQueue = App.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
         try
         {
             string libvlcDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "libvlc", "win-x64");
@@ -59,14 +61,30 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
 
         try
         {
-            var options = swapChainOptions ?? Array.Empty<string>();
-            _libVLC = new LibVLC(enableDebugLogs: false, options);
+            var options = new List<string>
+            {
+                "--no-osd",
+                "--no-video-title-show",
+                "--drop-late-frames",
+                "--skip-frames",
+                "--file-caching=300",
+                "--live-caching=300",
+                "--disc-caching=300",
+                "--network-caching=300"
+            };
+
+            if (swapChainOptions != null && swapChainOptions.Length > 0)
+            {
+                options.AddRange(swapChainOptions);
+            }
+
+            _libVLC = new LibVLC(enableDebugLogs: false, options.ToArray());
             _mediaPlayer = new MediaPlayer(_libVLC);
             RegisterPlayerEvents(_mediaPlayer);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Fallback without extra options
+            try { File.AppendAllText("reeled_crash.log", $"[InitializeEngine Error] {ex}\n"); } catch { }
             _libVLC = new LibVLC();
             _mediaPlayer = new MediaPlayer(_libVLC);
             RegisterPlayerEvents(_mediaPlayer);
@@ -75,10 +93,19 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
 
     public void AttachToVideoView(LibVLCSharp.Platforms.Windows.VideoView videoView, string[] swapChainOptions)
     {
-        _dispatcherQueue ??= DispatcherQueue.GetForCurrentThread();
+        _dispatcherQueue ??= App.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
+
+        bool optionsChanged = _currentSwapChainOptions == null 
+            || !AreOptionsEqual(_currentSwapChainOptions, swapChainOptions);
+
+        if (_libVLC != null && optionsChanged)
+        {
+            DisposeEngine();
+        }
 
         if (_libVLC == null)
         {
+            _currentSwapChainOptions = (string[])swapChainOptions.Clone();
             InitializeEngine(swapChainOptions);
         }
 
@@ -95,6 +122,41 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         }
     }
 
+    public void DisposeEngine()
+    {
+        try
+        {
+            _currentMedia?.Dispose();
+            _currentMedia = null;
+
+            if (_mediaPlayer != null)
+            {
+                _mediaPlayer.Stop();
+                _mediaPlayer.Dispose();
+                _mediaPlayer = null;
+            }
+
+            _libVLC?.Dispose();
+            _libVLC = null;
+            _currentSwapChainOptions = null;
+        }
+        catch (Exception ex)
+        {
+            try { File.AppendAllText("reeled_crash.log", $"[DisposeEngine Error] {ex}\n"); } catch { }
+        }
+    }
+
+    private static bool AreOptionsEqual(string[] a, string[] b)
+    {
+        if (ReferenceEquals(a, b)) return true;
+        if (a == null || b == null || a.Length != b.Length) return false;
+        for (int i = 0; i < a.Length; i++)
+        {
+            if (!string.Equals(a[i], b[i], StringComparison.Ordinal)) return false;
+        }
+        return true;
+    }
+
     private void RegisterPlayerEvents(MediaPlayer player)
     {
         player.PositionChanged += (s, e) => Dispatch(() => PositionChanged?.Invoke(e.Position));
@@ -108,9 +170,10 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
 
     private void Dispatch(Action action)
     {
-        if (_dispatcherQueue != null && !_dispatcherQueue.HasThreadAccess)
+        var dispatcher = _dispatcherQueue ?? App.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
+        if (dispatcher != null && !dispatcher.HasThreadAccess)
         {
-            _dispatcherQueue.TryEnqueue(() => action());
+            dispatcher.TryEnqueue(() => action());
         }
         else
         {
@@ -123,7 +186,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
             return;
 
-        if (_libVLC == null || _mediaPlayer == null)
+        if (_libVLC == null || _mediaPlayer == null || _currentSwapChainOptions == null)
         {
             _pendingFilePath = filePath;
             return;
@@ -169,7 +232,17 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
 
     public void Stop()
     {
-        _mediaPlayer?.Stop();
+        _pendingFilePath = null;
+        try
+        {
+            _mediaPlayer?.Stop();
+            _currentMedia?.Dispose();
+            _currentMedia = null;
+        }
+        catch (Exception ex)
+        {
+            try { File.AppendAllText("reeled_crash.log", $"[Stop Error] {ex}\n"); } catch { }
+        }
     }
 
     public void SetPosition(float ratio)
@@ -197,6 +270,12 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
     {
         if (_mediaPlayer == null) return;
         _mediaPlayer.Volume = Math.Clamp(volume, 0, 150);
+    }
+
+    public void SetMute(bool isMuted)
+    {
+        if (_mediaPlayer == null) return;
+        _mediaPlayer.Mute = isMuted;
     }
 
     public void ToggleMute()

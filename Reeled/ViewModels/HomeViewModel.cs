@@ -68,7 +68,20 @@ public partial class HomeViewModel : ObservableObject
         $"{TotalClipsCount} {(TotalClipsCount == 1 ? "clip" : "clips")}";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSidebarOpen))]
     private bool _isSidebarCollapsed;
+
+    public bool IsSidebarOpen
+    {
+        get => !IsSidebarCollapsed;
+        set
+        {
+            if (IsSidebarCollapsed == value)
+            {
+                IsSidebarCollapsed = !value;
+            }
+        }
+    }
 
     [RelayCommand]
     public void ToggleSidebar()

@@ -109,3 +109,16 @@ public class FavoriteGlyphConverter : IValueConverter
         throw new NotImplementedException();
     }
 }
+
+public class FavoriteOpacityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        return value is bool isFav && isFav ? 1.0 : 0.65;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+    {
+        throw new NotImplementedException();
+    }
+}

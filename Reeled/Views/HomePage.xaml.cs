@@ -12,85 +12,147 @@ public sealed partial class HomePage : Page
 {
     public HomeViewModel ViewModel { get; }
 
-    private Microsoft.UI.Xaml.Media.Animation.Storyboard? _sidebarStoryboard;
-
     public HomePage()
     {
         ViewModel = App.GetService<HomeViewModel>();
         InitializeComponent();
-
-        SidebarBorder.SizeChanged += (s, e) =>
-        {
-            SidebarBorder.Clip = new Microsoft.UI.Xaml.Media.RectangleGeometry
-            {
-                Rect = new Windows.Foundation.Rect(0, 0, Math.Max(0, e.NewSize.Width), Math.Max(0, e.NewSize.Height))
-            };
-        };
     }
 
     private void OnToggleSidebarClick(object sender, RoutedEventArgs e)
     {
         ViewModel.ToggleSidebar();
-        AnimateSidebar(ViewModel.IsSidebarCollapsed);
-    }
-
-    private void AnimateSidebar(bool collapse)
-    {
-        _sidebarStoryboard?.Stop();
-
-        SidebarBorder.Visibility = Visibility.Visible;
-
-        double currentWidth = SidebarBorder.ActualWidth > 0 ? SidebarBorder.ActualWidth : (collapse ? 290 : 0);
-        double targetWidth = collapse ? 0 : 290;
-
-        var animation = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
-        {
-            From = currentWidth,
-            To = targetWidth,
-            Duration = new Duration(TimeSpan.FromMilliseconds(250)),
-            EnableDependentAnimation = true,
-            EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase 
-            { 
-                EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut 
-            }
-        };
-
-        _sidebarStoryboard = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
-        _sidebarStoryboard.Children.Add(animation);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animation, SidebarBorder);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animation, "Width");
-
-        _sidebarStoryboard.Completed += (s, e) =>
-        {
-            SidebarBorder.Width = targetWidth;
-            if (collapse)
-            {
-                SidebarBorder.Visibility = Visibility.Collapsed;
-            }
-        };
-
-        _sidebarStoryboard.Begin();
     }
 
     private void OnClipCardPointerEntered(object sender, PointerRoutedEventArgs e)
     {
-        if (sender is Grid card)
+        if (sender is FrameworkElement card)
         {
-            if (Application.Current.Resources.TryGetValue("AccentFillColorDefaultBrush", out var accentBrush))
-            {
-                card.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)accentBrush;
-            }
+            AnimateCardHover(card, isHovered: true);
         }
     }
 
     private void OnClipCardPointerExited(object sender, PointerRoutedEventArgs e)
     {
-        if (sender is Grid card)
+        if (sender is FrameworkElement card)
         {
-            if (Application.Current.Resources.TryGetValue("CardStrokeColorDefaultBrush", out var defaultStroke))
+            AnimateCardHover(card, isHovered: false);
+        }
+    }
+
+    private void AnimateCardHover(FrameworkElement card, bool isHovered)
+    {
+        // 1. Unified Outline & Background Highlight
+        if (card is Grid grid)
+        {
+            var isSelected = grid.DataContext is GameClip clip && clip == ViewModel.SelectedClip;
+            if (isHovered || isSelected)
             {
-                card.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)defaultStroke;
+                if (Application.Current.Resources.TryGetValue("AccentFillColorDefaultBrush", out var accentBrush))
+                {
+                    grid.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)accentBrush;
+                }
+                if (Application.Current.Resources.TryGetValue("CardBackgroundFillColorSecondaryBrush", out var hoverCardBg))
+                {
+                    grid.Background = (Microsoft.UI.Xaml.Media.Brush)hoverCardBg;
+                }
             }
+            else
+            {
+                if (Application.Current.Resources.TryGetValue("CardStrokeColorDefaultBrush", out var defaultStroke))
+                {
+                    grid.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)defaultStroke;
+                }
+                if (Application.Current.Resources.TryGetValue("CardBackgroundFillColorDefaultBrush", out var defaultCardBg))
+                {
+                    grid.Background = (Microsoft.UI.Xaml.Media.Brush)defaultCardBg;
+                }
+            }
+        }
+
+        // 2. Play Button Overlay Animation (Compositor-friendly fade & scale)
+        if (card.FindName("PlayOverlay") is UIElement playOverlay)
+        {
+            var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+
+            var animOpacity = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+            {
+                To = isHovered ? 1.0 : 0.0,
+                Duration = TimeSpan.FromMilliseconds(isHovered ? 180 : 140),
+                EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase 
+                { 
+                    EasingMode = isHovered ? Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut : Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseIn 
+                }
+            };
+            sb.Children.Add(animOpacity);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOpacity, playOverlay);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animOpacity, "Opacity");
+
+            if (card.FindName("PlayOverlayScale") is Microsoft.UI.Xaml.Media.ScaleTransform scaleTransform)
+            {
+                var animScaleX = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+                {
+                    To = isHovered ? 1.0 : 0.8,
+                    Duration = TimeSpan.FromMilliseconds(isHovered ? 180 : 140),
+                    EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase 
+                    { 
+                        EasingMode = isHovered ? Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut : Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseIn 
+                    }
+                };
+                var animScaleY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+                {
+                    To = isHovered ? 1.0 : 0.8,
+                    Duration = TimeSpan.FromMilliseconds(isHovered ? 180 : 140),
+                    EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase 
+                    { 
+                        EasingMode = isHovered ? Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut : Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseIn 
+                    }
+                };
+                sb.Children.Add(animScaleX);
+                sb.Children.Add(animScaleY);
+                Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animScaleX, scaleTransform);
+                Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animScaleX, "ScaleX");
+                Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animScaleY, scaleTransform);
+                Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animScaleY, "ScaleY");
+            }
+
+            sb.Begin();
+        }
+
+        // 3. Metadata Row Animation (Compositor-friendly slide & fade)
+        if (card.FindName("MetadataRow") is UIElement metadataRow)
+        {
+            var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+
+            var animOpacity = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+            {
+                To = isHovered ? 1.0 : 0.0,
+                Duration = TimeSpan.FromMilliseconds(isHovered ? 180 : 140),
+                EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase 
+                { 
+                    EasingMode = isHovered ? Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut : Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseIn 
+                }
+            };
+            sb.Children.Add(animOpacity);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOpacity, metadataRow);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animOpacity, "Opacity");
+
+            if (card.FindName("MetadataTransform") is Microsoft.UI.Xaml.Media.TranslateTransform trans)
+            {
+                var animTranslateY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+                {
+                    To = isHovered ? 0.0 : 6.0,
+                    Duration = TimeSpan.FromMilliseconds(isHovered ? 180 : 140),
+                    EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase 
+                    { 
+                        EasingMode = isHovered ? Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut : Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseIn 
+                    }
+                };
+                sb.Children.Add(animTranslateY);
+                Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animTranslateY, trans);
+                Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animTranslateY, "Y");
+            }
+
+            sb.Begin();
         }
     }
 
@@ -173,8 +235,13 @@ public sealed partial class HomePage : Page
         if (sender is FrameworkElement element && element.DataContext is GameClip clip)
         {
             ViewModel.SelectedClip = clip;
+            AnimateCardHover(element, isHovered: true);
 
             var flyout = new MenuFlyout();
+            flyout.Closed += (s, args) =>
+            {
+                AnimateCardHover(element, isHovered: false);
+            };
 
             var playItem = new MenuFlyoutItem { Text = "Play", Icon = new FontIcon { Glyph = "\uE768" } };
             playItem.Click += (s, args) => ViewModel.PlayClip(clip);

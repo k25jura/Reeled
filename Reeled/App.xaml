@@ -19,6 +19,7 @@
             <converters:PlayPauseGlyphConverter x:Key="PlayPauseGlyphConverter" />
             <converters:VolumeGlyphConverter x:Key="VolumeGlyphConverter" />
             <converters:FavoriteGlyphConverter x:Key="FavoriteGlyphConverter" />
+            <converters:FavoriteOpacityConverter x:Key="FavoriteOpacityConverter" />
 
             <!-- LibVLCSharp VideoView Default Style for Unpackaged WinUI 3 -->
             <Style x:Key="VideoViewDefaultStyle" TargetType="vlc:VideoView">

@@ -24,24 +24,47 @@ public sealed partial class MainWindow : Window
         _navigationService.NavigatedToHome += OnNavigatedToHome;
         _navigationService.NavigatedToSettings += OnNavigatedToSettings;
 
+        Closed += (s, e) =>
+        {
+            try
+            {
+                var playbackService = App.GetService<ILibVlcPlaybackService>();
+                playbackService.Dispose();
+            }
+            catch { }
+        };
+
         // Startup on HomePage
         RootFrame.Navigate(typeof(HomePage), null, new SuppressNavigationTransitionInfo());
     }
 
     private void OnNavigatedToPlayer(Models.GameClip clip, System.Collections.Generic.List<Models.GameClip> playlist)
     {
-        RootFrame.Navigate(typeof(PlayerPage), null, new DrillInNavigationTransitionInfo());
+        PlayerOverlayContainer.Visibility = Visibility.Visible;
+        PlayerViewControl.Activate();
         var playerVM = App.GetService<PlayerViewModel>();
         playerVM.LoadClip(clip, playlist);
     }
 
     private void OnNavigatedToHome()
     {
-        RootFrame.Navigate(typeof(HomePage), null, new SlideNavigationTransitionInfo { Effect = SlideNavigationTransitionEffect.FromLeft });
+        PlayerViewControl.Deactivate();
+        PlayerOverlayContainer.Visibility = Visibility.Collapsed;
+
+        if (RootFrame.Content is not HomePage)
+        {
+            RootFrame.Navigate(typeof(HomePage), null, new SlideNavigationTransitionInfo { Effect = SlideNavigationTransitionEffect.FromLeft });
+        }
+        else
+        {
+            RootFrame.Focus(FocusState.Programmatic);
+        }
     }
 
     private void OnNavigatedToSettings()
     {
+        PlayerViewControl.Deactivate();
+        PlayerOverlayContainer.Visibility = Visibility.Collapsed;
         RootFrame.Navigate(typeof(SettingsPage), null, new SlideNavigationTransitionInfo { Effect = SlideNavigationTransitionEffect.FromRight });
     }
 }

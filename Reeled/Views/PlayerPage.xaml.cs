@@ -18,8 +18,8 @@ public sealed partial class PlayerPage : Page
 
     public PlayerPage()
     {
-        InitializeComponent();
         ViewModel = App.GetService<PlayerViewModel>();
+        InitializeComponent();
 
         _inactivityTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.5) };
         _inactivityTimer.Tick += (s, e) =>
@@ -38,22 +38,31 @@ public sealed partial class PlayerPage : Page
 
         Loaded += (s, e) =>
         {
-            this.Focus(FocusState.Programmatic);
-            _inactivityTimer.Start();
+            Activate();
         };
 
         Unloaded += (s, e) =>
         {
-            _inactivityTimer.Stop();
-            PlayerVideoView.MediaPlayer = null;
+            Deactivate();
         };
+    }
+
+    public void Activate()
+    {
+        this.Focus(FocusState.Programmatic);
+        ViewModel.IsControlsVisible = true;
+        _inactivityTimer.Start();
+    }
+
+    public void Deactivate()
+    {
+        _inactivityTimer.Stop();
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        this.Focus(FocusState.Programmatic);
-        ViewModel.IsControlsVisible = true;
+        Activate();
     }
 
     private void OnVideoViewInitialized(object? sender, LibVLCSharp.Platforms.Windows.InitializedEventArgs e)

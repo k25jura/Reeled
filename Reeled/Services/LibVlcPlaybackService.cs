@@ -95,14 +95,6 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
     {
         _dispatcherQueue ??= App.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
 
-        bool optionsChanged = _currentSwapChainOptions == null 
-            || !AreOptionsEqual(_currentSwapChainOptions, swapChainOptions);
-
-        if (_libVLC != null && optionsChanged)
-        {
-            DisposeEngine();
-        }
-
         if (_libVLC == null)
         {
             _currentSwapChainOptions = (string[])swapChainOptions.Clone();
@@ -111,7 +103,10 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
 
         if (_mediaPlayer != null)
         {
-            videoView.MediaPlayer = _mediaPlayer;
+            if (!ReferenceEquals(videoView.MediaPlayer, _mediaPlayer))
+            {
+                videoView.MediaPlayer = _mediaPlayer;
+            }
 
             if (!string.IsNullOrEmpty(_pendingFilePath))
             {
@@ -126,19 +121,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
     {
         try
         {
-            _currentMedia?.Dispose();
-            _currentMedia = null;
-
-            if (_mediaPlayer != null)
-            {
-                _mediaPlayer.Stop();
-                _mediaPlayer.Dispose();
-                _mediaPlayer = null;
-            }
-
-            _libVLC?.Dispose();
-            _libVLC = null;
-            _currentSwapChainOptions = null;
+            Stop();
         }
         catch (Exception ex)
         {
@@ -196,9 +179,18 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         {
             try
             {
-                _currentMedia?.Dispose();
-                _currentMedia = new Media(_libVLC, filePath, FromType.FromPath);
-                _mediaPlayer.Play(_currentMedia);
+                var oldMedia = _currentMedia;
+                var newMedia = new Media(_libVLC, filePath, FromType.FromPath);
+                _currentMedia = newMedia;
+                _mediaPlayer.Play(newMedia);
+
+                if (oldMedia != null)
+                {
+                    Task.Delay(500).ContinueWith(_ =>
+                    {
+                        try { oldMedia.Dispose(); } catch { }
+                    });
+                }
             }
             catch (Exception ex)
             {
@@ -236,8 +228,6 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         try
         {
             _mediaPlayer?.Stop();
-            _currentMedia?.Dispose();
-            _currentMedia = null;
         }
         catch (Exception ex)
         {

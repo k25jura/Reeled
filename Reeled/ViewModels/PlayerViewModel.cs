@@ -360,6 +360,15 @@ public partial class PlayerViewModel : ObservableObject
     [RelayCommand]
     public void BackToHome()
     {
+        if (IsFullscreen)
+        {
+            try
+            {
+                App.Window.AppWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.Default);
+            }
+            catch { }
+            IsFullscreen = false;
+        }
         _playbackService.Stop();
         _navigationService.NavigateToHome();
     }

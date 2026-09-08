@@ -6,6 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:Reeled"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:views="using:Reeled.Views"
     Title="Reeled"
     mc:Ignorable="d">
     <Window.SystemBackdrop>
@@ -24,11 +25,12 @@
             </TitleBar.IconSource>
         </TitleBar>
 
-        <!--
-            The Frame hosts pages for your application content. Add your UI to
-            MainPage.xaml rather than here so you can use Page features such as
-            navigation events and the Loaded lifecycle.
-        -->
+        <!-- Library / Settings Content Frame -->
         <Frame x:Name="RootFrame" Grid.Row="1" />
+
+        <!-- Telegram-style In-App Media Player Overlay (Persistent so DirectX SwapChain & LibVLC are never destroyed) -->
+        <Grid x:Name="PlayerOverlayContainer" Grid.Row="1" Visibility="Collapsed">
+            <views:PlayerPage x:Name="PlayerViewControl" />
+        </Grid>
     </Grid>
 </Window>

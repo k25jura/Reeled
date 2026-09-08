@@ -10,7 +10,6 @@
     xmlns:viewmodels="using:Reeled.ViewModels"
     mc:Ignorable="d"
     Background="#0F0F12"
-    NavigationCacheMode="Required"
     KeyDown="OnPageKeyDown"
     PointerMoved="OnPagePointerMoved">
 

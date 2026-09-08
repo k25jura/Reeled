@@ -19,11 +19,11 @@
         <!-- Left Navigation Sidebar -->
         <Border x:Name="SidebarBorder"
                 Grid.Column="0" 
-                Width="280"
+                Width="290"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
                 BorderThickness="0,0,1,0" 
                 Background="{ThemeResource LayerFillColorDefaultBrush}">
-            <Grid Width="280" Margin="12,16,12,12">
+            <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -32,7 +32,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- Library Header & Collapse Button & Add Folder Button -->
-                <Grid Grid.Row="0" Margin="4,0,4,12">
+                <Grid Grid.Row="0" Margin="14,14,14,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
@@ -64,21 +64,21 @@
                     </Button>
                 </Grid>
 
-                <MenuFlyoutSeparator Grid.Row="1" Margin="0,0,0,8" />
+                <MenuFlyoutSeparator Grid.Row="1" Margin="14,0,14,6" />
 
                 <!-- Folders TreeView -->
-                <Grid Grid.Row="2">
+                <Grid Grid.Row="2" Margin="10,0,10,0">
                     <TreeView x:Name="DirectoriesTreeView"
                               ItemsSource="{x:Bind ViewModel.Directories, Mode=OneWay}"
                               ItemInvoked="OnDirectoryTreeItemInvoked"
                               SelectionMode="Single"
-                              Padding="0,0,8,0"
+                              Padding="0,0,6,0"
                               Visibility="{x:Bind ViewModel.HasDirectories, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                         <TreeView.ItemTemplate>
                             <DataTemplate x:DataType="models:DirectoryNode">
                                 <TreeViewItem ItemsSource="{x:Bind SubDirectories, Mode=OneWay}"
                                               IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}">
-                                    <Grid Margin="0,2,14,2" ColumnSpacing="8" VerticalAlignment="Center">
+                                    <Grid Margin="0,2,8,2" ColumnSpacing="8" VerticalAlignment="Center">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
@@ -126,12 +126,11 @@
 
                 <!-- Bottom Settings & Refresh (Separated Container with Card Background & Border) -->
                 <Border Grid.Row="3" 
-                        Margin="-12,12,-12,-12" 
-                        Padding="12,10" 
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
                         BorderThickness="0,1,0,0" 
-                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                    <Grid ColumnSpacing="6">
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        Padding="14,10">
+                    <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />

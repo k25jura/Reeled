@@ -12,10 +12,20 @@ public sealed partial class HomePage : Page
 {
     public HomeViewModel ViewModel { get; }
 
+    private Microsoft.UI.Xaml.Media.Animation.Storyboard? _sidebarStoryboard;
+
     public HomePage()
     {
         ViewModel = App.GetService<HomeViewModel>();
         InitializeComponent();
+
+        SidebarBorder.SizeChanged += (s, e) =>
+        {
+            SidebarBorder.Clip = new Microsoft.UI.Xaml.Media.RectangleGeometry
+            {
+                Rect = new Windows.Foundation.Rect(0, 0, Math.Max(0, e.NewSize.Width), Math.Max(0, e.NewSize.Height))
+            };
+        };
     }
 
     private void OnToggleSidebarClick(object sender, RoutedEventArgs e)
@@ -26,33 +36,40 @@ public sealed partial class HomePage : Page
 
     private void AnimateSidebar(bool collapse)
     {
+        _sidebarStoryboard?.Stop();
+
+        SidebarBorder.Visibility = Visibility.Visible;
+
+        double currentWidth = SidebarBorder.ActualWidth > 0 ? SidebarBorder.ActualWidth : (collapse ? 290 : 0);
+        double targetWidth = collapse ? 0 : 290;
+
         var animation = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
         {
-            From = collapse ? 280 : 0,
-            To = collapse ? 0 : 280,
+            From = currentWidth,
+            To = targetWidth,
             Duration = new Duration(TimeSpan.FromMilliseconds(250)),
-            EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut }
+            EnableDependentAnimation = true,
+            EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase 
+            { 
+                EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut 
+            }
         };
 
-        var storyboard = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
-        storyboard.Children.Add(animation);
+        _sidebarStoryboard = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        _sidebarStoryboard.Children.Add(animation);
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animation, SidebarBorder);
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animation, "Width");
 
-        if (!collapse)
+        _sidebarStoryboard.Completed += (s, e) =>
         {
-            SidebarBorder.Visibility = Visibility.Visible;
-        }
-
-        storyboard.Completed += (s, e) =>
-        {
+            SidebarBorder.Width = targetWidth;
             if (collapse)
             {
                 SidebarBorder.Visibility = Visibility.Collapsed;
             }
         };
 
-        storyboard.Begin();
+        _sidebarStoryboard.Begin();
     }
 
     private void OnClipCardPointerEntered(object sender, PointerRoutedEventArgs e)

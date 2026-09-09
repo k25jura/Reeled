@@ -1,50 +1,46 @@
 # Reeled
 
-> **Work in Progress (W.I.P.)**: Reeled is currently in active development. Features and UI components are subject to rapid iteration.
+> **work in progress**: Reeled is currently developing. Features and UI are subject to change.
 
-**Reeled** is a fast, modern Windows 11 gameplay clip player and library manager built with **unpackaged WinUI 3 (Windows App SDK)** targeting **.NET 8** and powered by **LibVLCSharp** and native **VideoLAN LibVLC 3.0**.
+**Reeled** is a modern Windows 11 video viewer focused on game clips and library manager built with **unpackaged WinUI 3 (Windows App SDK)** targeting **.NET 8** and powered by **LibVLCSharp** and native **VideoLAN LibVLC 3.0**.
 
-Designed specifically for gamers to browse, index, manage, and review local MP4 and MKV gameplay recordings (NVIDIA Shadowplay, OBS Studio, Medal, SteelSeries Moments, etc.) with hardware-accelerated playback, real-time timeline scrubbing, and moment bookmarking.
+Designed specifically for those who wants to browse, index, manage, and review local MP4 and MKV gameplay recordings (NVIDIA Shadowplay, OBS Studio, Medal, SteelSeries Moments, etc.) in one place with hardware-accelerated playback, real-time timeline scrubbing, and moment bookmarking.
 
 ---
 
 ## Features
 
 ### Library and Folder Navigation
-- **Directory Tree Sidebar**: Browse configured watch folders and nested game subdirectories (for example, `Captures/Valorant`, `Captures/Apex Legends`).
-- **Watch Folder Management**: Configure multiple custom capture directories via Settings, with instant reset to the default Windows Captures folder.
+- **Directory Tree Sidebar**: Browse configured watch folders and nested subdirectories.
+- **Folder Management**: Configure multiple custom watch directories.
 - **Real-Time Auto-Refresh**: Powered by `FileSystemWatcher`, newly saved, renamed, or deleted clips update in the grid automatically.
-- **Rich Clip Cards**: Visual preview cards displaying duration pills, resolution badges (4K, 1440p, 1080p, 60fps), file size, relative timestamps, and a dedicated yellow Moments count badge.
-- **Search and Sort**: Instant search filtering and sorting by Newest, Oldest, Name (A-Z), Duration, or File Size.
+- **Search and Sort**: Instant search filtering and sorting.
 - **Clip Context Menu**:
-  - **Clip Information**: Dedicated modal displaying comprehensive file properties (resolution, framerate, duration, file size, container format, path, and bookmarked moments).
+  - **Clip Information**: Dedicated modal displaying comprehensive file properties.
   - **Favorite Toggle**: Star and unstar clips with persistent metadata.
-  - **Safe Delete**: Delete directly to the Windows Recycle Bin using native Win32 `SHFileOperation`.
+  - **Safe Delete**: Delete directly to the Windows Recycle Bin.
   - **File Operations**: Inline renaming, Reveal in File Explorer, and Copy File Path.
 
 ### Hardware-Accelerated Playback
 - **Direct3D11 Video Canvas**: Hardware-accelerated rendering using `LibVLCSharp.WinUI` Direct3D11 SwapChainPanel.
-- **Real-Time Timeline Scrubbing**: Fluid, instantaneous video seeking while dragging the timeline slider.
-- **Playback Speed**: Adjust speed on the fly with presets from 0.25x up to 2.0x.
+- **Real-Time Timeline Scrubbing**: Instantaneous video seeking while dragging the timeline slider.
+- **Playback Speed**: Adjust the playback speed.
 - **Repeat Modes**: Cycle between Repeat Off, Repeat All, and Repeat One (`R`), with user preferences automatically saved across sessions.
 - **Audio Control**: Volume slider with mouse scroll wheel support and a dynamic volume icon that reflects mute, low, medium, and high volume states.
 
 ### Moments and Bookmarking System
-- **Mark Timestamps**: Press `B` or click **Mark Moment** during playback to pin key highlights (clutches, aces, funny moments).
+- **Mark Timestamps**: Press `B` or click **Mark Moment** during playback to pin key highlights.
 - **Timeline Highlight Markers**: Pinned moments appear as prominent yellow tick markers directly along the timeline seek bar.
-- **Jump to Moment**: Quick-jump buttons formatted with timestamps (`[ > Jump mm:ss ]`) to instantly leap to key points.
+- **Jump to Moment**: Quick-jump buttons formatted with timestamps to instantly see the key points.
 - **Moments Drawer**: Dedicated slide-out drawer to view, jump to, rename, or delete bookmarked moments.
-- **Highlight Suggestion Card**: When opening a clip that contains saved moments, an unobtrusive Windows 11 card appears in the bottom corner offering immediate one-click jumps to bookmarked timestamps.
 
-### Media Controls and Cinema Mode
-- **Full-Width Control Bar**: Balanced, grouped control sections:
-  - Playback controls: Stop, Previous Clip, Step Backward (-5s), Play/Pause, Step Forward (+5s), Next Clip.
+### Media Controls
+- **Full-Width Control Bar**: Grouped, all usual playback controls such as Stop, Previous Clip, Step Backward, Play/Pause, Step Forward, Next Clip.
   - Seek bar with elapsed and remaining time indicators and timeline moment highlights.
   - Tool buttons: Moments drawer toggle, Clip Queue drawer toggle, Playback speed selector, Repeat mode toggle.
   - Volume slider, mute toggle, and full-screen toggle.
-- **Clip Queue Drawer**: Slide-in playlist sidebar (`Q`) allowing seamless switching between clips in the active folder without returning to the library.
-- **Auto-Hiding Interface**: Header, window controls, and bottom control bar automatically fade out during playback inactivity.
-- **Cursor Auto-Hide**: The Windows mouse cursor hides completely via native Win32 `ShowCursor` during playback and restores instantly upon pointer movement or keyboard input.
+- **Clip Queue Drawer**: Slide-in playlist sidebar (`Q`) allowing switching between clips in the active folder without returning to the library.
+- **Auto-Hiding Interface**: Header, window controls, bottom control bar and cursor automatically fade out during playback inactivity.
 
 ---
 

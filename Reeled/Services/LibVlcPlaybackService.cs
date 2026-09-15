@@ -296,12 +296,24 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         if (_mediaPlayer == null) return;
         ratio = Math.Clamp(ratio, 0.0f, 1.0f);
         _mediaPlayer.Position = ratio;
+        long estimatedTime = (long)(ratio * (_mediaPlayer.Length > 0 ? _mediaPlayer.Length : 0));
+        Dispatch(() =>
+        {
+            PositionChanged?.Invoke(ratio);
+            TimeChanged?.Invoke(estimatedTime);
+        });
     }
 
     public void SeekTime(long timeMs)
     {
         if (_mediaPlayer == null) return;
         _mediaPlayer.Time = Math.Max(0, timeMs);
+        float pos = _mediaPlayer.Length > 0 ? (float)timeMs / _mediaPlayer.Length : 0f;
+        Dispatch(() =>
+        {
+            TimeChanged?.Invoke(timeMs);
+            PositionChanged?.Invoke(pos);
+        });
     }
 
     public void SkipSeconds(int seconds)
@@ -310,6 +322,12 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         long targetTime = _mediaPlayer.Time + (seconds * 1000L);
         targetTime = Math.Clamp(targetTime, 0L, _mediaPlayer.Length);
         _mediaPlayer.Time = targetTime;
+        float pos = (float)targetTime / _mediaPlayer.Length;
+        Dispatch(() =>
+        {
+            TimeChanged?.Invoke(targetTime);
+            PositionChanged?.Invoke(pos);
+        });
     }
 
     public void SetVolume(int volume)

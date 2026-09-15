@@ -155,6 +155,12 @@
 
                     <!-- Timeline Slider with Overlaid Moments Markers -->
                     <Grid Grid.Column="1" VerticalAlignment="Center">
+                        <!-- Moments Markers Canvas (Yellow ticks on the timeline, behind the slider thumb) -->
+                        <Canvas x:Name="TimelineMarkersCanvas"
+                                IsHitTestVisible="False"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch" />
+
                         <Slider x:Name="TimelineSlider" 
                                 Minimum="0" 
                                 Maximum="100" 
@@ -165,12 +171,6 @@
                                 IsTabStop="False"
                                 HorizontalAlignment="Stretch"
                                 Margin="0" />
-
-                        <!-- Moments Markers Canvas (Yellow ticks on the timeline) -->
-                        <Canvas x:Name="TimelineMarkersCanvas"
-                                IsHitTestVisible="False"
-                                HorizontalAlignment="Stretch"
-                                VerticalAlignment="Stretch" />
                     </Grid>
 
                     <TextBlock Grid.Column="2" 
@@ -311,7 +311,15 @@
                             </StackPanel>
                             <Button.Flyout>
                                 <Flyout Placement="Top">
-                                    <Grid MinWidth="300" MaxWidth="360" Padding="8,6" RowSpacing="10">
+                                    <Flyout.FlyoutPresenterStyle>
+                                        <Style TargetType="FlyoutPresenter">
+                                            <Setter Property="Background" Value="{ThemeResource MenuFlyoutPresenterBackground}" />
+                                            <Setter Property="BorderBrush" Value="{ThemeResource MenuFlyoutPresenterBorderBrush}" />
+                                            <Setter Property="CornerRadius" Value="{ThemeResource OverlayCornerRadius}" />
+                                            <Setter Property="Padding" Value="0" />
+                                        </Style>
+                                    </Flyout.FlyoutPresenterStyle>
+                                    <Grid MinWidth="300" MaxWidth="360" Padding="12,10" RowSpacing="10">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="*" />
@@ -389,14 +397,13 @@
                                                                 </StackPanel>
                                                             </Button>
 
-                                                            <!-- Label -->
+                                                            <!-- Label (No hover tooltip) -->
                                                             <TextBlock Grid.Column="1" 
                                                                        Text="{x:Bind Label, Mode=OneWay}" 
                                                                        FontSize="12" 
                                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
                                                                        VerticalAlignment="Center" 
-                                                                       TextTrimming="CharacterEllipsis" 
-                                                                       ToolTipService.ToolTip="{x:Bind Label, Mode=OneWay}" />
+                                                                       TextTrimming="CharacterEllipsis" />
 
                                                             <!-- Rename / Edit Button -->
                                                             <Button Grid.Column="2" 
@@ -457,7 +464,15 @@
                                        FontSize="12" Foreground="White" />
                             <DropDownButton.Flyout>
                                 <Flyout Placement="Top">
-                                    <StackPanel Spacing="10" MinWidth="220" MaxWidth="260" Padding="8,6">
+                                    <Flyout.FlyoutPresenterStyle>
+                                        <Style TargetType="FlyoutPresenter">
+                                            <Setter Property="Background" Value="{ThemeResource MenuFlyoutPresenterBackground}" />
+                                            <Setter Property="BorderBrush" Value="{ThemeResource MenuFlyoutPresenterBorderBrush}" />
+                                            <Setter Property="CornerRadius" Value="{ThemeResource OverlayCornerRadius}" />
+                                            <Setter Property="Padding" Value="0" />
+                                        </Style>
+                                    </Flyout.FlyoutPresenterStyle>
+                                    <StackPanel Spacing="10" MinWidth="220" MaxWidth="260" Padding="12,10">
                                         <!-- Header & Current Value -->
                                         <Grid>
                                             <Grid.ColumnDefinitions>
@@ -654,14 +669,14 @@
         <Border x:Name="MomentsJumpPopup"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Bottom"
-                Margin="24,0,0,96"
+                Margin="16,0,0,92"
                 Width="320"
                 MaxHeight="260"
-                Background="#2C2C2E"
+                Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
                 BorderBrush="#383838"
                 BorderThickness="1"
                 CornerRadius="8"
-                Padding="12,10"
+                Padding="8,10"
                 Opacity="0"
                 Visibility="Collapsed"
                 PointerEntered="OnMomentsPopupPointerEntered"
@@ -669,14 +684,14 @@
             <Border.RenderTransform>
                 <TranslateTransform x:Name="MomentsPopupTranslation" Y="24" />
             </Border.RenderTransform>
-            <Grid RowSpacing="10">
+            <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <!-- Header: Icon + Title + Close button -->
-                <Grid Grid.Row="0">
+                <!-- Header: Icon + Title + Close button (Aligned with item icons at 8px) -->
+                <Grid Grid.Row="0" Margin="8,0,8,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -726,14 +741,13 @@
                                                        VerticalAlignment="Center" />
                                         </StackPanel>
 
-                                        <!-- Label -->
+                                        <!-- Label (No hover tooltip) -->
                                         <TextBlock Grid.Column="1" 
                                                    Text="{x:Bind Label, Mode=OneWay}" 
                                                    FontSize="12" 
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
                                                    VerticalAlignment="Center" 
-                                                   TextTrimming="CharacterEllipsis" 
-                                                   ToolTipService.ToolTip="{x:Bind Label, Mode=OneWay}" />
+                                                   TextTrimming="CharacterEllipsis" />
 
                                         <!-- Jump Arrow Glyph -->
                                         <FontIcon Grid.Column="2" Glyph="&#xE76C;" FontSize="10" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />

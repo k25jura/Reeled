@@ -27,6 +27,28 @@ public class LocalStorageService : ILocalStorageService
         string appFolder = Path.Combine(localAppData, "Reeled");
         Directory.CreateDirectory(appFolder);
         _settingsFilePath = Path.Combine(appFolder, "settings.json");
+
+        if (File.Exists(_settingsFilePath))
+        {
+            try
+            {
+                string json = File.ReadAllText(_settingsFilePath);
+                var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions);
+                if (loaded != null)
+                {
+                    _currentSettings = loaded;
+                    EnsureValidDefaults(_currentSettings);
+                    SaveSettingsSync(_currentSettings);
+                    return;
+                }
+            }
+            catch { }
+        }
+
+        // Default fallback
+        _currentSettings = new AppSettings();
+        EnsureValidDefaults(_currentSettings);
+        SaveSettingsSync(_currentSettings);
     }
 
     public async Task<AppSettings> LoadSettingsAsync()
@@ -41,28 +63,20 @@ public class LocalStorageService : ILocalStorageService
                 if (loaded != null)
                 {
                     _currentSettings = loaded;
+                    EnsureValidDefaults(_currentSettings);
                     return _currentSettings;
                 }
             }
 
             // Default fallback
             _currentSettings = new AppSettings();
-            string myVideos = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
-            if (Directory.Exists(myVideos) && !_currentSettings.WatchDirectories.Contains(myVideos))
-            {
-                _currentSettings.WatchDirectories.Add(myVideos);
-            }
-            string captures = Path.Combine(myVideos, "Captures");
-            if (Directory.Exists(captures) && !_currentSettings.WatchDirectories.Contains(captures))
-            {
-                _currentSettings.WatchDirectories.Add(captures);
-            }
-
+            EnsureValidDefaults(_currentSettings);
             return _currentSettings;
         }
         catch (Exception)
         {
             _currentSettings = new AppSettings();
+            EnsureValidDefaults(_currentSettings);
             return _currentSettings;
         }
         finally
@@ -100,6 +114,35 @@ public class LocalStorageService : ILocalStorageService
         }
         catch (Exception)
         {
+        }
+    }
+
+    private static void EnsureValidDefaults(AppSettings settings)
+    {
+        if (settings.WatchDirectories == null)
+        {
+            settings.WatchDirectories = new();
+        }
+        if (settings.WatchDirectories.Count == 0)
+        {
+            string myVideos = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+            if (Directory.Exists(myVideos) && !settings.WatchDirectories.Contains(myVideos))
+            {
+                settings.WatchDirectories.Add(myVideos);
+            }
+            string captures = Path.Combine(myVideos, "Captures");
+            if (Directory.Exists(captures) && !settings.WatchDirectories.Contains(captures))
+            {
+                settings.WatchDirectories.Add(captures);
+            }
+        }
+        if (settings.PlaybackSpeed <= 0.25)
+        {
+            settings.PlaybackSpeed = 1.0;
+        }
+        if (settings.DefaultPlaybackSpeed <= 0.25)
+        {
+            settings.DefaultPlaybackSpeed = 1.0;
         }
     }
 }

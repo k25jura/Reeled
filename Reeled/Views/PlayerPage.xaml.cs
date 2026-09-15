@@ -193,7 +193,7 @@ public sealed partial class PlayerPage : Page
                 SidebarTranslation.X = 320;
                 PlaylistQueueSidebar.Opacity = 0.0;
                 BottomControlBar.Margin = new Thickness(0);
-                MomentsJumpPopup.Margin = new Thickness(24, 0, 0, 96);
+                MomentsJumpPopup.Margin = new Thickness(16, 0, 0, 92);
             };
         }
 
@@ -238,11 +238,15 @@ public sealed partial class PlayerPage : Page
         MomentsJumpPopup.Visibility = Visibility.Collapsed;
         MomentsJumpPopup.Opacity = 0.0;
 
-        if (App.Window is MainWindow mainWindow)
+        try
         {
-            mainWindow.SetCursorHidden(false);
-            mainWindow.SetCaptionControlsVisible(true);
+            if (App.Window is MainWindow mainWindow)
+            {
+                mainWindow.SetCursorHidden(false);
+                mainWindow.SetCaptionControlsVisible(true);
+            }
         }
+        catch { }
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -307,6 +311,7 @@ public sealed partial class PlayerPage : Page
 
     private void OnCustomSpeedSliderValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
+        if (sender is Slider slider && (!slider.IsLoaded || slider.FocusState == FocusState.Unfocused)) return;
         if (Math.Abs(ViewModel.PlaybackRate - e.NewValue) > 0.01)
         {
             ViewModel.ChangeSpeed(Math.Round(e.NewValue, 2));
@@ -976,13 +981,13 @@ public sealed partial class PlayerPage : Page
         foreach (var bm in ViewModel.Bookmarks)
         {
             double fraction = Math.Clamp(bm.Timestamp.TotalSeconds / totalSecs, 0.0, 1.0);
-            double markerX = trackPadding + (fraction * usableTrackWidth) - 3.0;
-            double markerY = (sliderHeight / 2.0) - 8.0;
+            double markerX = trackPadding + (fraction * usableTrackWidth) - 2.0;
+            double markerY = (sliderHeight / 2.0) - 6.0;
 
             var marker = new Border
             {
-                Width = 6,
-                Height = 16,
+                Width = 4,
+                Height = 12,
                 CornerRadius = new CornerRadius(2),
                 Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 215, 0)),
                 BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(220, 0, 0, 0)),

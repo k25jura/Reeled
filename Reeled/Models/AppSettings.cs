@@ -9,6 +9,8 @@ public class AppSettings
     public int Volume { get; set; } = 100;
     public bool IsMuted { get; set; } = false;
     public double PlaybackSpeed { get; set; } = 1.0;
+    public double DefaultPlaybackSpeed { get; set; } = 1.0;
+    public bool RememberPlaybackSpeed { get; set; } = true;
     public HashSet<string> Favorites { get; set; } = new();
     public Dictionary<string, List<ClipBookmark>> Bookmarks { get; set; } = new();
     public RepeatMode RepeatMode { get; set; } = RepeatMode.Off;

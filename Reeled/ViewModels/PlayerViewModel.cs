@@ -149,7 +149,11 @@ public partial class PlayerViewModel : ObservableObject
 
         Volume = _storageService.CurrentSettings.Volume;
         IsMuted = _storageService.CurrentSettings.IsMuted;
-        PlaybackRate = (float)_storageService.CurrentSettings.PlaybackSpeed;
+        double initialSpeed = _storageService.CurrentSettings.RememberPlaybackSpeed
+            ? _storageService.CurrentSettings.PlaybackSpeed
+            : _storageService.CurrentSettings.DefaultPlaybackSpeed;
+        if (initialSpeed <= 0.1) initialSpeed = 1.0;
+        PlaybackRate = (float)initialSpeed;
         RepeatMode = _storageService.CurrentSettings.RepeatMode;
     }
 
@@ -177,6 +181,15 @@ public partial class PlayerViewModel : ObservableObject
         CurrentClip = clip;
         CurrentTime = TimeSpan.Zero;
         ProgressValue = 0.0;
+
+        if (!_storageService.CurrentSettings.RememberPlaybackSpeed)
+        {
+            double defaultSpeed = _storageService.CurrentSettings.DefaultPlaybackSpeed;
+            if (defaultSpeed <= 0.1) defaultSpeed = 1.0;
+            PlaybackRate = (float)defaultSpeed;
+            _playbackService.SetPlaybackRate(PlaybackRate);
+            OnPropertyChanged(nameof(FormattedPlaybackRate));
+        }
 
         Bookmarks.Clear();
         foreach (var bm in clip.Bookmarks)
@@ -281,6 +294,12 @@ public partial class PlayerViewModel : ObservableObject
     public void SkipForward()
     {
         _playbackService.SkipSeconds(5);
+        if (TotalTime > TimeSpan.Zero)
+        {
+            CurrentTime = TimeSpan.FromSeconds(Math.Clamp(CurrentTime.TotalSeconds + 5, 0, TotalTime.TotalSeconds));
+            ProgressValue = (CurrentTime.TotalSeconds / TotalTime.TotalSeconds) * 100.0;
+            OnPropertyChanged(nameof(FormattedCurrentTime));
+        }
         ShowToast("+5s");
     }
 
@@ -288,6 +307,12 @@ public partial class PlayerViewModel : ObservableObject
     public void SkipBackward()
     {
         _playbackService.SkipSeconds(-5);
+        if (TotalTime > TimeSpan.Zero)
+        {
+            CurrentTime = TimeSpan.FromSeconds(Math.Clamp(CurrentTime.TotalSeconds - 5, 0, TotalTime.TotalSeconds));
+            ProgressValue = (CurrentTime.TotalSeconds / TotalTime.TotalSeconds) * 100.0;
+            OnPropertyChanged(nameof(FormattedCurrentTime));
+        }
         ShowToast("-5s");
     }
 
@@ -295,6 +320,12 @@ public partial class PlayerViewModel : ObservableObject
     public void FineForward()
     {
         _playbackService.SkipSeconds(1);
+        if (TotalTime > TimeSpan.Zero)
+        {
+            CurrentTime = TimeSpan.FromSeconds(Math.Clamp(CurrentTime.TotalSeconds + 1, 0, TotalTime.TotalSeconds));
+            ProgressValue = (CurrentTime.TotalSeconds / TotalTime.TotalSeconds) * 100.0;
+            OnPropertyChanged(nameof(FormattedCurrentTime));
+        }
         ShowToast("+1s");
     }
 
@@ -302,6 +333,12 @@ public partial class PlayerViewModel : ObservableObject
     public void FineBackward()
     {
         _playbackService.SkipSeconds(-1);
+        if (TotalTime > TimeSpan.Zero)
+        {
+            CurrentTime = TimeSpan.FromSeconds(Math.Clamp(CurrentTime.TotalSeconds - 1, 0, TotalTime.TotalSeconds));
+            ProgressValue = (CurrentTime.TotalSeconds / TotalTime.TotalSeconds) * 100.0;
+            OnPropertyChanged(nameof(FormattedCurrentTime));
+        }
         ShowToast("-1s");
     }
 

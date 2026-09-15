@@ -192,6 +192,70 @@
                     </Border>
                 </StackPanel>
 
+                <!-- Playback Options Section -->
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Playback Options" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="18" FontWeight="SemiBold" />
+
+                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                            BorderThickness="1" 
+                            CornerRadius="8" 
+                            Padding="20">
+                        <StackPanel Spacing="16">
+                            <!-- Default Playback Speed -->
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                                    <TextBlock Text="Default Playback Speed" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" />
+                                    <TextBlock Text="Initial speed when playing videos" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ComboBox Grid.Column="1" 
+                                          x:Name="DefaultSpeedComboBox"
+                                          SelectionChanged="OnDefaultSpeedSelectionChanged"
+                                          MinWidth="120"
+                                          VerticalAlignment="Center">
+                                    <ComboBoxItem Content="0.5x" Tag="0.5" />
+                                    <ComboBoxItem Content="0.75x" Tag="0.75" />
+                                    <ComboBoxItem Content="1.0x (Normal)" Tag="1.0" />
+                                    <ComboBoxItem Content="1.25x" Tag="1.25" />
+                                    <ComboBoxItem Content="1.5x" Tag="1.5" />
+                                    <ComboBoxItem Content="2.0x" Tag="2.0" />
+                                </ComboBox>
+                            </Grid>
+
+                            <Border Height="1" Background="{ThemeResource CardStrokeColorDefaultBrush}" Margin="0,2" />
+
+                            <!-- Remember Last Playback Speed -->
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                                    <TextBlock Text="Remember Last Playback Speed" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" />
+                                    <TextBlock Text="Keep the adjusted playback speed across clips instead of resetting to default" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="1" 
+                                              IsOn="{x:Bind ViewModel.RememberPlaybackSpeed, Mode=TwoWay}" 
+                                              OnContent="On" 
+                                              OffContent="Off" 
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
                 <!-- About & Engine Section -->
                 <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 

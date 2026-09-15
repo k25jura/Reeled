@@ -19,6 +19,32 @@ public sealed partial class SettingsPage : Page
     {
         base.OnNavigatedTo(e);
         ViewModel.Initialize();
+
+        double speed = ViewModel.DefaultPlaybackSpeed;
+        foreach (ComboBoxItem item in DefaultSpeedComboBox.Items)
+        {
+            if (item.Tag is string tag && double.TryParse(tag, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double val))
+            {
+                if (Math.Abs(val - speed) < 0.01)
+                {
+                    DefaultSpeedComboBox.SelectedItem = item;
+                    break;
+                }
+            }
+        }
+    }
+
+    private void OnDefaultSpeedSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (DefaultSpeedComboBox.SelectedItem is ComboBoxItem item &&
+            item.Tag is string tag &&
+            double.TryParse(tag, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double speed))
+        {
+            if (Math.Abs(ViewModel.DefaultPlaybackSpeed - speed) > 0.01)
+            {
+                ViewModel.SetDefaultPlaybackSpeed(speed);
+            }
+        }
     }
 
     private async void OnAddFolderClick(object sender, RoutedEventArgs e)

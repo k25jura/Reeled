@@ -30,6 +30,12 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _enableSkeletonLoading = true;
 
+    [ObservableProperty]
+    private double _defaultPlaybackSpeed = 1.0;
+
+    [ObservableProperty]
+    private bool _rememberPlaybackSpeed = true;
+
     public SettingsViewModel(
         ILocalStorageService storageService,
         IClipIndexerService indexerService,
@@ -50,8 +56,25 @@ public partial class SettingsViewModel : ObservableObject
             WatchFolders.Add(folder);
         }
         EnableSkeletonLoading = _storageService.CurrentSettings.EnableSkeletonLoading;
+        DefaultPlaybackSpeed = _storageService.CurrentSettings.DefaultPlaybackSpeed;
+        RememberPlaybackSpeed = _storageService.CurrentSettings.RememberPlaybackSpeed;
         CalculateCacheSize();
         CalculateClipCacheSize();
+    }
+
+    public void SetDefaultPlaybackSpeed(double speed)
+    {
+        DefaultPlaybackSpeed = speed;
+        var settings = _storageService.CurrentSettings;
+        settings.DefaultPlaybackSpeed = speed;
+        _ = _storageService.SaveSettingsAsync(settings);
+    }
+
+    partial void OnRememberPlaybackSpeedChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        settings.RememberPlaybackSpeed = value;
+        _ = _storageService.SaveSettingsAsync(settings);
     }
 
     [RelayCommand]

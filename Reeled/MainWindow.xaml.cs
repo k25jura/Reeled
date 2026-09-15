@@ -414,6 +414,11 @@ public sealed partial class MainWindow : Window
 
     public void SetCaptionControlsVisible(bool visible)
     {
+        if (AppWindow?.Presenter == null)
+        {
+            return;
+        }
+
         if (AppWindow.Presenter.Kind == Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen)
         {
             return; // In fullscreen, OS already hides caption chrome
@@ -422,7 +427,10 @@ public sealed partial class MainWindow : Window
         if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
         {
             presenter.SetBorderAndTitleBar(true, visible);
-            AppTitleBar.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            if (AppTitleBar != null)
+            {
+                AppTitleBar.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            }
         }
     }
 

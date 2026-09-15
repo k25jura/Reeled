@@ -298,11 +298,83 @@ public sealed partial class PlayerPage : Page
 
     private void OnSpeedItemClick(object sender, RoutedEventArgs e)
     {
-        if (sender is MenuFlyoutItem item && item.Tag is string tag &&
+        if (sender is FrameworkElement fe && fe.Tag is string tag &&
             double.TryParse(tag, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double speed))
         {
             ViewModel.ChangeSpeed(speed);
         }
+    }
+
+    private void OnCustomSpeedSliderValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        if (Math.Abs(ViewModel.PlaybackRate - e.NewValue) > 0.01)
+        {
+            ViewModel.ChangeSpeed(Math.Round(e.NewValue, 2));
+        }
+    }
+
+    private void OnSpeedStepDownClick(object sender, RoutedEventArgs e)
+    {
+        ViewModel.AdjustSpeed(-0.05);
+    }
+
+    private void OnSpeedStepUpClick(object sender, RoutedEventArgs e)
+    {
+        ViewModel.AdjustSpeed(0.05);
+    }
+
+    private void OnResetSpeedClick(object sender, RoutedEventArgs e)
+    {
+        ViewModel.ResetSpeed();
+    }
+
+    private void OnAudioTracksMenuFlyoutOpening(object sender, object e)
+    {
+        AudioTracksMenuFlyout.Items.Clear();
+        var tracks = ViewModel.AudioTracks;
+        if (tracks.Count == 0)
+        {
+            AudioTracksMenuFlyout.Items.Add(new MenuFlyoutItem
+            {
+                Text = "Default Audio Track",
+                IsEnabled = false
+            });
+            return;
+        }
+
+        foreach (var track in tracks)
+        {
+            var radioItem = new RadioMenuFlyoutItem
+            {
+                Text = track.DisplayName,
+                IsChecked = track.IsSelected,
+                GroupName = "AudioTracks",
+                Tag = track.Id
+            };
+            radioItem.Click += (s, args) =>
+            {
+                if (s is RadioMenuFlyoutItem item && item.Tag is int trackId)
+                {
+                    ViewModel.SelectAudioTrack(trackId);
+                }
+            };
+            AudioTracksMenuFlyout.Items.Add(radioItem);
+        }
+
+        AudioTracksMenuFlyout.Items.Add(new MenuFlyoutSeparator());
+
+        var disableItem = new RadioMenuFlyoutItem
+        {
+            Text = "Disable Audio",
+            IsChecked = ViewModel.SelectedAudioTrack == null,
+            GroupName = "AudioTracks",
+            Tag = -1
+        };
+        disableItem.Click += (s, args) =>
+        {
+            ViewModel.SelectAudioTrack(-1);
+        };
+        AudioTracksMenuFlyout.Items.Add(disableItem);
     }
 
     private void OnFullscreenButtonClick(object sender, RoutedEventArgs e)

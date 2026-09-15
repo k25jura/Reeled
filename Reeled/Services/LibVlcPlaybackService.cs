@@ -24,6 +24,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
     public event Action? PlaybackPaused;
     public event Action? PlaybackStopped;
     public event Action? MediaEnded;
+    public event Action? AudioTracksChanged;
 
     public MediaPlayer? CurrentMediaPlayer => _mediaPlayer;
     public bool IsPlaying => _mediaPlayer?.IsPlaying ?? false;
@@ -34,6 +35,51 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
     public bool IsMuted => _mediaPlayer?.Mute ?? false;
     private float _storedPlaybackRate = 1.0f;
     public float PlaybackRate => _mediaPlayer != null ? _mediaPlayer.Rate : _storedPlaybackRate;
+    public int CurrentAudioTrack => _mediaPlayer?.AudioTrack ?? -1;
+
+    public IReadOnlyList<Reeled.Models.AudioTrackInfo> GetAudioTracks()
+    {
+        var list = new List<Reeled.Models.AudioTrackInfo>();
+        if (_mediaPlayer == null) return list;
+
+        try
+        {
+            var descriptions = _mediaPlayer.AudioTrackDescription;
+            int current = _mediaPlayer.AudioTrack;
+            if (descriptions != null)
+            {
+                foreach (var desc in descriptions)
+                {
+                    list.Add(new Reeled.Models.AudioTrackInfo
+                    {
+                        Id = desc.Id,
+                        Name = desc.Name,
+                        IsSelected = desc.Id == current
+                    });
+                }
+            }
+        }
+        catch (Exception)
+        {
+        }
+
+        return list;
+    }
+
+    public bool SetAudioTrack(int trackId)
+    {
+        if (_mediaPlayer == null) return false;
+        try
+        {
+            bool success = _mediaPlayer.SetAudioTrack(trackId);
+            AudioTracksChanged?.Invoke();
+            return success;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
 
     public LibVlcPlaybackService()
     {
@@ -153,6 +199,8 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
                 _mediaPlayer?.SetRate(_storedPlaybackRate);
             }
             PlaybackStarted?.Invoke();
+            AudioTracksChanged?.Invoke();
+            Task.Delay(350).ContinueWith(_ => Dispatch(() => AudioTracksChanged?.Invoke()));
         });
         player.Paused += (s, e) => Dispatch(() => PlaybackPaused?.Invoke());
         player.Stopped += (s, e) => Dispatch(() => PlaybackStopped?.Invoke());

@@ -50,6 +50,7 @@ public partial class App : Application
 
         // Core Services
         services.AddSingleton<ILocalStorageService, LocalStorageService>();
+        services.AddSingleton<IClipMetadataCacheService, ClipMetadataCacheService>();
         services.AddSingleton<IThumbnailService, ThumbnailService>();
         services.AddSingleton<IClipMetadataService, ClipMetadataService>();
         services.AddSingleton<IClipIndexerService, ClipIndexerService>();

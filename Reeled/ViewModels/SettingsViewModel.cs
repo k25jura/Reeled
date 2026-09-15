@@ -14,6 +14,7 @@ public partial class SettingsViewModel : ObservableObject
     private readonly ILocalStorageService _storageService;
     private readonly IClipIndexerService _indexerService;
     private readonly INavigationService _navigationService;
+    private readonly IClipMetadataCacheService _clipMetadataCacheService;
 
     public ObservableCollection<string> WatchFolders { get; } = new();
 
@@ -23,14 +24,22 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private string _cacheSizeFormatted = "Calculating...";
 
+    [ObservableProperty]
+    private string _clipCacheSizeFormatted = "Calculating...";
+
+    [ObservableProperty]
+    private bool _enableSkeletonLoading = true;
+
     public SettingsViewModel(
         ILocalStorageService storageService,
         IClipIndexerService indexerService,
-        INavigationService navigationService)
+        INavigationService navigationService,
+        IClipMetadataCacheService clipMetadataCacheService)
     {
         _storageService = storageService;
         _indexerService = indexerService;
         _navigationService = navigationService;
+        _clipMetadataCacheService = clipMetadataCacheService;
     }
 
     public void Initialize()
@@ -40,7 +49,9 @@ public partial class SettingsViewModel : ObservableObject
         {
             WatchFolders.Add(folder);
         }
+        EnableSkeletonLoading = _storageService.CurrentSettings.EnableSkeletonLoading;
         CalculateCacheSize();
+        CalculateClipCacheSize();
     }
 
     [RelayCommand]
@@ -106,6 +117,31 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public async Task ClearClipCacheAsync()
+    {
+        try
+        {
+            await _clipMetadataCacheService.ClearAsync();
+            CalculateClipCacheSize();
+            StatusMessage = "Clip metadata cache cleared";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    async partial void OnEnableSkeletonLoadingChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.EnableSkeletonLoading != value)
+        {
+            settings.EnableSkeletonLoading = value;
+            await _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    [RelayCommand]
     public void BackToHome()
     {
         _navigationService.NavigateToHome();
@@ -135,6 +171,28 @@ public partial class SettingsViewModel : ObservableObject
         catch
         {
             CacheSizeFormatted = "0 KB";
+        }
+    }
+
+    private void CalculateClipCacheSize()
+    {
+        try
+        {
+            var (count, bytes) = _clipMetadataCacheService.GetCacheStats();
+            double kb = bytes / 1024.0;
+            if (kb < 1024)
+            {
+                ClipCacheSizeFormatted = $"{count} {(count == 1 ? "clip" : "clips")} cached • {kb:F1} KB";
+            }
+            else
+            {
+                double mb = kb / 1024.0;
+                ClipCacheSizeFormatted = $"{count} {(count == 1 ? "clip" : "clips")} cached • {mb:F2} MB";
+            }
+        }
+        catch
+        {
+            ClipCacheSizeFormatted = "0 clips cached";
         }
     }
 }

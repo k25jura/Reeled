@@ -74,7 +74,20 @@ public partial class HomeViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
+    [NotifyPropertyChangedFor(nameof(ShowSkeletonLoading))]
+    [NotifyPropertyChangedFor(nameof(ShowProgressRingLoading))]
     private bool _isLoading;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowSkeletonLoading))]
+    [NotifyPropertyChangedFor(nameof(ShowProgressRingLoading))]
+    private bool _enableSkeletonLoading = true;
+
+    public bool ShowSkeletonLoading => IsLoading && EnableSkeletonLoading;
+    public bool ShowProgressRingLoading => IsLoading && !EnableSkeletonLoading;
+
+    public int[] SkeletonPlaceholders { get; } = new int[16];
+    private readonly HashSet<string> _loadedWatchDirectories = new(StringComparer.OrdinalIgnoreCase);
 
     [ObservableProperty]
     private string _statusMessage = string.Empty;
@@ -254,12 +267,21 @@ public partial class HomeViewModel : ObservableObject
         return Task.CompletedTask;
     }
 
-    public async Task SyncDirectoriesAsync()
+    public async Task SyncDirectoriesAsync(bool forceReload = false)
     {
+        var settings = await _storageService.LoadSettingsAsync();
+        EnableSkeletonLoading = settings.EnableSkeletonLoading;
+
+        bool dirsChanged = !_loadedWatchDirectories.SetEquals(settings.WatchDirectories);
+        if (!forceReload && !dirsChanged && AllClips.Count > 0 && Directories.Count > 0)
+        {
+            // Watch folders haven't changed and clips are already in memory - instant view restore
+            RefreshCurrentViewClips();
+            return;
+        }
+
         IsLoading = true;
         StatusMessage = "Loading watch directories...";
-
-        var settings = await _storageService.LoadSettingsAsync();
 
         var trees = await _indexerService.BuildDirectoryTreesAsync(settings.WatchDirectories);
         Directories.Clear();
@@ -301,6 +323,12 @@ public partial class HomeViewModel : ObservableObject
             }
 
             AllClips.Add(clip);
+        }
+
+        _loadedWatchDirectories.Clear();
+        foreach (var d in settings.WatchDirectories)
+        {
+            _loadedWatchDirectories.Add(d);
         }
 
         IsLoading = false;
@@ -445,7 +473,7 @@ public partial class HomeViewModel : ObservableObject
     [RelayCommand]
     public async Task RefreshClipsAsync()
     {
-        await SyncDirectoriesAsync();
+        await SyncDirectoriesAsync(forceReload: true);
     }
 
     [RelayCommand]

@@ -632,8 +632,65 @@
                     </GridView.ItemTemplate>
                 </GridView>
 
-                <!-- Loading Indicator with Solid Circular Background -->
-                <Grid Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                <!-- Skeleton Loading Grid View (Shown when loading and skeleton loading enabled) -->
+                <ScrollViewer Visibility="{x:Bind ViewModel.ShowSkeletonLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                              Padding="24,18,24,24"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              IsHitTestVisible="False">
+                    <ItemsControl ItemsSource="{x:Bind ViewModel.SkeletonPlaceholders, Mode=OneWay}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid Orientation="Horizontal" HorizontalAlignment="Center" MaximumRowsOrColumns="-1" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Width="254" Height="236" CornerRadius="8" Margin="6"
+                                      Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                      BorderThickness="1">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="142" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Video Thumbnail Placeholder Area -->
+                                    <Grid Grid.Row="0" CornerRadius="8,8,0,0" Background="{ThemeResource LayerFillColorAltBrush}">
+                                        <FontIcon Glyph="&#xE714;" FontSize="32" 
+                                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}" 
+                                                  Opacity="0.4"
+                                                  HorizontalAlignment="Center" 
+                                                  VerticalAlignment="Center" />
+                                        <!-- Duration placeholder pill -->
+                                        <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                Background="#33000000" CornerRadius="9" Margin="0,0,8,8" Width="44" Height="18" />
+                                    </Grid>
+
+                                    <!-- Info Placeholder Area -->
+                                    <Grid Grid.Row="1" Padding="12,12,10,10">
+                                        <StackPanel Spacing="8" VerticalAlignment="Top">
+                                            <Border Height="12" Width="160" HorizontalAlignment="Left" CornerRadius="4" 
+                                                    Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.3" />
+                                            <Border Height="10" Width="100" HorizontalAlignment="Left" CornerRadius="3" 
+                                                    Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.2" />
+                                        </StackPanel>
+
+                                        <Grid VerticalAlignment="Bottom">
+                                            <Border Height="9" Width="64" HorizontalAlignment="Left" CornerRadius="3" 
+                                                    Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.15" />
+                                            <Border Height="9" Width="42" HorizontalAlignment="Right" CornerRadius="3" 
+                                                    Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.15" />
+                                        </Grid>
+                                    </Grid>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <!-- Classic Circular ProgressRing (Shown when skeleton loading disabled in settings) -->
+                <Grid Visibility="{x:Bind ViewModel.ShowProgressRingLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                       HorizontalAlignment="Center" VerticalAlignment="Center"
                       IsHitTestVisible="False">
                     <Border Width="56" Height="56" 
@@ -642,7 +699,7 @@
                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             BorderThickness="1"
                             HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <ProgressRing IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" 
+                        <ProgressRing IsActive="{x:Bind ViewModel.ShowProgressRingLoading, Mode=OneWay}" 
                                       Width="34" Height="34" 
                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>

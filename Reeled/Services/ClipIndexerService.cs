@@ -16,6 +16,7 @@ public class ClipIndexerService : IClipIndexerService
     };
 
     private readonly IClipMetadataService _metadataService;
+    private readonly IClipMetadataCacheService _cacheService;
     private readonly List<FileSystemWatcher> _watchers = new();
     private readonly object _lock = new();
 
@@ -23,9 +24,10 @@ public class ClipIndexerService : IClipIndexerService
     public event Action<string>? ClipDeleted;
     public event Action<string, string>? ClipRenamed;
 
-    public ClipIndexerService(IClipMetadataService metadataService)
+    public ClipIndexerService(IClipMetadataService metadataService, IClipMetadataCacheService cacheService)
     {
         _metadataService = metadataService;
+        _cacheService = cacheService;
     }
 
     public async Task<List<GameClip>> ScanDirectoryClipsAsync(string directoryPath, bool recursive = false)
@@ -69,6 +71,8 @@ public class ClipIndexerService : IClipIndexerService
                     await _metadataService.PopulateMetadataAsync(clip);
                     clips.Add(clip);
                 }
+
+                _ = _cacheService.SaveAsync();
             }
             catch (Exception)
             {

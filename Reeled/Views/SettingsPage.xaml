@@ -96,35 +96,101 @@
                 </Border>
 
                 <!-- Cache & Storage Section -->
-                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                        BorderThickness="1" 
-                        CornerRadius="8" 
-                        Padding="20">
-                    <Grid ColumnSpacing="16">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Performance &amp; Storage" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="18" FontWeight="SemiBold" />
 
-                        <StackPanel Grid.Column="0" Spacing="4">
-                            <TextBlock Text="Thumbnail Cache" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="16" />
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="Current cache storage:" 
+                    <!-- Thumbnail Cache Card -->
+                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                            BorderThickness="1" 
+                            CornerRadius="8" 
+                            Padding="20">
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                                <TextBlock Text="Thumbnail Cache" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" />
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="Disk storage used:" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <TextBlock Text="{x:Bind ViewModel.CacheSizeFormatted, Mode=OneWay}" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               FontWeight="SemiBold" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <Button Grid.Column="1" 
+                                    Command="{x:Bind ViewModel.ClearCacheCommand}" 
+                                    Content="Clear Thumbnails" 
+                                    VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Clip Metadata Cache Card -->
+                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                            BorderThickness="1" 
+                            CornerRadius="8" 
+                            Padding="20">
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                                <TextBlock Text="Clip Metadata Cache" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" />
+                                <TextBlock Text="Speeds up library loading and folder switching for large clip collections" 
                                            Style="{ThemeResource CaptionTextBlockStyle}" 
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <TextBlock Text="{x:Bind ViewModel.CacheSizeFormatted, Mode=OneWay}" 
-                                           Style="{ThemeResource CaptionTextBlockStyle}" 
-                                           FontWeight="SemiBold" />
+                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0">
+                                    <TextBlock Text="Cache status:" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <TextBlock Text="{x:Bind ViewModel.ClipCacheSizeFormatted, Mode=OneWay}" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               FontWeight="SemiBold" />
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
 
-                        <Button Grid.Column="1" 
-                                Command="{x:Bind ViewModel.ClearCacheCommand}" 
-                                Content="Clear Cache" 
-                                VerticalAlignment="Center" />
-                    </Grid>
-                </Border>
+                            <Button Grid.Column="1" 
+                                    Command="{x:Bind ViewModel.ClearClipCacheCommand}" 
+                                    Content="Clear Metadata" 
+                                    VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Skeleton Loading Setting Card -->
+                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                            BorderThickness="1" 
+                            CornerRadius="8" 
+                            Padding="20">
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                                <TextBlock Text="Skeleton Loading Placeholders" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" />
+                                <TextBlock Text="Show animated placeholder cards while scanning directories or loading video clips" 
+                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+
+                            <ToggleSwitch Grid.Column="1" 
+                                          IsOn="{x:Bind ViewModel.EnableSkeletonLoading, Mode=TwoWay}" 
+                                          OnContent="On" 
+                                          OffContent="Off" 
+                                          VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
 
                 <!-- About & Engine Section -->
                 <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 

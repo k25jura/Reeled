@@ -57,8 +57,18 @@ public partial class PlayerViewModel : ObservableObject
     [ObservableProperty]
     private string _statusToast = string.Empty;
 
+    [ObservableProperty]
+    private AudioTrackInfo? _selectedAudioTrack;
+
+    [ObservableProperty]
+    private bool _hasAudioTracks;
+
+    public string SelectedAudioTrackTitle =>
+        SelectedAudioTrack != null ? SelectedAudioTrack.DisplayName : "Audio";
+
     public ObservableCollection<GameClip> Playlist { get; } = new();
     public ObservableCollection<ClipBookmark> Bookmarks { get; } = new();
+    public ObservableCollection<AudioTrackInfo> AudioTracks { get; } = new();
 
     private bool _isDraggingSlider;
 
@@ -135,6 +145,7 @@ public partial class PlayerViewModel : ObservableObject
         _playbackService.PlaybackPaused += () => IsPlaying = false;
         _playbackService.PlaybackStopped += () => IsPlaying = false;
         _playbackService.MediaEnded += OnMediaEnded;
+        _playbackService.AudioTracksChanged += RefreshAudioTracks;
 
         Volume = _storageService.CurrentSettings.Volume;
         IsMuted = _storageService.CurrentSettings.IsMuted;
@@ -466,6 +477,44 @@ public partial class PlayerViewModel : ObservableObject
         var settings = _storageService.CurrentSettings;
         settings.PlaybackSpeed = speed;
         _ = _storageService.SaveSettingsAsync(settings);
+    }
+
+    [RelayCommand]
+    public void AdjustSpeed(double delta)
+    {
+        double newSpeed = Math.Round(PlaybackRate + delta, 2);
+        newSpeed = Math.Clamp(newSpeed, 0.25, 3.0);
+        ChangeSpeed(newSpeed);
+    }
+
+    [RelayCommand]
+    public void ResetSpeed()
+    {
+        ChangeSpeed(1.0);
+    }
+
+    public void RefreshAudioTracks()
+    {
+        var tracks = _playbackService.GetAudioTracks();
+        AudioTracks.Clear();
+        foreach (var t in tracks)
+        {
+            AudioTracks.Add(t);
+        }
+        SelectedAudioTrack = AudioTracks.FirstOrDefault(t => t.IsSelected);
+        HasAudioTracks = AudioTracks.Count > 0;
+        OnPropertyChanged(nameof(SelectedAudioTrackTitle));
+    }
+
+    public void SelectAudioTrack(int trackId)
+    {
+        bool success = _playbackService.SetAudioTrack(trackId);
+        if (success)
+        {
+            RefreshAudioTracks();
+            string name = SelectedAudioTrack?.DisplayName ?? (trackId == -1 ? "Audio Disabled" : "Audio track changed");
+            ShowToast(name);
+        }
     }
 
     [RelayCommand]

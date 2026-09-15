@@ -13,6 +13,7 @@ public interface ILibVlcPlaybackService : IDisposable
     event Action? PlaybackPaused;
     event Action? PlaybackStopped;
     event Action? MediaEnded;
+    event Action? AudioTracksChanged;
 
     MediaPlayer? CurrentMediaPlayer { get; }
     bool IsPlaying { get; }
@@ -22,6 +23,9 @@ public interface ILibVlcPlaybackService : IDisposable
     int Volume { get; }
     bool IsMuted { get; }
     float PlaybackRate { get; }
+    int CurrentAudioTrack { get; }
+    IReadOnlyList<Reeled.Models.AudioTrackInfo> GetAudioTracks();
+    bool SetAudioTrack(int trackId);
 
     void InitializeEngine(string[]? swapChainOptions = null);
     void DisposeEngine();

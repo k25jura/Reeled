@@ -497,7 +497,7 @@
                                         </Grid>
 
                                         <!-- Divider line -->
-                                        <MenuFlyoutSeparator Margin="0,2" />
+                                        <Border Height="1" Background="#26FFFFFF" Margin="0,2" />
 
                                         <!-- Custom Speed Slider & Nudge Buttons -->
                                         <StackPanel Spacing="6">
@@ -657,8 +657,8 @@
                 Margin="24,0,0,96"
                 Width="320"
                 MaxHeight="260"
-                Background="{ThemeResource FlyoutPresenterBackground}"
-                BorderBrush="{ThemeResource FlyoutPresenterBorderBrush}"
+                Background="#2C2C2E"
+                BorderBrush="#383838"
                 BorderThickness="1"
                 CornerRadius="8"
                 Padding="12,10"

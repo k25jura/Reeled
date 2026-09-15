@@ -311,18 +311,7 @@
                             </StackPanel>
                             <Button.Flyout>
                                 <Flyout Placement="Top">
-                                    <Flyout.FlyoutPresenterStyle>
-                                        <Style TargetType="FlyoutPresenter">
-                                            <Setter Property="Background" Value="#E618181D" />
-                                            <Setter Property="BorderBrush" Value="#2E2E36" />
-                                            <Setter Property="BorderThickness" Value="1" />
-                                            <Setter Property="CornerRadius" Value="12" />
-                                            <Setter Property="Padding" Value="16,14" />
-                                            <Setter Property="MinWidth" Value="350" />
-                                            <Setter Property="MaxWidth" Value="420" />
-                                        </Style>
-                                    </Flyout.FlyoutPresenterStyle>
-                                    <Grid MaxHeight="360" RowSpacing="12">
+                                    <Grid MinWidth="300" MaxWidth="360" Padding="8,6" RowSpacing="10">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="*" />
@@ -335,128 +324,106 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                                <FontIcon Glyph="&#xE8A4;" FontSize="15" Foreground="#FFD700" />
+                                                <FontIcon Glyph="&#xE8A4;" FontSize="14" Foreground="#FFD700" />
                                                 <TextBlock Text="Moments" FontWeight="SemiBold" FontSize="14" Foreground="White" />
-                                                <Border Background="#1FFFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="10" Padding="8,2" Margin="2,0,0,0">
-                                                    <TextBlock Text="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" FontSize="11" FontWeight="Bold" Foreground="#D0D0D0" />
-                                                </Border>
+                                                <TextBlock Text="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" 
+                                                           FontSize="12" 
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                                           VerticalAlignment="Center" />
                                             </StackPanel>
                                             <Button Grid.Column="1" 
                                                     ToolTipService.ToolTip="Mark Moment at Current Time (B)"
                                                     Click="OnAddMarkerClick"
-                                                    Padding="10,5"
-                                                    CornerRadius="6"
-                                                    Background="#1FFFFFFF"
-                                                    BorderBrush="#26FFFFFF"
-                                                    BorderThickness="1"
+                                                    Padding="8,4"
+                                                    CornerRadius="4"
                                                     Style="{ThemeResource SubtleButtonStyle}">
                                                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                                     <FontIcon Glyph="&#xE710;" FontSize="11" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                                    <TextBlock Text="Add" FontSize="12" FontWeight="SemiBold" Foreground="White" />
+                                                    <TextBlock Text="Add" FontSize="12" Foreground="White" />
                                                 </StackPanel>
                                             </Button>
                                         </Grid>
 
                                         <!-- Empty State -->
                                         <StackPanel Grid.Row="1" 
-                                                    Spacing="6" 
-                                                    Padding="16,28" 
+                                                    Spacing="4" 
+                                                    Padding="12,24" 
                                                     HorizontalAlignment="Center" 
                                                     VerticalAlignment="Center"
                                                     Visibility="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                                            <FontIcon Glyph="&#xE8A4;" FontSize="28" Foreground="#555560" HorizontalAlignment="Center" Margin="0,0,0,4" />
-                                            <TextBlock Text="No moments marked yet" FontSize="13" FontWeight="SemiBold" Foreground="#A0A0A8" HorizontalAlignment="Center" />
-                                            <TextBlock Text="Press 'B' while watching to mark a moment" FontSize="11" Foreground="#707078" HorizontalAlignment="Center" />
+                                            <FontIcon Glyph="&#xE8A4;" FontSize="24" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,2" />
+                                            <TextBlock Text="No moments marked yet" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" />
+                                            <TextBlock Text="Press 'B' while watching to mark a moment" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" />
                                         </StackPanel>
 
-                                        <!-- Moments List (Clean cards with Windows 11 Action Center style Jump pill) -->
+                                        <!-- Moments List -->
                                         <ScrollViewer Grid.Row="1" 
-                                                      MaxHeight="280" 
+                                                      MaxHeight="260" 
                                                       VerticalScrollBarVisibility="Auto"
                                                       Visibility="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                             <ItemsControl ItemsSource="{x:Bind ViewModel.Bookmarks, Mode=OneWay}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate x:DataType="models:ClipBookmark">
-                                                        <Border Background="#14FFFFFF" 
-                                                                BorderBrush="#1FFFFFFF" 
-                                                                BorderThickness="1" 
-                                                                CornerRadius="8" 
-                                                                Padding="10,8" 
-                                                                Margin="0,4">
-                                                            <Grid ColumnSpacing="10">
-                                                                <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="Auto" />
-                                                                    <ColumnDefinition Width="*" />
-                                                                    <ColumnDefinition Width="Auto" />
-                                                                    <ColumnDefinition Width="Auto" />
-                                                                </Grid.ColumnDefinitions>
+                                                        <Grid Margin="0,2" Padding="4,2" ColumnSpacing="6">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
 
-                                                                <!-- Jump Pill Button (styled like Windows 11 Action Center widget) -->
-                                                                <Button Grid.Column="0"
-                                                                        Click="OnJumpToBookmarkItemClick"
-                                                                        Tag="{x:Bind}"
-                                                                        Padding="8,4"
-                                                                        CornerRadius="6"
-                                                                        Background="#22FFFFFF"
-                                                                        BorderBrush="#2EFFFFFF"
-                                                                        BorderThickness="1"
-                                                                        ToolTipService.ToolTip="Jump to this moment"
-                                                                        Style="{ThemeResource SubtleButtonStyle}">
-                                                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                                        <FontIcon Glyph="&#xE768;" FontSize="10" Foreground="#FFD700" VerticalAlignment="Center" />
-                                                                        <TextBlock Text="Jump" FontSize="11" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
-                                                                        <Border Background="#26FFD700" CornerRadius="4" Padding="5,1">
-                                                                            <TextBlock Text="{x:Bind FormattedTimestamp, Mode=OneWay}" 
-                                                                                       FontSize="10" 
-                                                                                       FontWeight="Bold" 
-                                                                                       Foreground="#FFD700" 
-                                                                                       VerticalAlignment="Center" />
-                                                                        </Border>
-                                                                    </StackPanel>
-                                                                </Button>
+                                                            <!-- Jump Button -->
+                                                            <Button Grid.Column="0"
+                                                                    Click="OnJumpToBookmarkItemClick"
+                                                                    Tag="{x:Bind}"
+                                                                    Padding="6,4"
+                                                                    CornerRadius="4"
+                                                                    ToolTipService.ToolTip="Jump to this moment"
+                                                                    Style="{ThemeResource SubtleButtonStyle}">
+                                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                                    <FontIcon Glyph="&#xE768;" FontSize="10" Foreground="#FFD700" VerticalAlignment="Center" />
+                                                                    <TextBlock Text="{x:Bind FormattedTimestamp, Mode=OneWay}" 
+                                                                               FontSize="12" 
+                                                                               Foreground="White" 
+                                                                               VerticalAlignment="Center" />
+                                                                </StackPanel>
+                                                            </Button>
 
-                                                                <!-- Label -->
-                                                                <TextBlock Grid.Column="1" 
-                                                                           Text="{x:Bind Label, Mode=OneWay}" 
-                                                                           FontSize="12" 
-                                                                           Foreground="White" 
-                                                                           VerticalAlignment="Center" 
-                                                                           TextTrimming="CharacterEllipsis" 
-                                                                           ToolTipService.ToolTip="{x:Bind Label, Mode=OneWay}" />
+                                                            <!-- Label -->
+                                                            <TextBlock Grid.Column="1" 
+                                                                       Text="{x:Bind Label, Mode=OneWay}" 
+                                                                       FontSize="12" 
+                                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                                                       VerticalAlignment="Center" 
+                                                                       TextTrimming="CharacterEllipsis" 
+                                                                       ToolTipService.ToolTip="{x:Bind Label, Mode=OneWay}" />
 
-                                                                <!-- Rename / Edit Button -->
-                                                                <Button Grid.Column="2" 
-                                                                        Click="OnEditBookmarkItemClick"
-                                                                        Tag="{x:Bind}"
-                                                                        ToolTipService.ToolTip="Rename Moment"
-                                                                        Width="28" Height="28"
-                                                                        Padding="0" MinWidth="0" MinHeight="0"
-                                                                        CornerRadius="6"
-                                                                        Background="#18FFFFFF"
-                                                                        BorderBrush="#22FFFFFF"
-                                                                        BorderThickness="1"
-                                                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                                                        Style="{StaticResource PlayerIconButtonStyle}">
-                                                                    <FontIcon Glyph="&#xE70F;" FontSize="11" Foreground="#C0C0C8" />
-                                                                </Button>
+                                                            <!-- Rename / Edit Button -->
+                                                            <Button Grid.Column="2" 
+                                                                    Click="OnEditBookmarkItemClick"
+                                                                    Tag="{x:Bind}"
+                                                                    ToolTipService.ToolTip="Rename Moment"
+                                                                    Width="28" Height="28"
+                                                                    Padding="0" MinWidth="0" MinHeight="0"
+                                                                    CornerRadius="4"
+                                                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                                                    Style="{StaticResource PlayerIconButtonStyle}">
+                                                                <FontIcon Glyph="&#xE70F;" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                            </Button>
 
-                                                                <!-- Delete / Remove Button -->
-                                                                <Button Grid.Column="3" 
-                                                                        Click="OnRemoveBookmarkItemClick"
-                                                                        Tag="{x:Bind}"
-                                                                        ToolTipService.ToolTip="Remove Moment"
-                                                                        Width="28" Height="28"
-                                                                        Padding="0" MinWidth="0" MinHeight="0"
-                                                                        CornerRadius="6"
-                                                                        Background="#18FFFFFF"
-                                                                        BorderBrush="#22FFFFFF"
-                                                                        BorderThickness="1"
-                                                                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                                                        Style="{StaticResource PlayerIconButtonStyle}">
-                                                                    <FontIcon Glyph="&#xE74D;" FontSize="11" Foreground="#FF6B6B" />
-                                                                </Button>
-                                                            </Grid>
-                                                        </Border>
+                                                            <!-- Delete / Remove Button -->
+                                                            <Button Grid.Column="3" 
+                                                                    Click="OnRemoveBookmarkItemClick"
+                                                                    Tag="{x:Bind}"
+                                                                    ToolTipService.ToolTip="Remove Moment"
+                                                                    Width="28" Height="28"
+                                                                    Padding="0" MinWidth="0" MinHeight="0"
+                                                                    CornerRadius="4"
+                                                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                                                    Style="{StaticResource PlayerIconButtonStyle}">
+                                                                <FontIcon Glyph="&#xE74D;" FontSize="11" Foreground="#FF6B6B" />
+                                                            </Button>
+                                                        </Grid>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
@@ -487,35 +454,26 @@
                                         IsTabStop="False"
                                         Style="{ThemeResource SubtleButtonStyle}">
                             <TextBlock Text="{x:Bind ViewModel.FormattedPlaybackRate, Mode=OneWay}" 
-                                       FontSize="12" FontWeight="SemiBold" Foreground="White" />
+                                       FontSize="12" Foreground="White" />
                             <DropDownButton.Flyout>
                                 <Flyout Placement="Top">
-                                    <Flyout.FlyoutPresenterStyle>
-                                        <Style TargetType="FlyoutPresenter">
-                                            <Setter Property="Background" Value="#E618181D" />
-                                            <Setter Property="BorderBrush" Value="#2E2E36" />
-                                            <Setter Property="BorderThickness" Value="1" />
-                                            <Setter Property="CornerRadius" Value="10" />
-                                            <Setter Property="Padding" Value="14,12" />
-                                            <Setter Property="MinWidth" Value="240" />
-                                            <Setter Property="MaxWidth" Value="280" />
-                                        </Style>
-                                    </Flyout.FlyoutPresenterStyle>
-                                    <StackPanel Spacing="10">
-                                        <!-- Header & Current Value Pill -->
+                                    <StackPanel Spacing="10" MinWidth="220" MaxWidth="260" Padding="8,6">
+                                        <!-- Header & Current Value -->
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Text="Playback Speed" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
-                                            <Border Grid.Column="1" Background="#22FFFFFF" BorderBrush="#2EFFFFFF" BorderThickness="1" CornerRadius="6" Padding="6,2">
-                                                <TextBlock Text="{x:Bind ViewModel.FormattedPlaybackRate, Mode=OneWay}" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                            </Border>
+                                            <TextBlock Text="Playback Speed" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="{x:Bind ViewModel.FormattedPlaybackRate, Mode=OneWay}" 
+                                                       FontSize="12" 
+                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                                       VerticalAlignment="Center" />
                                         </Grid>
 
                                         <!-- Speed Presets Grid (2 rows of 4) -->
-                                        <Grid ColumnSpacing="6" RowSpacing="6">
+                                        <Grid ColumnSpacing="4" RowSpacing="4">
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
@@ -527,25 +485,25 @@
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
 
-                                            <Button Grid.Row="0" Grid.Column="0" Content="0.25x" Click="OnSpeedItemClick" Tag="0.25" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" Background="#14FFFFFF" />
-                                            <Button Grid.Row="0" Grid.Column="1" Content="0.5x" Click="OnSpeedItemClick" Tag="0.5" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" Background="#14FFFFFF" />
-                                            <Button Grid.Row="0" Grid.Column="2" Content="0.75x" Click="OnSpeedItemClick" Tag="0.75" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" Background="#14FFFFFF" />
-                                            <Button Grid.Row="0" Grid.Column="3" Content="1.0x" Click="OnSpeedItemClick" Tag="1.0" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" FontWeight="SemiBold" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" Background="#14FFFFFF" />
+                                            <Button Grid.Row="0" Grid.Column="0" Content="0.25x" Click="OnSpeedItemClick" Tag="0.25" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                            <Button Grid.Row="0" Grid.Column="1" Content="0.5x" Click="OnSpeedItemClick" Tag="0.5" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                            <Button Grid.Row="0" Grid.Column="2" Content="0.75x" Click="OnSpeedItemClick" Tag="0.75" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                            <Button Grid.Row="0" Grid.Column="3" Content="1.0x" Click="OnSpeedItemClick" Tag="1.0" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
 
-                                            <Button Grid.Row="1" Grid.Column="0" Content="1.25x" Click="OnSpeedItemClick" Tag="1.25" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" Background="#14FFFFFF" />
-                                            <Button Grid.Row="1" Grid.Column="1" Content="1.5x" Click="OnSpeedItemClick" Tag="1.5" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" Background="#14FFFFFF" />
-                                            <Button Grid.Row="1" Grid.Column="2" Content="1.75x" Click="OnSpeedItemClick" Tag="1.75" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" Background="#14FFFFFF" />
-                                            <Button Grid.Row="1" Grid.Column="3" Content="2.0x" Click="OnSpeedItemClick" Tag="2.0" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" Background="#14FFFFFF" />
+                                            <Button Grid.Row="1" Grid.Column="0" Content="1.25x" Click="OnSpeedItemClick" Tag="1.25" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                            <Button Grid.Row="1" Grid.Column="1" Content="1.5x" Click="OnSpeedItemClick" Tag="1.5" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                            <Button Grid.Row="1" Grid.Column="2" Content="1.75x" Click="OnSpeedItemClick" Tag="1.75" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                            <Button Grid.Row="1" Grid.Column="3" Content="2.0x" Click="OnSpeedItemClick" Tag="2.0" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
                                         </Grid>
 
                                         <!-- Divider line -->
-                                        <Border Height="1" Background="#26FFFFFF" Margin="0,2" />
+                                        <MenuFlyoutSeparator Margin="0,2" />
 
                                         <!-- Custom Speed Slider & Nudge Buttons -->
                                         <StackPanel Spacing="6">
                                             <Grid>
-                                                <TextBlock Text="Custom Speed" FontSize="11" Foreground="#A0A0A8" VerticalAlignment="Center" />
-                                                <Button HorizontalAlignment="Right" Content="Reset" Click="OnResetSpeedClick" Padding="6,2" FontSize="10" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                                <TextBlock Text="Custom Speed" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                                <Button HorizontalAlignment="Right" Content="Reset" Click="OnResetSpeedClick" Padding="6,2" FontSize="10" Style="{ThemeResource SubtleButtonStyle}" />
                                             </Grid>
 
                                             <Slider x:Name="CustomSpeedSlider"
@@ -563,8 +521,8 @@
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
-                                                <Button Grid.Column="0" Content="- 0.05x" Click="OnSpeedStepDownClick" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" Background="#14FFFFFF" />
-                                                <Button Grid.Column="1" Content="+ 0.05x" Click="OnSpeedStepUpClick" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" Background="#14FFFFFF" />
+                                                <Button Grid.Column="0" Content="- 0.05x" Click="OnSpeedStepDownClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                                <Button Grid.Column="1" Content="+ 0.05x" Click="OnSpeedStepUpClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
                                             </Grid>
                                         </StackPanel>
                                     </StackPanel>
@@ -697,13 +655,13 @@
                 HorizontalAlignment="Left"
                 VerticalAlignment="Bottom"
                 Margin="24,0,0,96"
-                Width="350"
-                MaxHeight="290"
-                Background="#E618181D"
-                BorderBrush="#2E2E36"
+                Width="320"
+                MaxHeight="260"
+                Background="{ThemeResource FlyoutPresenterBackground}"
+                BorderBrush="{ThemeResource FlyoutPresenterBorderBrush}"
                 BorderThickness="1"
-                CornerRadius="12"
-                Padding="16,14"
+                CornerRadius="8"
+                Padding="12,10"
                 Opacity="0"
                 Visibility="Collapsed"
                 PointerEntered="OnMomentsPopupPointerEntered"
@@ -711,7 +669,7 @@
             <Border.RenderTransform>
                 <TranslateTransform x:Name="MomentsPopupTranslation" Y="24" />
             </Border.RenderTransform>
-            <Grid RowSpacing="12">
+            <Grid RowSpacing="10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
@@ -724,75 +682,61 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <FontIcon Glyph="&#xE8A4;" FontSize="15" Foreground="#FFD700" />
+                        <FontIcon Glyph="&#xE8A4;" FontSize="14" Foreground="#FFD700" />
                         <TextBlock Text="Moments in this clip" FontSize="14" FontWeight="SemiBold" Foreground="White" />
                     </StackPanel>
                     <Button Grid.Column="1"
                             Click="OnDismissMomentsPopupClick"
-                            Width="28" Height="28"
+                            Width="26" Height="26"
                             Padding="0" MinWidth="0" MinHeight="0"
-                            CornerRadius="6"
-                            Background="#18FFFFFF"
-                            BorderBrush="#22FFFFFF"
-                            BorderThickness="1"
+                            CornerRadius="4"
                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                             ToolTipService.ToolTip="Dismiss"
                             Style="{StaticResource PlayerIconButtonStyle}">
-                        <FontIcon Glyph="&#xE711;" FontSize="10" Foreground="#C0C0C8" />
+                        <FontIcon Glyph="&#xE711;" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                     </Button>
                 </Grid>
 
                 <!-- List of Bookmarked Moments to Choose From -->
-                <ScrollViewer Grid.Row="1" MaxHeight="210" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer Grid.Row="1" MaxHeight="190" VerticalScrollBarVisibility="Auto">
                     <ItemsControl x:Name="MomentsPopupItemsList">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="models:ClipBookmark">
                                 <Button HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Stretch"
-                                        Margin="0,4"
-                                        Padding="10,8"
-                                        CornerRadius="8"
-                                        Background="#14FFFFFF"
-                                        BorderBrush="#1FFFFFFF"
-                                        BorderThickness="1"
+                                        Margin="0,2"
+                                        Padding="8,6"
+                                        CornerRadius="4"
                                         Click="OnPopupBookmarkItemClick"
                                         Tag="{x:Bind}"
                                         Style="{ThemeResource SubtleButtonStyle}">
-                                    <Grid ColumnSpacing="10">
+                                    <Grid ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- Jump Pill (styled like Windows 11 Action Center button) -->
-                                        <Border Grid.Column="0" 
-                                                Background="#22FFFFFF" 
-                                                BorderBrush="#2EFFFFFF" 
-                                                BorderThickness="1" 
-                                                CornerRadius="6" 
-                                                Padding="8,4">
-                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                <FontIcon Glyph="&#xE768;" FontSize="10" Foreground="#FFD700" VerticalAlignment="Center" />
-                                                <TextBlock Text="Jump" FontSize="11" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
-                                                <Border Background="#26FFD700" CornerRadius="4" Padding="5,1">
-                                                    <TextBlock Text="{x:Bind FormattedTimestamp, Mode=OneWay}" 
-                                                               FontSize="10" FontWeight="Bold" Foreground="#FFD700" VerticalAlignment="Center" />
-                                                </Border>
-                                            </StackPanel>
-                                        </Border>
+                                        <!-- Play Glyph + Timestamp -->
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xE768;" FontSize="10" Foreground="#FFD700" />
+                                            <TextBlock Text="{x:Bind FormattedTimestamp, Mode=OneWay}" 
+                                                       FontSize="12" 
+                                                       Foreground="White" 
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
 
                                         <!-- Label -->
                                         <TextBlock Grid.Column="1" 
                                                    Text="{x:Bind Label, Mode=OneWay}" 
                                                    FontSize="12" 
-                                                   Foreground="White" 
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
                                                    VerticalAlignment="Center" 
                                                    TextTrimming="CharacterEllipsis" 
                                                    ToolTipService.ToolTip="{x:Bind Label, Mode=OneWay}" />
 
                                         <!-- Jump Arrow Glyph -->
-                                        <FontIcon Grid.Column="2" Glyph="&#xE76C;" FontSize="11" Foreground="#A0A0A8" VerticalAlignment="Center" />
+                                        <FontIcon Grid.Column="2" Glyph="&#xE76C;" FontSize="10" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
                                     </Grid>
                                 </Button>
                             </DataTemplate>

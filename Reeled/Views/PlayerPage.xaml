@@ -310,16 +310,8 @@
                                 <TextBlock Text="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" FontSize="12" Foreground="White" />
                             </StackPanel>
                             <Button.Flyout>
-                                <Flyout Placement="Top">
-                                    <Flyout.FlyoutPresenterStyle>
-                                        <Style TargetType="FlyoutPresenter">
-                                            <Setter Property="Background" Value="{ThemeResource MenuFlyoutPresenterBackground}" />
-                                            <Setter Property="BorderBrush" Value="{ThemeResource MenuFlyoutPresenterBorderBrush}" />
-                                            <Setter Property="CornerRadius" Value="{ThemeResource OverlayCornerRadius}" />
-                                            <Setter Property="Padding" Value="0" />
-                                        </Style>
-                                    </Flyout.FlyoutPresenterStyle>
-                                    <Grid MinWidth="300" MaxWidth="360" Padding="12,10" RowSpacing="10">
+                                <Flyout x:Name="MomentsFlyout" Placement="Top" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
+                                    <Grid MinWidth="300" MaxWidth="360" Padding="8,6" RowSpacing="10">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="*" />
@@ -463,16 +455,8 @@
                             <TextBlock Text="{x:Bind ViewModel.FormattedPlaybackRate, Mode=OneWay}" 
                                        FontSize="12" Foreground="White" />
                             <DropDownButton.Flyout>
-                                <Flyout Placement="Top">
-                                    <Flyout.FlyoutPresenterStyle>
-                                        <Style TargetType="FlyoutPresenter">
-                                            <Setter Property="Background" Value="{ThemeResource MenuFlyoutPresenterBackground}" />
-                                            <Setter Property="BorderBrush" Value="{ThemeResource MenuFlyoutPresenterBorderBrush}" />
-                                            <Setter Property="CornerRadius" Value="{ThemeResource OverlayCornerRadius}" />
-                                            <Setter Property="Padding" Value="0" />
-                                        </Style>
-                                    </Flyout.FlyoutPresenterStyle>
-                                    <StackPanel Spacing="10" MinWidth="220" MaxWidth="260" Padding="12,10">
+                                <Flyout x:Name="PlaybackSpeedFlyout" Placement="Top" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
+                                    <StackPanel Spacing="10" MinWidth="250" MaxWidth="300" Padding="8,6">
                                         <!-- Header & Current Value -->
                                         <Grid>
                                             <Grid.ColumnDefinitions>
@@ -487,8 +471,8 @@
                                                        VerticalAlignment="Center" />
                                         </Grid>
 
-                                        <!-- Speed Presets Grid (2 rows of 4) -->
-                                        <Grid ColumnSpacing="4" RowSpacing="4">
+                                        <!-- Speed Presets Grid (2 rows of 3 matching Settings) -->
+                                        <Grid x:Name="SpeedPresetsGrid" ColumnSpacing="6" RowSpacing="6">
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
@@ -497,18 +481,15 @@
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
 
-                                            <Button Grid.Row="0" Grid.Column="0" Content="0.25x" Click="OnSpeedItemClick" Tag="0.25" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-                                            <Button Grid.Row="0" Grid.Column="1" Content="0.5x" Click="OnSpeedItemClick" Tag="0.5" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-                                            <Button Grid.Row="0" Grid.Column="2" Content="0.75x" Click="OnSpeedItemClick" Tag="0.75" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-                                            <Button Grid.Row="0" Grid.Column="3" Content="1.0x" Click="OnSpeedItemClick" Tag="1.0" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                            <Button x:Name="PresetSpeed05" Grid.Row="0" Grid.Column="0" Content="0.5x" Click="OnSpeedItemClick" Tag="0.5" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                            <Button x:Name="PresetSpeed075" Grid.Row="0" Grid.Column="1" Content="0.75x" Click="OnSpeedItemClick" Tag="0.75" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                            <Button x:Name="PresetSpeed10" Grid.Row="0" Grid.Column="2" Content="1.0x (Normal)" Click="OnSpeedItemClick" Tag="1.0" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
 
-                                            <Button Grid.Row="1" Grid.Column="0" Content="1.25x" Click="OnSpeedItemClick" Tag="1.25" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-                                            <Button Grid.Row="1" Grid.Column="1" Content="1.5x" Click="OnSpeedItemClick" Tag="1.5" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-                                            <Button Grid.Row="1" Grid.Column="2" Content="1.75x" Click="OnSpeedItemClick" Tag="1.75" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-                                            <Button Grid.Row="1" Grid.Column="3" Content="2.0x" Click="OnSpeedItemClick" Tag="2.0" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                            <Button x:Name="PresetSpeed125" Grid.Row="1" Grid.Column="0" Content="1.25x" Click="OnSpeedItemClick" Tag="1.25" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                            <Button x:Name="PresetSpeed15" Grid.Row="1" Grid.Column="1" Content="1.5x" Click="OnSpeedItemClick" Tag="1.5" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                            <Button x:Name="PresetSpeed20" Grid.Row="1" Grid.Column="2" Content="2.0x" Click="OnSpeedItemClick" Tag="2.0" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
                                         </Grid>
 
                                         <!-- Divider line -->
@@ -555,7 +536,7 @@
                                 Style="{StaticResource PlayerIconButtonStyle}">
                             <FontIcon Glyph="&#xE700;" FontSize="13" Foreground="White" />
                             <Button.Flyout>
-                                <Flyout Placement="Top">
+                                <Flyout x:Name="ClipInfoFlyout" Placement="Top" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
                                     <StackPanel Spacing="10" MinWidth="260" MaxWidth="340" Padding="8,6">
                                         <TextBlock Text="Clip Information" FontWeight="SemiBold" FontSize="14" Foreground="White" />
                                         
@@ -609,7 +590,7 @@
                                         Style="{StaticResource PlayerIconButtonStyle}">
                             <FontIcon Glyph="&#xE8D4;" FontSize="13" Foreground="White" />
                             <DropDownButton.Flyout>
-                                <MenuFlyout x:Name="AudioTracksMenuFlyout" Opening="OnAudioTracksMenuFlyoutOpening">
+                                <MenuFlyout x:Name="AudioTracksMenuFlyout" Opening="OnAudioTracksMenuFlyoutOpening" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
                                     <MenuFlyoutItem Text="Default Audio Track" IsEnabled="False" />
                                 </MenuFlyout>
                             </DropDownButton.Flyout>
@@ -672,7 +653,7 @@
                 Margin="16,0,0,92"
                 Width="320"
                 MaxHeight="260"
-                Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+                Background="#2C2C2E"
                 BorderBrush="#383838"
                 BorderThickness="1"
                 CornerRadius="8"

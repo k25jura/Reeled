@@ -25,6 +25,10 @@ public sealed partial class PlayerPage : Page
     private DispatcherTimer? _momentsDismissTimer;
     private Storyboard? _momentsPopupStoryboard;
     private string? _lastPromptClipPath;
+    private int _openFlyoutsCount = 0;
+
+    private bool AreFlyoutsOrPopupsOpen =>
+        _openFlyoutsCount > 0 || (MomentsJumpPopup != null && MomentsJumpPopup.Visibility == Visibility.Visible);
 
     public PlayerPage()
     {
@@ -34,7 +38,7 @@ public sealed partial class PlayerPage : Page
         _inactivityTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.0) };
         _inactivityTimer.Tick += (s, e) =>
         {
-            if (ViewModel.IsPlaying && !ViewModel.IsSidebarOpen)
+            if (ViewModel.IsPlaying && !ViewModel.IsSidebarOpen && !AreFlyoutsOrPopupsOpen)
             {
                 ViewModel.IsControlsVisible = false;
             }
@@ -70,6 +74,10 @@ public sealed partial class PlayerPage : Page
                     ViewModel.IsControlsVisible = true;
                 }
                 DispatcherQueue.TryEnqueue(RenderTimelineMarkers);
+            }
+            else if (e.PropertyName == nameof(PlayerViewModel.PlaybackRate))
+            {
+                UpdateSpeedPresetHighlight();
             }
         };
 
@@ -268,8 +276,11 @@ public sealed partial class PlayerPage : Page
             mainWindow.SetCaptionControlsVisible(true);
         }
         ViewModel.IsControlsVisible = true;
-        _inactivityTimer.Stop();
-        _inactivityTimer.Start();
+        if (!AreFlyoutsOrPopupsOpen)
+        {
+            _inactivityTimer.Stop();
+            _inactivityTimer.Start();
+        }
     }
 
     private void OnTimelineSliderPointerPressed(object sender, PointerRoutedEventArgs e)
@@ -306,6 +317,7 @@ public sealed partial class PlayerPage : Page
             double.TryParse(tag, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double speed))
         {
             ViewModel.ChangeSpeed(speed);
+            UpdateSpeedPresetHighlight();
         }
     }
 
@@ -315,22 +327,68 @@ public sealed partial class PlayerPage : Page
         if (Math.Abs(ViewModel.PlaybackRate - e.NewValue) > 0.01)
         {
             ViewModel.ChangeSpeed(Math.Round(e.NewValue, 2));
+            UpdateSpeedPresetHighlight();
         }
     }
 
     private void OnSpeedStepDownClick(object sender, RoutedEventArgs e)
     {
         ViewModel.AdjustSpeed(-0.05);
+        UpdateSpeedPresetHighlight();
     }
 
     private void OnSpeedStepUpClick(object sender, RoutedEventArgs e)
     {
         ViewModel.AdjustSpeed(0.05);
+        UpdateSpeedPresetHighlight();
     }
 
     private void OnResetSpeedClick(object sender, RoutedEventArgs e)
     {
         ViewModel.ResetSpeed();
+        UpdateSpeedPresetHighlight();
+    }
+
+    private void OnFlyoutOpened(object sender, object e)
+    {
+        _openFlyoutsCount++;
+        _inactivityTimer.Stop();
+        ViewModel.IsControlsVisible = true;
+        if (ReferenceEquals(sender, PlaybackSpeedFlyout))
+        {
+            UpdateSpeedPresetHighlight();
+        }
+    }
+
+    private void OnFlyoutClosed(object sender, object e)
+    {
+        _openFlyoutsCount = Math.Max(0, _openFlyoutsCount - 1);
+        if (!AreFlyoutsOrPopupsOpen && ViewModel.IsPlaying)
+        {
+            _inactivityTimer.Stop();
+            _inactivityTimer.Start();
+        }
+    }
+
+    private void UpdateSpeedPresetHighlight()
+    {
+        double currentRate = Math.Round(ViewModel.PlaybackRate, 2);
+        HighlightPresetButton(PresetSpeed05, 0.5, currentRate);
+        HighlightPresetButton(PresetSpeed075, 0.75, currentRate);
+        HighlightPresetButton(PresetSpeed10, 1.0, currentRate);
+        HighlightPresetButton(PresetSpeed125, 1.25, currentRate);
+        HighlightPresetButton(PresetSpeed15, 1.5, currentRate);
+        HighlightPresetButton(PresetSpeed20, 2.0, currentRate);
+    }
+
+    private void HighlightPresetButton(Button? btn, double targetSpeed, double currentSpeed)
+    {
+        if (btn == null) return;
+        bool isSelected = Math.Abs(currentSpeed - targetSpeed) < 0.01;
+        if (Application.Current.Resources.TryGetValue(isSelected ? "AccentButtonStyle" : "SubtleButtonStyle", out var styleObj) && styleObj is Style style)
+        {
+            btn.Style = style;
+        }
     }
 
     private void OnAudioTracksMenuFlyoutOpening(object sender, object e)
@@ -411,6 +469,11 @@ public sealed partial class PlayerPage : Page
 
     private void UpdateControlsVisibility(bool visible, bool animate = true)
     {
+        if (!visible && AreFlyoutsOrPopupsOpen)
+        {
+            return;
+        }
+
         if (_areControlsShowing == visible && animate) return;
         _areControlsShowing = visible;
 
@@ -721,6 +784,8 @@ public sealed partial class PlayerPage : Page
     {
         _momentsPopupStoryboard?.Stop();
         _momentsDismissTimer?.Stop();
+        _inactivityTimer.Stop();
+        ViewModel.IsControlsVisible = true;
 
         MomentsPopupItemsList.ItemsSource = bookmarks;
         MomentsJumpPopup.Visibility = Visibility.Visible;
@@ -784,6 +849,11 @@ public sealed partial class PlayerPage : Page
             MomentsJumpPopup.Visibility = Visibility.Collapsed;
             MomentsJumpPopup.Opacity = 0.0;
             MomentsPopupTranslation.Y = 24;
+            if (!AreFlyoutsOrPopupsOpen && ViewModel.IsPlaying)
+            {
+                _inactivityTimer.Stop();
+                _inactivityTimer.Start();
+            }
             return;
         }
 
@@ -818,6 +888,11 @@ public sealed partial class PlayerPage : Page
             MomentsJumpPopup.Visibility = Visibility.Collapsed;
             MomentsJumpPopup.Opacity = 0.0;
             MomentsPopupTranslation.Y = 24;
+            if (!AreFlyoutsOrPopupsOpen && ViewModel.IsPlaying)
+            {
+                _inactivityTimer.Stop();
+                _inactivityTimer.Start();
+            }
         };
 
         _momentsPopupStoryboard = sb;

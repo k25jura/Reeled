@@ -194,7 +194,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         player.LengthChanged += (s, e) => Dispatch(() => LengthChanged?.Invoke(e.Length));
         player.Playing += (s, e) => Dispatch(() =>
         {
-            if (Math.Abs(_storedPlaybackRate - 1.0f) > 0.01f)
+            if (_storedPlaybackRate > 0.1f)
             {
                 _mediaPlayer?.SetRate(_storedPlaybackRate);
             }

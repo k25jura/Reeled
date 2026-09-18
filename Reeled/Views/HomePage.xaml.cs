@@ -364,10 +364,35 @@ public sealed partial class HomePage : Page
             return;
         }
 
+        // Determine starting values before launching storyboard
+        double startWidth;
+        double startTranslateX;
+        double startOpacity;
+
         if (isOpen)
         {
             SidebarContainer.Visibility = Visibility.Visible;
             SidebarContentBorder.Width = _sidebarWidth;
+
+            startWidth = (SidebarContainer.ActualWidth > 0 && SidebarContainer.ActualWidth < _sidebarWidth)
+                ? SidebarContainer.ActualWidth
+                : 0.0;
+            startTranslateX = (SidebarTranslate.X < 0 && SidebarTranslate.X > -_sidebarWidth)
+                ? SidebarTranslate.X
+                : -_sidebarWidth;
+            startOpacity = (SidebarContentBorder.Opacity > 0 && SidebarContentBorder.Opacity < 1.0)
+                ? SidebarContentBorder.Opacity
+                : 0.0;
+
+            SidebarContainer.Width = startWidth;
+            SidebarTranslate.X = startTranslateX;
+            SidebarContentBorder.Opacity = startOpacity;
+        }
+        else
+        {
+            startWidth = SidebarContainer.ActualWidth > 0 ? SidebarContainer.ActualWidth : _sidebarWidth;
+            startTranslateX = SidebarTranslate.X;
+            startOpacity = SidebarContentBorder.Opacity;
         }
 
         var sb = new Storyboard();
@@ -377,13 +402,17 @@ public sealed partial class HomePage : Page
         };
         var duration = TimeSpan.FromMilliseconds(isOpen ? 280 : 250);
 
-        // 1. Width animation on container to smoothly adjust column layout
+        // 1. Width animation on container with EnableDependentAnimation = true
+        // Crucial: WinUI 3 requires EnableDependentAnimation for FrameworkElement.Width.
+        // This ensures the layout pipeline updates SidebarColumn (Auto) and MainContentColumn (*) every frame,
+        // delivering a responsive "display flex" resize for the clip viewer on the right.
         var animWidth = new DoubleAnimation
         {
-            From = SidebarContainer.ActualWidth,
+            From = startWidth,
             To = targetWidth,
             Duration = duration,
-            EasingFunction = ease
+            EasingFunction = ease,
+            EnableDependentAnimation = true
         };
         Storyboard.SetTarget(animWidth, SidebarContainer);
         Storyboard.SetTargetProperty(animWidth, "Width");
@@ -391,7 +420,7 @@ public sealed partial class HomePage : Page
         // 2. Translation animation on content border so it glides smoothly
         var animTranslate = new DoubleAnimation
         {
-            From = SidebarTranslate.X,
+            From = startTranslateX,
             To = targetTranslateX,
             Duration = duration,
             EasingFunction = ease
@@ -402,7 +431,7 @@ public sealed partial class HomePage : Page
         // 3. Opacity animation
         var animOpacity = new DoubleAnimation
         {
-            From = SidebarContentBorder.Opacity,
+            From = startOpacity,
             To = targetOpacity,
             Duration = TimeSpan.FromMilliseconds(isOpen ? 220 : 180),
             EasingFunction = ease
@@ -680,6 +709,7 @@ public sealed partial class HomePage : Page
     }
 
     private readonly System.Collections.Generic.HashSet<DirectoryNode> _animatingExpandingParents = new();
+    private readonly System.Collections.Generic.List<Storyboard> _activeFolderStoryboards = new();
 
     private void OnDirectoryExpanding(TreeView sender, TreeViewExpandingEventArgs args)
     {
@@ -711,6 +741,13 @@ public sealed partial class HomePage : Page
     {
         if (sender is FrameworkElement grid && grid.DataContext is DirectoryNode childNode)
         {
+            // Always guarantee full visibility and zero translate offset
+            grid.Opacity = 1.0;
+            if (grid.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+            {
+                tt.Y = 0.0;
+            }
+
             DirectoryNode? parent = null;
             foreach (var p in _animatingExpandingParents)
             {
@@ -724,17 +761,10 @@ public sealed partial class HomePage : Page
             if (parent != null)
             {
                 int index = parent.SubDirectories.IndexOf(childNode);
-                if (index >= 0 && index < 16)
+                if (index >= 0)
                 {
                     AnimateCascadeEntrance(grid, index);
-                    return;
                 }
-            }
-
-            grid.Opacity = 1.0;
-            if (grid.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
-            {
-                tt.Y = 0.0;
             }
         }
     }
@@ -742,9 +772,9 @@ public sealed partial class HomePage : Page
     private void AnimateCascadeEntrance(FrameworkElement element, int index)
     {
         Microsoft.UI.Xaml.Media.TranslateTransform trans;
-        if (element.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+        if (element.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform existingTt)
         {
-            trans = tt;
+            trans = existingTt;
         }
         else
         {
@@ -752,31 +782,36 @@ public sealed partial class HomePage : Page
             element.RenderTransform = trans;
         }
 
-        double slideDistance = -(18.0 + Math.Min(index * 2.0, 14.0));
+        // Fluid Windows 11 cascade: items slide smoothly down from parent folder
+        double slideDistance = -(14.0 + Math.Min(index * 1.5, 10.0));
         trans.Y = slideDistance;
-        element.Opacity = 0.0;
 
-        var delay = TimeSpan.FromMilliseconds(index * 26);
-        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        // NOTE: We do not set element.Opacity = 0.0 here!
+        // Instead, the DoubleAnimation animates From = 0.0 To = 1.0.
+        // If the animation is ever interrupted, recycled, or finished, the base opacity remains 1.0.
+        var delay = TimeSpan.FromMilliseconds(Math.Min(index, 14) * 20);
+        var duration = TimeSpan.FromMilliseconds(220);
         var easeOut = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
+
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
 
         var animY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
         {
             From = slideDistance,
             To = 0.0,
             BeginTime = delay,
-            Duration = TimeSpan.FromMilliseconds(260),
+            Duration = duration,
             EasingFunction = easeOut
         };
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, trans);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "Y");
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, element);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "(UIElement.RenderTransform).(TranslateTransform.Y)");
 
         var animOp = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
         {
             From = 0.0,
             To = 1.0,
             BeginTime = delay,
-            Duration = TimeSpan.FromMilliseconds(220),
+            Duration = TimeSpan.FromMilliseconds(190),
             EasingFunction = easeOut
         };
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOp, element);
@@ -785,97 +820,13 @@ public sealed partial class HomePage : Page
         sb.Children.Add(animY);
         sb.Children.Add(animOp);
 
+        _activeFolderStoryboards.Add(sb);
+
         sb.Completed += (s, e) =>
         {
+            _activeFolderStoryboards.Remove(sb);
             trans.Y = 0.0;
             element.Opacity = 1.0;
-        };
-
-        sb.Begin();
-    }
-
-    private void OnChevronPointerPressed(object sender, PointerRoutedEventArgs e)
-    {
-        if (sender is FrameworkElement chevron && chevron.DataContext is DirectoryNode node)
-        {
-            e.Handled = true;
-            if (node.IsExpanded)
-            {
-                AnimateFolderCollapse(node);
-            }
-            else
-            {
-                node.IsExpanded = true;
-            }
-        }
-    }
-
-    private void AnimateFolderCollapse(DirectoryNode node)
-    {
-        var childContainers = new System.Collections.Generic.List<FrameworkElement>();
-        foreach (var subDir in node.SubDirectories)
-        {
-            if (DirectoriesTreeView.ContainerFromItem(subDir) is FrameworkElement container)
-            {
-                childContainers.Add(container);
-            }
-        }
-
-        if (childContainers.Count == 0)
-        {
-            node.IsExpanded = false;
-            return;
-        }
-
-        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
-        var easeIn = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseIn };
-        int count = Math.Min(childContainers.Count, 16);
-
-        for (int i = 0; i < count; i++)
-        {
-            var container = childContainers[i];
-            Microsoft.UI.Xaml.Media.TranslateTransform trans;
-            if (container.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
-            {
-                trans = tt;
-            }
-            else
-            {
-                trans = new Microsoft.UI.Xaml.Media.TranslateTransform();
-                container.RenderTransform = trans;
-            }
-
-            var delay = TimeSpan.FromMilliseconds((count - 1 - i) * 16);
-
-            var animY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
-            {
-                From = trans.Y,
-                To = -16.0,
-                BeginTime = delay,
-                Duration = TimeSpan.FromMilliseconds(140),
-                EasingFunction = easeIn
-            };
-            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, trans);
-            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "Y");
-
-            var animOp = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
-            {
-                From = container.Opacity,
-                To = 0.0,
-                BeginTime = delay,
-                Duration = TimeSpan.FromMilliseconds(130),
-                EasingFunction = easeIn
-            };
-            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOp, container);
-            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animOp, "Opacity");
-
-            sb.Children.Add(animY);
-            sb.Children.Add(animOp);
-        }
-
-        sb.Completed += (s, e) =>
-        {
-            node.IsExpanded = false;
         };
 
         sb.Begin();

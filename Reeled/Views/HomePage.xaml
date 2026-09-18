@@ -25,6 +25,7 @@
                               Background="Transparent"
                               CornerRadius="6"
                               MinHeight="36"
+                              Margin="0,0,16,0"
                               Padding="0">
 
                             <VisualStateManager.VisualStateGroups>
@@ -190,8 +191,7 @@
                                       Padding="10,0,6,0" 
                                       Width="Auto" 
                                       VerticalAlignment="Center"
-                                      Background="Transparent"
-                                      PointerPressed="OnChevronPointerPressed">
+                                      Background="Transparent">
                                     <TextBlock x:Name="CollapsedGlyph" 
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
                                                Width="12" Height="12" 
@@ -237,11 +237,11 @@
         <!-- Column 0: Left Navigation Sidebar Container -->
         <Grid Grid.Column="0" 
               x:Name="SidebarContainer" 
-              Width="{x:Bind ViewModel.SidebarWidth, Mode=OneWay}">
+              Width="316">
             <!-- Inner content clipped and translated during collapse/expand -->
             <Border x:Name="SidebarContentBorder"
                     HorizontalAlignment="Left"
-                    Width="{x:Bind ViewModel.SidebarWidth, Mode=OneWay}"
+                    Width="316"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
                     BorderThickness="0,0,1,0"
                     Background="{ThemeResource LayerFillColorDefaultBrush}">
@@ -457,14 +457,14 @@
                 </Grid>
 
                 <!-- Row 4: Folders TreeView -->
-                <Grid Grid.Row="4" Margin="10,0,10,0">
+                <Grid Grid.Row="4" Margin="10,0,6,0">
                     <TreeView x:Name="DirectoriesTreeView"
                               ItemsSource="{x:Bind ViewModel.Directories, Mode=OneWay}"
                               ItemInvoked="OnDirectoryTreeItemInvoked"
                               Expanding="OnDirectoryExpanding"
                               Collapsed="OnDirectoryCollapsed"
                               SelectionMode="Single"
-                              Padding="0,0,8,0"
+                              Padding="0,0,2,0"
                               ItemContainerStyle="{StaticResource CustomTreeViewItemStyle}"
                               ScrollViewer.VerticalScrollBarVisibility="Auto"
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"

@@ -16,6 +16,7 @@ public class AppSettings
     public RepeatMode RepeatMode { get; set; } = RepeatMode.Off;
     public bool EnableClipCache { get; set; } = true;
     public bool EnableSkeletonLoading { get; set; } = true;
+    public double SidebarWidth { get; set; } = 316;
 }
 
 public enum RepeatMode

@@ -157,6 +157,9 @@ public partial class HomeViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsSidebarOpen))]
     private bool _isSidebarCollapsed;
 
+    [ObservableProperty]
+    private double _sidebarWidth = 316;
+
     public bool IsSidebarOpen
     {
         get => !IsSidebarCollapsed;
@@ -173,6 +176,14 @@ public partial class HomeViewModel : ObservableObject
     public void ToggleSidebar()
     {
         IsSidebarCollapsed = !IsSidebarCollapsed;
+    }
+
+    public void SaveSidebarWidth(double width)
+    {
+        SidebarWidth = width;
+        var settings = _storageService.CurrentSettings;
+        settings.SidebarWidth = width;
+        _ = _storageService.SaveSettingsAsync(settings);
     }
 
     [RelayCommand]
@@ -271,6 +282,10 @@ public partial class HomeViewModel : ObservableObject
     {
         var settings = await _storageService.LoadSettingsAsync();
         EnableSkeletonLoading = settings.EnableSkeletonLoading;
+        if (settings.SidebarWidth >= 200 && settings.SidebarWidth <= 600)
+        {
+            SidebarWidth = settings.SidebarWidth;
+        }
 
         bool dirsChanged = !_loadedWatchDirectories.SetEquals(settings.WatchDirectories);
         if (!forceReload && !dirsChanged && AllClips.Count > 0 && Directories.Count > 0)

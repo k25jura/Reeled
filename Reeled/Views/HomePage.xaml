@@ -10,17 +10,244 @@
     mc:Ignorable="d"
     NavigationCacheMode="Required">
 
-    <SplitView x:Name="MainSplitView"
-               IsPaneOpen="{x:Bind ViewModel.IsSidebarOpen, Mode=TwoWay}"
-               DisplayMode="Inline"
-               OpenPaneLength="300"
-               CompactPaneLength="0"
-               PaneBackground="{ThemeResource LayerFillColorDefaultBrush}">
-        <SplitView.Pane>
-            <!-- Left Navigation Sidebar -->
-            <Border Width="300"
+    <Page.Resources>
+        <!-- Fluent Windows 11 TreeViewItem Style with Smooth Selection Indicator & Background Transitions -->
+        <Style x:Key="CustomTreeViewItemStyle" TargetType="TreeViewItem">
+            <Setter Property="MinHeight" Value="36" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Margin" Value="0,1" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TreeViewItem">
+                        <Grid x:Name="ContentPresenterGrid"
+                              Background="Transparent"
+                              CornerRadius="6"
+                              MinHeight="36"
+                              Padding="0">
+
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualStateGroup.Transitions>
+                                        <VisualTransition From="Normal" To="Selected">
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="SelectedBackgroundBorder" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.18">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicator" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.18">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicatorScale" Storyboard.TargetProperty="ScaleY" To="1.0" Duration="0:0:0.18">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </VisualTransition>
+                                        <VisualTransition From="PointerOver" To="Selected">
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="SelectedBackgroundBorder" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.18">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicator" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.18">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicatorScale" Storyboard.TargetProperty="ScaleY" To="1.0" Duration="0:0:0.18">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </VisualTransition>
+                                        <VisualTransition From="Selected" To="Normal">
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="SelectedBackgroundBorder" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseIn" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicator" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseIn" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicatorScale" Storyboard.TargetProperty="ScaleY" To="0.5" Duration="0:0:0.15">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseIn" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </VisualTransition>
+                                        <VisualTransition From="Selected" To="PointerOver">
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="SelectedBackgroundBorder" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseIn" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicator" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseIn" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicatorScale" Storyboard.TargetProperty="ScaleY" To="0.5" Duration="0:0:0.15">
+                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseIn" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </VisualTransition>
+                                        <VisualTransition From="Normal" To="PointerOver">
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="HoverBackgroundBorder" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.12" />
+                                            </Storyboard>
+                                        </VisualTransition>
+                                        <VisualTransition From="PointerOver" To="Normal">
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="HoverBackgroundBorder" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15" />
+                                            </Storyboard>
+                                        </VisualTransition>
+                                    </VisualStateGroup.Transitions>
+
+                                    <VisualState x:Name="Normal">
+                                        <VisualState.Setters>
+                                            <Setter Target="SelectedBackgroundBorder.Opacity" Value="0" />
+                                            <Setter Target="HoverBackgroundBorder.Opacity" Value="0" />
+                                            <Setter Target="SelectionIndicator.Opacity" Value="0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="SelectedBackgroundBorder.Opacity" Value="0" />
+                                            <Setter Target="HoverBackgroundBorder.Opacity" Value="1" />
+                                            <Setter Target="SelectionIndicator.Opacity" Value="0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="SelectedBackgroundBorder.Opacity" Value="0" />
+                                            <Setter Target="HoverBackgroundBorder.Opacity" Value="0.8" />
+                                            <Setter Target="SelectionIndicator.Opacity" Value="0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Selected">
+                                        <VisualState.Setters>
+                                            <Setter Target="SelectedBackgroundBorder.Opacity" Value="1" />
+                                            <Setter Target="HoverBackgroundBorder.Opacity" Value="0" />
+                                            <Setter Target="SelectionIndicator.Opacity" Value="1" />
+                                            <Setter Target="SelectionIndicatorScale.ScaleY" Value="1.0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="PointerOverSelected">
+                                        <VisualState.Setters>
+                                            <Setter Target="SelectedBackgroundBorder.Opacity" Value="1" />
+                                            <Setter Target="HoverBackgroundBorder.Opacity" Value="0.4" />
+                                            <Setter Target="SelectionIndicator.Opacity" Value="1" />
+                                            <Setter Target="SelectionIndicatorScale.ScaleY" Value="1.0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="PressedSelected">
+                                        <VisualState.Setters>
+                                            <Setter Target="SelectedBackgroundBorder.Opacity" Value="1" />
+                                            <Setter Target="HoverBackgroundBorder.Opacity" Value="0.6" />
+                                            <Setter Target="SelectionIndicator.Opacity" Value="1" />
+                                            <Setter Target="SelectionIndicatorScale.ScaleY" Value="1.0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="ContentPresenterGrid.Opacity" Value="0.5" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+
+                            <!-- Hover background highlight -->
+                            <Border x:Name="HoverBackgroundBorder" 
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}" 
+                                    CornerRadius="6" 
+                                    Opacity="0" 
+                                    IsHitTestVisible="False" />
+
+                            <!-- Selected background highlight -->
+                            <Border x:Name="SelectedBackgroundBorder" 
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}" 
+                                    CornerRadius="6" 
+                                    Opacity="0" 
+                                    IsHitTestVisible="False" />
+
+                            <!-- Active Indicator Handle Pill on Left (Width 3px, Height 16px, CornerRadius 1.5px) -->
+                            <Rectangle x:Name="SelectionIndicator" 
+                                       Width="3" 
+                                       Height="16" 
+                                       Fill="{ThemeResource AccentFillColorDefaultBrush}" 
+                                       Opacity="0" 
+                                       HorizontalAlignment="Left" 
+                                       VerticalAlignment="Center" 
+                                       RadiusX="1.5" 
+                                       RadiusY="1.5"
+                                       RenderTransformOrigin="0.5,0.5">
+                                <Rectangle.RenderTransform>
+                                    <ScaleTransform x:Name="SelectionIndicatorScale" ScaleY="0.5" />
+                                </Rectangle.RenderTransform>
+                            </Rectangle>
+
+                            <!-- Row Layout: Indentation + Chevron + Content -->
+                            <Grid Padding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=TreeViewItemTemplateSettings.Indentation}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Chevron button -->
+                                <Grid x:Name="ExpandCollapseChevron" 
+                                      Grid.Column="0" 
+                                      Padding="10,0,6,0" 
+                                      Width="Auto" 
+                                      VerticalAlignment="Center"
+                                      Background="Transparent"
+                                      PointerPressed="OnChevronPointerPressed">
+                                    <TextBlock x:Name="CollapsedGlyph" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                               Width="12" Height="12" 
+                                               Visibility="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=TreeViewItemTemplateSettings.CollapsedGlyphVisibility}" 
+                                               FontSize="10" 
+                                               Text="{TemplateBinding CollapsedGlyph}" 
+                                               FontFamily="{StaticResource SymbolThemeFontFamily}" 
+                                               VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="ExpandedGlyph" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                               Width="12" Height="12" 
+                                               Visibility="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=TreeViewItemTemplateSettings.ExpandedGlyphVisibility}" 
+                                               FontSize="10" 
+                                               Text="{TemplateBinding ExpandedGlyph}" 
+                                               FontFamily="{StaticResource SymbolThemeFontFamily}" 
+                                               VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                </Grid>
+
+                                <!-- ContentPresenter -->
+                                <ContentPresenter x:Name="ContentPresenter" 
+                                                  Grid.Column="1" 
+                                                  Content="{TemplateBinding Content}" 
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}" 
+                                                  ContentTransitions="{TemplateBinding ContentTransitions}" 
+                                                  Foreground="{TemplateBinding Foreground}" 
+                                                  HorizontalAlignment="Stretch" 
+                                                  VerticalAlignment="Center" 
+                                                  Margin="0" />
+                            </Grid>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Page.Resources>
+
+    <Grid x:Name="MainRootGrid" SizeChanged="OnPageSizeChanged">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="SidebarColumn" Width="Auto" />
+            <ColumnDefinition x:Name="MainContentColumn" Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Column 0: Left Navigation Sidebar Container -->
+        <Grid Grid.Column="0" 
+              x:Name="SidebarContainer" 
+              Width="{x:Bind ViewModel.SidebarWidth, Mode=OneWay}">
+            <!-- Inner content clipped and translated during collapse/expand -->
+            <Border x:Name="SidebarContentBorder"
+                    HorizontalAlignment="Left"
+                    Width="{x:Bind ViewModel.SidebarWidth, Mode=OneWay}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                    BorderThickness="0,0,1,0">
+                    BorderThickness="0,0,1,0"
+                    Background="{ThemeResource LayerFillColorDefaultBrush}">
+                <Border.RenderTransform>
+                    <TranslateTransform x:Name="SidebarTranslate" X="0" />
+                </Border.RenderTransform>
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -237,32 +464,22 @@
                               Expanding="OnDirectoryExpanding"
                               Collapsed="OnDirectoryCollapsed"
                               SelectionMode="Single"
-                              Padding="0,0,6,0"
+                              Padding="0,0,8,0"
+                              ItemContainerStyle="{StaticResource CustomTreeViewItemStyle}"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                               Visibility="{x:Bind ViewModel.HasDirectories, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <TreeView.ItemContainerStyle>
-                            <Style TargetType="TreeViewItem">
-                                <Setter Property="MinHeight" Value="36" />
-                                <Setter Property="CornerRadius" Value="6" />
-                                <Setter Property="Margin" Value="0,1" />
-                                <Setter Property="Padding" Value="0" />
-                            </Style>
-                        </TreeView.ItemContainerStyle>
                         <TreeView.ItemTemplate>
                             <DataTemplate x:DataType="models:DirectoryNode">
                                 <TreeViewItem ItemsSource="{x:Bind SubDirectories, Mode=OneWay}"
                                               IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
-                                              MinHeight="36"
-                                              CornerRadius="6"
-                                              Margin="0,1">
-                                    <Grid Margin="0,2,8,2" ColumnSpacing="8" VerticalAlignment="Center"
-                                          PointerPressed="OnFolderPointerPressed"
-                                          PointerExited="OnFolderPointerReset">
-                                        <Grid.ChildrenTransitions>
-                                            <TransitionCollection>
-                                                <EntranceThemeTransition IsStaggeringEnabled="True" FromVerticalOffset="8" />
-                                                <RepositionThemeTransition />
-                                            </TransitionCollection>
-                                        </Grid.ChildrenTransitions>
+                                              Style="{StaticResource CustomTreeViewItemStyle}">
+                                    <Grid Margin="0,0,8,0" ColumnSpacing="8" VerticalAlignment="Center"
+                                          Loaded="OnFolderItemGridLoaded"
+                                          PointerPressed="OnFolderPointerPressed">
+                                        <Grid.RenderTransform>
+                                            <TranslateTransform />
+                                        </Grid.RenderTransform>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
@@ -286,7 +503,7 @@
                                                    FontSize="12" 
                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" 
                                                    VerticalAlignment="Center"
-                                                   Margin="0,0,4,0"
+                                                   Margin="0,0,2,0"
                                                    Visibility="{x:Bind ClipCount, Converter={StaticResource BoolToVisibilityConverter}}" />
                                     </Grid>
                                 </TreeViewItem>
@@ -350,11 +567,33 @@
                 </Border>
             </Grid>
         </Border>
-    </SplitView.Pane>
 
-    <SplitView.Content>
-        <!-- Right Main View (Clip Grid & Header) -->
-        <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <!-- Interactive Resize Handle on right edge of sidebar container -->
+        <Border x:Name="SidebarResizeHandle"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Stretch"
+                Width="10"
+                Margin="0,0,-5,0"
+                Background="Transparent"
+                Canvas.ZIndex="10"
+                PointerEntered="OnSidebarResizeHandlePointerEntered"
+                PointerExited="OnSidebarResizeHandlePointerExited"
+                PointerPressed="OnSidebarResizeHandlePointerPressed"
+                PointerMoved="OnSidebarResizeHandlePointerMoved"
+                PointerReleased="OnSidebarResizeHandlePointerReleased"
+                PointerCanceled="OnSidebarResizeHandlePointerCanceled">
+            <!-- Visual highlight line on hover/drag -->
+            <Rectangle x:Name="ResizeHighlightLine" 
+                       Width="2" 
+                       HorizontalAlignment="Center" 
+                       VerticalAlignment="Stretch" 
+                       Fill="{ThemeResource AccentFillColorDefaultBrush}" 
+                       Opacity="0" />
+        </Border>
+    </Grid>
+
+    <!-- Column 1: Right Main View (Clip Grid & Header) -->
+    <Grid Grid.Column="1" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -459,13 +698,14 @@
                           ItemClick="OnClipItemClick"
                           IsItemClickEnabled="True"
                           SelectionMode="None"
-                          Padding="24,18,24,24">
+                          Padding="24,18,24,24"
+                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     
                     <GridView.ItemContainerTransitions>
                         <TransitionCollection>
                             <EntranceThemeTransition FromVerticalOffset="30" />
                             <AddDeleteThemeTransition />
-                            <ReorderThemeTransition />
                         </TransitionCollection>
                     </GridView.ItemContainerTransitions>
 
@@ -716,6 +956,5 @@
                 </StackPanel>
             </Grid>
         </Grid>
-    </SplitView.Content>
-</SplitView>
+    </Grid>
 </Page>

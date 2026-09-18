@@ -19,8 +19,19 @@ public sealed partial class MainWindow : Window
     private const int MinWindowHeight = 500;
 
     private const int WM_GETMINMAXINFO = 0x0024;
+    private const int WM_SIZING = 0x0214;
     private const int WM_SETCURSOR = 0x0020;
     private const int IDC_ARROW = 32512;
+
+    private const int WMSZ_LEFT = 1;
+    private const int WMSZ_RIGHT = 2;
+    private const int WMSZ_TOP = 3;
+    private const int WMSZ_TOPLEFT = 4;
+    private const int WMSZ_TOPRIGHT = 5;
+    private const int WMSZ_BOTTOM = 6;
+    private const int WMSZ_BOTTOMLEFT = 7;
+    private const int WMSZ_BOTTOMRIGHT = 8;
+
     private readonly SUBCLASSPROC _subclassProc;
 
     private bool _wasMaximizedBeforePlayer;
@@ -32,6 +43,15 @@ public sealed partial class MainWindow : Window
     {
         public int x;
         public int y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT
+    {
+        public int left;
+        public int top;
+        public int right;
+        public int bottom;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -101,6 +121,22 @@ public sealed partial class MainWindow : Window
         {
             if (e.DidSizeChange)
             {
+                uint curDpi = GetDpiForWindow(hwnd);
+                double curScale = (curDpi > 0 ? curDpi : 96) / 96.0;
+                int minW = (int)(MinWindowWidth * curScale);
+                int minH = (int)(MinWindowHeight * curScale);
+
+                if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter &&
+                    presenter.State == Microsoft.UI.Windowing.OverlappedPresenterState.Restored)
+                {
+                    if (AppWindow.Size.Width < minW || AppWindow.Size.Height < minH)
+                    {
+                        AppWindow.Resize(new Windows.Graphics.SizeInt32(
+                            Math.Max(AppWindow.Size.Width, minW),
+                            Math.Max(AppWindow.Size.Height, minH)));
+                    }
+                }
+
                 PlayerViewControl?.RefreshVideoLayout();
             }
         };
@@ -448,9 +484,9 @@ public sealed partial class MainWindow : Window
             return (IntPtr)1;
         }
 
-        var result = DefSubclassProc(hWnd, uMsg, wParam, lParam);
         if (uMsg == WM_GETMINMAXINFO)
         {
+            DefSubclassProc(hWnd, uMsg, wParam, lParam);
             var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
             uint dpi = GetDpiForWindow(hWnd);
             double scale = (dpi > 0 ? dpi : 96) / 96.0;
@@ -459,8 +495,49 @@ public sealed partial class MainWindow : Window
             mmi.ptMinTrackSize.y = (int)(MinWindowHeight * scale);
 
             Marshal.StructureToPtr(mmi, lParam, true);
+            return IntPtr.Zero;
         }
 
-        return result;
+        if (uMsg == WM_SIZING)
+        {
+            var rect = Marshal.PtrToStructure<RECT>(lParam);
+            uint dpi = GetDpiForWindow(hWnd);
+            double scale = (dpi > 0 ? dpi : 96) / 96.0;
+            int minW = (int)(MinWindowWidth * scale);
+            int minH = (int)(MinWindowHeight * scale);
+
+            int width = rect.right - rect.left;
+            int height = rect.bottom - rect.top;
+            int edge = (int)wParam;
+
+            if (width < minW)
+            {
+                if (edge == WMSZ_LEFT || edge == WMSZ_TOPLEFT || edge == WMSZ_BOTTOMLEFT)
+                {
+                    rect.left = rect.right - minW;
+                }
+                else
+                {
+                    rect.right = rect.left + minW;
+                }
+            }
+
+            if (height < minH)
+            {
+                if (edge == WMSZ_TOP || edge == WMSZ_TOPLEFT || edge == WMSZ_TOPRIGHT)
+                {
+                    rect.top = rect.bottom - minH;
+                }
+                else
+                {
+                    rect.bottom = rect.top + minH;
+                }
+            }
+
+            Marshal.StructureToPtr(rect, lParam, true);
+            return (IntPtr)1;
+        }
+
+        return DefSubclassProc(hWnd, uMsg, wParam, lParam);
     }
 }

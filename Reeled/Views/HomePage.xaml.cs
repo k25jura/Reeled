@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using Reeled.Models;
 using Reeled.ViewModels;
@@ -17,10 +20,16 @@ public sealed partial class HomePage : Page
         ViewModel = App.GetService<HomeViewModel>();
         InitializeComponent();
 
-        MainSplitView.Loaded += (s, e) =>
+        _sidebarWidth = ViewModel.SidebarWidth >= 200 ? ViewModel.SidebarWidth : 316.0;
+
+        Loaded += (s, e) =>
         {
-            AdjustSplitViewAnimationSpeed();
+            if (ViewModel.SidebarWidth > 0)
+            {
+                _sidebarWidth = ViewModel.SidebarWidth;
+            }
             UpdateActiveIndicator(animate: false);
+            AnimateSidebar(ViewModel.IsSidebarOpen, animate: false);
         };
 
         ViewModel.PropertyChanged += (s, e) =>
@@ -28,6 +37,22 @@ public sealed partial class HomePage : Page
             if (e.PropertyName == nameof(HomeViewModel.CurrentSection))
             {
                 UpdateActiveIndicator(animate: true);
+            }
+            else if (e.PropertyName == nameof(HomeViewModel.IsSidebarOpen) || e.PropertyName == nameof(HomeViewModel.IsSidebarCollapsed))
+            {
+                if (!_isUserToggling)
+                {
+                    AnimateSidebar(ViewModel.IsSidebarOpen, animate: true);
+                }
+            }
+            else if (e.PropertyName == nameof(HomeViewModel.SidebarWidth))
+            {
+                _sidebarWidth = ViewModel.SidebarWidth;
+                if (ViewModel.IsSidebarOpen && !_isResizingSidebar)
+                {
+                    SidebarContainer.Width = _sidebarWidth;
+                    SidebarContentBorder.Width = _sidebarWidth;
+                }
             }
         };
     }
@@ -281,62 +306,218 @@ public sealed partial class HomePage : Page
         _isIndicatorVisible = isVisible;
     }
 
-    private void AdjustSplitViewAnimationSpeed()
+    private Storyboard? _sidebarStoryboard;
+    private double _sidebarWidth = 316.0;
+    private bool _wasAutoCollapsed;
+    private bool _isUserToggling;
+    private bool _isResizingSidebar;
+    private double _resizeStartPointerX;
+    private double _resizeStartWidth;
+
+    private void OnPageSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        try
+        double scale = XamlRoot?.RasterizationScale ?? 1.0;
+        if (scale <= 0) scale = 1.0;
+
+        // Minimum window width constraint is 760 DIPs.
+        // Scale-aware threshold: higher display scaling consumes more physical pixels and layout space,
+        // so collapse threshold scales proportionally (e.g. 860 DIPs at 100%, 910 DIPs at 150%).
+        double collapseThreshold = 760.0 + (100.0 * scale);
+        double restoreThreshold = collapseThreshold + 30.0; // 30px hysteresis to prevent rapid toggling
+
+        if (e.NewSize.Width <= collapseThreshold)
         {
-            if (Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(MainSplitView) == 0) return;
-            if (Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(MainSplitView, 0) is FrameworkElement root)
+            if (ViewModel.IsSidebarOpen && !_isUserToggling)
             {
-                var groups = VisualStateManager.GetVisualStateGroups(root);
-                foreach (var group in groups)
-                {
-                    if (group.Name == "DisplayModeStates")
-                    {
-                        foreach (var transition in group.Transitions)
-                        {
-                            if (transition.Storyboard != null)
-                            {
-                                AdjustStoryboardDuration(transition.Storyboard, TimeSpan.FromMilliseconds(300));
-                            }
-                        }
-                    }
-                }
+                _wasAutoCollapsed = true;
+                ViewModel.IsSidebarCollapsed = true;
+                AnimateSidebar(isOpen: false);
             }
         }
-        catch { }
+        else if (e.NewSize.Width >= restoreThreshold)
+        {
+            if (_wasAutoCollapsed && ViewModel.IsSidebarCollapsed && !_isUserToggling)
+            {
+                _wasAutoCollapsed = false;
+                ViewModel.IsSidebarCollapsed = false;
+                AnimateSidebar(isOpen: true);
+            }
+        }
     }
 
-    private static void AdjustStoryboardDuration(Microsoft.UI.Xaml.Media.Animation.Storyboard sb, TimeSpan targetDuration)
+    private void AnimateSidebar(bool isOpen, bool animate = true)
     {
-        foreach (var child in sb.Children)
+        _sidebarStoryboard?.Stop();
+        _sidebarStoryboard = null;
+
+        double targetWidth = isOpen ? _sidebarWidth : 0.0;
+        double targetTranslateX = isOpen ? 0.0 : -_sidebarWidth;
+        double targetOpacity = isOpen ? 1.0 : 0.0;
+
+        if (!animate)
         {
-            if (child is Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames dak)
-            {
-                foreach (var kf in dak.KeyFrames)
-                {
-                    if (kf.KeyTime.TimeSpan > TimeSpan.Zero)
-                    {
-                        kf.KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(targetDuration);
-                    }
-                }
-            }
-            else if (child is Microsoft.UI.Xaml.Media.Animation.ObjectAnimationUsingKeyFrames oak)
-            {
-                foreach (var kf in oak.KeyFrames)
-                {
-                    if (kf.KeyTime.TimeSpan > TimeSpan.Zero)
-                    {
-                        kf.KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(targetDuration);
-                    }
-                }
-            }
+            SidebarContainer.Visibility = isOpen ? Visibility.Visible : Visibility.Collapsed;
+            SidebarContainer.Width = targetWidth;
+            SidebarContentBorder.Width = _sidebarWidth;
+            SidebarTranslate.X = targetTranslateX;
+            SidebarContentBorder.Opacity = targetOpacity;
+            return;
         }
+
+        if (isOpen)
+        {
+            SidebarContainer.Visibility = Visibility.Visible;
+            SidebarContentBorder.Width = _sidebarWidth;
+        }
+
+        var sb = new Storyboard();
+        var ease = new CubicEase
+        {
+            EasingMode = isOpen ? EasingMode.EaseOut : EasingMode.EaseInOut
+        };
+        var duration = TimeSpan.FromMilliseconds(isOpen ? 280 : 250);
+
+        // 1. Width animation on container to smoothly adjust column layout
+        var animWidth = new DoubleAnimation
+        {
+            From = SidebarContainer.ActualWidth,
+            To = targetWidth,
+            Duration = duration,
+            EasingFunction = ease
+        };
+        Storyboard.SetTarget(animWidth, SidebarContainer);
+        Storyboard.SetTargetProperty(animWidth, "Width");
+
+        // 2. Translation animation on content border so it glides smoothly
+        var animTranslate = new DoubleAnimation
+        {
+            From = SidebarTranslate.X,
+            To = targetTranslateX,
+            Duration = duration,
+            EasingFunction = ease
+        };
+        Storyboard.SetTarget(animTranslate, SidebarTranslate);
+        Storyboard.SetTargetProperty(animTranslate, "X");
+
+        // 3. Opacity animation
+        var animOpacity = new DoubleAnimation
+        {
+            From = SidebarContentBorder.Opacity,
+            To = targetOpacity,
+            Duration = TimeSpan.FromMilliseconds(isOpen ? 220 : 180),
+            EasingFunction = ease
+        };
+        if (!isOpen)
+        {
+            animOpacity.BeginTime = TimeSpan.FromMilliseconds(50);
+        }
+        Storyboard.SetTarget(animOpacity, SidebarContentBorder);
+        Storyboard.SetTargetProperty(animOpacity, "Opacity");
+
+        sb.Children.Add(animWidth);
+        sb.Children.Add(animTranslate);
+        sb.Children.Add(animOpacity);
+
+        sb.Completed += (s, e) =>
+        {
+            _sidebarStoryboard = null;
+            SidebarContainer.Width = targetWidth;
+            SidebarTranslate.X = targetTranslateX;
+            SidebarContentBorder.Opacity = targetOpacity;
+            if (!isOpen)
+            {
+                SidebarContainer.Visibility = Visibility.Collapsed;
+            }
+        };
+
+        _sidebarStoryboard = sb;
+        sb.Begin();
     }
 
     private void OnToggleSidebarClick(object sender, RoutedEventArgs e)
     {
+        _isUserToggling = true;
+        _wasAutoCollapsed = false; // User manually chose state
         ViewModel.ToggleSidebar();
+        AnimateSidebar(ViewModel.IsSidebarOpen, animate: true);
+        _isUserToggling = false;
+    }
+
+    private void OnSidebarResizeHandlePointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        this.ProtectedCursor = Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast);
+        if (ResizeHighlightLine != null)
+        {
+            ResizeHighlightLine.Opacity = 0.6;
+        }
+    }
+
+    private void OnSidebarResizeHandlePointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_isResizingSidebar)
+        {
+            this.ProtectedCursor = null;
+            if (ResizeHighlightLine != null)
+            {
+                ResizeHighlightLine.Opacity = 0.0;
+            }
+        }
+    }
+
+    private void OnSidebarResizeHandlePointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is UIElement el)
+        {
+            el.CapturePointer(e.Pointer);
+            _isResizingSidebar = true;
+            _resizeStartPointerX = e.GetCurrentPoint(this).Position.X;
+            _resizeStartWidth = _sidebarWidth;
+            if (ResizeHighlightLine != null)
+            {
+                ResizeHighlightLine.Opacity = 1.0;
+            }
+            e.Handled = true;
+        }
+    }
+
+    private void OnSidebarResizeHandlePointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (_isResizingSidebar)
+        {
+            double currentX = e.GetCurrentPoint(this).Position.X;
+            double delta = currentX - _resizeStartPointerX;
+            double newWidth = Math.Clamp(_resizeStartWidth + delta, 220.0, 500.0);
+
+            _sidebarWidth = newWidth;
+            SidebarContainer.Width = newWidth;
+            SidebarContentBorder.Width = newWidth;
+            ViewModel.SidebarWidth = newWidth;
+            e.Handled = true;
+        }
+    }
+
+    private void OnSidebarResizeHandlePointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (_isResizingSidebar)
+        {
+            _isResizingSidebar = false;
+            this.ProtectedCursor = null;
+            if (sender is UIElement el)
+            {
+                el.ReleasePointerCapture(e.Pointer);
+            }
+            if (ResizeHighlightLine != null)
+            {
+                ResizeHighlightLine.Opacity = 0.0;
+            }
+            ViewModel.SaveSidebarWidth(_sidebarWidth);
+            e.Handled = true;
+        }
+    }
+
+    private void OnSidebarResizeHandlePointerCanceled(object sender, PointerRoutedEventArgs e)
+    {
+        OnSidebarResizeHandlePointerReleased(sender, e);
     }
 
     private void OnClipCardPointerEntered(object sender, PointerRoutedEventArgs e)
@@ -498,35 +679,219 @@ public sealed partial class HomePage : Page
         UpdateActiveIndicator(animate: true);
     }
 
+    private readonly System.Collections.Generic.HashSet<DirectoryNode> _animatingExpandingParents = new();
+
     private void OnDirectoryExpanding(TreeView sender, TreeViewExpandingEventArgs args)
     {
-        if (args.Item is DirectoryNode dirNode)
+        var dirNode = args.Item as DirectoryNode ?? (args.Node?.Content as DirectoryNode);
+        if (dirNode != null)
         {
             dirNode.IsExpanded = true;
-        }
-        else if (args.Node?.Content is DirectoryNode dn)
-        {
-            dn.IsExpanded = true;
+            _animatingExpandingParents.Add(dirNode);
+
+            DispatcherQueue.TryEnqueue(async () =>
+            {
+                await System.Threading.Tasks.Task.Delay(1200);
+                _animatingExpandingParents.Remove(dirNode);
+            });
         }
     }
 
     private void OnDirectoryCollapsed(TreeView sender, TreeViewCollapsedEventArgs args)
     {
-        if (args.Item is DirectoryNode dirNode)
+        var dirNode = args.Item as DirectoryNode ?? (args.Node?.Content as DirectoryNode);
+        if (dirNode != null)
         {
             dirNode.IsExpanded = false;
+            _animatingExpandingParents.Remove(dirNode);
         }
-        else if (args.Node?.Content is DirectoryNode dn)
+    }
+
+    private void OnFolderItemGridLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement grid && grid.DataContext is DirectoryNode childNode)
         {
-            dn.IsExpanded = false;
+            DirectoryNode? parent = null;
+            foreach (var p in _animatingExpandingParents)
+            {
+                if (p.SubDirectories.Contains(childNode))
+                {
+                    parent = p;
+                    break;
+                }
+            }
+
+            if (parent != null)
+            {
+                int index = parent.SubDirectories.IndexOf(childNode);
+                if (index >= 0 && index < 16)
+                {
+                    AnimateCascadeEntrance(grid, index);
+                    return;
+                }
+            }
+
+            grid.Opacity = 1.0;
+            if (grid.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+            {
+                tt.Y = 0.0;
+            }
         }
+    }
+
+    private void AnimateCascadeEntrance(FrameworkElement element, int index)
+    {
+        Microsoft.UI.Xaml.Media.TranslateTransform trans;
+        if (element.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+        {
+            trans = tt;
+        }
+        else
+        {
+            trans = new Microsoft.UI.Xaml.Media.TranslateTransform();
+            element.RenderTransform = trans;
+        }
+
+        double slideDistance = -(18.0 + Math.Min(index * 2.0, 14.0));
+        trans.Y = slideDistance;
+        element.Opacity = 0.0;
+
+        var delay = TimeSpan.FromMilliseconds(index * 26);
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        var easeOut = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
+
+        var animY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            From = slideDistance,
+            To = 0.0,
+            BeginTime = delay,
+            Duration = TimeSpan.FromMilliseconds(260),
+            EasingFunction = easeOut
+        };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, trans);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "Y");
+
+        var animOp = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            From = 0.0,
+            To = 1.0,
+            BeginTime = delay,
+            Duration = TimeSpan.FromMilliseconds(220),
+            EasingFunction = easeOut
+        };
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOp, element);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animOp, "Opacity");
+
+        sb.Children.Add(animY);
+        sb.Children.Add(animOp);
+
+        sb.Completed += (s, e) =>
+        {
+            trans.Y = 0.0;
+            element.Opacity = 1.0;
+        };
+
+        sb.Begin();
+    }
+
+    private void OnChevronPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is FrameworkElement chevron && chevron.DataContext is DirectoryNode node)
+        {
+            e.Handled = true;
+            if (node.IsExpanded)
+            {
+                AnimateFolderCollapse(node);
+            }
+            else
+            {
+                node.IsExpanded = true;
+            }
+        }
+    }
+
+    private void AnimateFolderCollapse(DirectoryNode node)
+    {
+        var childContainers = new System.Collections.Generic.List<FrameworkElement>();
+        foreach (var subDir in node.SubDirectories)
+        {
+            if (DirectoriesTreeView.ContainerFromItem(subDir) is FrameworkElement container)
+            {
+                childContainers.Add(container);
+            }
+        }
+
+        if (childContainers.Count == 0)
+        {
+            node.IsExpanded = false;
+            return;
+        }
+
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        var easeIn = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseIn };
+        int count = Math.Min(childContainers.Count, 16);
+
+        for (int i = 0; i < count; i++)
+        {
+            var container = childContainers[i];
+            Microsoft.UI.Xaml.Media.TranslateTransform trans;
+            if (container.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+            {
+                trans = tt;
+            }
+            else
+            {
+                trans = new Microsoft.UI.Xaml.Media.TranslateTransform();
+                container.RenderTransform = trans;
+            }
+
+            var delay = TimeSpan.FromMilliseconds((count - 1 - i) * 16);
+
+            var animY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+            {
+                From = trans.Y,
+                To = -16.0,
+                BeginTime = delay,
+                Duration = TimeSpan.FromMilliseconds(140),
+                EasingFunction = easeIn
+            };
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, trans);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "Y");
+
+            var animOp = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+            {
+                From = container.Opacity,
+                To = 0.0,
+                BeginTime = delay,
+                Duration = TimeSpan.FromMilliseconds(130),
+                EasingFunction = easeIn
+            };
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOp, container);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animOp, "Opacity");
+
+            sb.Children.Add(animY);
+            sb.Children.Add(animOp);
+        }
+
+        sb.Completed += (s, e) =>
+        {
+            node.IsExpanded = false;
+        };
+
+        sb.Begin();
     }
 
     private void OnFolderPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (sender is UIElement el)
+        if (sender is FrameworkElement el)
         {
-            AnimateElementClickPulse(el, 0.96);
+            // Guard against clicks in the far top and bottom container edges
+            var pt = e.GetCurrentPoint(el).Position;
+            if (pt.Y < 3.0 || pt.Y > el.ActualHeight - 3.0)
+            {
+                return;
+            }
+            AnimateElementClickPulse(el, 0.98);
         }
     }
 

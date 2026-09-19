@@ -15,6 +15,7 @@ public partial class PlayerViewModel : ObservableObject
     private readonly ILibVlcPlaybackService _playbackService;
     private readonly ILocalStorageService _storageService;
     private readonly INavigationService _navigationService;
+    private readonly ILocalizationService _localizationService;
 
     public ILibVlcPlaybackService PlaybackService => _playbackService;
 
@@ -101,9 +102,9 @@ public partial class PlayerViewModel : ObservableObject
 
     public string RepeatTooltip => RepeatMode switch
     {
-        RepeatMode.All => "Repeat: All (Click to repeat current clip)",
-        RepeatMode.One => "Repeat: Current Clip (Click to turn off)",
-        _ => "Repeat: Off (Click to repeat queue)"
+        RepeatMode.All => _localizationService["Player_Repeat_All_Tip"],
+        RepeatMode.One => _localizationService["Player_Repeat_One_Tip"],
+        _ => _localizationService["Player_Repeat_Off_Tip"]
     };
 
     public bool IsRepeatActive => RepeatMode != RepeatMode.Off;
@@ -132,11 +133,18 @@ public partial class PlayerViewModel : ObservableObject
     public PlayerViewModel(
         ILibVlcPlaybackService playbackService,
         ILocalStorageService storageService,
-        INavigationService navigationService)
+        INavigationService navigationService,
+        ILocalizationService localizationService)
     {
         _playbackService = playbackService;
         _storageService = storageService;
         _navigationService = navigationService;
+        _localizationService = localizationService;
+
+        _localizationService.LanguageChanged += (s, e) =>
+        {
+            OnPropertyChanged(nameof(RepeatTooltip));
+        };
 
         _playbackService.PositionChanged += OnPlaybackPositionChanged;
         _playbackService.TimeChanged += OnPlaybackTimeChanged;
@@ -393,7 +401,7 @@ public partial class PlayerViewModel : ObservableObject
         list.Add(bookmark);
         await _storageService.SaveSettingsAsync(settings);
 
-        ShowToast($"Saved marker at {bookmark.FormattedTimestamp}");
+        ShowToast(string.Format(_localizationService["Player_Toast_SavedMarker"], bookmark.FormattedTimestamp));
     }
 
     [RelayCommand]
@@ -410,7 +418,7 @@ public partial class PlayerViewModel : ObservableObject
             list.RemoveAll(b => b.Id == bookmark.Id);
             await _storageService.SaveSettingsAsync(settings);
         }
-        ShowToast("Removed moment");
+        ShowToast(_localizationService["Player_Toast_RemovedMoment"]);
     }
 
     public async Task UpdateBookmarkLabelAsync(ClipBookmark bookmark, string newLabel)
@@ -431,7 +439,7 @@ public partial class PlayerViewModel : ObservableObject
             await _storageService.SaveSettingsAsync(settings);
         }
 
-        ShowToast($"Renamed to \"{trimmed}\"");
+        ShowToast(string.Format(_localizationService["Player_Toast_RenamedMoment"], trimmed));
     }
 
     [RelayCommand]
@@ -439,7 +447,7 @@ public partial class PlayerViewModel : ObservableObject
     {
         if (bookmark == null) return;
         _playbackService.SeekTime((long)bookmark.Timestamp.TotalMilliseconds);
-        ShowToast($"Jumped to {bookmark.FormattedTimestamp}");
+        ShowToast(string.Format(_localizationService["Player_Toast_JumpedTo"], bookmark.FormattedTimestamp));
     }
 
     [RelayCommand]
@@ -453,7 +461,7 @@ public partial class PlayerViewModel : ObservableObject
         }
         _playbackService.SetVolume(Volume);
         OnPropertyChanged(nameof(VolumeGlyph));
-        ShowToast(IsMuted ? "Muted" : $"Volume {Volume}%");
+        ShowToast(IsMuted ? _localizationService["Player_Toast_Muted"] : string.Format(_localizationService["Player_Toast_Volume"], Volume));
 
         var settings = _storageService.CurrentSettings;
         settings.Volume = Volume;
@@ -472,7 +480,7 @@ public partial class PlayerViewModel : ObservableObject
         }
         _playbackService.SetMute(IsMuted);
         OnPropertyChanged(nameof(VolumeGlyph));
-        ShowToast(IsMuted ? "Muted" : $"Volume {Volume}%");
+        ShowToast(IsMuted ? _localizationService["Player_Toast_Muted"] : string.Format(_localizationService["Player_Toast_Volume"], Volume));
 
         var settings = _storageService.CurrentSettings;
         settings.IsMuted = IsMuted;
@@ -492,9 +500,9 @@ public partial class PlayerViewModel : ObservableObject
 
         var toast = RepeatMode switch
         {
-            RepeatMode.All => "Repeat: All",
-            RepeatMode.One => "Repeat: Current Clip",
-            _ => "Repeat: Off"
+            RepeatMode.All => _localizationService["Player_Repeat_All_Toast"],
+            RepeatMode.One => _localizationService["Player_Repeat_One_Toast"],
+            _ => _localizationService["Player_Repeat_Off_Toast"]
         };
         ShowToast(toast);
 
@@ -509,7 +517,7 @@ public partial class PlayerViewModel : ObservableObject
         PlaybackRate = (float)speed;
         _playbackService.SetPlaybackRate(PlaybackRate);
         OnPropertyChanged(nameof(FormattedPlaybackRate));
-        ShowToast($"{speed:0.##}x Speed");
+        ShowToast(string.Format(_localizationService["Player_Toast_Speed"], $"{speed:0.##}"));
 
         var settings = _storageService.CurrentSettings;
         settings.PlaybackSpeed = speed;

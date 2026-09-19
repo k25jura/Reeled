@@ -381,8 +381,8 @@ public partial class SettingsViewModel : ObservableObject
         await Task.Delay(1500);
 
         IsCheckingForUpdates = false;
-        IsUpdateAvailable = true;
-        UpdateStatusFormatted = _localizationService["Updates_StatusAvailable"];
+        IsUpdateAvailable = false;
+        UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
         LastCheckedFormatted = string.Format(_localizationService["Updates_LastChecked"], DateTime.Now.ToString("t", _localizationService.CurrentCulture));
     }
 

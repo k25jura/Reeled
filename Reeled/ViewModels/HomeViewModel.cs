@@ -99,20 +99,20 @@ public partial class HomeViewModel : ObservableObject
 
     public string CurrentDirectoryTitle => CurrentSection switch
     {
-        NavigationSection.Home => "Home",
-        NavigationSection.Favorites => "Favorites",
-        NavigationSection.SavedMoments => "Saved Moments",
+        NavigationSection.Home => _localizationService["Nav_Home"],
+        NavigationSection.Favorites => _localizationService["Nav_Favorites"],
+        NavigationSection.SavedMoments => _localizationService["Nav_SavedMoments"],
         NavigationSection.Folder => SelectedDirectory != null
-            ? (!string.IsNullOrEmpty(SelectedDirectory.Name) ? SelectedDirectory.Name : "Library")
-            : "Gameplay Library",
-        _ => "Home"
+            ? (!string.IsNullOrEmpty(SelectedDirectory.Name) ? SelectedDirectory.Name : _localizationService["Breadcrumb_Library"])
+            : _localizationService["Breadcrumb_GameplayLibrary"],
+        _ => _localizationService["Nav_Home"]
     };
 
     public string CurrentDirectoryPath => CurrentSection switch
     {
-        NavigationSection.Home => AllClips.Count > 0 ? "All watch folders" : string.Empty,
-        NavigationSection.Favorites => FavoritesCount > 0 ? $"{FavoritesCount} favorite clips" : string.Empty,
-        NavigationSection.SavedMoments => SavedMomentsCount > 0 ? $"{SavedMomentsCount} clips with moments" : string.Empty,
+        NavigationSection.Home => AllClips.Count > 0 ? _localizationService["Breadcrumb_AllWatchFolders"] : string.Empty,
+        NavigationSection.Favorites => FavoritesCount > 0 ? string.Format(_localizationService["Breadcrumb_FavoriteClips"], FavoritesCount) : string.Empty,
+        NavigationSection.SavedMoments => SavedMomentsCount > 0 ? string.Format(_localizationService["Breadcrumb_ClipsWithMoments"], SavedMomentsCount) : string.Empty,
         NavigationSection.Folder => SelectedDirectory?.FullPath ?? string.Empty,
         _ => string.Empty
     };
@@ -165,6 +165,8 @@ public partial class HomeViewModel : ObservableObject
 
     public void RefreshLocalization()
     {
+        OnPropertyChanged(nameof(CurrentDirectoryTitle));
+        OnPropertyChanged(nameof(CurrentDirectoryPath));
         OnPropertyChanged(nameof(EmptyStateTitle));
         OnPropertyChanged(nameof(EmptyStateSubtitle));
         OnPropertyChanged(nameof(ClipsCountSummary));

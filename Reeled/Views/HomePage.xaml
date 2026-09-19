@@ -390,6 +390,7 @@
                     </Grid.ColumnDefinitions>
 
                     <Button Grid.Column="0" 
+                            x:Name="CollapseSidebarButton"
                             ToolTipService.ToolTip="Collapse Sidebar"
                             Click="OnToggleSidebarClick"
                             Style="{ThemeResource SubtleButtonStyle}"
@@ -542,6 +543,7 @@
                                VerticalAlignment="Center" />
 
                     <Button Grid.Column="1" 
+                            x:Name="AddWatchFolderButton"
                             ToolTipService.ToolTip="Add Watch Folder"
                             Click="OnAddFolderClick"
                             Style="{ThemeResource SubtleButtonStyle}"
@@ -603,8 +605,8 @@
                                                    Text="{x:Bind ClipCount, Mode=OneWay}" 
                                                    FontSize="12" 
                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" 
-                                                   VerticalAlignment="Center"
-                                                   Margin="0,0,2,0"
+                                                   VerticalAlignment="Center" 
+                                                   Margin="0,0,2,0" 
                                                    Visibility="{x:Bind ClipCount, Converter={StaticResource BoolToVisibilityConverter}}" />
                                     </Grid>
                                 </TreeViewItem>
@@ -616,13 +618,13 @@
                     <StackPanel Visibility="{x:Bind ViewModel.HasDirectories, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
                                 Spacing="8" Margin="8,24,8,8" HorizontalAlignment="Center">
                         <FontIcon Glyph="&#xE8B7;" FontSize="32" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" />
-                        <TextBlock Text="No folders added" Style="{ThemeResource BodyStrongTextBlockStyle}" HorizontalAlignment="Center" />
-                        <TextBlock Text="Add your captures folder to index game clips." 
+                        <TextBlock x:Name="FoldersFallbackTitleText" Text="No folders added" Style="{ThemeResource BodyStrongTextBlockStyle}" HorizontalAlignment="Center" />
+                        <TextBlock x:Name="FoldersFallbackSubtitleText" Text="Add your captures folder to index game clips." 
                                    Style="{ThemeResource CaptionTextBlockStyle}" 
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
                                    TextWrapping="Wrap" 
                                    TextAlignment="Center" />
-                        <Button Content="Choose Folder" HorizontalAlignment="Center" Margin="0,8,0,0" Click="OnAddFolderClick"
+                        <Button x:Name="FoldersFallbackButton" Content="Choose Folder" HorizontalAlignment="Center" Margin="0,8,0,0" Click="OnAddFolderClick"
                                 PointerPressed="OnItemPointerPressed"
                                 PointerReleased="OnItemPointerReleased"
                                 PointerCanceled="OnItemPointerCanceled" />
@@ -656,6 +658,7 @@
                         </Button>
 
                         <Button Grid.Column="1" 
+                                x:Name="RefreshClipsButton"
                                 ToolTipService.ToolTip="Refresh Clips"
                                 Command="{x:Bind ViewModel.RefreshClipsCommand}"
                                 Style="{ThemeResource SubtleButtonStyle}"
@@ -736,6 +739,7 @@
 
                     <!-- Sidebar Expand Button (Shown only when sidebar is collapsed) -->
                     <Button Grid.Column="0" 
+                            x:Name="ShowSidebarButton"
                             Click="OnToggleSidebarClick"
                             ToolTipService.ToolTip="Show Sidebar"
                             Style="{ThemeResource SubtleButtonStyle}"
@@ -769,7 +773,8 @@
                                        Visibility="{x:Bind ViewModel.CurrentDirectoryPath, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}" />
                             
                             <!-- Clickable Breadcrumb Path to Open in File Explorer (when Folder section) -->
-                            <HyperlinkButton Padding="0" Margin="0" MinHeight="0" MinWidth="0"
+                            <HyperlinkButton x:Name="ExplorerHyperlinkButton"
+                                             Padding="0" Margin="0" MinHeight="0" MinWidth="0"
                                              Command="{x:Bind ViewModel.OpenCurrentDirectoryCommand}"
                                              ToolTipService.ToolTip="Open folder in File Explorer"
                                              Visibility="{x:Bind ViewModel.CanOpenDirectoryInExplorer, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -792,7 +797,8 @@
                     </StackPanel>
 
                     <!-- Search Box -->
-                    <AutoSuggestBox Grid.Column="2" 
+                    <AutoSuggestBox x:Name="ClipsSearchBox"
+                                    Grid.Column="2" 
                                     Width="240" 
                                     PlaceholderText="Search clips..." 
                                     QueryIcon="Find"
@@ -800,15 +806,16 @@
                                     VerticalAlignment="Center" />
 
                     <!-- Sort Dropdown -->
-                    <ComboBox Grid.Column="3" 
+                    <ComboBox x:Name="SortOptionsComboBox"
+                              Grid.Column="3" 
                               SelectedIndex="{x:Bind ViewModel.SortIndex, Mode=TwoWay}" 
                               VerticalAlignment="Center" 
                               Width="150">
-                        <ComboBoxItem Content="Newest Date" />
-                        <ComboBoxItem Content="Oldest Date" />
-                        <ComboBoxItem Content="Name A-Z" />
-                        <ComboBoxItem Content="Longest Duration" />
-                        <ComboBoxItem Content="Largest Size" />
+                        <ComboBoxItem x:Name="SortNewestItem" Content="Newest Date" />
+                        <ComboBoxItem x:Name="SortOldestItem" Content="Oldest Date" />
+                        <ComboBoxItem x:Name="SortNameAZItem" Content="Name A-Z" />
+                        <ComboBoxItem x:Name="SortDurationItem" Content="Longest Duration" />
+                        <ComboBoxItem x:Name="SortFileSizeItem" Content="Largest Size" />
                     </ComboBox>
                 </Grid>
             </Border>

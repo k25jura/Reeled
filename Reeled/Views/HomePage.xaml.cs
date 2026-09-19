@@ -102,6 +102,28 @@ public sealed partial class HomePage : Page
             if (FoldersHeaderNavText != null) FoldersHeaderNavText.Text = loc["Nav_Folders"];
             if (FoldersAddNavText != null) FoldersAddNavText.Text = loc["Nav_AddFolder"];
             if (SettingsNavText != null) SettingsNavText.Text = loc["Nav_Settings"];
+
+            // Tooltips
+            if (CollapseSidebarButton != null) ToolTipService.SetToolTip(CollapseSidebarButton, loc["Tooltip_CollapseSidebar"]);
+            if (ShowSidebarButton != null) ToolTipService.SetToolTip(ShowSidebarButton, loc["Tooltip_ShowSidebar"]);
+            if (AddWatchFolderButton != null) ToolTipService.SetToolTip(AddWatchFolderButton, loc["Tooltip_AddWatchFolder"]);
+            if (RefreshClipsButton != null) ToolTipService.SetToolTip(RefreshClipsButton, loc["Tooltip_RefreshClips"]);
+            if (ExplorerHyperlinkButton != null) ToolTipService.SetToolTip(ExplorerHyperlinkButton, loc["Tooltip_OpenInExplorer"]);
+
+            // Search Box Placeholder
+            if (ClipsSearchBox != null) ClipsSearchBox.PlaceholderText = loc["Search_Placeholder"];
+
+            // Sort Dropdown Items
+            if (SortNewestItem != null) SortNewestItem.Content = loc["Sort_NewestDate"];
+            if (SortOldestItem != null) SortOldestItem.Content = loc["Sort_OldestDate"];
+            if (SortNameAZItem != null) SortNameAZItem.Content = loc["Sort_TitleAZ"];
+            if (SortDurationItem != null) SortDurationItem.Content = loc["Sort_Duration"];
+            if (SortFileSizeItem != null) SortFileSizeItem.Content = loc["Sort_FileSize"];
+
+            // Folders Empty Fallback Prompt
+            if (FoldersFallbackTitleText != null) FoldersFallbackTitleText.Text = loc["Folders_FallbackTitle"];
+            if (FoldersFallbackSubtitleText != null) FoldersFallbackSubtitleText.Text = loc["Folders_FallbackSubtitle"];
+            if (FoldersFallbackButton != null) FoldersFallbackButton.Content = loc["Folders_ChooseFolder"];
         }
         catch { }
     }
@@ -2131,6 +2153,7 @@ public sealed partial class HomePage : Page
     {
         if (sender is FrameworkElement element && element.DataContext is GameClip clip)
         {
+            var loc = App.GetService<Services.ILocalizationService>();
             ViewModel.SelectedClip = clip;
             AnimateCardHover(element, isHovered: true);
 
@@ -2141,44 +2164,47 @@ public sealed partial class HomePage : Page
             };
 
             // Section 1: Playback
-            var playItem = new MenuFlyoutItem { Text = "Play", Icon = new FontIcon { Glyph = "\uE768" } };
+            var playItem = new MenuFlyoutItem { Text = loc?["ContextMenu_Play"] ?? "Play", Icon = new FontIcon { Glyph = "\uE768" } };
             playItem.Click += (s, args) => ViewModel.PlayClip(clip);
             flyout.Items.Add(playItem);
 
             flyout.Items.Add(new MenuFlyoutSeparator());
 
             // Section 2: Clip Info & Management
-            var infoItem = new MenuFlyoutItem { Text = "Clip Information", Icon = new FontIcon { Glyph = "\uE946" } };
+            var infoItem = new MenuFlyoutItem { Text = loc?["ContextMenu_ClipInfo"] ?? "Clip Information", Icon = new FontIcon { Glyph = "\uE946" } };
             infoItem.Click += async (s, args) => await ShowClipInfoDialogAsync(clip);
             flyout.Items.Add(infoItem);
 
+            string favText = clip.IsFavorite 
+                ? (loc?["ContextMenu_RemoveFromFavorites"] ?? "Remove from Favorites") 
+                : (loc?["ContextMenu_AddToFavorites"] ?? "Add to Favorites");
             var favItem = new MenuFlyoutItem
             {
-                Text = clip.IsFavorite ? "Remove from Favorites" : "Add to Favorites",
+                Text = favText,
                 Icon = new FontIcon { Glyph = clip.IsFavorite ? "\uEB51" : "\uEB52" }
             };
             favItem.Click += (s, args) => _ = ViewModel.ToggleFavoriteAsync(clip);
             flyout.Items.Add(favItem);
 
-            var renameItem = new MenuFlyoutItem { Text = "Rename", Icon = new FontIcon { Glyph = "\uE8AC" } };
+            var renameItem = new MenuFlyoutItem { Text = loc?["ContextMenu_Rename"] ?? "Rename", Icon = new FontIcon { Glyph = "\uE8AC" } };
             renameItem.Click += async (s, args) => await ShowRenameDialogAsync(clip);
             flyout.Items.Add(renameItem);
 
             flyout.Items.Add(new MenuFlyoutSeparator());
 
             // Section 3: File Location & System
-            var explorerItem = new MenuFlyoutItem { Text = "Reveal in File Explorer", Icon = new FontIcon { Glyph = "\uEC50" } };
+            var explorerItem = new MenuFlyoutItem { Text = loc?["ContextMenu_RevealExplorer"] ?? "Reveal in File Explorer", Icon = new FontIcon { Glyph = "\uEC50" } };
             explorerItem.Click += (s, args) => ViewModel.OpenInExplorer(clip);
             flyout.Items.Add(explorerItem);
 
-            var copyItem = new MenuFlyoutItem { Text = "Copy File Path", Icon = new FontIcon { Glyph = "\uE8C8" } };
+            var copyItem = new MenuFlyoutItem { Text = loc?["ContextMenu_CopyPath"] ?? "Copy File Path", Icon = new FontIcon { Glyph = "\uE8C8" } };
             copyItem.Click += (s, args) => ViewModel.CopyPath(clip);
             flyout.Items.Add(copyItem);
 
             flyout.Items.Add(new MenuFlyoutSeparator());
 
             // Section 4: Destructive
-            var deleteItem = new MenuFlyoutItem { Text = "Delete to Recycle Bin", Icon = new FontIcon { Glyph = "\uE74D" } };
+            var deleteItem = new MenuFlyoutItem { Text = loc?["ContextMenu_DeleteRecycle"] ?? "Delete to Recycle Bin", Icon = new FontIcon { Glyph = "\uE74D" } };
             deleteItem.Click += async (s, args) => await ShowDeleteConfirmDialogAsync(clip);
             flyout.Items.Add(deleteItem);
 
@@ -2189,11 +2215,12 @@ public sealed partial class HomePage : Page
 
     private async System.Threading.Tasks.Task ShowClipInfoDialogAsync(GameClip clip)
     {
+        var loc = App.GetService<Services.ILocalizationService>();
         var panel = new StackPanel { Spacing = 12, MinWidth = 340, MaxWidth = 440 };
 
         // File name
         var nameBlock = new StackPanel { Spacing = 2 };
-        nameBlock.Children.Add(new TextBlock { Text = "File Name", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        nameBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_FileName"] ?? "File Name", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
         nameBlock.Children.Add(new TextBlock { Text = clip.FileName, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
         panel.Children.Add(nameBlock);
 
@@ -2203,13 +2230,13 @@ public sealed partial class HomePage : Page
         grid1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         var durBlock = new StackPanel { Spacing = 2 };
-        durBlock.Children.Add(new TextBlock { Text = "Duration", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        durBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_Duration"] ?? "Duration", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
         durBlock.Children.Add(new TextBlock { Text = clip.FormattedDuration, FontSize = 13 });
         Grid.SetColumn(durBlock, 0);
         grid1.Children.Add(durBlock);
 
         var sizeBlock = new StackPanel { Spacing = 2 };
-        sizeBlock.Children.Add(new TextBlock { Text = "File Size", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        sizeBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_FileSize"] ?? "File Size", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
         sizeBlock.Children.Add(new TextBlock { Text = clip.FormattedFileSize, FontSize = 13 });
         Grid.SetColumn(sizeBlock, 1);
         grid1.Children.Add(sizeBlock);
@@ -2221,36 +2248,39 @@ public sealed partial class HomePage : Page
         grid2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         var resBlock = new StackPanel { Spacing = 2 };
-        resBlock.Children.Add(new TextBlock { Text = "Resolution", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
-        string resText = clip.VideoWidth > 0 ? $"{clip.VideoWidth} x {clip.VideoHeight}" + (clip.Framerate > 0 ? $" ({clip.Framerate:F0} fps)" : "") : "Unknown";
+        resBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_Resolution"] ?? "Resolution", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        string resText = clip.VideoWidth > 0 ? $"{clip.VideoWidth} x {clip.VideoHeight}" + (clip.Framerate > 0 ? $" ({clip.Framerate:F0} fps)" : "") : (loc?["Dialog_ClipInfo_Unknown"] ?? "Unknown");
         resBlock.Children.Add(new TextBlock { Text = resText, FontSize = 13 });
         Grid.SetColumn(resBlock, 0);
         grid2.Children.Add(resBlock);
 
         var momentBlock = new StackPanel { Spacing = 2 };
-        momentBlock.Children.Add(new TextBlock { Text = "Saved Moments", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
-        momentBlock.Children.Add(new TextBlock { Text = clip.Bookmarks.Count > 0 ? $"{clip.Bookmarks.Count} marked" : "None", FontSize = 13 });
+        momentBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_Moments"] ?? "Saved Moments", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        string momentsText = clip.Bookmarks.Count > 0 
+            ? string.Format(loc?["Dialog_ClipInfo_MomentsMarked"] ?? "{0} marked", clip.Bookmarks.Count)
+            : (loc?["Dialog_ClipInfo_None"] ?? "None");
+        momentBlock.Children.Add(new TextBlock { Text = momentsText, FontSize = 13 });
         Grid.SetColumn(momentBlock, 1);
         grid2.Children.Add(momentBlock);
         panel.Children.Add(grid2);
 
         // Date modified
         var dateBlock = new StackPanel { Spacing = 2 };
-        dateBlock.Children.Add(new TextBlock { Text = "Date Modified", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        dateBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_DateModified"] ?? "Date Modified", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
         dateBlock.Children.Add(new TextBlock { Text = clip.FormattedDate, FontSize = 13 });
         panel.Children.Add(dateBlock);
 
         // File path
         var pathBlock = new StackPanel { Spacing = 2 };
-        pathBlock.Children.Add(new TextBlock { Text = "Location", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        pathBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_Location"] ?? "Location", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
         pathBlock.Children.Add(new TextBlock { Text = clip.FilePath, FontSize = 12, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorTertiaryBrush"], TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true });
         panel.Children.Add(pathBlock);
 
         var dialog = new ContentDialog
         {
-            Title = "Clip Information",
+            Title = loc?["Dialog_ClipInfo_Title"] ?? "Clip Information",
             Content = panel,
-            CloseButtonText = "Close",
+            CloseButtonText = loc?["Dialog_ClipInfo_Close"] ?? "Close",
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = this.XamlRoot
         };
@@ -2260,6 +2290,7 @@ public sealed partial class HomePage : Page
 
     private async System.Threading.Tasks.Task ShowRenameDialogAsync(GameClip clip)
     {
+        var loc = App.GetService<Services.ILocalizationService>();
         var textBox = new TextBox
         {
             Text = System.IO.Path.GetFileNameWithoutExtension(clip.FileName)
@@ -2268,10 +2299,10 @@ public sealed partial class HomePage : Page
 
         var dialog = new ContentDialog
         {
-            Title = "Rename Clip",
+            Title = loc?["Dialog_Rename_Title"] ?? "Rename Clip",
             Content = textBox,
-            PrimaryButtonText = "Rename",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = loc?["Dialog_Rename_Confirm"] ?? "Rename",
+            CloseButtonText = loc?["Dialog_Rename_Cancel"] ?? "Cancel",
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = this.XamlRoot
         };
@@ -2285,12 +2316,14 @@ public sealed partial class HomePage : Page
 
     private async System.Threading.Tasks.Task ShowDeleteConfirmDialogAsync(GameClip clip)
     {
+        var loc = App.GetService<Services.ILocalizationService>();
+        string message = string.Format(loc?["Dialog_Delete_Message"] ?? "Are you sure you want to move '{0}' to the Windows Recycle Bin?", clip.FileName);
         var dialog = new ContentDialog
         {
-            Title = "Delete to Recycle Bin?",
-            Content = $"Are you sure you want to move '{clip.FileName}' to the Windows Recycle Bin?",
-            PrimaryButtonText = "Delete",
-            CloseButtonText = "Cancel",
+            Title = loc?["Dialog_Delete_Title"] ?? "Delete to Recycle Bin?",
+            Content = message,
+            PrimaryButtonText = loc?["Dialog_Delete_Confirm"] ?? "Delete",
+            CloseButtonText = loc?["Dialog_Delete_Cancel"] ?? "Cancel",
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = this.XamlRoot
         };

@@ -104,13 +104,92 @@ public sealed partial class PlayerPage : Page
         Loaded += (s, e) =>
         {
             Activate();
+            ApplyLocalization();
+            var loc = App.GetService<Services.ILocalizationService>();
+            if (loc != null)
+            {
+                loc.LanguageChanged += OnLanguageChanged;
+            }
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, PreloadAndWarmupAnimations);
         };
 
         Unloaded += (s, e) =>
         {
+            var loc = App.GetService<Services.ILocalizationService>();
+            if (loc != null)
+            {
+                loc.LanguageChanged -= OnLanguageChanged;
+            }
             Deactivate();
         };
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        DispatcherQueue.TryEnqueue(ApplyLocalization);
+    }
+
+    private void ApplyLocalization()
+    {
+        try
+        {
+            var loc = App.GetService<Services.ILocalizationService>();
+            if (loc == null) return;
+
+            // Header Back Button
+            if (BackToLibraryText != null) BackToLibraryText.Text = loc["Player_BackToLibrary"];
+            if (BackToLibraryButton != null) ToolTipService.SetToolTip(BackToLibraryButton, loc["Player_Tooltip_BackToLibrary"]);
+
+            // Playback Tooltips
+            if (PlayPauseButton != null) ToolTipService.SetToolTip(PlayPauseButton, loc["Player_Tooltip_PlayPause"]);
+            if (PreviousClipButton != null) ToolTipService.SetToolTip(PreviousClipButton, loc["Player_Tooltip_PreviousClip"]);
+            if (StopClipButton != null) ToolTipService.SetToolTip(StopClipButton, loc["Player_Tooltip_Stop"]);
+            if (NextClipButton != null) ToolTipService.SetToolTip(NextClipButton, loc["Player_Tooltip_NextClip"]);
+            if (RepeatButton != null) ToolTipService.SetToolTip(RepeatButton, ViewModel.RepeatTooltip);
+            if (SkipBackwardButton != null) ToolTipService.SetToolTip(SkipBackwardButton, loc["Player_Tooltip_SkipBackward"]);
+            if (SkipForwardButton != null) ToolTipService.SetToolTip(SkipForwardButton, loc["Player_Tooltip_SkipForward"]);
+            if (MarkMomentButton != null) ToolTipService.SetToolTip(MarkMomentButton, loc["Player_Tooltip_MarkMoment"]);
+            if (MomentsFlyoutButton != null) ToolTipService.SetToolTip(MomentsFlyoutButton, loc["Player_Tooltip_TimelineBookmarks"]);
+            if (ClipQueueButton != null) ToolTipService.SetToolTip(ClipQueueButton, loc["Player_Tooltip_ClipQueue"]);
+            if (PlaybackSpeedDropDown != null) ToolTipService.SetToolTip(PlaybackSpeedDropDown, loc["Player_Tooltip_PlaybackSpeed"]);
+            if (ClipInfoButton != null) ToolTipService.SetToolTip(ClipInfoButton, loc["Player_Tooltip_ClipInformation"]);
+            if (AudioTrackDropDown != null) ToolTipService.SetToolTip(AudioTrackDropDown, loc["Player_Tooltip_AudioTrack"]);
+            if (MuteButton != null) ToolTipService.SetToolTip(MuteButton, loc["Player_Tooltip_MuteUnmute"]);
+            if (FullscreenButton != null) ToolTipService.SetToolTip(FullscreenButton, loc["Player_Tooltip_Fullscreen"]);
+            if (MomentsPromptDismissButton != null) ToolTipService.SetToolTip(MomentsPromptDismissButton, loc["Player_Dismiss"]);
+            if (CloseQueueButton != null) ToolTipService.SetToolTip(CloseQueueButton, loc["Player_Tooltip_CloseQueue"]);
+
+            // Moments Flyout
+            if (MomentsFlyoutHeaderTitle != null) MomentsFlyoutHeaderTitle.Text = loc["Player_MomentsTitle"];
+            if (MomentsFlyoutAddText != null) MomentsFlyoutAddText.Text = loc["Player_MomentsAdd"];
+            if (MomentsFlyoutAddButton != null) ToolTipService.SetToolTip(MomentsFlyoutAddButton, loc["Player_Tooltip_MarkMomentCurrentTime"]);
+            if (MomentsFlyoutEmptyTitle != null) MomentsFlyoutEmptyTitle.Text = loc["Player_NoMomentsMarked"];
+            if (MomentsFlyoutEmptySubtitle != null) MomentsFlyoutEmptySubtitle.Text = loc["Player_PressBToMark"];
+
+            // Speed Flyout
+            if (SpeedFlyoutHeaderTitle != null) SpeedFlyoutHeaderTitle.Text = loc["Player_PlaybackSpeedTitle"];
+            if (PresetSpeed10 != null) PresetSpeed10.Content = loc["Player_PresetNormal"];
+            if (CustomSpeedLabel != null) CustomSpeedLabel.Text = loc["Player_CustomSpeed"];
+            if (ResetSpeedButton != null) ResetSpeedButton.Content = loc["Player_Reset"];
+
+            // Clip Info Flyout
+            if (ClipInfoFlyoutTitle != null) ClipInfoFlyoutTitle.Text = loc["Player_ClipInfoTitle"];
+            if (ClipInfoFileNameLabel != null) ClipInfoFileNameLabel.Text = loc["Player_FileName"];
+            if (ClipInfoDurationLabel != null) ClipInfoDurationLabel.Text = loc["Player_Duration"];
+            if (ClipInfoBookmarksLabel != null) ClipInfoBookmarksLabel.Text = loc["Player_Bookmarks"];
+            if (ClipInfoDateModifiedLabel != null) ClipInfoDateModifiedLabel.Text = loc["Player_DateModified"];
+            if (ClipInfoFilePathLabel != null) ClipInfoFilePathLabel.Text = loc["Player_FilePath"];
+
+            // Audio Flyout default item
+            if (DefaultAudioTrackItem != null) DefaultAudioTrackItem.Text = loc["Player_DefaultAudioTrack"];
+
+            // Moments Jump Prompt
+            if (MomentsPromptTitle != null) MomentsPromptTitle.Text = loc["Player_MomentsInClip"];
+
+            // Queue Drawer
+            if (ClipQueueHeaderTitle != null) ClipQueueHeaderTitle.Text = loc["Player_ClipQueueTitle"];
+        }
+        catch { }
     }
 
     private bool _isAnimationsWarmedUp;
@@ -419,13 +498,14 @@ public sealed partial class PlayerPage : Page
 
     private void OnAudioTracksMenuFlyoutOpening(object sender, object e)
     {
+        var loc = App.GetService<Services.ILocalizationService>();
         AudioTracksMenuFlyout.Items.Clear();
         var tracks = ViewModel.AudioTracks;
         if (tracks.Count == 0)
         {
             AudioTracksMenuFlyout.Items.Add(new MenuFlyoutItem
             {
-                Text = "Default Audio Track",
+                Text = loc?["Player_DefaultAudioTrack"] ?? "Default Audio Track",
                 IsEnabled = false
             });
             return;
@@ -454,7 +534,7 @@ public sealed partial class PlayerPage : Page
 
         var disableItem = new RadioMenuFlyoutItem
         {
-            Text = "Disable Audio",
+            Text = loc?["Player_DisableAudio"] ?? "Disable Audio",
             IsChecked = ViewModel.SelectedAudioTrack == null,
             GroupName = "AudioTracks",
             Tag = -1
@@ -707,18 +787,19 @@ public sealed partial class PlayerPage : Page
 
     private async void OnAddMarkerClick(object sender, RoutedEventArgs e)
     {
+        var loc = App.GetService<Services.ILocalizationService>();
         var textBox = new TextBox
         {
-            PlaceholderText = "E.g., Ace, Clutch, Headshot (or leave blank)",
-            Text = $"Mark at {ViewModel.FormattedCurrentTime}"
+            PlaceholderText = loc?["Player_Dialog_AddMoment_Placeholder"] ?? "E.g., Ace, Clutch, Headshot (or leave blank)",
+            Text = string.Format(loc?["Player_Dialog_AddMoment_Default"] ?? "Mark at {0}", ViewModel.FormattedCurrentTime)
         };
 
         var dialog = new ContentDialog
         {
-            Title = "Save Moment Bookmark",
+            Title = loc?["Player_Dialog_AddMoment_Title"] ?? "Save Moment Bookmark",
             Content = textBox,
-            PrimaryButtonText = "Save Mark",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = loc?["Player_Dialog_AddMoment_Save"] ?? "Save Mark",
+            CloseButtonText = loc?["Player_Dialog_AddMoment_Cancel"] ?? "Cancel",
             DefaultButton = ContentDialogButton.Primary,
             XamlRoot = this.XamlRoot
         };
@@ -742,19 +823,20 @@ public sealed partial class PlayerPage : Page
     {
         if (sender is FrameworkElement fe && fe.Tag is ClipBookmark bm)
         {
+            var loc = App.GetService<Services.ILocalizationService>();
             var textBox = new TextBox
             {
                 Text = bm.Label,
-                PlaceholderText = "Enter moment title...",
+                PlaceholderText = loc?["Player_Dialog_RenameMoment_Placeholder"] ?? "Enter moment title...",
                 SelectionStart = bm.Label.Length
             };
 
             var dialog = new ContentDialog
             {
-                Title = "Rename Moment",
+                Title = loc?["Player_Dialog_RenameMoment_Title"] ?? "Rename Moment",
                 Content = textBox,
-                PrimaryButtonText = "Save",
-                CloseButtonText = "Cancel",
+                PrimaryButtonText = loc?["Player_Dialog_RenameMoment_Save"] ?? "Save",
+                CloseButtonText = loc?["Player_Dialog_RenameMoment_Cancel"] ?? "Cancel",
                 DefaultButton = ContentDialogButton.Primary,
                 XamlRoot = this.XamlRoot
             };

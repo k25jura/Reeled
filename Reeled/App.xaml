@@ -9,92 +9,146 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                <!-- 1. Default WinUI Controls Resources -->
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+
+                <!-- 2. Custom Theme Overrides (Must be merged AFTER XamlControlsResources so they take precedence) -->
+                <ResourceDictionary>
+                    <ResourceDictionary.ThemeDictionaries>
+                        <ResourceDictionary x:Key="Default">
+                            <Color x:Key="SolidBackgroundFillColorBase">#101010</Color>
+                            <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
+
+                            <Color x:Key="ApplicationPageBackgroundThemeColor">#101010</Color>
+                            <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="{StaticResource ApplicationPageBackgroundThemeColor}" />
+
+                            <Color x:Key="LayerFillColorDefault">#161616</Color>
+                            <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="{StaticResource LayerFillColorDefault}" />
+
+                            <Color x:Key="LayerFillColorAlt">#121212</Color>
+                            <SolidColorBrush x:Key="LayerFillColorAltBrush" Color="{StaticResource LayerFillColorAlt}" />
+
+                            <Color x:Key="CardBackgroundFillColorDefault">#1C1C1C</Color>
+                            <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="{StaticResource CardBackgroundFillColorDefault}" />
+
+                            <Color x:Key="CardBackgroundFillColorSecondary">#222222</Color>
+                            <SolidColorBrush x:Key="CardBackgroundFillColorSecondaryBrush" Color="{StaticResource CardBackgroundFillColorSecondary}" />
+
+                            <Color x:Key="CardStrokeColorDefault">#282828</Color>
+                            <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{StaticResource CardStrokeColorDefault}" />
+
+                            <Color x:Key="DividerStrokeColorDefault">#242424</Color>
+                            <SolidColorBrush x:Key="DividerStrokeColorDefaultBrush" Color="{StaticResource DividerStrokeColorDefault}" />
+
+                            <Color x:Key="ControlFillColorDefault">#1C1C1C</Color>
+                            <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="{StaticResource ControlFillColorDefault}" />
+
+                            <Color x:Key="ControlFillColorSecondary">#222222</Color>
+                            <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="{StaticResource ControlFillColorSecondary}" />
+
+                            <Color x:Key="ControlStrokeColorDefault">#2A2A2A</Color>
+                            <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="{StaticResource ControlStrokeColorDefault}" />
+
+                            <Color x:Key="SubtleFillColorSecondary">#222222</Color>
+                            <SolidColorBrush x:Key="SubtleFillColorSecondaryBrush" Color="{StaticResource SubtleFillColorSecondary}" />
+
+                            <Color x:Key="SubtleFillColorTertiary">#2A2A2A</Color>
+                            <SolidColorBrush x:Key="SubtleFillColorTertiaryBrush" Color="{StaticResource SubtleFillColorTertiary}" />
+
+                            <Color x:Key="TextFillColorPrimary">#EDEDED</Color>
+                            <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="{StaticResource TextFillColorPrimary}" />
+
+                            <Color x:Key="TextFillColorSecondary">#8E8E93</Color>
+                            <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="{StaticResource TextFillColorSecondary}" />
+
+                            <Color x:Key="TextFillColorTertiary">#666666</Color>
+                            <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
+                        </ResourceDictionary>
+
+                        <ResourceDictionary x:Key="Dark">
+                            <Color x:Key="SolidBackgroundFillColorBase">#101010</Color>
+                            <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
+
+                            <Color x:Key="ApplicationPageBackgroundThemeColor">#101010</Color>
+                            <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="{StaticResource ApplicationPageBackgroundThemeColor}" />
+
+                            <Color x:Key="LayerFillColorDefault">#161616</Color>
+                            <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="{StaticResource LayerFillColorDefault}" />
+
+                            <Color x:Key="LayerFillColorAlt">#121212</Color>
+                            <SolidColorBrush x:Key="LayerFillColorAltBrush" Color="{StaticResource LayerFillColorAlt}" />
+
+                            <Color x:Key="CardBackgroundFillColorDefault">#1C1C1C</Color>
+                            <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="{StaticResource CardBackgroundFillColorDefault}" />
+
+                            <Color x:Key="CardBackgroundFillColorSecondary">#222222</Color>
+                            <SolidColorBrush x:Key="CardBackgroundFillColorSecondaryBrush" Color="{StaticResource CardBackgroundFillColorSecondary}" />
+
+                            <Color x:Key="CardStrokeColorDefault">#282828</Color>
+                            <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{StaticResource CardStrokeColorDefault}" />
+
+                            <Color x:Key="DividerStrokeColorDefault">#242424</Color>
+                            <SolidColorBrush x:Key="DividerStrokeColorDefaultBrush" Color="{StaticResource DividerStrokeColorDefault}" />
+
+                            <Color x:Key="ControlFillColorDefault">#1C1C1C</Color>
+                            <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="{StaticResource ControlFillColorDefault}" />
+
+                            <Color x:Key="ControlFillColorSecondary">#222222</Color>
+                            <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="{StaticResource ControlFillColorSecondary}" />
+
+                            <Color x:Key="ControlStrokeColorDefault">#2A2A2A</Color>
+                            <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="{StaticResource ControlStrokeColorDefault}" />
+
+                            <Color x:Key="SubtleFillColorSecondary">#222222</Color>
+                            <SolidColorBrush x:Key="SubtleFillColorSecondaryBrush" Color="{StaticResource SubtleFillColorSecondary}" />
+
+                            <Color x:Key="SubtleFillColorTertiary">#2A2A2A</Color>
+                            <SolidColorBrush x:Key="SubtleFillColorTertiaryBrush" Color="{StaticResource SubtleFillColorTertiary}" />
+
+                            <Color x:Key="TextFillColorPrimary">#EDEDED</Color>
+                            <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="{StaticResource TextFillColorPrimary}" />
+
+                            <Color x:Key="TextFillColorSecondary">#8E8E93</Color>
+                            <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="{StaticResource TextFillColorSecondary}" />
+
+                            <Color x:Key="TextFillColorTertiary">#666666</Color>
+                            <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
+                        </ResourceDictionary>
+
+                        <ResourceDictionary x:Key="Light">
+                            <Color x:Key="SolidBackgroundFillColorBase">#F0F0F3</Color>
+                            <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
+
+                            <Color x:Key="ApplicationPageBackgroundThemeColor">#F4F4F6</Color>
+                            <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="{StaticResource ApplicationPageBackgroundThemeColor}" />
+
+                            <Color x:Key="LayerFillColorDefault">#FFFFFF</Color>
+                            <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="{StaticResource LayerFillColorDefault}" />
+
+                            <Color x:Key="CardBackgroundFillColorDefault">#FFFFFF</Color>
+                            <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="{StaticResource CardBackgroundFillColorDefault}" />
+
+                            <Color x:Key="CardBackgroundFillColorSecondary">#F8F8FA</Color>
+                            <SolidColorBrush x:Key="CardBackgroundFillColorSecondaryBrush" Color="{StaticResource CardBackgroundFillColorSecondary}" />
+
+                            <Color x:Key="CardStrokeColorDefault">#E5E5EA</Color>
+                            <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{StaticResource CardStrokeColorDefault}" />
+
+                            <Color x:Key="DividerStrokeColorDefault">#E5E5EA</Color>
+                            <SolidColorBrush x:Key="DividerStrokeColorDefaultBrush" Color="{StaticResource DividerStrokeColorDefault}" />
+
+                            <Color x:Key="ControlFillColorDefault">#FFFFFF</Color>
+                            <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="{StaticResource ControlFillColorDefault}" />
+
+                            <Color x:Key="SubtleFillColorSecondary">#EFEFF2</Color>
+                            <SolidColorBrush x:Key="SubtleFillColorSecondaryBrush" Color="{StaticResource SubtleFillColorSecondary}" />
+
+                            <Color x:Key="SubtleFillColorTertiary">#E4E4E8</Color>
+                            <SolidColorBrush x:Key="SubtleFillColorTertiaryBrush" Color="{StaticResource SubtleFillColorTertiary}" />
+                        </ResourceDictionary>
+                    </ResourceDictionary.ThemeDictionaries>
+                </ResourceDictionary>
             </ResourceDictionary.MergedDictionaries>
-
-            <ResourceDictionary.ThemeDictionaries>
-                <ResourceDictionary x:Key="Dark">
-                    <Color x:Key="SolidBackgroundFillColorBase">#101010</Color>
-                    <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
-
-                    <Color x:Key="ApplicationPageBackgroundThemeColor">#101010</Color>
-                    <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="{StaticResource ApplicationPageBackgroundThemeColor}" />
-
-                    <Color x:Key="LayerFillColorDefault">#161616</Color>
-                    <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="{StaticResource LayerFillColorDefault}" />
-
-                    <Color x:Key="LayerFillColorAlt">#121212</Color>
-                    <SolidColorBrush x:Key="LayerFillColorAltBrush" Color="{StaticResource LayerFillColorAlt}" />
-
-                    <Color x:Key="CardBackgroundFillColorDefault">#1C1C1C</Color>
-                    <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="{StaticResource CardBackgroundFillColorDefault}" />
-
-                    <Color x:Key="CardBackgroundFillColorSecondary">#222222</Color>
-                    <SolidColorBrush x:Key="CardBackgroundFillColorSecondaryBrush" Color="{StaticResource CardBackgroundFillColorSecondary}" />
-
-                    <Color x:Key="CardStrokeColorDefault">#282828</Color>
-                    <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{StaticResource CardStrokeColorDefault}" />
-
-                    <Color x:Key="DividerStrokeColorDefault">#242424</Color>
-                    <SolidColorBrush x:Key="DividerStrokeColorDefaultBrush" Color="{StaticResource DividerStrokeColorDefault}" />
-
-                    <Color x:Key="ControlFillColorDefault">#1C1C1C</Color>
-                    <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="{StaticResource ControlFillColorDefault}" />
-
-                    <Color x:Key="ControlFillColorSecondary">#222222</Color>
-                    <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="{StaticResource ControlFillColorSecondary}" />
-
-                    <Color x:Key="ControlStrokeColorDefault">#2A2A2A</Color>
-                    <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="{StaticResource ControlStrokeColorDefault}" />
-
-                    <Color x:Key="SubtleFillColorSecondary">#222222</Color>
-                    <SolidColorBrush x:Key="SubtleFillColorSecondaryBrush" Color="{StaticResource SubtleFillColorSecondary}" />
-
-                    <Color x:Key="SubtleFillColorTertiary">#2A2A2A</Color>
-                    <SolidColorBrush x:Key="SubtleFillColorTertiaryBrush" Color="{StaticResource SubtleFillColorTertiary}" />
-
-                    <Color x:Key="TextFillColorPrimary">#EDEDED</Color>
-                    <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="{StaticResource TextFillColorPrimary}" />
-
-                    <Color x:Key="TextFillColorSecondary">#8E8E93</Color>
-                    <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="{StaticResource TextFillColorSecondary}" />
-
-                    <Color x:Key="TextFillColorTertiary">#666666</Color>
-                    <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
-                </ResourceDictionary>
-
-                <ResourceDictionary x:Key="Light">
-                    <Color x:Key="SolidBackgroundFillColorBase">#F0F0F3</Color>
-                    <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
-
-                    <Color x:Key="ApplicationPageBackgroundThemeColor">#F4F4F6</Color>
-                    <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="{StaticResource ApplicationPageBackgroundThemeColor}" />
-
-                    <Color x:Key="LayerFillColorDefault">#FFFFFF</Color>
-                    <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="{StaticResource LayerFillColorDefault}" />
-
-                    <Color x:Key="CardBackgroundFillColorDefault">#FFFFFF</Color>
-                    <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="{StaticResource CardBackgroundFillColorDefault}" />
-
-                    <Color x:Key="CardBackgroundFillColorSecondary">#F8F8FA</Color>
-                    <SolidColorBrush x:Key="CardBackgroundFillColorSecondaryBrush" Color="{StaticResource CardBackgroundFillColorSecondary}" />
-
-                    <Color x:Key="CardStrokeColorDefault">#E5E5EA</Color>
-                    <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{StaticResource CardStrokeColorDefault}" />
-
-                    <Color x:Key="DividerStrokeColorDefault">#E5E5EA</Color>
-                    <SolidColorBrush x:Key="DividerStrokeColorDefaultBrush" Color="{StaticResource DividerStrokeColorDefault}" />
-
-                    <Color x:Key="ControlFillColorDefault">#FFFFFF</Color>
-                    <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="{StaticResource ControlFillColorDefault}" />
-
-                    <Color x:Key="SubtleFillColorSecondary">#EFEFF2</Color>
-                    <SolidColorBrush x:Key="SubtleFillColorSecondaryBrush" Color="{StaticResource SubtleFillColorSecondary}" />
-
-                    <Color x:Key="SubtleFillColorTertiary">#E4E4E8</Color>
-                    <SolidColorBrush x:Key="SubtleFillColorTertiaryBrush" Color="{StaticResource SubtleFillColorTertiary}" />
-                </ResourceDictionary>
-            </ResourceDictionary.ThemeDictionaries>
             
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
             <converters:BoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" Invert="True" />

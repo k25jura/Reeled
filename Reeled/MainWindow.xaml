@@ -9,9 +9,6 @@
     xmlns:views="using:Reeled.Views"
     Title="Reeled"
     mc:Ignorable="d">
-    <Window.SystemBackdrop>
-        <MicaBackdrop Kind="BaseAlt" />
-    </Window.SystemBackdrop>
 
     <Grid x:Name="RootWindowGrid" MinWidth="760" MinHeight="500" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <!-- Solid background transition layer for video playback -->

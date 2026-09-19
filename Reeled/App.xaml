@@ -14,31 +14,34 @@
 
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Dark">
-                    <Color x:Key="ApplicationPageBackgroundThemeColor">#0E0E10</Color>
+                    <Color x:Key="SolidBackgroundFillColorBase">#08080A</Color>
+                    <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
+
+                    <Color x:Key="ApplicationPageBackgroundThemeColor">#08080A</Color>
                     <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="{StaticResource ApplicationPageBackgroundThemeColor}" />
 
-                    <Color x:Key="LayerFillColorDefault">#131316</Color>
+                    <Color x:Key="LayerFillColorDefault">#0E0E12</Color>
                     <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="{StaticResource LayerFillColorDefault}" />
 
-                    <Color x:Key="CardBackgroundFillColorDefault">#18181C</Color>
+                    <Color x:Key="CardBackgroundFillColorDefault">#131318</Color>
                     <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="{StaticResource CardBackgroundFillColorDefault}" />
 
-                    <Color x:Key="CardBackgroundFillColorSecondary">#1E1E24</Color>
+                    <Color x:Key="CardBackgroundFillColorSecondary">#1A1A22</Color>
                     <SolidColorBrush x:Key="CardBackgroundFillColorSecondaryBrush" Color="{StaticResource CardBackgroundFillColorSecondary}" />
 
-                    <Color x:Key="CardStrokeColorDefault">#282830</Color>
+                    <Color x:Key="CardStrokeColorDefault">#1F1F28</Color>
                     <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{StaticResource CardStrokeColorDefault}" />
 
-                    <Color x:Key="DividerStrokeColorDefault">#282830</Color>
+                    <Color x:Key="DividerStrokeColorDefault">#1B1B24</Color>
                     <SolidColorBrush x:Key="DividerStrokeColorDefaultBrush" Color="{StaticResource DividerStrokeColorDefault}" />
 
-                    <Color x:Key="ControlFillColorDefault">#1C1C22</Color>
+                    <Color x:Key="ControlFillColorDefault">#131318</Color>
                     <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="{StaticResource ControlFillColorDefault}" />
 
-                    <Color x:Key="SubtleFillColorSecondary">#22222A</Color>
+                    <Color x:Key="SubtleFillColorSecondary">#1B1B24</Color>
                     <SolidColorBrush x:Key="SubtleFillColorSecondaryBrush" Color="{StaticResource SubtleFillColorSecondary}" />
 
-                    <Color x:Key="SubtleFillColorTertiary">#2A2A34</Color>
+                    <Color x:Key="SubtleFillColorTertiary">#242430</Color>
                     <SolidColorBrush x:Key="SubtleFillColorTertiaryBrush" Color="{StaticResource SubtleFillColorTertiary}" />
                 </ResourceDictionary>
 

@@ -34,7 +34,6 @@ public sealed partial class MainWindow : Window
 
     private readonly SUBCLASSPROC _subclassProc;
 
-    private bool _wasMaximizedBeforePlayer;
     private bool _isCursorHidden;
     private Storyboard? _transitionStoryboard;
 
@@ -176,217 +175,158 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    public bool IsPlayerVisible => PlayerOverlayContainer?.Visibility == Visibility.Visible;
+
     private void OnNavigatedToPlayer(Models.GameClip clip, System.Collections.Generic.List<Models.GameClip> playlist)
     {
-        if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
-        {
-            _wasMaximizedBeforePlayer = (presenter.State == Microsoft.UI.Windowing.OverlappedPresenterState.Maximized);
-        }
-
         var playerVM = App.GetService<PlayerViewModel>();
         playerVM.LoadClip(clip, playlist);
 
         _transitionStoryboard?.Stop();
 
-        // Phase 1: Fade out homepage and fade in solid black backdrop layer
+        // Make player visible immediately so DirectX SwapChain initializes without delay
+        PlayerOverlayContainer.Visibility = Visibility.Visible;
         PlayerBackdropLayer.Visibility = Visibility.Visible;
-        PlayerBackdropLayer.Opacity = 0.0;
+        PlayerViewControl.Activate();
 
-        var phase1 = new Storyboard();
-        var easeOut = new CubicEase { EasingMode = EasingMode.EaseOut };
-        var durationPhase1 = TimeSpan.FromMilliseconds(240);
+        // Ensure caption buttons are white while media player is active
+        UpdateTitleBarTheme(ElementTheme.Dark);
+
+        var sb = new Storyboard();
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var duration = TimeSpan.FromMilliseconds(180);
+
+        var fadeInPlayer = new DoubleAnimation
+        {
+            From = PlayerOverlayContainer.Opacity,
+            To = 1.0,
+            Duration = duration,
+            EasingFunction = ease
+        };
+        Storyboard.SetTarget(fadeInPlayer, PlayerOverlayContainer);
+        Storyboard.SetTargetProperty(fadeInPlayer, "Opacity");
+
+        var fadeInBackdrop = new DoubleAnimation
+        {
+            From = PlayerBackdropLayer.Opacity,
+            To = 1.0,
+            Duration = duration,
+            EasingFunction = ease
+        };
+        Storyboard.SetTarget(fadeInBackdrop, PlayerBackdropLayer);
+        Storyboard.SetTargetProperty(fadeInBackdrop, "Opacity");
 
         var fadeOutRoot = new DoubleAnimation
         {
             From = RootFrame.Opacity,
             To = 0.0,
-            Duration = durationPhase1,
-            EasingFunction = easeOut
+            Duration = duration,
+            EasingFunction = ease
         };
         Storyboard.SetTarget(fadeOutRoot, RootFrame);
         Storyboard.SetTargetProperty(fadeOutRoot, "Opacity");
 
-        var fadeInBackdrop = new DoubleAnimation
+        sb.Children.Add(fadeInPlayer);
+        sb.Children.Add(fadeInBackdrop);
+        sb.Children.Add(fadeOutRoot);
+
+        sb.Completed += (s, e) =>
         {
-            From = 0.0,
-            To = 1.0,
-            Duration = durationPhase1,
-            EasingFunction = easeOut
-        };
-        Storyboard.SetTarget(fadeInBackdrop, PlayerBackdropLayer);
-        Storyboard.SetTargetProperty(fadeInBackdrop, "Opacity");
-
-        var fadeOutTitle = new DoubleAnimation
-        {
-            From = AppTitleBar.Opacity,
-            To = 0.0,
-            Duration = durationPhase1,
-            EasingFunction = easeOut
-        };
-        Storyboard.SetTarget(fadeOutTitle, AppTitleBar);
-        Storyboard.SetTargetProperty(fadeOutTitle, "Opacity");
-
-        phase1.Children.Add(fadeOutRoot);
-        phase1.Children.Add(fadeInBackdrop);
-        phase1.Children.Add(fadeOutTitle);
-
-        phase1.Completed += (s, e) =>
-        {
-            // Maximize cleanly while screen is solid black to prevent window jumping
-            if (!_wasMaximizedBeforePlayer && AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter p)
-            {
-                p.Maximize();
-            }
-
-            // Phase 2: Fade in video player
-            PlayerOverlayContainer.Visibility = Visibility.Visible;
-            PlayerOverlayContainer.Opacity = 0.0;
-            PlayerViewControl.Activate();
-
-            var phase2 = new Storyboard();
-            var durationPhase2 = TimeSpan.FromMilliseconds(280);
-
-            var fadeInPlayer = new DoubleAnimation
-            {
-                From = 0.0,
-                To = 1.0,
-                Duration = durationPhase2,
-                EasingFunction = easeOut
-            };
-            Storyboard.SetTarget(fadeInPlayer, PlayerOverlayContainer);
-            Storyboard.SetTargetProperty(fadeInPlayer, "Opacity");
-
-            phase2.Children.Add(fadeInPlayer);
-
-            phase2.Completed += (s2, e2) =>
-            {
-                PlayerOverlayContainer.Opacity = 1.0;
-                PlayerViewControl?.RefreshVideoLayout();
-            };
-
-            _transitionStoryboard = phase2;
-            phase2.Begin();
-
-            // Deferred layout refresh to ensure DirectX SwapChain matches final window dimensions
-            DispatcherQueue.TryEnqueue(async () =>
-            {
-                await System.Threading.Tasks.Task.Delay(100);
-                PlayerViewControl.RefreshVideoLayout();
-                await System.Threading.Tasks.Task.Delay(200);
-                PlayerViewControl.RefreshVideoLayout();
-            });
+            PlayerOverlayContainer.Opacity = 1.0;
+            PlayerBackdropLayer.Opacity = 1.0;
+            RootFrame.Opacity = 0.0;
         };
 
-        _transitionStoryboard = phase1;
-        phase1.Begin();
+        _transitionStoryboard = sb;
+        sb.Begin();
     }
 
     private void OnNavigatedToHome()
     {
         _transitionStoryboard?.Stop();
 
-        // Phase 1: Fade out video player
-        var phase1 = new Storyboard();
-        var easeIn = new CubicEase { EasingMode = EasingMode.EaseIn };
-        var durationPhase1 = TimeSpan.FromMilliseconds(200);
+        var sb = new Storyboard();
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var duration = TimeSpan.FromMilliseconds(180);
 
         var fadeOutPlayer = new DoubleAnimation
         {
             From = PlayerOverlayContainer.Opacity,
             To = 0.0,
-            Duration = durationPhase1,
-            EasingFunction = easeIn
+            Duration = duration,
+            EasingFunction = ease
         };
         Storyboard.SetTarget(fadeOutPlayer, PlayerOverlayContainer);
         Storyboard.SetTargetProperty(fadeOutPlayer, "Opacity");
 
-        phase1.Children.Add(fadeOutPlayer);
+        var fadeOutBackdrop = new DoubleAnimation
+        {
+            From = PlayerBackdropLayer.Opacity,
+            To = 0.0,
+            Duration = duration,
+            EasingFunction = ease
+        };
+        Storyboard.SetTarget(fadeOutBackdrop, PlayerBackdropLayer);
+        Storyboard.SetTargetProperty(fadeOutBackdrop, "Opacity");
 
-        phase1.Completed += (s, e) =>
+        var fadeInRoot = new DoubleAnimation
+        {
+            From = RootFrame.Opacity,
+            To = 1.0,
+            Duration = duration,
+            EasingFunction = ease
+        };
+        Storyboard.SetTarget(fadeInRoot, RootFrame);
+        Storyboard.SetTargetProperty(fadeInRoot, "Opacity");
+
+        var fadeInTitle = new DoubleAnimation
+        {
+            From = AppTitleBar.Opacity,
+            To = 1.0,
+            Duration = duration,
+            EasingFunction = ease
+        };
+        Storyboard.SetTarget(fadeInTitle, AppTitleBar);
+        Storyboard.SetTargetProperty(fadeInTitle, "Opacity");
+
+        sb.Children.Add(fadeOutPlayer);
+        sb.Children.Add(fadeOutBackdrop);
+        sb.Children.Add(fadeInRoot);
+        sb.Children.Add(fadeInTitle);
+
+        sb.Completed += (s, e) =>
         {
             PlayerOverlayContainer.Visibility = Visibility.Collapsed;
             PlayerOverlayContainer.Opacity = 0.0;
+            PlayerBackdropLayer.Visibility = Visibility.Collapsed;
+            PlayerBackdropLayer.Opacity = 0.0;
+            RootFrame.Opacity = 1.0;
+            AppTitleBar.Opacity = 1.0;
+
             PlayerViewControl.Deactivate();
             SetCursorHidden(false);
             SetCaptionControlsVisible(true);
 
-            if (!_wasMaximizedBeforePlayer && AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
+            // Restore title bar buttons to the current app theme
+            UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
+
+            if (RootFrame.Content is not HomePage)
             {
-                presenter.Restore();
+                RootFrame.Navigate(typeof(HomePage), null, new SlideNavigationTransitionInfo { Effect = SlideNavigationTransitionEffect.FromLeft });
             }
-
-            // Phase 2: Fade back in the homepage and titlebar, fade out black backdrop
-            var phase2 = new Storyboard();
-            var easeOut = new CubicEase { EasingMode = EasingMode.EaseOut };
-            var durationPhase2 = TimeSpan.FromMilliseconds(240);
-
-            var fadeInRoot = new DoubleAnimation
+            else
             {
-                From = 0.0,
-                To = 1.0,
-                Duration = durationPhase2,
-                EasingFunction = easeOut
-            };
-            Storyboard.SetTarget(fadeInRoot, RootFrame);
-            Storyboard.SetTargetProperty(fadeInRoot, "Opacity");
-
-            var fadeOutBackdrop = new DoubleAnimation
-            {
-                From = PlayerBackdropLayer.Opacity,
-                To = 0.0,
-                Duration = durationPhase2,
-                EasingFunction = easeOut
-            };
-            Storyboard.SetTarget(fadeOutBackdrop, PlayerBackdropLayer);
-            Storyboard.SetTargetProperty(fadeOutBackdrop, "Opacity");
-
-            var fadeInTitle = new DoubleAnimation
-            {
-                From = 0.0,
-                To = 1.0,
-                Duration = durationPhase2,
-                EasingFunction = easeOut
-            };
-            Storyboard.SetTarget(fadeInTitle, AppTitleBar);
-            Storyboard.SetTargetProperty(fadeInTitle, "Opacity");
-
-            phase2.Children.Add(fadeInRoot);
-            phase2.Children.Add(fadeOutBackdrop);
-            phase2.Children.Add(fadeInTitle);
-
-            phase2.Completed += (s2, e2) =>
-            {
-                PlayerBackdropLayer.Visibility = Visibility.Collapsed;
-                PlayerBackdropLayer.Opacity = 0.0;
-                RootFrame.Opacity = 1.0;
-                AppTitleBar.Opacity = 1.0;
-
-                if (RootFrame.Content is not HomePage)
-                {
-                    RootFrame.Navigate(typeof(HomePage), null, new SlideNavigationTransitionInfo { Effect = SlideNavigationTransitionEffect.FromLeft });
-                }
-                else
-                {
-                    RootFrame.Focus(FocusState.Programmatic);
-                }
-            };
-
-            _transitionStoryboard = phase2;
-            phase2.Begin();
+                RootFrame.Focus(FocusState.Programmatic);
+            }
         };
 
-        _transitionStoryboard = phase1;
-        phase1.Begin();
+        _transitionStoryboard = sb;
+        sb.Begin();
     }
 
     private void OnNavigatedToSettings()
     {
         _transitionStoryboard?.Stop();
-
-        if (!_wasMaximizedBeforePlayer && AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
-        {
-            presenter.Restore();
-        }
 
         PlayerViewControl.Deactivate();
         SetCursorHidden(false);
@@ -397,6 +337,9 @@ public sealed partial class MainWindow : Window
         PlayerBackdropLayer.Opacity = 0.0;
         RootFrame.Opacity = 1.0;
         AppTitleBar.Opacity = 1.0;
+
+        // Restore title bar buttons to the current app theme
+        UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
 
         RootFrame.Navigate(typeof(SettingsPage), null, new SlideNavigationTransitionInfo { Effect = SlideNavigationTransitionEffect.FromRight });
     }

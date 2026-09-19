@@ -85,7 +85,14 @@ public partial class App : Application
             root.RequestedTheme = theme;
             if (Window is MainWindow mainWindow)
             {
-                mainWindow.UpdateTitleBarTheme(root.ActualTheme);
+                if (mainWindow.IsPlayerVisible)
+                {
+                    mainWindow.UpdateTitleBarTheme(ElementTheme.Dark);
+                }
+                else
+                {
+                    mainWindow.UpdateTitleBarTheme(root.ActualTheme);
+                }
             }
         }
     }

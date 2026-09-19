@@ -301,7 +301,6 @@
                                 Height="38"
                                 CornerRadius="6"
                                 BorderThickness="0"
-                                Background="{x:Bind ViewModel.IsHomeSelected, Mode=OneWay, Converter={StaticResource SectionActiveBackgroundConverter}}"
                                 Style="{ThemeResource SubtleButtonStyle}"
                                 PointerPressed="OnItemPointerPressed">
                             <Grid Padding="14,0,12,0">
@@ -312,14 +311,10 @@
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Icon -->
-                                <FontIcon Grid.Column="0" Glyph="&#xE80F;" FontSize="16" 
-                                          Foreground="{x:Bind ViewModel.IsHomeSelected, Mode=OneWay, Converter={StaticResource SectionActiveForegroundConverter}}" 
-                                          Margin="0,0,12,0" />
+                                <FontIcon x:Name="HomeNavIcon" Grid.Column="0" Glyph="&#xE80F;" FontSize="16" Margin="0,0,12,0" />
 
                                 <!-- Label -->
-                                <TextBlock Grid.Column="1" Text="Home" FontSize="13" VerticalAlignment="Center"
-                                           FontWeight="{x:Bind ViewModel.IsHomeSelected, Mode=OneWay, Converter={StaticResource SectionActiveFontWeightConverter}}"
-                                           Foreground="{x:Bind ViewModel.IsHomeSelected, Mode=OneWay, Converter={StaticResource SectionActiveForegroundConverter}}" />
+                                <TextBlock x:Name="HomeNavText" Grid.Column="1" Text="Home" FontSize="13" VerticalAlignment="Center" />
 
                                 <!-- Counter (Clean text, no pill background) -->
                                 <TextBlock Grid.Column="2" 
@@ -340,7 +335,6 @@
                                 Height="38"
                                 CornerRadius="6"
                                 BorderThickness="0"
-                                Background="{x:Bind ViewModel.IsFavoritesSelected, Mode=OneWay, Converter={StaticResource SectionActiveBackgroundConverter}}"
                                 Style="{ThemeResource SubtleButtonStyle}"
                                 PointerPressed="OnItemPointerPressed">
                             <Grid Padding="14,0,12,0">
@@ -351,14 +345,10 @@
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Heart Icon (EB52 = HeartFill) -->
-                                <FontIcon Grid.Column="0" Glyph="&#xEB52;" FontSize="16" 
-                                          Foreground="{x:Bind ViewModel.IsFavoritesSelected, Mode=OneWay, Converter={StaticResource SectionActiveForegroundConverter}}" 
-                                          Margin="0,0,12,0" />
+                                <FontIcon x:Name="FavoritesNavIcon" Grid.Column="0" Glyph="&#xEB52;" FontSize="16" Margin="0,0,12,0" />
 
                                 <!-- Label -->
-                                <TextBlock Grid.Column="1" Text="Favorites" FontSize="13" VerticalAlignment="Center"
-                                           FontWeight="{x:Bind ViewModel.IsFavoritesSelected, Mode=OneWay, Converter={StaticResource SectionActiveFontWeightConverter}}"
-                                           Foreground="{x:Bind ViewModel.IsFavoritesSelected, Mode=OneWay, Converter={StaticResource SectionActiveForegroundConverter}}" />
+                                <TextBlock x:Name="FavoritesNavText" Grid.Column="1" Text="Favorites" FontSize="13" VerticalAlignment="Center" />
 
                                 <!-- Counter (Clean text, no pill background) -->
                                 <TextBlock Grid.Column="2" 
@@ -379,7 +369,6 @@
                                 Height="38"
                                 CornerRadius="6"
                                 BorderThickness="0"
-                                Background="{x:Bind ViewModel.IsSavedMomentsSelected, Mode=OneWay, Converter={StaticResource SectionActiveBackgroundConverter}}"
                                 Style="{ThemeResource SubtleButtonStyle}"
                                 PointerPressed="OnItemPointerPressed">
                             <Grid Padding="14,0,12,0">
@@ -390,14 +379,10 @@
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Icon -->
-                                <FontIcon Grid.Column="0" Glyph="&#xE8A4;" FontSize="16" 
-                                          Foreground="{x:Bind ViewModel.IsSavedMomentsSelected, Mode=OneWay, Converter={StaticResource SectionActiveForegroundConverter}}" 
-                                          Margin="0,0,12,0" />
+                                <FontIcon x:Name="SavedMomentsNavIcon" Grid.Column="0" Glyph="&#xE8A4;" FontSize="16" Margin="0,0,12,0" />
 
                                 <!-- Label -->
-                                <TextBlock Grid.Column="1" Text="Saved Moments" FontSize="13" VerticalAlignment="Center"
-                                           FontWeight="{x:Bind ViewModel.IsSavedMomentsSelected, Mode=OneWay, Converter={StaticResource SectionActiveFontWeightConverter}}"
-                                           Foreground="{x:Bind ViewModel.IsSavedMomentsSelected, Mode=OneWay, Converter={StaticResource SectionActiveForegroundConverter}}" />
+                                <TextBlock x:Name="SavedMomentsNavText" Grid.Column="1" Text="Saved Moments" FontSize="13" VerticalAlignment="Center" />
 
                                 <!-- Counter (Clean text, no pill background) -->
                                 <TextBlock Grid.Column="2" 

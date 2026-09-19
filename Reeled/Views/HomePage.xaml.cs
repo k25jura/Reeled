@@ -31,11 +31,13 @@ public sealed partial class HomePage : Page
             UpdateActiveIndicator(animate: false);
             AnimateSidebar(ViewModel.IsSidebarOpen, animate: false);
             UpdateLogo(ActualTheme);
+            UpdateNavTabVisuals();
         };
 
         ActualThemeChanged += (s, e) =>
         {
             UpdateLogo(ActualTheme);
+            UpdateNavTabVisuals();
         };
 
         ViewModel.PropertyChanged += (s, e) =>
@@ -43,6 +45,7 @@ public sealed partial class HomePage : Page
             if (e.PropertyName == nameof(HomeViewModel.CurrentSection))
             {
                 UpdateActiveIndicator(animate: true);
+                UpdateNavTabVisuals();
             }
             else if (e.PropertyName == nameof(HomeViewModel.IsSidebarOpen) || e.PropertyName == nameof(HomeViewModel.IsSidebarCollapsed))
             {
@@ -73,6 +76,47 @@ public sealed partial class HomePage : Page
         if (SidebarLogoSvg.UriSource != uri)
         {
             SidebarLogoSvg.UriSource = uri;
+        }
+    }
+
+    private void UpdateNavTabVisuals()
+    {
+        UpdateNavButtonState(HomeNavButton, HomeNavIcon, HomeNavText, ViewModel.IsHomeSelected);
+        UpdateNavButtonState(FavoritesNavButton, FavoritesNavIcon, FavoritesNavText, ViewModel.IsFavoritesSelected);
+        UpdateNavButtonState(SavedMomentsNavButton, SavedMomentsNavIcon, SavedMomentsNavText, ViewModel.IsSavedMomentsSelected);
+    }
+
+    private void UpdateNavButtonState(Button? btn, FontIcon? icon, TextBlock? text, bool isSelected)
+    {
+        if (btn == null || icon == null || text == null) return;
+
+        bool isLight = (ActualTheme == ElementTheme.Light);
+
+        if (isSelected)
+        {
+            btn.Background = isLight 
+                ? new SolidColorBrush(Windows.UI.Color.FromArgb(20, 0, 0, 0)) 
+                : new SolidColorBrush(Windows.UI.Color.FromArgb(24, 255, 255, 255));
+
+            Brush accentBrush = Application.Current.Resources.TryGetValue("AccentTextFillColorPrimaryBrush", out var a) && a is Brush ab
+                ? ab
+                : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 96, 205, 255));
+
+            icon.Foreground = accentBrush;
+            text.Foreground = accentBrush;
+            text.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+        }
+        else
+        {
+            btn.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+
+            var defaultTextBrush = isLight
+                ? new SolidColorBrush(Windows.UI.Color.FromArgb(230, 20, 20, 20))
+                : new SolidColorBrush(Windows.UI.Color.FromArgb(235, 240, 240, 240));
+
+            icon.Foreground = defaultTextBrush;
+            text.Foreground = defaultTextBrush;
+            text.FontWeight = Microsoft.UI.Text.FontWeights.Normal;
         }
     }
 

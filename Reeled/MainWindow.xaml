@@ -30,11 +30,12 @@
                 Height="36" 
                 Margin="48,0,140,0" />
 
-        <!-- Telegram-style In-App Media Player Overlay (Spans entire window) -->
+        <!-- Telegram-style In-App Media Player Overlay (Spans entire window, always Dark theme) -->
         <Grid x:Name="PlayerOverlayContainer" 
+              RequestedTheme="Dark"
               Visibility="Collapsed" 
               Opacity="0">
-            <views:PlayerPage x:Name="PlayerViewControl" />
+            <views:PlayerPage x:Name="PlayerViewControl" RequestedTheme="Dark" />
         </Grid>
     </Grid>
 </Window>

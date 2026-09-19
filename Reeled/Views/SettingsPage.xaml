@@ -8,218 +8,341 @@
     xmlns:viewmodels="using:Reeled.ViewModels"
     mc:Ignorable="d">
 
-    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <ScrollViewer x:Name="SettingsScrollViewer" Padding="32,48,32,32">
-            <StackPanel MaxWidth="720" HorizontalAlignment="Left" Spacing="24">
-                <!-- Header with Back button -->
-                <Grid ColumnSpacing="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
+    <Page.Resources>
+        <!-- Category Navigation Rail Button Style -->
+        <Style x:Key="SettingsCategoryButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="40" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Margin" Value="0,1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="RootGrid" Background="{TemplateBinding Background}" CornerRadius="6">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal" />
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="HoverBorder.Opacity" Value="1" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="HoverBorder.Opacity" Value="0.7" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
 
-                    <Button Grid.Column="0" 
-                            Command="{x:Bind ViewModel.BackToHomeCommand}" 
-                            Style="{ThemeResource SubtleButtonStyle}">
-                        <FontIcon Glyph="&#xE72B;" FontSize="16" />
+                            <!-- Hover background -->
+                            <Border x:Name="HoverBorder"
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                    CornerRadius="6"
+                                    Opacity="0"
+                                    IsHitTestVisible="False" />
+
+                            <ContentPresenter Content="{TemplateBinding Content}"
+                                              HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Center" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Page.Resources>
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <!-- Row 0: Sticky Top Header Bar -->
+            <RowDefinition Height="Auto" />
+            <!-- Row 1: Split Navigation Body -->
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Sticky Header Bar (Fixed at top, no subtitle description) -->
+        <Grid Grid.Row="0"
+              Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+              BorderThickness="0,0,0,1"
+              Padding="24,10,24,10"
+              Canvas.ZIndex="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Back to Home Button -->
+            <Button Grid.Column="0" 
+                    Command="{x:Bind ViewModel.BackToHomeCommand}" 
+                    Style="{ThemeResource SubtleButtonStyle}"
+                    Padding="8"
+                    CornerRadius="6"
+                    ToolTipService.ToolTip="Back to Library"
+                    Margin="0,0,14,0">
+                <FontIcon Glyph="&#xE72B;" FontSize="15" />
+            </Button>
+
+            <!-- Settings Title (Pinned and clean without description) -->
+            <TextBlock Grid.Column="1" 
+                       Text="Settings" 
+                       Style="{ThemeResource TitleTextBlockStyle}" 
+                       FontSize="20" 
+                       FontWeight="SemiBold" 
+                       VerticalAlignment="Center" />
+        </Grid>
+
+        <!-- Main Body: Left Category Sidebar & Centered Settings Content -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <!-- Column 0: Category Navigation Sidebar Rail -->
+                <ColumnDefinition Width="Auto" />
+                <!-- Column 1: Centered Settings Content Pane -->
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Category Navigation Sidebar Rail (Fixed left panel) -->
+            <Border Grid.Column="0"
+                    Width="230"
+                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                    BorderThickness="0,0,1,0"
+                    Background="{ThemeResource LayerFillColorDefaultBrush}"
+                    Padding="12,16,12,20">
+                <StackPanel Spacing="3">
+                    <TextBlock Text="Categories"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                               Margin="12,0,0,8" />
+
+                    <!-- 1. Folders -->
+                    <Button x:Name="CatFoldersBtn"
+                            Click="OnCategoryButtonClick"
+                            Tag="FoldersSection"
+                            Style="{StaticResource SettingsCategoryButtonStyle}">
+                        <Grid Padding="4,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,12,0" />
+                            <TextBlock Grid.Column="1" Text="Watch Folders" FontSize="13" VerticalAlignment="Center" />
+                        </Grid>
                     </Button>
 
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="Settings" Style="{ThemeResource TitleTextBlockStyle}" FontSize="24" FontWeight="SemiBold" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Text="Manage watch directories, caching, and playback behavior" 
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
-                </Grid>
-
-                <!-- Watch Folders Section -->
-                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                        BorderThickness="1" 
-                        CornerRadius="8" 
-                        Padding="20">
-                    <StackPanel Spacing="16">
-                        <Grid ColumnSpacing="16">
+                    <!-- 2. Playback -->
+                    <Button x:Name="CatPlaybackBtn"
+                            Click="OnCategoryButtonClick"
+                            Tag="PlaybackSection"
+                            Style="{StaticResource SettingsCategoryButtonStyle}">
+                        <Grid Padding="4,0">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                                <TextBlock Text="Watch Folders" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="16" />
-                                <TextBlock Text="Directories scanned for MP4, MKV, and AVI gameplay clips" 
-                                           Style="{ThemeResource CaptionTextBlockStyle}" 
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            </StackPanel>
-
-                            <Button Grid.Column="1" 
-                                    Click="OnAddFolderClick" 
-                                    VerticalAlignment="Center"
-                                    Style="{ThemeResource AccentButtonStyle}">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <FontIcon Glyph="&#xE710;" FontSize="12" />
-                                    <TextBlock Text="Add Folder" />
-                                </StackPanel>
-                            </Button>
+                            <FontIcon Grid.Column="0" Glyph="&#xE768;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,12,0" />
+                            <TextBlock Grid.Column="1" Text="Playback" FontSize="13" VerticalAlignment="Center" />
                         </Grid>
+                    </Button>
 
-                        <ListView ItemsSource="{x:Bind ViewModel.WatchFolders, Mode=OneWay}" SelectionMode="None">
-                            <ListView.ItemContainerStyle>
-                                <Style TargetType="ListViewItem">
-                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                    <Setter Property="Padding" Value="0,4" />
-                                    <Setter Property="MinHeight" Value="36" />
-                                </Style>
-                            </ListView.ItemContainerStyle>
-                            <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="x:String">
-                                    <Grid Margin="0,2" ColumnSpacing="12">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <FontIcon Grid.Column="0" Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                        <TextBlock Grid.Column="1" Text="{x:Bind}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                        <Button Grid.Column="2" 
-                                                Click="OnRemoveFolderClick" 
-                                                Tag="{x:Bind}"
-                                                ToolTipService.ToolTip="Remove Watch Folder" 
-                                                Style="{ThemeResource SubtleButtonStyle}">
-                                            <FontIcon Glyph="&#xE74D;" FontSize="13" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
-                                        </Button>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
-                    </StackPanel>
-                </Border>
-
-                <!-- Cache & Storage Section -->
-                <StackPanel Spacing="12">
-                    <TextBlock Text="Performance &amp; Storage" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="18" FontWeight="SemiBold" />
-
-                    <!-- Thumbnail Cache Card -->
-                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                            BorderThickness="1" 
-                            CornerRadius="8" 
-                            Padding="20">
-                        <Grid ColumnSpacing="16">
+                    <!-- 3. Appearance -->
+                    <Button x:Name="CatAppearanceBtn"
+                            Click="OnCategoryButtonClick"
+                            Tag="AppearanceSection"
+                            Style="{StaticResource SettingsCategoryButtonStyle}">
+                        <Grid Padding="4,0">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                                <TextBlock Text="Thumbnail Cache" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" />
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <TextBlock Text="Disk storage used:" 
-                                               Style="{ThemeResource CaptionTextBlockStyle}" 
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <TextBlock Text="{x:Bind ViewModel.CacheSizeFormatted, Mode=OneWay}" 
-                                               Style="{ThemeResource CaptionTextBlockStyle}" 
-                                               FontWeight="SemiBold" />
-                                </StackPanel>
-                            </StackPanel>
-
-                            <Button Grid.Column="1" 
-                                    Command="{x:Bind ViewModel.ClearCacheCommand}" 
-                                    Content="Clear Thumbnails" 
-                                    VerticalAlignment="Center" />
+                            <FontIcon Grid.Column="0" Glyph="&#xE790;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,12,0" />
+                            <TextBlock Grid.Column="1" Text="Appearance" FontSize="13" VerticalAlignment="Center" />
                         </Grid>
-                    </Border>
+                    </Button>
 
-                    <!-- Clip Metadata Cache Card -->
-                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                            BorderThickness="1" 
-                            CornerRadius="8" 
-                            Padding="20">
-                        <Grid ColumnSpacing="16">
+                    <!-- 4. Performance & Storage -->
+                    <Button x:Name="CatStorageBtn"
+                            Click="OnCategoryButtonClick"
+                            Tag="StorageSection"
+                            Style="{StaticResource SettingsCategoryButtonStyle}">
+                        <Grid Padding="4,0">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                                <TextBlock Text="Clip Metadata Cache" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" />
-                                <TextBlock Text="Speeds up library loading and folder switching for large clip collections" 
-                                           Style="{ThemeResource CaptionTextBlockStyle}" 
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0">
-                                    <TextBlock Text="Cache status:" 
-                                               Style="{ThemeResource CaptionTextBlockStyle}" 
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    <TextBlock Text="{x:Bind ViewModel.ClipCacheSizeFormatted, Mode=OneWay}" 
-                                               Style="{ThemeResource CaptionTextBlockStyle}" 
-                                               FontWeight="SemiBold" />
-                                </StackPanel>
-                            </StackPanel>
-
-                            <Button Grid.Column="1" 
-                                    Command="{x:Bind ViewModel.ClearClipCacheCommand}" 
-                                    Content="Clear Metadata" 
-                                    VerticalAlignment="Center" />
+                            <FontIcon Grid.Column="0" Glyph="&#xE74C;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,12,0" />
+                            <TextBlock Grid.Column="1" Text="Storage &amp; Cache" FontSize="13" VerticalAlignment="Center" />
                         </Grid>
-                    </Border>
+                    </Button>
 
-                    <!-- Skeleton Loading Setting Card -->
-                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                            BorderThickness="1" 
-                            CornerRadius="8" 
-                            Padding="20">
-                        <Grid ColumnSpacing="16">
+                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="8,8" />
+
+                    <!-- 5. About -->
+                    <Button x:Name="CatAboutBtn"
+                            Click="OnCategoryButtonClick"
+                            Tag="AboutSection"
+                            Style="{StaticResource SettingsCategoryButtonStyle}">
+                        <Grid Padding="4,0">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                                <TextBlock Text="Skeleton Loading Placeholders" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" />
-                                <TextBlock Text="Show animated placeholder cards while scanning directories or loading video clips" 
-                                           Style="{ThemeResource CaptionTextBlockStyle}" 
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            </StackPanel>
-
-                            <ToggleSwitch Grid.Column="1" 
-                                          IsOn="{x:Bind ViewModel.EnableSkeletonLoading, Mode=TwoWay}" 
-                                          OnContent="On" 
-                                          OffContent="Off" 
-                                          VerticalAlignment="Center" />
+                            <FontIcon Grid.Column="0" Glyph="&#xE946;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,12,0" />
+                            <TextBlock Grid.Column="1" Text="About Reeled" FontSize="13" VerticalAlignment="Center" />
                         </Grid>
-                    </Border>
+                    </Button>
                 </StackPanel>
+            </Border>
 
-                <!-- Playback Options Section -->
-                <StackPanel Spacing="12">
-                    <TextBlock Text="Playback Options" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="18" FontWeight="SemiBold" />
+            <!-- Centered Settings Content Scroll Viewer -->
+            <ScrollViewer x:Name="SettingsScrollViewer"
+                          Grid.Column="1"
+                          Padding="32,24,32,80"
+                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          ViewChanged="OnSettingsScrollViewerViewChanged">
+                <StackPanel MaxWidth="760" HorizontalAlignment="Center" Spacing="28">
 
-                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                            BorderThickness="1" 
-                            CornerRadius="8" 
-                            Padding="20">
-                        <StackPanel Spacing="16">
-                            <!-- Default Playback Speed -->
+                    <!-- ========================================== -->
+                    <!-- 1. Watch Folders Section                   -->
+                    <!-- ========================================== -->
+                    <StackPanel x:Name="FoldersSection" Spacing="10">
+                        <TextBlock Text="Watch Folders"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                   Margin="2,0,0,2" />
+
+                        <!-- Main Folder Management Card (Windows 11 SettingsCard Style) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
                             <Grid ColumnSpacing="16">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                                    <TextBlock Text="Default Playback Speed" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" />
-                                    <TextBlock Text="Initial speed when playing videos" 
+                                <!-- Card Icon -->
+                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        VerticalAlignment="Center">
+                                    <FontIcon Glyph="&#xE8B7;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+
+                                <!-- Card Details -->
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Add Media Folders" 
+                                               Style="{ThemeResource BodyStrongTextBlockStyle}" 
+                                               FontSize="14" />
+                                    <TextBlock Text="Directories scanned for MP4, MKV, and AVI gameplay clips" 
                                                Style="{ThemeResource CaptionTextBlockStyle}" 
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
 
-                                <ComboBox Grid.Column="1" 
+                                <!-- Add Folder Action Button -->
+                                <Button Grid.Column="2" 
+                                        Click="OnAddFolderClick" 
+                                        VerticalAlignment="Center"
+                                        Style="{ThemeResource AccentButtonStyle}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE710;" FontSize="12" />
+                                        <TextBlock Text="Add Folder" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- Watch Folders List Container -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="14,8"
+                                Visibility="{x:Bind ViewModel.WatchFolders.Count, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <ListView ItemsSource="{x:Bind ViewModel.WatchFolders, Mode=OneWay}" SelectionMode="None">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                        <Setter Property="Padding" Value="0,4" />
+                                        <Setter Property="MinHeight" Value="38" />
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <Grid Margin="0,2" ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <FontIcon Grid.Column="0" Glyph="&#xE8B7;" FontSize="15" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{x:Bind}" VerticalAlignment="Center" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                            <Button Grid.Column="2" 
+                                                    Click="OnRemoveFolderClick" 
+                                                    Tag="{x:Bind}"
+                                                    ToolTipService.ToolTip="Remove Watch Folder" 
+                                                    Style="{ThemeResource SubtleButtonStyle}"
+                                                    Padding="6"
+                                                    CornerRadius="4">
+                                                <FontIcon Glyph="&#xE74D;" FontSize="13" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========================================== -->
+                    <!-- 2. Playback Options Section                -->
+                    <!-- ========================================== -->
+                    <StackPanel x:Name="PlaybackSection" Spacing="8">
+                        <TextBlock Text="Playback Options"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                   Margin="2,0,0,2" />
+
+                        <!-- Card 1: Default Playback Speed -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        VerticalAlignment="Center">
+                                    <FontIcon Glyph="&#xEC57;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Default Playback Speed" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock Text="Initial rate applied whenever a clip begins playing" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ComboBox Grid.Column="2" 
                                           x:Name="DefaultSpeedComboBox"
                                           SelectionChanged="OnDefaultSpeedSelectionChanged"
-                                          MinWidth="120"
+                                          MinWidth="140"
                                           VerticalAlignment="Center">
                                     <ComboBoxItem Content="0.5x" Tag="0.5" />
                                     <ComboBoxItem Content="0.75x" Tag="0.75" />
@@ -229,99 +352,263 @@
                                     <ComboBoxItem Content="2.0x" Tag="2.0" />
                                 </ComboBox>
                             </Grid>
+                        </Border>
 
-                            <Border Height="1" Background="{ThemeResource CardStrokeColorDefaultBrush}" Margin="0,2" />
-
-                            <!-- Remember Last Playback Speed -->
+                        <!-- Card 2: Remember Last Playback Speed -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
                             <Grid ColumnSpacing="16">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                                    <TextBlock Text="Remember Last Playback Speed" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" />
-                                    <TextBlock Text="Keep the adjusted playback speed across clips instead of resetting to default" 
+                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        VerticalAlignment="Center">
+                                    <FontIcon Glyph="&#xE823;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Remember Adjusted Playback Speed" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock Text="Keep the speed chosen in the player across clips instead of resetting" 
                                                Style="{ThemeResource CaptionTextBlockStyle}" 
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
 
-                                <ToggleSwitch Grid.Column="1" 
+                                <ToggleSwitch Grid.Column="2" 
                                               IsOn="{x:Bind ViewModel.RememberPlaybackSpeed, Mode=TwoWay}" 
                                               OnContent="On" 
                                               OffContent="Off" 
                                               VerticalAlignment="Center" />
                             </Grid>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-
-                <!-- Appearance Section -->
-                <StackPanel Spacing="12">
-                    <TextBlock Text="Appearance" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="18" FontWeight="SemiBold" />
-
-                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                            BorderThickness="1" 
-                            CornerRadius="8" 
-                            Padding="20">
-                        <Grid ColumnSpacing="16">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                                <TextBlock Text="App Theme" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" />
-                                <TextBlock Text="Select which theme to display, or synchronize with Windows settings" 
-                                           Style="{ThemeResource CaptionTextBlockStyle}" 
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            </StackPanel>
-
-                            <ComboBox Grid.Column="1" 
-                                      x:Name="ThemeComboBox"
-                                      SelectionChanged="OnThemeSelectionChanged"
-                                      MinWidth="160"
-                                      VerticalAlignment="Center">
-                                <ComboBoxItem Content="Windows default" Tag="Default" />
-                                <ComboBoxItem Content="Dark" Tag="Dark" />
-                                <ComboBoxItem Content="Light" Tag="Light" />
-                            </ComboBox>
-                        </Grid>
-                    </Border>
-                </StackPanel>
-
-                <!-- About & Engine Section -->
-                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                        BorderThickness="1" 
-                        CornerRadius="8" 
-                        Padding="24">
-                    <StackPanel Spacing="14">
-                        <Image HorizontalAlignment="Left" 
-                               x:Name="SettingsLogoImage"
-                               Height="34" 
-                               Stretch="Uniform">
-                            <Image.Source>
-                                <SvgImageSource x:Name="SettingsLogoSvg" UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="102" />
-                            </Image.Source>
-                        </Image>
-                        <TextBlock Text="Clip Player &amp; Highlights Library" 
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                   FontSize="13" />
-                        <Border Height="1" Background="{ThemeResource CardStrokeColorDefaultBrush}" Margin="0,2" />
-                        <TextBlock Text="Powered by LibVLCSharp &amp; VideoLAN LibVLC 3.0 Native Engine." 
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        <TextBlock Text="Version 1.0.0 (.NET 8 Windows App SDK)" 
-                                   Style="{ThemeResource CaptionTextBlockStyle}" 
-                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                        </Border>
                     </StackPanel>
-                </Border>
 
-                <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" 
-                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" 
-                           Margin="4,0" />
-            </StackPanel>
-        </ScrollViewer>
+                    <!-- ========================================== -->
+                    <!-- 3. Appearance Section                      -->
+                    <!-- ========================================== -->
+                    <StackPanel x:Name="AppearanceSection" Spacing="8">
+                        <TextBlock Text="Appearance"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                   Margin="2,0,0,2" />
+
+                        <!-- Card 1: App Theme -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        VerticalAlignment="Center">
+                                    <FontIcon Glyph="&#xE790;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="App Theme" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock Text="Select theme style or synchronize automatically with Windows" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ComboBox Grid.Column="2" 
+                                          x:Name="ThemeComboBox"
+                                          SelectionChanged="OnThemeSelectionChanged"
+                                          MinWidth="160"
+                                          VerticalAlignment="Center">
+                                    <ComboBoxItem Content="Windows default" Tag="Default" />
+                                    <ComboBoxItem Content="Dark" Tag="Dark" />
+                                    <ComboBoxItem Content="Light" Tag="Light" />
+                                </ComboBox>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========================================== -->
+                    <!-- 4. Performance & Storage Section           -->
+                    <!-- ========================================== -->
+                    <StackPanel x:Name="StorageSection" Spacing="8">
+                        <TextBlock Text="Performance &amp; Storage"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                   Margin="2,0,0,2" />
+
+                        <!-- Card 1: Skeleton Loading -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        VerticalAlignment="Center">
+                                    <FontIcon Glyph="&#xEE65;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Skeleton Loading Placeholders" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock Text="Display fluid placeholder cards while scanning folders or loading video items" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2" 
+                                              IsOn="{x:Bind ViewModel.EnableSkeletonLoading, Mode=TwoWay}" 
+                                              OnContent="On" 
+                                              OffContent="Off" 
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 2: Thumbnail Cache -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        VerticalAlignment="Center">
+                                    <FontIcon Glyph="&#xEB9F;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Thumbnail Cache" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="Disk storage used:" 
+                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock Text="{x:Bind ViewModel.CacheSizeFormatted, Mode=OneWay}" 
+                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                   FontWeight="SemiBold" />
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <Button Grid.Column="2" 
+                                        Command="{x:Bind ViewModel.ClearCacheCommand}" 
+                                        Content="Clear Thumbnails" 
+                                        VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 3: Clip Metadata Cache -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        VerticalAlignment="Center">
+                                    <FontIcon Glyph="&#xE74C;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Clip Metadata Cache" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock Text="Speeds up library indexing and instant folder switching" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,1,0,0">
+                                        <TextBlock Text="Status:" 
+                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock Text="{x:Bind ViewModel.ClipCacheSizeFormatted, Mode=OneWay}" 
+                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                   FontWeight="SemiBold" />
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <Button Grid.Column="2" 
+                                        Command="{x:Bind ViewModel.ClearClipCacheCommand}" 
+                                        Content="Clear Metadata" 
+                                        VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========================================== -->
+                    <!-- 5. About Section                           -->
+                    <!-- ========================================== -->
+                    <StackPanel x:Name="AboutSection" Spacing="8">
+                        <TextBlock Text="About Reeled"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                   Margin="2,0,0,2" />
+
+                        <!-- About Card -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="20,18">
+                            <StackPanel Spacing="14">
+                                <Image HorizontalAlignment="Left" 
+                                       x:Name="SettingsLogoImage"
+                                       Height="30" 
+                                       Stretch="Uniform">
+                                    <Image.Source>
+                                        <SvgImageSource x:Name="SettingsLogoSvg" UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="90" />
+                                    </Image.Source>
+                                </Image>
+                                <TextBlock Text="Fast &amp; Fluent Gameplay Clips Library &amp; Video Player" 
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                           FontSize="13" />
+                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                <TextBlock Text="Powered by LibVLCSharp &amp; VideoLAN LibVLC 3.0 Native Engine." 
+                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock Text="Version 1.0.0 (.NET 8 Windows App SDK x64)" 
+                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Status Notification Toast -->
+                    <TextBlock Text="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" 
+                               Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" 
+                               FontSize="13"
+                               Margin="4,0" />
+
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
     </Grid>
 </Page>

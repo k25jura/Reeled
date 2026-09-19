@@ -1,6 +1,9 @@
+using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
+using Windows.Foundation;
 using Reeled.ViewModels;
 
 namespace Reeled.Views;
@@ -9,6 +12,8 @@ public sealed partial class SettingsPage : Page
 {
     public SettingsViewModel ViewModel { get; }
     private bool _isInitializing;
+    private bool _isProgrammaticScroll;
+    private Button? _activeCategoryButton;
 
     public SettingsPage()
     {
@@ -40,6 +45,8 @@ public sealed partial class SettingsPage : Page
                 }
             }
         }
+
+        SetActiveCategoryButton(CatFoldersBtn);
         _isInitializing = false;
     }
 
@@ -99,5 +106,108 @@ public sealed partial class SettingsPage : Page
         {
             await ViewModel.RemoveFolderAsync(folder);
         }
+    }
+
+    private void OnCategoryButtonClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string sectionName)
+        {
+            _isProgrammaticScroll = true;
+            SetActiveCategoryButton(btn);
+            ScrollToSection(sectionName);
+        }
+    }
+
+    private void ScrollToSection(string sectionName)
+    {
+        FrameworkElement? target = sectionName switch
+        {
+            "FoldersSection" => FoldersSection,
+            "PlaybackSection" => PlaybackSection,
+            "AppearanceSection" => AppearanceSection,
+            "StorageSection" => StorageSection,
+            "AboutSection" => AboutSection,
+            _ => null
+        };
+
+        if (target != null && SettingsScrollViewer != null)
+        {
+            try
+            {
+                var transform = target.TransformToVisual(SettingsScrollViewer);
+                var point = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
+                double targetOffset = SettingsScrollViewer.VerticalOffset + point.Y - 16;
+                if (targetOffset < 0) targetOffset = 0;
+                SettingsScrollViewer.ChangeView(null, targetOffset, null, false);
+            }
+            catch
+            {
+                // Visual tree transform fallback
+            }
+        }
+    }
+
+    private void SetActiveCategoryButton(Button? btn)
+    {
+        if (_activeCategoryButton == btn) return;
+
+        var normalBrush = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        var activeBrush = (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"];
+
+        if (CatFoldersBtn != null) CatFoldersBtn.Background = normalBrush;
+        if (CatPlaybackBtn != null) CatPlaybackBtn.Background = normalBrush;
+        if (CatAppearanceBtn != null) CatAppearanceBtn.Background = normalBrush;
+        if (CatStorageBtn != null) CatStorageBtn.Background = normalBrush;
+        if (CatAboutBtn != null) CatAboutBtn.Background = normalBrush;
+
+        if (btn != null)
+        {
+            btn.Background = activeBrush;
+            _activeCategoryButton = btn;
+        }
+    }
+
+    private void OnSettingsScrollViewerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
+    {
+        if (_isProgrammaticScroll)
+        {
+            if (!e.IsIntermediate)
+            {
+                _isProgrammaticScroll = false;
+            }
+            return;
+        }
+
+        UpdateActiveCategoryFromScroll();
+    }
+
+    private void UpdateActiveCategoryFromScroll()
+    {
+        try
+        {
+            const double threshold = 140;
+
+            if (IsSectionVisible(AboutSection, threshold))
+                SetActiveCategoryButton(CatAboutBtn);
+            else if (IsSectionVisible(StorageSection, threshold))
+                SetActiveCategoryButton(CatStorageBtn);
+            else if (IsSectionVisible(AppearanceSection, threshold))
+                SetActiveCategoryButton(CatAppearanceBtn);
+            else if (IsSectionVisible(PlaybackSection, threshold))
+                SetActiveCategoryButton(CatPlaybackBtn);
+            else
+                SetActiveCategoryButton(CatFoldersBtn);
+        }
+        catch
+        {
+        }
+    }
+
+    private bool IsSectionVisible(FrameworkElement? element, double threshold)
+    {
+        if (element == null || SettingsScrollViewer == null) return false;
+        var transform = element.TransformToVisual(SettingsScrollViewer);
+        var point = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
+        return point.Y <= threshold;
     }
 }

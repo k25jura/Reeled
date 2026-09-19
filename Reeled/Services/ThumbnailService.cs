@@ -129,4 +129,9 @@ public class ThumbnailService : IThumbnailService
             return null;
         }
     }
+
+    public void ClearMemoryCache()
+    {
+        _inFlightThumbnails.Clear();
+    }
 }

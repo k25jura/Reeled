@@ -15,6 +15,8 @@ public partial class SettingsViewModel : ObservableObject
     private readonly IClipIndexerService _indexerService;
     private readonly INavigationService _navigationService;
     private readonly IClipMetadataCacheService _clipMetadataCacheService;
+    private readonly IThumbnailService _thumbnailService;
+    private readonly HomeViewModel _homeViewModel;
 
     public ObservableCollection<string> WatchFolders { get; } = new();
 
@@ -43,12 +45,16 @@ public partial class SettingsViewModel : ObservableObject
         ILocalStorageService storageService,
         IClipIndexerService indexerService,
         INavigationService navigationService,
-        IClipMetadataCacheService clipMetadataCacheService)
+        IClipMetadataCacheService clipMetadataCacheService,
+        IThumbnailService thumbnailService,
+        HomeViewModel homeViewModel)
     {
         _storageService = storageService;
         _indexerService = indexerService;
         _navigationService = navigationService;
         _clipMetadataCacheService = clipMetadataCacheService;
+        _thumbnailService = thumbnailService;
+        _homeViewModel = homeViewModel;
     }
 
     public void Initialize()
@@ -137,6 +143,13 @@ public partial class SettingsViewModel : ObservableObject
             await _storageService.SaveSettingsAsync(settings);
             _indexerService.UpdateWatchers(settings.WatchDirectories);
             StatusMessage = $"Removed {folder}";
+
+            if (_homeViewModel.CurrentDirectoryPath != null &&
+                (_homeViewModel.CurrentDirectoryPath.Equals(folder, StringComparison.OrdinalIgnoreCase) ||
+                 _homeViewModel.CurrentDirectoryPath.StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+            {
+                await _homeViewModel.SelectHomeAsync();
+            }
         }
     }
 
@@ -145,6 +158,7 @@ public partial class SettingsViewModel : ObservableObject
     {
         try
         {
+            _thumbnailService.ClearMemoryCache();
             string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string cacheDir = Path.Combine(localAppData, "Reeled", "Thumbnails");
             if (Directory.Exists(cacheDir))
@@ -185,6 +199,7 @@ public partial class SettingsViewModel : ObservableObject
         {
             settings.EnableSkeletonLoading = value;
             await _storageService.SaveSettingsAsync(settings);
+            _homeViewModel.EnableSkeletonLoading = value;
         }
     }
 

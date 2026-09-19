@@ -276,6 +276,21 @@ public sealed partial class MainWindow : Window
     {
         _transitionStoryboard?.Stop();
 
+        // If player is not open (e.g. returning from Settings), return to Home instantly without delay
+        if (PlayerOverlayContainer.Visibility != Visibility.Visible)
+        {
+            if (RootFrame.CanGoBack)
+            {
+                RootFrame.GoBack();
+            }
+            else if (RootFrame.Content is not HomePage)
+            {
+                RootFrame.Navigate(typeof(HomePage), null, new SuppressNavigationTransitionInfo());
+            }
+            UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
+            return;
+        }
+
         var sb = new Storyboard();
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
         var duration = TimeSpan.FromMilliseconds(180);

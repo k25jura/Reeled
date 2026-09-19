@@ -32,6 +32,7 @@ public sealed partial class HomePage : Page
             AnimateSidebar(ViewModel.IsSidebarOpen, animate: false);
             UpdateLogo(ActualTheme);
             UpdateNavTabVisuals();
+            ApplyLocalization();
 
             if (ClipsGridView != null)
             {
@@ -41,6 +42,16 @@ public sealed partial class HomePage : Page
             // Warm up and preload all animation types, DComp visuals, and Storyboard paths at idle priority
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, PreloadAndWarmupAnimations);
         };
+
+        try
+        {
+            var loc = App.GetService<Services.ILocalizationService>();
+            if (loc != null)
+            {
+                loc.LanguageChanged += (s, e) => DispatcherQueue.TryEnqueue(ApplyLocalization);
+            }
+        }
+        catch { }
 
         ActualThemeChanged += (s, e) =>
         {
@@ -76,6 +87,23 @@ public sealed partial class HomePage : Page
                 }
             }
         };
+    }
+
+    private void ApplyLocalization()
+    {
+        try
+        {
+            var loc = App.GetService<Services.ILocalizationService>();
+            if (loc == null) return;
+
+            if (HomeNavText != null) HomeNavText.Text = loc["Nav_Home"];
+            if (FavoritesNavText != null) FavoritesNavText.Text = loc["Nav_Favorites"];
+            if (SavedMomentsNavText != null) SavedMomentsNavText.Text = loc["Nav_SavedMoments"];
+            if (FoldersHeaderNavText != null) FoldersHeaderNavText.Text = loc["Nav_Folders"];
+            if (FoldersAddNavText != null) FoldersAddNavText.Text = loc["Nav_AddFolder"];
+            if (SettingsNavText != null) SettingsNavText.Text = loc["Nav_Settings"];
+        }
+        catch { }
     }
 
     private bool _isAnimationsWarmedUp;

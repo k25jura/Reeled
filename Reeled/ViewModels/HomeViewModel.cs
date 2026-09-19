@@ -28,6 +28,7 @@ public partial class HomeViewModel : ObservableObject
     private readonly IClipIndexerService _indexerService;
     private readonly ILocalStorageService _storageService;
     private readonly INavigationService _navigationService;
+    private readonly ILocalizationService _localizationService;
     private readonly DispatcherQueue _dispatcherQueue;
 
     public ObservableCollection<DirectoryNode> Directories { get; } = new();
@@ -126,18 +127,18 @@ public partial class HomeViewModel : ObservableObject
 
     public string EmptyStateTitle => CurrentSection switch
     {
-        NavigationSection.Home => "No clips in library",
-        NavigationSection.Favorites => "No favorites yet",
-        NavigationSection.SavedMoments => "No saved moments yet",
-        _ => "No clips in this folder"
+        NavigationSection.Home => _localizationService["Empty_NoClipsTitle"],
+        NavigationSection.Favorites => _localizationService["Empty_NoFavoritesTitle"],
+        NavigationSection.SavedMoments => _localizationService["Empty_NoMomentsTitle"],
+        _ => _localizationService["Empty_FolderTitle"]
     };
 
     public string EmptyStateSubtitle => CurrentSection switch
     {
-        NavigationSection.Home => "Add your captures folder or drop video files to start watching.",
-        NavigationSection.Favorites => "Click the heart icon on any clip to pin it to your favorites.",
-        NavigationSection.SavedMoments => "Add bookmarks and timestamps during video playback to revisit key highlights.",
-        _ => "Choose another folder or add MP4/MKV video files to this directory."
+        NavigationSection.Home => _localizationService["Empty_NoClipsSubtitle"],
+        NavigationSection.Favorites => _localizationService["Empty_NoFavoritesSubtitle"],
+        NavigationSection.SavedMoments => _localizationService["Empty_NoMomentsSubtitle"],
+        _ => _localizationService["Empty_FolderSubtitle"]
     };
 
     partial void OnSelectedDirectoryChanged(DirectoryNode? value)
@@ -151,7 +152,28 @@ public partial class HomeViewModel : ObservableObject
     public int TotalClipsCount => Clips.Count;
 
     public string ClipsCountSummary =>
-        $"{TotalClipsCount} {(TotalClipsCount == 1 ? "clip" : "clips")}";
+        $"{TotalClipsCount} {_localizationService.FormatPlural("Plural_Clip", TotalClipsCount)}";
+
+    public void RefreshSavedMoments()
+    {
+        OnPropertyChanged(nameof(SavedMomentsCount));
+        if (CurrentSection == NavigationSection.SavedMoments)
+        {
+            RefreshCurrentViewClips();
+        }
+    }
+
+    public void RefreshLocalization()
+    {
+        OnPropertyChanged(nameof(EmptyStateTitle));
+        OnPropertyChanged(nameof(EmptyStateSubtitle));
+        OnPropertyChanged(nameof(ClipsCountSummary));
+        OnPropertyChanged(nameof(SavedMomentsCount));
+        foreach (var clip in AllClips)
+        {
+            clip.RefreshFormattedStrings();
+        }
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSidebarOpen))]
@@ -221,16 +243,23 @@ public partial class HomeViewModel : ObservableObject
     public HomeViewModel(
         IClipIndexerService indexerService,
         ILocalStorageService storageService,
-        INavigationService navigationService)
+        INavigationService navigationService,
+        ILocalizationService localizationService)
     {
         _indexerService = indexerService;
         _storageService = storageService;
         _navigationService = navigationService;
+        _localizationService = localizationService;
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
         _indexerService.ClipAdded += OnClipAdded;
         _indexerService.ClipDeleted += OnClipDeleted;
         _indexerService.ClipRenamed += OnClipRenamed;
+
+        _localizationService.LanguageChanged += (s, e) =>
+        {
+            _dispatcherQueue.TryEnqueue(RefreshLocalization);
+        };
     }
 
     public async Task InitializeAsync()

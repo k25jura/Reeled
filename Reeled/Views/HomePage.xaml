@@ -533,7 +533,8 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0" 
+                    <TextBlock x:Name="FoldersHeaderNavText"
+                               Grid.Column="0" 
                                Text="Folders" 
                                FontSize="12" 
                                FontWeight="SemiBold"
@@ -550,7 +551,7 @@
                             PointerCanceled="OnItemPointerCanceled">
                         <StackPanel Orientation="Horizontal" Spacing="5">
                             <FontIcon Glyph="&#xE710;" FontSize="11" />
-                            <TextBlock Text="Add" FontSize="12" />
+                            <TextBlock x:Name="FoldersAddNavText" Text="Add" FontSize="12" />
                         </StackPanel>
                     </Button>
                 </Grid>
@@ -650,7 +651,7 @@
                                 PointerCanceled="OnItemPointerCanceled">
                             <StackPanel Orientation="Horizontal" Spacing="10">
                                 <FontIcon Glyph="&#xE713;" FontSize="16" />
-                                <TextBlock Text="Settings" VerticalAlignment="Center" FontSize="13" />
+                                <TextBlock x:Name="SettingsNavText" Text="Settings" VerticalAlignment="Center" FontSize="13" />
                             </StackPanel>
                         </Button>
 

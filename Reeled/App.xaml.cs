@@ -56,6 +56,7 @@ public partial class App : Application
         services.AddSingleton<IClipIndexerService, ClipIndexerService>();
         services.AddSingleton<ILibVlcPlaybackService, LibVlcPlaybackService>();
         services.AddSingleton<INavigationService, NavigationService>();
+        services.AddSingleton<ILocalizationService, LocalizationService>();
 
         // ViewModels
         services.AddSingleton<HomeViewModel>();
@@ -70,6 +71,8 @@ public partial class App : Application
         Window = new MainWindow();
         DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         var storage = GetService<ILocalStorageService>();
+        var loc = GetService<ILocalizationService>();
+        loc.SetLanguage(storage.CurrentSettings.Language ?? "System");
         ApplyTheme(storage.CurrentSettings.AppTheme);
         Window.Activate();
     }

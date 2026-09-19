@@ -70,8 +70,28 @@ public partial class GameClip : ObservableObject
 
     public int BookmarkCount => Bookmarks.Count;
     public bool HasBookmarks => Bookmarks.Count > 0;
-    public string FormattedBookmarkCount =>
-        $"{Bookmarks.Count} {(Bookmarks.Count == 1 ? "moment" : "moments")}";
+    public string FormattedBookmarkCount
+    {
+        get
+        {
+            try
+            {
+                var loc = App.GetService<Services.ILocalizationService>();
+                if (loc != null)
+                {
+                    return $"{Bookmarks.Count} {loc.FormatPlural("Plural_Moment", Bookmarks.Count)}";
+                }
+            }
+            catch { }
+            return $"{Bookmarks.Count} {(Bookmarks.Count == 1 ? "moment" : "moments")}";
+        }
+    }
+
+    public void RefreshFormattedStrings()
+    {
+        OnPropertyChanged(nameof(FormattedDate));
+        OnPropertyChanged(nameof(FormattedBookmarkCount));
+    }
 
     public string FormattedDuration =>
         Duration.Hours > 0
@@ -101,6 +121,29 @@ public partial class GameClip : ObservableObject
 
             var local = dt.ToLocalTime();
             var diff = DateTime.Now.Date - local.Date;
+
+            try
+            {
+                var loc = App.GetService<Services.ILocalizationService>();
+                if (loc != null)
+                {
+                    var culture = loc.CurrentCulture;
+                    string todayStr = loc.GetString("Date_Today");
+                    string yesterdayStr = loc.GetString("Date_Yesterday");
+
+                    if (diff.TotalDays == 0)
+                        return $"{todayStr} {local:HH:mm}";
+                    if (diff.TotalDays == 1)
+                        return $"{yesterdayStr} {local:HH:mm}";
+                    if (diff.TotalDays < 7)
+                        return local.ToString("ddd HH:mm", culture);
+
+                    return loc.EffectiveLanguage == "uk"
+                        ? local.ToString("dd.MM.yyyy HH:mm", culture)
+                        : local.ToString("yyyy-MM-dd HH:mm", culture);
+                }
+            }
+            catch { }
 
             if (diff.TotalDays == 0)
                 return $"Today {local:HH:mm}";

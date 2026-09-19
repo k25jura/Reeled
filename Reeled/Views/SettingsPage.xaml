@@ -267,7 +267,25 @@
                         </Grid>
                     </Button>
 
-                    <!-- 4. Performance & Storage -->
+                    <!-- 4. Language & Region -->
+                    <Button x:Name="CatLanguageBtn"
+                            Click="OnCategoryButtonClick"
+                            PointerPressed="OnCategoryPointerPressed"
+                            PointerReleased="OnCategoryPointerReleased"
+                            PointerCanceled="OnCategoryPointerReleased"
+                            Tag="LocalizationSection"
+                            Style="{StaticResource SettingsCategoryButtonStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon x:Name="CatLanguageIcon" Grid.Column="0" Glyph="&#xE774;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="CatLanguageText" Grid.Column="1" Text="Language &amp; Region" FontSize="13" VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+
+                    <!-- 5. Performance & Storage -->
                     <Button x:Name="CatStorageBtn"
                             Click="OnCategoryButtonClick"
                             PointerPressed="OnCategoryPointerPressed"
@@ -285,9 +303,27 @@
                         </Grid>
                     </Button>
 
+                    <!-- 6. Updates -->
+                    <Button x:Name="CatUpdatesBtn"
+                            Click="OnCategoryButtonClick"
+                            PointerPressed="OnCategoryPointerPressed"
+                            PointerReleased="OnCategoryPointerReleased"
+                            PointerCanceled="OnCategoryPointerReleased"
+                            Tag="UpdateSection"
+                            Style="{StaticResource SettingsCategoryButtonStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon x:Name="CatUpdatesIcon" Grid.Column="0" Glyph="&#xE895;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="CatUpdatesText" Grid.Column="1" Text="Updates" FontSize="13" VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+
                     <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="6,6,6,6" />
 
-                    <!-- 5. About -->
+                    <!-- 7. About -->
                     <Button x:Name="CatAboutBtn"
                             Click="OnCategoryButtonClick"
                             PointerPressed="OnCategoryPointerPressed"
@@ -602,7 +638,88 @@
                     </StackPanel>
 
                     <!-- ========================================== -->
-                    <!-- 4. Performance & Storage Section           -->
+                    <!-- 4. Language & Region Section               -->
+                    <!-- ========================================== -->
+                    <StackPanel x:Name="LocalizationSection" Spacing="8">
+                        <TextBlock x:Name="LocalizationSectionTitle"
+                                   Text="Language &amp; Region"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                   Margin="2,0,0,2" />
+
+                        <!-- Card 1: App Language -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE774;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="AppLanguageTitleText" Text="App language" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="AppLanguageSubtitleText" Text="Select your preferred display language for menus and buttons" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ComboBox Grid.Column="2" 
+                                          x:Name="LanguageComboBox"
+                                          SelectionChanged="OnLanguageSelectionChanged"
+                                          MinWidth="210"
+                                          VerticalAlignment="Center">
+                                    <ComboBoxItem Content="System default (Auto-detect)" Tag="System" />
+                                    <ComboBoxItem Content="English" Tag="en" />
+                                    <ComboBoxItem Content="Українська" Tag="uk" />
+                                </ComboBox>
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 2: Regional Date & Time Format -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE823;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="DateFormatTitleText" Text="Regional date &amp; time format" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="DateFormatSubtitleText" Text="Dates, timestamps, and relative days are formatted to regional standards" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <Border Grid.Column="2" 
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        CornerRadius="6"
+                                        Padding="10,6"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind ViewModel.SampleDateFormatPreview, Mode=OneWay}"
+                                               FontSize="12.5"
+                                               FontWeight="SemiBold"
+                                               Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========================================== -->
+                    <!-- 5. Performance & Storage Section           -->
                     <!-- ========================================== -->
                     <StackPanel x:Name="StorageSection" Spacing="8">
                         <TextBlock Text="Performance &amp; Storage"
@@ -717,6 +834,45 @@
                             </Grid>
                         </Border>
 
+                        <!-- Card 4: Saved Moments Metadata -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Card Icon -->
+                                <FontIcon Grid.Column="0" Glyph="&#xE8A4;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="StorageMomentsTitleText" Text="Saved Moments Metadata" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="StorageMomentsSubtitleText" Text="Clear all saved bookmark moments and highlight markers from your library clips" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,1,0,0">
+                                        <TextBlock Text="Status:" 
+                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock Text="{x:Bind ViewModel.MomentsStatsFormatted, Mode=OneWay}" 
+                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                   FontWeight="SemiBold" />
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <Button Grid.Column="2" 
+                                        x:Name="ClearMomentsButton"
+                                        Command="{x:Bind ViewModel.ClearMomentsMetadataCommand}" 
+                                        Content="Clear Moments" 
+                                        VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
                         <!-- Inline Status Banner for Storage & Cache (Cascading space reservation animation) -->
                         <Border x:Name="StorageStatusBorder"
                                 Height="0"
@@ -743,7 +899,159 @@
                     </StackPanel>
 
                     <!-- ========================================== -->
-                    <!-- 5. About Section                           -->
+                    <!-- 6. Updates Section                         -->
+                    <!-- ========================================== -->
+                    <StackPanel x:Name="UpdateSection" Spacing="8">
+                        <TextBlock x:Name="UpdatesSectionTitle"
+                                   Text="Updates"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                   Margin="2,0,0,2" />
+
+                        <!-- Card 1: Main Update Status Card -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Icon -->
+                                <FontIcon Grid.Column="0" Glyph="&#xE895;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind ViewModel.UpdateStatusFormatted, Mode=OneWay}" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock Text="{x:Bind ViewModel.LastCheckedFormatted, Mode=OneWay}" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <!-- Check for updates button with loading circle ProgressRing -->
+                                <Button Grid.Column="2" 
+                                        x:Name="CheckUpdatesButton"
+                                        Command="{x:Bind ViewModel.CheckForUpdatesCommand}" 
+                                        IsEnabled="{x:Bind ViewModel.IsCheckingForUpdates, Mode=OneWay, Converter={StaticResource InverseBoolConverter}}"
+                                        VerticalAlignment="Center"
+                                        Padding="14,8">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ProgressRing IsActive="{x:Bind ViewModel.IsCheckingForUpdates, Mode=OneWay}" 
+                                                      Visibility="{x:Bind ViewModel.IsCheckingForUpdates, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                      Width="14" Height="14" />
+                                        <TextBlock Text="Check for updates" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 2: Update Available Card (Animated space reservation accordion with QuarticEase) -->
+                        <Border x:Name="UpdateAvailableBorder"
+                                Height="0"
+                                Opacity="0"
+                                CornerRadius="8"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                                BorderThickness="1"
+                                Padding="16,14"
+                                HorizontalAlignment="Stretch">
+                            <Border.RenderTransform>
+                                <TranslateTransform x:Name="UpdateAvailableTranslation" Y="-10" />
+                            </Border.RenderTransform>
+                            <StackPanel Spacing="10">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <FontIcon Grid.Column="0" Glyph="&#xEC05;" FontSize="20" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="Reeled 1.1.0 Feature Update" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                            <Border Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="4" Padding="6,1">
+                                                <TextBlock Text="New" FontSize="11" FontWeight="SemiBold" Foreground="White" />
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="Includes Ukrainian localization, redesigned settings categories, and performance optimizations." 
+                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+
+                                    <!-- Action Button (Download & Install / Install & Restart) -->
+                                    <Button Grid.Column="2" 
+                                            x:Name="DownloadUpdateButton"
+                                            Command="{x:Bind ViewModel.DownloadUpdateCommand}"
+                                            Visibility="{x:Bind ViewModel.IsUpdateReadyToInstall, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                                            IsEnabled="{x:Bind ViewModel.IsDownloadingUpdate, Mode=OneWay, Converter={StaticResource InverseBoolConverter}}"
+                                            Style="{ThemeResource AccentButtonStyle}"
+                                            Content="Download &amp; Install"
+                                            VerticalAlignment="Center" />
+
+                                    <Button Grid.Column="2" 
+                                            x:Name="InstallUpdateButton"
+                                            Command="{x:Bind ViewModel.InstallUpdateCommand}"
+                                            Visibility="{x:Bind ViewModel.IsUpdateReadyToInstall, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                            Style="{ThemeResource AccentButtonStyle}"
+                                            Content="Install and Restart"
+                                            VerticalAlignment="Center" />
+                                </Grid>
+
+                                <!-- Progress bar when downloading -->
+                                <StackPanel Spacing="4" 
+                                            Visibility="{x:Bind ViewModel.IsDownloadingUpdate, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <ProgressBar Value="{x:Bind ViewModel.DownloadProgress, Mode=OneWay}" 
+                                                 Maximum="100" 
+                                                 Height="4" 
+                                                 CornerRadius="2" />
+                                    <TextBlock Text="{x:Bind ViewModel.DownloadProgressFormatted, Mode=OneWay}" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card 3: Auto-check Toggle Card -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE895;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="AutoCheckUpdatesTitleText" Text="Check for updates automatically" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="AutoCheckUpdatesSubtitleText" Text="Periodically check for new releases in the background" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2" 
+                                              IsOn="{x:Bind ViewModel.AutoCheckUpdates, Mode=TwoWay}" 
+                                              OnContent="" 
+                                              OffContent="" 
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========================================== -->
+                    <!-- 7. About Section                           -->
                     <!-- ========================================== -->
                     <StackPanel x:Name="AboutSection" Spacing="8">
                         <TextBlock Text="About Reeled"

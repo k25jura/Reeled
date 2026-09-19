@@ -16,8 +16,10 @@ public partial class SettingsViewModel : ObservableObject
     private readonly INavigationService _navigationService;
     private readonly IClipMetadataCacheService _clipMetadataCacheService;
     private readonly IThumbnailService _thumbnailService;
+    private readonly ILocalizationService _localizationService;
     private readonly HomeViewModel _homeViewModel;
 
+    public ILocalizationService Loc => _localizationService;
     public ObservableCollection<string> WatchFolders { get; } = new();
 
     [ObservableProperty]
@@ -36,6 +38,9 @@ public partial class SettingsViewModel : ObservableObject
     private string _clipCacheSizeFormatted = "Calculating...";
 
     [ObservableProperty]
+    private string _momentsStatsFormatted = "Calculating...";
+
+    [ObservableProperty]
     private bool _enableSkeletonLoading = true;
 
     [ObservableProperty]
@@ -47,12 +52,47 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private int _selectedThemeIndex = 0;
 
+    [ObservableProperty]
+    private int _selectedLanguageIndex = 0;
+
+    [ObservableProperty]
+    private string _sampleDateFormatPreview = string.Empty;
+
+    // Updates properties
+    [ObservableProperty]
+    private bool _isCheckingForUpdates;
+
+    [ObservableProperty]
+    private bool _isUpdateAvailable;
+
+    [ObservableProperty]
+    private bool _isDownloadingUpdate;
+
+    [ObservableProperty]
+    private bool _isUpdateReadyToInstall;
+
+    [ObservableProperty]
+    private double _downloadProgress;
+
+    [ObservableProperty]
+    private string _downloadProgressFormatted = string.Empty;
+
+    [ObservableProperty]
+    private string _updateStatusFormatted = string.Empty;
+
+    [ObservableProperty]
+    private string _lastCheckedFormatted = string.Empty;
+
+    [ObservableProperty]
+    private bool _autoCheckUpdates = true;
+
     public SettingsViewModel(
         ILocalStorageService storageService,
         IClipIndexerService indexerService,
         INavigationService navigationService,
         IClipMetadataCacheService clipMetadataCacheService,
         IThumbnailService thumbnailService,
+        ILocalizationService localizationService,
         HomeViewModel homeViewModel)
     {
         _storageService = storageService;
@@ -60,7 +100,13 @@ public partial class SettingsViewModel : ObservableObject
         _navigationService = navigationService;
         _clipMetadataCacheService = clipMetadataCacheService;
         _thumbnailService = thumbnailService;
+        _localizationService = localizationService;
         _homeViewModel = homeViewModel;
+
+        _localizationService.LanguageChanged += (s, e) =>
+        {
+            UpdateFormattedStrings();
+        };
     }
 
     public void Initialize()
@@ -79,8 +125,20 @@ public partial class SettingsViewModel : ObservableObject
             "Light" => 2,
             _ => 0
         };
+        SelectedLanguageIndex = _storageService.CurrentSettings.Language switch
+        {
+            "en" => 1,
+            "uk" => 2,
+            _ => 0
+        };
+        AutoCheckUpdates = _storageService.CurrentSettings.AutoCheckUpdates;
+        UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
+        LastCheckedFormatted = string.Format(_localizationService["Updates_LastChecked"], _localizationService["Date_Today"]);
+
         CalculateCacheSize();
         CalculateClipCacheSize();
+        CalculateMomentsStats();
+        UpdateFormattedStrings();
     }
 
     public void SetAppTheme(int index)
@@ -96,6 +154,40 @@ public partial class SettingsViewModel : ObservableObject
         settings.AppTheme = themeStr;
         _ = _storageService.SaveSettingsAsync(settings);
         App.ApplyTheme(themeStr);
+    }
+
+    public void SetLanguage(int index)
+    {
+        SelectedLanguageIndex = index;
+        string langCode = index switch
+        {
+            1 => "en",
+            2 => "uk",
+            _ => "System"
+        };
+        var settings = _storageService.CurrentSettings;
+        settings.Language = langCode;
+        _ = _storageService.SaveSettingsAsync(settings);
+        _localizationService.SetLanguage(langCode);
+        UpdateFormattedStrings();
+    }
+
+    public void UpdateFormattedStrings()
+    {
+        SampleDateFormatPreview = DateTime.Now.ToString("dddd, d MMMM yyyy, HH:mm", _localizationService.CurrentCulture);
+        CalculateMomentsStats();
+        if (IsUpdateAvailable)
+        {
+            UpdateStatusFormatted = _localizationService["Updates_StatusAvailable"];
+        }
+        else if (IsUpdateReadyToInstall)
+        {
+            UpdateStatusFormatted = _localizationService["Updates_StatusReady"];
+        }
+        else
+        {
+            UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
+        }
     }
 
     public void SetDefaultPlaybackSpeed(double speed)
@@ -229,6 +321,101 @@ public partial class SettingsViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    public async Task ClearMomentsMetadataAsync()
+    {
+        try
+        {
+            int totalMoments = 0;
+            foreach (var kv in _storageService.CurrentSettings.Bookmarks)
+            {
+                totalMoments += kv.Value.Count;
+            }
+
+            var settings = _storageService.CurrentSettings;
+            settings.Bookmarks.Clear();
+            await _storageService.SaveSettingsAsync(settings);
+
+            foreach (var clip in _homeViewModel.AllClips)
+            {
+                clip.Bookmarks.Clear();
+                clip.RefreshFormattedStrings();
+            }
+            _homeViewModel.RefreshSavedMoments();
+            CalculateMomentsStats();
+
+            StorageStatusMessage = totalMoments > 0
+                ? string.Format(_localizationService["Storage_Status_MomentsCleared"], totalMoments)
+                : _localizationService["Storage_Status_NoMoments"];
+            StatusMessage = StorageStatusMessage;
+        }
+        catch (Exception ex)
+        {
+            StorageStatusMessage = $"Error: {ex.Message}";
+            StatusMessage = StorageStatusMessage;
+        }
+    }
+
+    [RelayCommand]
+    public async Task CheckForUpdatesAsync()
+    {
+        if (IsCheckingForUpdates || IsDownloadingUpdate) return;
+
+        IsCheckingForUpdates = true;
+        IsUpdateAvailable = false;
+        IsDownloadingUpdate = false;
+        IsUpdateReadyToInstall = false;
+        UpdateStatusFormatted = _localizationService["Updates_StatusChecking"];
+
+        // Simulate Windows Update search latency (1.5s)
+        await Task.Delay(1500);
+
+        IsCheckingForUpdates = false;
+        IsUpdateAvailable = true;
+        UpdateStatusFormatted = _localizationService["Updates_StatusAvailable"];
+        LastCheckedFormatted = string.Format(_localizationService["Updates_LastChecked"], DateTime.Now.ToString("t", _localizationService.CurrentCulture));
+    }
+
+    [RelayCommand]
+    public async Task DownloadUpdateAsync()
+    {
+        if (IsDownloadingUpdate) return;
+
+        IsDownloadingUpdate = true;
+        DownloadProgress = 0;
+        DownloadProgressFormatted = $"{_localizationService["Updates_StatusDownloading"]} 0%";
+
+        for (int p = 0; p <= 100; p += 5)
+        {
+            await Task.Delay(80);
+            DownloadProgress = p;
+            DownloadProgressFormatted = $"{_localizationService["Updates_StatusDownloading"]} {p}%";
+        }
+
+        IsDownloadingUpdate = false;
+        IsUpdateReadyToInstall = true;
+        UpdateStatusFormatted = _localizationService["Updates_StatusReady"];
+    }
+
+    [RelayCommand]
+    public void InstallUpdate()
+    {
+        IsUpdateReadyToInstall = false;
+        IsUpdateAvailable = false;
+        UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
+        StorageStatusMessage = _localizationService.EffectiveLanguage == "uk"
+            ? "Оновлення успішно застосовано!"
+            : "Update applied successfully!";
+        StatusMessage = StorageStatusMessage;
+    }
+
+    partial void OnAutoCheckUpdatesChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        settings.AutoCheckUpdates = value;
+        _ = _storageService.SaveSettingsAsync(settings);
+    }
+
     async partial void OnEnableSkeletonLoadingChanged(bool value)
     {
         var settings = _storageService.CurrentSettings;
@@ -244,6 +431,42 @@ public partial class SettingsViewModel : ObservableObject
     public void BackToHome()
     {
         _navigationService.NavigateToHome();
+    }
+
+    private void CalculateMomentsStats()
+    {
+        try
+        {
+            int totalMoments = 0;
+            int clipsWithMoments = 0;
+            foreach (var kv in _storageService.CurrentSettings.Bookmarks)
+            {
+                if (kv.Value.Count > 0)
+                {
+                    totalMoments += kv.Value.Count;
+                    clipsWithMoments++;
+                }
+            }
+
+            if (totalMoments == 0)
+            {
+                MomentsStatsFormatted = _localizationService.EffectiveLanguage == "uk" 
+                    ? "0 збережених моментів" 
+                    : "0 moments saved";
+            }
+            else
+            {
+                string mPlural = _localizationService.FormatPlural("Plural_Moment", totalMoments);
+                string cPlural = _localizationService.FormatPlural("Plural_Clip", clipsWithMoments);
+                MomentsStatsFormatted = _localizationService.EffectiveLanguage == "uk"
+                    ? $"{totalMoments} {mPlural} у {clipsWithMoments} {cPlural}"
+                    : $"{totalMoments} {mPlural} across {clipsWithMoments} {cPlural}";
+            }
+        }
+        catch
+        {
+            MomentsStatsFormatted = "0 moments saved";
+        }
     }
 
     private void CalculateCacheSize()

@@ -20,6 +20,7 @@ public sealed partial class SettingsPage : Page
     private double _targetIndicatorY = 0;
     private bool _isIndicatorVisible = false;
     private Storyboard? _indicatorStoryboard;
+    private Storyboard? _updateCardStoryboard;
     private DispatcherTimer? _foldersStatusTimer;
     private DispatcherTimer? _storageStatusTimer;
 
@@ -40,10 +41,15 @@ public sealed partial class SettingsPage : Page
                 bool isError = ViewModel.StorageStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase);
                 ShowStatusBanner(StorageStatusBorder, StorageStatusTranslation, StorageStatusText, StorageStatusIcon, ViewModel.StorageStatusMessage, isError, ref _storageStatusTimer);
             }
+            else if (e.PropertyName == nameof(SettingsViewModel.IsUpdateAvailable))
+            {
+                AnimateUpdateCard(ViewModel.IsUpdateAvailable);
+            }
         };
 
         Loaded += (s, e) =>
         {
+            ApplyLocalization(ViewModel.Loc);
             UpdateThemeVisuals(ActualTheme);
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
@@ -61,6 +67,8 @@ public sealed partial class SettingsPage : Page
         ViewModel.Initialize();
 
         ThemeComboBox.SelectedIndex = ViewModel.SelectedThemeIndex;
+        LanguageComboBox.SelectedIndex = ViewModel.SelectedLanguageIndex;
+        ApplyLocalization(ViewModel.Loc);
         UpdateThemeVisuals(ActualTheme);
 
         double speed = ViewModel.DefaultPlaybackSpeed;
@@ -86,6 +94,17 @@ public sealed partial class SettingsPage : Page
         {
             ViewModel.SetAppTheme(ThemeComboBox.SelectedIndex);
             UpdateThemeVisuals(ActualTheme);
+        }
+    }
+
+    private void OnLanguageSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+        if (LanguageComboBox.SelectedIndex >= 0)
+        {
+            ViewModel.SetLanguage(LanguageComboBox.SelectedIndex);
+            ApplyLocalization(ViewModel.Loc);
+            UpdateCategoryButtonColors(ActualTheme);
         }
     }
 
@@ -208,7 +227,9 @@ public sealed partial class SettingsPage : Page
             "FoldersSection" => FoldersSection,
             "PlaybackSection" => PlaybackSection,
             "AppearanceSection" => AppearanceSection,
+            "LocalizationSection" => LocalizationSection,
             "StorageSection" => StorageSection,
+            "UpdateSection" => UpdateSection,
             "AboutSection" => AboutSection,
             _ => null
         };
@@ -231,9 +252,9 @@ public sealed partial class SettingsPage : Page
 
     private void UpdateCategoryButtonColors(ElementTheme theme)
     {
-        var buttons = new[] { CatFoldersBtn, CatPlaybackBtn, CatAppearanceBtn, CatStorageBtn, CatAboutBtn };
-        var icons = new[] { CatFoldersIcon, CatPlaybackIcon, CatAppearanceIcon, CatStorageIcon, CatAboutIcon };
-        var texts = new[] { CatFoldersText, CatPlaybackText, CatAppearanceText, CatStorageText, CatAboutText };
+        var buttons = new[] { CatFoldersBtn, CatPlaybackBtn, CatAppearanceBtn, CatLanguageBtn, CatStorageBtn, CatUpdatesBtn, CatAboutBtn };
+        var icons = new[] { CatFoldersIcon, CatPlaybackIcon, CatAppearanceIcon, CatLanguageIcon, CatStorageIcon, CatUpdatesIcon, CatAboutIcon };
+        var texts = new[] { CatFoldersText, CatPlaybackText, CatAppearanceText, CatLanguageText, CatStorageText, CatUpdatesText, CatAboutText };
 
         bool isLight = (theme == ElementTheme.Light);
         var selectedBrush = isLight
@@ -266,7 +287,7 @@ public sealed partial class SettingsPage : Page
         if (_activeSectionTag == sectionTag && _isIndicatorVisible) return;
         _activeSectionTag = sectionTag;
 
-        var buttons = new[] { CatFoldersBtn, CatPlaybackBtn, CatAppearanceBtn, CatStorageBtn, CatAboutBtn };
+        var buttons = new[] { CatFoldersBtn, CatPlaybackBtn, CatAppearanceBtn, CatLanguageBtn, CatStorageBtn, CatUpdatesBtn, CatAboutBtn };
         Button? selectedBtn = null;
 
         for (int i = 0; i < buttons.Length; i++)
@@ -564,8 +585,12 @@ public sealed partial class SettingsPage : Page
 
             if (IsSectionAtOrAbove(AboutSection, threshold))
                 SetActiveCategory("AboutSection", animate: true);
+            else if (IsSectionAtOrAbove(UpdateSection, threshold))
+                SetActiveCategory("UpdateSection", animate: true);
             else if (IsSectionAtOrAbove(StorageSection, threshold))
                 SetActiveCategory("StorageSection", animate: true);
+            else if (IsSectionAtOrAbove(LocalizationSection, threshold))
+                SetActiveCategory("LocalizationSection", animate: true);
             else if (IsSectionAtOrAbove(AppearanceSection, threshold))
                 SetActiveCategory("AppearanceSection", animate: true);
             else if (IsSectionAtOrAbove(PlaybackSection, threshold))
@@ -576,6 +601,95 @@ public sealed partial class SettingsPage : Page
         catch
         {
         }
+    }
+
+    private void AnimateUpdateCard(bool open)
+    {
+        if (UpdateAvailableBorder == null || UpdateAvailableTranslation == null) return;
+        _updateCardStoryboard?.Stop();
+
+        var sb = new Storyboard();
+        var appleEase = new QuarticEase { EasingMode = EasingMode.EaseOut };
+
+        double targetHeight = open ? 120.0 : 0.0;
+        double targetOpacity = open ? 1.0 : 0.0;
+        double targetY = open ? 0.0 : -10.0;
+
+        var animH = new DoubleAnimation
+        {
+            To = targetHeight,
+            Duration = TimeSpan.FromMilliseconds(220),
+            EasingFunction = appleEase,
+            EnableDependentAnimation = true
+        };
+        Storyboard.SetTarget(animH, UpdateAvailableBorder);
+        Storyboard.SetTargetProperty(animH, "Height");
+        sb.Children.Add(animH);
+
+        var animO = new DoubleAnimation
+        {
+            To = targetOpacity,
+            Duration = TimeSpan.FromMilliseconds(open ? 200 : 160),
+            EasingFunction = appleEase
+        };
+        Storyboard.SetTarget(animO, UpdateAvailableBorder);
+        Storyboard.SetTargetProperty(animO, "Opacity");
+        sb.Children.Add(animO);
+
+        var animT = new DoubleAnimation
+        {
+            To = targetY,
+            Duration = TimeSpan.FromMilliseconds(220),
+            EasingFunction = appleEase
+        };
+        Storyboard.SetTarget(animT, UpdateAvailableTranslation);
+        Storyboard.SetTargetProperty(animT, "Y");
+        sb.Children.Add(animT);
+
+        sb.Completed += (s, e) =>
+        {
+            UpdateAvailableBorder.Height = targetHeight;
+            UpdateAvailableBorder.Opacity = targetOpacity;
+            UpdateAvailableTranslation.Y = targetY;
+            UpdateAvailableBorder.IsHitTestVisible = open;
+        };
+
+        if (open) UpdateAvailableBorder.IsHitTestVisible = true;
+        _updateCardStoryboard = sb;
+        sb.Begin();
+    }
+
+    private void ApplyLocalization(Reeled.Services.ILocalizationService loc)
+    {
+        if (loc == null) return;
+
+        // Categories
+        if (CatFoldersText != null) CatFoldersText.Text = loc["Cat_Folders"];
+        if (CatPlaybackText != null) CatPlaybackText.Text = loc["Cat_Playback"];
+        if (CatAppearanceText != null) CatAppearanceText.Text = loc["Cat_Appearance"];
+        if (CatLanguageText != null) CatLanguageText.Text = loc["Cat_Language"];
+        if (CatStorageText != null) CatStorageText.Text = loc["Cat_Storage"];
+        if (CatUpdatesText != null) CatUpdatesText.Text = loc["Cat_Updates"];
+        if (CatAboutText != null) CatAboutText.Text = loc["Cat_About"];
+
+        // Localization Section
+        if (LocalizationSectionTitle != null) LocalizationSectionTitle.Text = loc["Language_SectionTitle"];
+        if (AppLanguageTitleText != null) AppLanguageTitleText.Text = loc["Language_AppLanguageTitle"];
+        if (AppLanguageSubtitleText != null) AppLanguageSubtitleText.Text = loc["Language_AppLanguageSubtitle"];
+        if (DateFormatTitleText != null) DateFormatTitleText.Text = loc["Language_DateFormatTitle"];
+        if (DateFormatSubtitleText != null) DateFormatSubtitleText.Text = loc["Language_DateFormatSubtitle"];
+
+        // Storage Section (Moments)
+        if (StorageMomentsTitleText != null) StorageMomentsTitleText.Text = loc["Storage_MomentsTitle"];
+        if (StorageMomentsSubtitleText != null) StorageMomentsSubtitleText.Text = loc["Storage_MomentsSubtitle"];
+        if (ClearMomentsButton != null) ClearMomentsButton.Content = loc["Storage_MomentsButton"];
+
+        // Updates Section
+        if (UpdatesSectionTitle != null) UpdatesSectionTitle.Text = loc["Updates_SectionTitle"];
+        if (AutoCheckUpdatesTitleText != null) AutoCheckUpdatesTitleText.Text = loc["Updates_AutoCheckTitle"];
+        if (AutoCheckUpdatesSubtitleText != null) AutoCheckUpdatesSubtitleText.Text = loc["Updates_AutoCheckSubtitle"];
+        if (DownloadUpdateButton != null) DownloadUpdateButton.Content = loc["Updates_DownloadButton"];
+        if (InstallUpdateButton != null) InstallUpdateButton.Content = loc["Updates_InstallButton"];
     }
 
     private bool IsSectionAtOrAbove(FrameworkElement? section, double threshold)

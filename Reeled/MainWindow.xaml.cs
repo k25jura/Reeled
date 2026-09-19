@@ -185,6 +185,15 @@ public sealed partial class MainWindow : Window
                     sv.RequestedTheme = RootWindowGrid.RequestedTheme;
                 }
             }
+
+            if (RootFrame.Content is Views.SettingsPage)
+            {
+                AppTitleBar.Margin = new Thickness(96, 0, 140, 0);
+            }
+            else
+            {
+                AppTitleBar.Margin = new Thickness(48, 0, 140, 0);
+            }
         };
 
         RootWindowGrid.ActualThemeChanged += (s, e) =>

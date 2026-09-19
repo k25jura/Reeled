@@ -17,6 +17,7 @@ public sealed partial class SettingsPage : Page
     private bool _isProgrammaticScroll;
     private string _activeSectionTag = "FoldersSection";
     private double _currentIndicatorY = 0;
+    private double _targetIndicatorY = 0;
     private bool _isIndicatorVisible = false;
     private Storyboard? _indicatorStoryboard;
     private DispatcherTimer? _foldersStatusTimer;
@@ -95,6 +96,7 @@ public sealed partial class SettingsPage : Page
         {
             SettingsScrollViewer.RequestedTheme = theme;
         }
+        UpdateCategoryButtonColors(theme);
     }
 
     private void UpdateLogo(ElementTheme theme)
@@ -227,15 +229,44 @@ public sealed partial class SettingsPage : Page
         }
     }
 
+    private void UpdateCategoryButtonColors(ElementTheme theme)
+    {
+        var buttons = new[] { CatFoldersBtn, CatPlaybackBtn, CatAppearanceBtn, CatStorageBtn, CatAboutBtn };
+        var icons = new[] { CatFoldersIcon, CatPlaybackIcon, CatAppearanceIcon, CatStorageIcon, CatAboutIcon };
+        var texts = new[] { CatFoldersText, CatPlaybackText, CatAppearanceText, CatStorageText, CatAboutText };
+
+        bool isLight = (theme == ElementTheme.Light);
+        var selectedBrush = isLight
+            ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 20, 20, 20))
+            : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255));
+        var defaultTextBrush = isLight
+            ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 70, 70, 75))
+            : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 210, 210, 210));
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            var btn = buttons[i];
+            if (btn == null) continue;
+
+            bool isSelected = (btn.Tag as string) == _activeSectionTag;
+            if (texts[i] != null)
+            {
+                texts[i].Foreground = isSelected ? selectedBrush : defaultTextBrush;
+                texts[i].FontWeight = isSelected ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
+            }
+            if (icons[i] != null)
+            {
+                icons[i].Foreground = isSelected ? selectedBrush : defaultTextBrush;
+            }
+        }
+    }
+
     private void SetActiveCategory(string sectionTag, bool animate)
     {
         if (_activeSectionTag == sectionTag && _isIndicatorVisible) return;
         _activeSectionTag = sectionTag;
 
         var buttons = new[] { CatFoldersBtn, CatPlaybackBtn, CatAppearanceBtn, CatStorageBtn, CatAboutBtn };
-        var icons = new[] { CatFoldersIcon, CatPlaybackIcon, CatAppearanceIcon, CatStorageIcon, CatAboutIcon };
-        var texts = new[] { CatFoldersText, CatPlaybackText, CatAppearanceText, CatStorageText, CatAboutText };
-
         Button? selectedBtn = null;
 
         for (int i = 0; i < buttons.Length; i++)
@@ -251,13 +282,13 @@ public sealed partial class SettingsPage : Page
             if (selectedBorder != null)
             {
                 double targetOpacity = isSelected ? 1.0 : 0.0;
-                if (animate)
+                if (animate && Math.Abs(selectedBorder.Opacity - targetOpacity) > 0.01)
                 {
                     var sb = new Storyboard();
                     var anim = new DoubleAnimation
                     {
                         To = targetOpacity,
-                        Duration = TimeSpan.FromMilliseconds(isSelected ? 180 : 150),
+                        Duration = TimeSpan.FromMilliseconds(isSelected ? 180 : 140),
                         EasingFunction = new QuarticEase { EasingMode = EasingMode.EaseOut }
                     };
                     Storyboard.SetTarget(anim, selectedBorder);
@@ -270,20 +301,9 @@ public sealed partial class SettingsPage : Page
                     selectedBorder.Opacity = targetOpacity;
                 }
             }
-
-            // Update text font weight & icon color
-            if (texts[i] != null)
-            {
-                texts[i].FontWeight = isSelected ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
-            }
-
-            if (icons[i] != null)
-            {
-                icons[i].Foreground = isSelected
-                    ? (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"]
-                    : (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
-            }
         }
+
+        UpdateCategoryButtonColors(ActualTheme);
 
         if (selectedBtn != null)
         {
@@ -305,6 +325,7 @@ public sealed partial class SettingsPage : Page
             if (!_isIndicatorVisible)
             {
                 _currentIndicatorY = targetY;
+                _targetIndicatorY = targetY;
                 IndicatorTranslation.Y = targetY;
                 ActiveIndicatorPill.Opacity = 1.0;
                 if (IndicatorScale != null) IndicatorScale.ScaleY = 1.0;
@@ -312,7 +333,13 @@ public sealed partial class SettingsPage : Page
                 return;
             }
 
+            if (Math.Abs(_targetIndicatorY - targetY) < 1.0 && _isIndicatorVisible)
+            {
+                return;
+            }
+
             double fromY = _currentIndicatorY;
+            _targetIndicatorY = targetY;
 
             if (_indicatorStoryboard != null)
             {
@@ -332,22 +359,25 @@ public sealed partial class SettingsPage : Page
             }
 
             double distance = Math.Abs(targetY - fromY);
-            if (distance < 1.0)
-                return;
+            var moveSb = new Storyboard();
+            var appleEase = new QuarticEase
+            {
+                EasingMode = EasingMode.EaseOut
+            };
 
-            var sb = new Storyboard();
-            var ease = new QuarticEase { EasingMode = EasingMode.EaseOut };
-            var animY = new DoubleAnimation
+            // 1. Vertical Glide Animation (Y translation) with Apple fluid decelerate (exact parity with HomePage sidebar)
+            var animTranslate = new DoubleAnimation
             {
                 From = fromY,
                 To = targetY,
-                Duration = TimeSpan.FromMilliseconds(220),
-                EasingFunction = ease
+                Duration = TimeSpan.FromMilliseconds(240),
+                EasingFunction = appleEase
             };
-            Storyboard.SetTarget(animY, IndicatorTranslation);
-            Storyboard.SetTargetProperty(animY, "Y");
-            sb.Children.Add(animY);
+            moveSb.Children.Add(animTranslate);
+            Storyboard.SetTarget(animTranslate, IndicatorTranslation);
+            Storyboard.SetTargetProperty(animTranslate, "Y");
 
+            // 2. Subtle fluid stretch
             if (distance > 5.0 && IndicatorScale != null)
             {
                 double stretch = Math.Min(1.15, 1.0 + (distance / 500.0));
@@ -361,29 +391,30 @@ public sealed partial class SettingsPage : Page
                 {
                     Value = stretch,
                     KeyTime = KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(80)),
-                    EasingFunction = ease
+                    EasingFunction = appleEase
                 });
                 animScaleKeyFrames.KeyFrames.Add(new EasingDoubleKeyFrame
                 {
                     Value = 1.0,
                     KeyTime = KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(220)),
-                    EasingFunction = ease
+                    EasingFunction = appleEase
                 });
 
-                sb.Children.Add(animScaleKeyFrames);
+                moveSb.Children.Add(animScaleKeyFrames);
                 Storyboard.SetTarget(animScaleKeyFrames, IndicatorScale);
                 Storyboard.SetTargetProperty(animScaleKeyFrames, "ScaleY");
             }
 
-            sb.Completed += (s, e) =>
+            moveSb.Completed += (s, e) =>
             {
                 IndicatorTranslation.Y = targetY;
                 if (IndicatorScale != null) IndicatorScale.ScaleY = 1.0;
                 _currentIndicatorY = targetY;
             };
 
-            _indicatorStoryboard = sb;
-            sb.Begin();
+            _currentIndicatorY = targetY;
+            _indicatorStoryboard = moveSb;
+            moveSb.Begin();
         }
         catch { }
     }
@@ -395,29 +426,38 @@ public sealed partial class SettingsPage : Page
         timer?.Stop();
         timer = null;
 
+        bool isLight = (ActualTheme == ElementTheme.Light);
         textBlock.Text = message;
         if (isError)
         {
             icon.Glyph = "\uE783";
-            icon.Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
-            textBlock.Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+            var critBrush = new SolidColorBrush(isLight ? Windows.UI.Color.FromArgb(255, 196, 43, 28) : Windows.UI.Color.FromArgb(255, 255, 153, 164));
+            icon.Foreground = critBrush;
+            textBlock.Foreground = critBrush;
         }
         else
         {
             icon.Glyph = "\uE73E";
-            icon.Foreground = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"];
-            textBlock.Foreground = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+            var accentBrush = isLight
+                ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 95, 184))
+                : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 96, 205, 255));
+            var textBrush = isLight
+                ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 20, 20, 20))
+                : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 240, 240, 240));
+
+            icon.Foreground = accentBrush;
+            textBlock.Foreground = textBrush;
         }
 
-        // Accordion space-reserving expansion animation (matches folder cascading in HomePage)
+        // Accordion space-reserving expansion animation with Apple QuarticEase
         var openSb = new Storyboard();
-        var easeOut = new QuarticEase { EasingMode = EasingMode.EaseOut };
+        var appleEase = new QuarticEase { EasingMode = EasingMode.EaseOut };
 
         var animHeight = new DoubleAnimation
         {
             To = 38.0,
             Duration = TimeSpan.FromMilliseconds(190),
-            EasingFunction = easeOut,
+            EasingFunction = appleEase,
             EnableDependentAnimation = true
         };
         Storyboard.SetTarget(animHeight, border);
@@ -428,7 +468,7 @@ public sealed partial class SettingsPage : Page
         {
             To = 1.0,
             Duration = TimeSpan.FromMilliseconds(180),
-            EasingFunction = easeOut
+            EasingFunction = appleEase
         };
         Storyboard.SetTarget(animOpacity, border);
         Storyboard.SetTargetProperty(animOpacity, "Opacity");
@@ -438,7 +478,7 @@ public sealed partial class SettingsPage : Page
         {
             To = 0.0,
             Duration = TimeSpan.FromMilliseconds(190),
-            EasingFunction = easeOut
+            EasingFunction = appleEase
         };
         Storyboard.SetTarget(animTrans, trans);
         Storyboard.SetTargetProperty(animTrans, "Y");
@@ -456,7 +496,7 @@ public sealed partial class SettingsPage : Page
             {
                 To = 0.0,
                 Duration = TimeSpan.FromMilliseconds(190),
-                EasingFunction = easeOut,
+                EasingFunction = appleEase,
                 EnableDependentAnimation = true
             };
             Storyboard.SetTarget(animCloseHeight, border);
@@ -467,7 +507,7 @@ public sealed partial class SettingsPage : Page
             {
                 To = 0.0,
                 Duration = TimeSpan.FromMilliseconds(150),
-                EasingFunction = easeOut
+                EasingFunction = appleEase
             };
             Storyboard.SetTarget(animCloseOpacity, border);
             Storyboard.SetTargetProperty(animCloseOpacity, "Opacity");
@@ -477,7 +517,7 @@ public sealed partial class SettingsPage : Page
             {
                 To = -8.0,
                 Duration = TimeSpan.FromMilliseconds(190),
-                EasingFunction = easeOut
+                EasingFunction = appleEase
             };
             Storyboard.SetTarget(animCloseTrans, trans);
             Storyboard.SetTargetProperty(animCloseTrans, "Y");

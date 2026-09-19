@@ -46,6 +46,9 @@
                 </ResourceDictionary>
 
                 <ResourceDictionary x:Key="Light">
+                    <Color x:Key="SolidBackgroundFillColorBase">#F0F0F3</Color>
+                    <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
+
                     <Color x:Key="ApplicationPageBackgroundThemeColor">#F4F4F6</Color>
                     <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="{StaticResource ApplicationPageBackgroundThemeColor}" />
 

@@ -15,8 +15,8 @@ public sealed partial class SettingsPage : Page
         ViewModel = App.GetService<SettingsViewModel>();
         InitializeComponent();
 
-        Loaded += (s, e) => UpdateLogo(ActualTheme);
-        ActualThemeChanged += (s, e) => UpdateLogo(ActualTheme);
+        Loaded += (s, e) => UpdateThemeVisuals(ActualTheme);
+        ActualThemeChanged += (s, e) => UpdateThemeVisuals(ActualTheme);
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -26,7 +26,7 @@ public sealed partial class SettingsPage : Page
         ViewModel.Initialize();
 
         ThemeComboBox.SelectedIndex = ViewModel.SelectedThemeIndex;
-        UpdateLogo(ActualTheme);
+        UpdateThemeVisuals(ActualTheme);
 
         double speed = ViewModel.DefaultPlaybackSpeed;
         foreach (ComboBoxItem item in DefaultSpeedComboBox.Items)
@@ -49,6 +49,16 @@ public sealed partial class SettingsPage : Page
         if (ThemeComboBox.SelectedIndex >= 0)
         {
             ViewModel.SetAppTheme(ThemeComboBox.SelectedIndex);
+            UpdateThemeVisuals(ActualTheme);
+        }
+    }
+
+    private void UpdateThemeVisuals(ElementTheme theme)
+    {
+        UpdateLogo(theme);
+        if (SettingsScrollViewer != null)
+        {
+            SettingsScrollViewer.RequestedTheme = theme;
         }
     }
 

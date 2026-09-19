@@ -72,26 +72,61 @@ public partial class App : Application
         Window.Activate();
     }
 
+    public static bool IsWindowsInLightTheme()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            if (key?.GetValue("AppsUseLightTheme") is int val)
+            {
+                return val != 0;
+            }
+        }
+        catch { }
+
+        try
+        {
+            var uiSettings = new Windows.UI.ViewManagement.UISettings();
+            var bg = uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background);
+            return (bg.R + bg.G + bg.B) > 384;
+        }
+        catch { }
+
+        return false;
+    }
+
     public static void ApplyTheme(string themeSetting)
     {
         if (Window?.Content is FrameworkElement root)
         {
-            ElementTheme theme = themeSetting switch
+            ElementTheme targetTheme = themeSetting switch
             {
                 "Dark" => ElementTheme.Dark,
                 "Light" => ElementTheme.Light,
-                _ => ElementTheme.Default
+                _ => IsWindowsInLightTheme() ? ElementTheme.Light : ElementTheme.Dark
             };
-            root.RequestedTheme = theme;
+
+            root.RequestedTheme = targetTheme;
+
             if (Window is MainWindow mainWindow)
             {
+                mainWindow.NavigationFrame.RequestedTheme = targetTheme;
+                if (mainWindow.NavigationFrame.Content is FrameworkElement page)
+                {
+                    page.RequestedTheme = targetTheme;
+                    if (page is Views.SettingsPage settingsPage && settingsPage.FindName("SettingsScrollViewer") is FrameworkElement sv)
+                    {
+                        sv.RequestedTheme = targetTheme;
+                    }
+                }
+
                 if (mainWindow.IsPlayerVisible)
                 {
                     mainWindow.UpdateTitleBarTheme(ElementTheme.Dark);
                 }
                 else
                 {
-                    mainWindow.UpdateTitleBarTheme(root.ActualTheme);
+                    mainWindow.UpdateTitleBarTheme(targetTheme);
                 }
             }
         }

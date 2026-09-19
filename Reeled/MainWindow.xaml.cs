@@ -33,6 +33,9 @@ public sealed partial class MainWindow : Window
     private const int WMSZ_BOTTOMRIGHT = 8;
 
     private readonly SUBCLASSPROC _subclassProc;
+    private readonly Windows.UI.ViewManagement.UISettings _uiSettings = new();
+
+    public Microsoft.UI.Xaml.Controls.Frame NavigationFrame => RootFrame;
 
     private bool _isCursorHidden;
     private Storyboard? _transitionStoryboard;
@@ -155,6 +158,26 @@ public sealed partial class MainWindow : Window
         // Apply persisted app theme
         var storageService = App.GetService<ILocalStorageService>();
         App.ApplyTheme(storageService.CurrentSettings.AppTheme);
+
+        _uiSettings.ColorValuesChanged += (sender, args) =>
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                var storage = App.GetService<ILocalStorageService>();
+                if (storage.CurrentSettings.AppTheme == "Default")
+                {
+                    App.ApplyTheme("Default");
+                }
+            });
+        };
+
+        RootFrame.Navigated += (s, e) =>
+        {
+            if (RootFrame.Content is FrameworkElement p)
+            {
+                p.RequestedTheme = RootWindowGrid.RequestedTheme;
+            }
+        };
 
         RootWindowGrid.ActualThemeChanged += (s, e) =>
         {

@@ -28,6 +28,7 @@ public interface ILibVlcPlaybackService : IDisposable
     bool SetAudioTrack(int trackId);
 
     void InitializeEngine(string[]? swapChainOptions = null);
+    void ResetEngine();
     void DisposeEngine();
     void AttachToVideoView(LibVLCSharp.Platforms.Windows.VideoView videoView, string[] swapChainOptions);
     Task PlayMediaAsync(string filePath);

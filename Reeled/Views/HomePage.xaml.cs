@@ -96,14 +96,14 @@ public sealed partial class HomePage : Page
         {
             btn.Background = isLight 
                 ? new SolidColorBrush(Windows.UI.Color.FromArgb(20, 0, 0, 0)) 
-                : new SolidColorBrush(Windows.UI.Color.FromArgb(24, 255, 255, 255));
+                : new SolidColorBrush(Windows.UI.Color.FromArgb(28, 255, 255, 255));
 
-            Brush accentBrush = Application.Current.Resources.TryGetValue("AccentTextFillColorPrimaryBrush", out var a) && a is Brush ab
-                ? ab
-                : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 96, 205, 255));
+            Brush selectedBrush = isLight
+                ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 20, 20, 20))
+                : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255));
 
-            icon.Foreground = accentBrush;
-            text.Foreground = accentBrush;
+            icon.Foreground = selectedBrush;
+            text.Foreground = selectedBrush;
             text.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
         }
         else
@@ -111,8 +111,8 @@ public sealed partial class HomePage : Page
             btn.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
 
             var defaultTextBrush = isLight
-                ? new SolidColorBrush(Windows.UI.Color.FromArgb(230, 20, 20, 20))
-                : new SolidColorBrush(Windows.UI.Color.FromArgb(235, 240, 240, 240));
+                ? new SolidColorBrush(Windows.UI.Color.FromArgb(220, 90, 90, 95))
+                : new SolidColorBrush(Windows.UI.Color.FromArgb(200, 160, 160, 168));
 
             icon.Foreground = defaultTextBrush;
             text.Foreground = defaultTextBrush;

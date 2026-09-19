@@ -31,6 +31,9 @@ public partial class SettingsViewModel : ObservableObject
     private bool _enableSkeletonLoading = true;
 
     [ObservableProperty]
+    private bool _enableHardwareAcceleration = true;
+
+    [ObservableProperty]
     private double _defaultPlaybackSpeed = 1.0;
 
     [ObservableProperty]
@@ -59,6 +62,7 @@ public partial class SettingsViewModel : ObservableObject
             WatchFolders.Add(folder);
         }
         EnableSkeletonLoading = _storageService.CurrentSettings.EnableSkeletonLoading;
+        EnableHardwareAcceleration = _storageService.CurrentSettings.EnableHardwareAcceleration;
         DefaultPlaybackSpeed = _storageService.CurrentSettings.DefaultPlaybackSpeed;
         RememberPlaybackSpeed = _storageService.CurrentSettings.RememberPlaybackSpeed;
         SelectedThemeIndex = _storageService.CurrentSettings.AppTheme switch
@@ -185,6 +189,17 @@ public partial class SettingsViewModel : ObservableObject
         {
             settings.EnableSkeletonLoading = value;
             await _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    async partial void OnEnableHardwareAccelerationChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.EnableHardwareAcceleration != value)
+        {
+            settings.EnableHardwareAcceleration = value;
+            await _storageService.SaveSettingsAsync(settings);
+            App.GetService<ILibVlcPlaybackService>().ResetEngine();
         }
     }
 

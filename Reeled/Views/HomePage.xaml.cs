@@ -147,25 +147,57 @@ public sealed partial class HomePage : Page
     private Microsoft.UI.Xaml.Media.Animation.Storyboard? _indicatorStoryboard;
     private ScrollViewer? _treeViewScrollViewer;
 
+    private enum ActiveSectionKind
+    {
+        None,
+        TopNav,
+        Folders
+    }
+    private ActiveSectionKind _currentActiveSection = ActiveSectionKind.TopNav;
+
     private void UpdateActiveIndicator(bool animate = true)
     {
         if (ActiveIndicatorPill == null || IndicatorTranslation == null || IndicatorScale == null)
             return;
 
+        ActiveSectionKind newSection = ActiveSectionKind.None;
+        if (ViewModel.IsHomeSelected || ViewModel.IsFavoritesSelected || ViewModel.IsSavedMomentsSelected)
+        {
+            newSection = ActiveSectionKind.TopNav;
+        }
+        else if (ViewModel.CurrentSection == NavigationSection.Folder && ViewModel.SelectedDirectory != null && IsNodeVisibleInTree(ViewModel.SelectedDirectory))
+        {
+            newSection = ActiveSectionKind.Folders;
+        }
+
+        bool isCrossSection = (_currentActiveSection != ActiveSectionKind.None &&
+                               newSection != ActiveSectionKind.None &&
+                               _currentActiveSection != newSection);
+        _currentActiveSection = newSection;
+
         if (ViewModel.IsHomeSelected)
         {
             double targetY = GetTargetIndicatorY(HomeNavButton, 48);
-            AnimateIndicatorTo(targetY, animate);
+            if (isCrossSection && animate)
+                AnimateCrossSectionTransition(targetY);
+            else
+                AnimateIndicatorTo(targetY, animate);
         }
         else if (ViewModel.IsFavoritesSelected)
         {
             double targetY = GetTargetIndicatorY(FavoritesNavButton, 89);
-            AnimateIndicatorTo(targetY, animate);
+            if (isCrossSection && animate)
+                AnimateCrossSectionTransition(targetY);
+            else
+                AnimateIndicatorTo(targetY, animate);
         }
         else if (ViewModel.IsSavedMomentsSelected)
         {
             double targetY = GetTargetIndicatorY(SavedMomentsNavButton, 130);
-            AnimateIndicatorTo(targetY, animate);
+            if (isCrossSection && animate)
+                AnimateCrossSectionTransition(targetY);
+            else
+                AnimateIndicatorTo(targetY, animate);
         }
         else if (ViewModel.CurrentSection == NavigationSection.Folder && ViewModel.SelectedDirectory != null)
         {
@@ -181,7 +213,10 @@ public sealed partial class HomePage : Page
                 if (IsContainerVisibleInTreeView(container))
                 {
                     double targetY = GetTargetIndicatorY(container, _currentIndicatorY);
-                    AnimateIndicatorTo(targetY, animate);
+                    if (isCrossSection && animate)
+                        AnimateCrossSectionTransition(targetY);
+                    else
+                        AnimateIndicatorTo(targetY, animate);
                 }
                 else
                 {
@@ -201,7 +236,10 @@ public sealed partial class HomePage : Page
                             if (IsContainerVisibleInTreeView(delayedContainer))
                             {
                                 double targetY = GetTargetIndicatorY(delayedContainer, _currentIndicatorY);
-                                AnimateIndicatorTo(targetY, animate);
+                                if (isCrossSection && animate)
+                                    AnimateCrossSectionTransition(targetY);
+                                else
+                                    AnimateIndicatorTo(targetY, animate);
                             }
                         }
                     }
@@ -212,6 +250,88 @@ public sealed partial class HomePage : Page
         {
             AnimateIndicatorVisibility(false, animate);
         }
+    }
+
+    private void AnimateCrossSectionTransition(double targetY)
+    {
+        _targetIndicatorY = targetY;
+
+        if (_indicatorStoryboard != null)
+        {
+            _indicatorStoryboard.Stop();
+            _indicatorStoryboard = null;
+        }
+
+        if (!_isIndicatorVisible)
+        {
+            _currentIndicatorY = targetY;
+            IndicatorTranslation.Y = targetY;
+            AnimateIndicatorTo(targetY, animate: true);
+            return;
+        }
+
+        var fadeOutSb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        var easeIn = new Microsoft.UI.Xaml.Media.Animation.QuarticEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseIn };
+        var animFadeOut = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            To = 0.0,
+            Duration = TimeSpan.FromMilliseconds(100),
+            EasingFunction = easeIn
+        };
+        var animScaleDown = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        {
+            To = 0.0,
+            Duration = TimeSpan.FromMilliseconds(100),
+            EasingFunction = easeIn
+        };
+        fadeOutSb.Children.Add(animFadeOut);
+        fadeOutSb.Children.Add(animScaleDown);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animFadeOut, ActiveIndicatorPill);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animFadeOut, "Opacity");
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animScaleDown, IndicatorScale);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animScaleDown, "ScaleY");
+
+        fadeOutSb.Completed += (s, e) =>
+        {
+            _currentIndicatorY = targetY;
+            IndicatorTranslation.Y = targetY;
+            ActiveIndicatorPill.Opacity = 0.0;
+            IndicatorScale.ScaleY = 0.0;
+
+            var fadeInSb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+            var easeOut = new Microsoft.UI.Xaml.Media.Animation.QuarticEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
+            var animFadeIn = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+            {
+                To = 1.0,
+                Duration = TimeSpan.FromMilliseconds(160),
+                EasingFunction = easeOut
+            };
+            var animScaleUp = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+            {
+                To = 1.0,
+                Duration = TimeSpan.FromMilliseconds(180),
+                EasingFunction = easeOut
+            };
+            fadeInSb.Children.Add(animFadeIn);
+            fadeInSb.Children.Add(animScaleUp);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animFadeIn, ActiveIndicatorPill);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animFadeIn, "Opacity");
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animScaleUp, IndicatorScale);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animScaleUp, "ScaleY");
+
+            fadeInSb.Completed += (s2, e2) =>
+            {
+                ActiveIndicatorPill.Opacity = 1.0;
+                IndicatorScale.ScaleY = 1.0;
+                _isIndicatorVisible = true;
+            };
+
+            _indicatorStoryboard = fadeInSb;
+            fadeInSb.Begin();
+        };
+
+        _indicatorStoryboard = fadeOutSb;
+        fadeOutSb.Begin();
     }
 
     private bool IsNodeVisibleInTree(DirectoryNode target)
@@ -242,14 +362,44 @@ public sealed partial class HomePage : Page
         {
             if (targetElement != null && SidebarRootGrid != null && targetElement.ActualHeight > 0 && SidebarRootGrid.ActualHeight > 0)
             {
-                var transform = targetElement.TransformToVisual(SidebarRootGrid);
+                FrameworkElement rowElement = targetElement;
+                if (targetElement is TreeViewItem tvi)
+                {
+                    rowElement = FindVisualChildByName<FrameworkElement>(tvi, "ContentPresenterGrid") ?? tvi;
+                }
+
+                var transform = rowElement.TransformToVisual(SidebarRootGrid);
                 var point = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
+
+                double animationOffsetY = 0.0;
+                if (targetElement.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+                {
+                    animationOffsetY = tt.Y;
+                }
+
+                double rowHeight = (rowElement.ActualHeight > 0 && rowElement.ActualHeight < 60.0)
+                    ? rowElement.ActualHeight
+                    : 36.0;
                 double pillHeight = ActiveIndicatorPill.ActualHeight > 0 ? ActiveIndicatorPill.ActualHeight : 16.0;
-                return point.Y + (targetElement.ActualHeight - pillHeight) / 2.0;
+
+                return (point.Y - animationOffsetY) + (rowHeight - pillHeight) / 2.0;
             }
         }
         catch { }
         return fallbackY;
+    }
+
+    private static T? FindVisualChildByName<T>(DependencyObject parent, string name) where T : FrameworkElement
+    {
+        int count = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T typed && typed.Name == name) return typed;
+            var desc = FindVisualChildByName<T>(child, name);
+            if (desc != null) return desc;
+        }
+        return null;
     }
 
     private bool IsContainerVisibleInTreeView(FrameworkElement container)
@@ -1002,6 +1152,7 @@ public sealed partial class HomePage : Page
     }
 
     private int _expandingGeneration;
+    private readonly System.Collections.Generic.Dictionary<DirectoryNode, System.Threading.CancellationTokenSource> _folderAnimationTokens = new();
 
     private async void OnDirectoryExpanding(TreeView sender, TreeViewExpandingEventArgs args)
     {
@@ -1009,6 +1160,12 @@ public sealed partial class HomePage : Page
         var dirNode = args.Item as DirectoryNode ?? (args.Node?.Content as DirectoryNode);
         if (dirNode == null) return;
         dirNode.IsExpanded = true;
+
+        if (_folderAnimationTokens.TryGetValue(dirNode, out var existingCts))
+        {
+            existingCts.Cancel();
+            _folderAnimationTokens.Remove(dirNode);
+        }
 
         var itemsToAnimate = new System.Collections.Generic.List<DirectoryNode>();
         CollectVisibleDescendants(dirNode, itemsToAnimate);
@@ -1027,7 +1184,7 @@ public sealed partial class HomePage : Page
                 childContainer.Opacity = 0.0;
                 if (childContainer.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
                 {
-                    tt.Y = -12.0;
+                    tt.Y = -10.0;
                 }
             }
         }
@@ -1067,11 +1224,86 @@ public sealed partial class HomePage : Page
                     childContainer.Opacity = 0.0;
                     if (childContainer.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
                     {
-                        tt.Y = -12.0;
+                        tt.Y = -10.0;
                     }
                 }
             }
         }
+        UpdateActiveIndicator(animate: true);
+    }
+
+    private void OnChevronPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (sender is FrameworkElement el && el.DataContext is DirectoryNode node && node.HasSubDirectories)
+        {
+            if (node.IsExpanded)
+            {
+                _ = CollapseDirectoryWithAnimationAsync(node);
+            }
+            else
+            {
+                node.IsExpanded = true;
+            }
+        }
+    }
+
+    private async System.Threading.Tasks.Task CollapseDirectoryWithAnimationAsync(DirectoryNode dirNode)
+    {
+        if (_folderAnimationTokens.TryGetValue(dirNode, out var oldCts))
+        {
+            oldCts.Cancel();
+        }
+        var cts = new System.Threading.CancellationTokenSource();
+        _folderAnimationTokens[dirNode] = cts;
+        var token = cts.Token;
+
+        var itemsToAnimate = new System.Collections.Generic.List<DirectoryNode>();
+        CollectVisibleDescendants(dirNode, itemsToAnimate);
+
+        if (itemsToAnimate.Count > 0 && DirectoriesTreeView != null)
+        {
+            int count = Math.Min(itemsToAnimate.Count, 12);
+            for (int i = 0; i < count; i++)
+            {
+                var childNode = itemsToAnimate[i];
+                if (DirectoriesTreeView.ContainerFromItem(childNode) is TreeViewItem container)
+                {
+                    AnimateCascadeExit(container, i);
+                }
+            }
+
+            int totalWaitMs = Math.Min(count * 20 + 160, 260);
+            try
+            {
+                await System.Threading.Tasks.Task.Delay(totalWaitMs, token);
+            }
+            catch (System.Threading.Tasks.TaskCanceledException)
+            {
+                return;
+            }
+        }
+
+        if (token.IsCancellationRequested) return;
+
+        dirNode.IsExpanded = false;
+        _folderAnimationTokens.Remove(dirNode);
+
+        if (DirectoriesTreeView != null && DirectoriesTreeView.ContainerFromItem(dirNode) is TreeViewItem parentContainer)
+        {
+            var existingContainers = new System.Collections.Generic.List<TreeViewItem>();
+            FindAllVisualChildren(parentContainer, existingContainers);
+            foreach (var childContainer in existingContainers)
+            {
+                StopFolderStoryboard(childContainer);
+                childContainer.Opacity = 0.0;
+                if (childContainer.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+                {
+                    tt.Y = -10.0;
+                }
+            }
+        }
+
         UpdateActiveIndicator(animate: true);
     }
 
@@ -1106,13 +1338,13 @@ public sealed partial class HomePage : Page
         trans.Y = slideDistance;
         element.Opacity = 0.0;
 
-        var delay = TimeSpan.FromMilliseconds(Math.Min(index, 14) * 42);
-        var duration = TimeSpan.FromMilliseconds(250);
+        var delay = TimeSpan.FromMilliseconds(Math.Min(index, 10) * 25);
+        var duration = TimeSpan.FromMilliseconds(190);
         var easeOut = new Microsoft.UI.Xaml.Media.Animation.QuarticEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
 
         var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
 
-        // Use KeyFrames for Y translation so it holds slideDistance until delay, then smoothly eases to 0
+        // 1. Y translation using Apple QuarticEase decelerate curve (matches sidebar opening)
         var animY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
         animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
         {
@@ -1136,7 +1368,7 @@ public sealed partial class HomePage : Page
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, trans);
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "Y");
 
-        // Use KeyFrames for Opacity so it holds 0.0 until delay, then smoothly fades in to 1.0
+        // 2. Opacity fade in using Apple QuarticEase
         var animOp = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
         animOp.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
         {
@@ -1154,7 +1386,7 @@ public sealed partial class HomePage : Page
         animOp.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
         {
             Value = 1.0,
-            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay + TimeSpan.FromMilliseconds(220)),
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay + TimeSpan.FromMilliseconds(170)),
             EasingFunction = easeOut
         });
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOp, element);
@@ -1173,6 +1405,97 @@ public sealed partial class HomePage : Page
                 sb.Stop();
                 element.Opacity = 1.0;
                 trans.Y = 0.0;
+            }
+        };
+
+        sb.Begin();
+    }
+
+    private void AnimateCascadeExit(FrameworkElement element, int index)
+    {
+        StopFolderStoryboard(element);
+
+        Microsoft.UI.Xaml.Media.TranslateTransform trans;
+        if (element.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform existingTt)
+        {
+            trans = existingTt;
+        }
+        else
+        {
+            trans = new Microsoft.UI.Xaml.Media.TranslateTransform();
+            element.RenderTransform = trans;
+        }
+
+        trans.Y = 0.0;
+        element.Opacity = 1.0;
+
+        var delay = TimeSpan.FromMilliseconds(Math.Min(index, 10) * 20);
+        var duration = TimeSpan.FromMilliseconds(160);
+        var easeInOut = new Microsoft.UI.Xaml.Media.Animation.QuarticEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseInOut };
+
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+
+        // 1. Y translation upward slide using QuarticEase EaseInOut (matches sidebar collapsing)
+        var animY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
+        animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
+        {
+            Value = 0.0,
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)
+        });
+        if (delay > TimeSpan.Zero)
+        {
+            animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
+            {
+                Value = 0.0,
+                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay)
+            });
+        }
+        animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
+        {
+            Value = -10.0,
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay + duration),
+            EasingFunction = easeInOut
+        });
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, trans);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "Y");
+
+        // 2. Opacity fade out using QuarticEase EaseInOut
+        var animOp = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
+        animOp.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
+        {
+            Value = 1.0,
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)
+        });
+        if (delay > TimeSpan.Zero)
+        {
+            animOp.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
+            {
+                Value = 1.0,
+                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay)
+            });
+        }
+        animOp.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
+        {
+            Value = 0.0,
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay + duration),
+            EasingFunction = easeInOut
+        });
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOp, element);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animOp, "Opacity");
+
+        sb.Children.Add(animY);
+        sb.Children.Add(animOp);
+
+        _folderStoryboards[element] = sb;
+
+        sb.Completed += (s, e) =>
+        {
+            if (_folderStoryboards.TryGetValue(element, out var currentSb) && currentSb == sb)
+            {
+                _folderStoryboards.Remove(element);
+                sb.Stop();
+                element.Opacity = 0.0;
+                trans.Y = -10.0;
             }
         };
 
@@ -1374,7 +1697,14 @@ public sealed partial class HomePage : Page
         {
             if (targetNode.HasSubDirectories)
             {
-                targetNode.IsExpanded = !targetNode.IsExpanded;
+                if (targetNode.IsExpanded)
+                {
+                    _ = CollapseDirectoryWithAnimationAsync(targetNode);
+                }
+                else
+                {
+                    targetNode.IsExpanded = true;
+                }
             }
             sender.SelectedItem = targetNode;
             await ViewModel.SelectDirectoryAsync(targetNode);

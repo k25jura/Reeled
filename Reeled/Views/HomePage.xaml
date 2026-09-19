@@ -314,7 +314,8 @@
                                       Padding="10,0,6,0" 
                                       Width="28" 
                                       VerticalAlignment="Center"
-                                      Background="Transparent">
+                                      Background="Transparent"
+                                      PointerPressed="OnChevronPointerPressed">
                                     <FontIcon x:Name="ChevronIcon"
                                               Glyph="&#xE972;"
                                               FontSize="9"

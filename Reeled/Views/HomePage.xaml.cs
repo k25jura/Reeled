@@ -32,6 +32,9 @@ public sealed partial class HomePage : Page
             AnimateSidebar(ViewModel.IsSidebarOpen, animate: false);
             UpdateLogo(ActualTheme);
             UpdateNavTabVisuals();
+
+            // Warm up and preload all animation types, DComp visuals, and Storyboard paths at idle priority
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, PreloadAndWarmupAnimations);
         };
 
         ActualThemeChanged += (s, e) =>
@@ -64,6 +67,131 @@ public sealed partial class HomePage : Page
                 }
             }
         };
+    }
+
+    private bool _isAnimationsWarmedUp;
+
+    private void PreloadAndWarmupAnimations()
+    {
+        if (_isAnimationsWarmedUp) return;
+        _isAnimationsWarmedUp = true;
+
+        try
+        {
+            // 1. Prime the DirectComposition visual tree for key interactive surfaces
+            // This prevents first-time DComp visual-peer allocation hitch
+            if (ActiveIndicatorPill != null)
+                Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(ActiveIndicatorPill);
+            if (SidebarContainer != null)
+                Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(SidebarContainer);
+            if (SidebarContentBorder != null)
+                Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(SidebarContentBorder);
+            if (DirectoriesTreeView != null)
+                Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(DirectoriesTreeView);
+            if (HomeNavButton != null)
+                Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(HomeNavButton);
+            if (FavoritesNavButton != null)
+                Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(FavoritesNavButton);
+            if (SavedMomentsNavButton != null)
+                Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(SavedMomentsNavButton);
+
+            // 2. Instantiate and pre-JIT all animation types, easings, and composition primitives
+            var easeOut = new QuarticEase { EasingMode = EasingMode.EaseOut };
+            var easeInOut = new QuarticEase { EasingMode = EasingMode.EaseInOut };
+            var easeIn = new QuarticEase { EasingMode = EasingMode.EaseIn };
+            var cubicEaseOut = new CubicEase { EasingMode = EasingMode.EaseOut };
+            var cubicEaseInOut = new CubicEase { EasingMode = EasingMode.EaseInOut };
+            var cubicEaseIn = new CubicEase { EasingMode = EasingMode.EaseIn };
+
+            // 3. Create dummy elements inside the invisible warmup canvas to pre-tick Storyboards
+            if (AnimationWarmupCanvas != null)
+            {
+                var dummyTarget = new Border
+                {
+                    Width = 36,
+                    Height = 36,
+                    Opacity = 0.0,
+                    RenderTransform = new TransformGroup
+                    {
+                        Children =
+                        {
+                            new TranslateTransform(),
+                            new ScaleTransform(),
+                            new RotateTransform()
+                        }
+                    }
+                };
+                AnimationWarmupCanvas.Children.Add(dummyTarget);
+
+                var dummyTvi = new TreeViewItem
+                {
+                    Style = (Style)Resources["CustomTreeViewItemStyle"],
+                    Opacity = 0.0,
+                    Height = 0.0
+                };
+                AnimationWarmupCanvas.Children.Add(dummyTvi);
+                dummyTvi.ApplyTemplate();
+
+                // Warm up VisualStateManager transitions
+                VisualStateManager.GoToState(dummyTvi, "PointerOver", true);
+                VisualStateManager.GoToState(dummyTvi, "Selected", true);
+                VisualStateManager.GoToState(dummyTvi, "Normal", true);
+                VisualStateManager.GoToState(dummyTvi, "Expanded", true);
+                VisualStateManager.GoToState(dummyTvi, "Collapsed", true);
+
+                // Warm up micro-storyboards for transform, opacity, height, and keyframes
+                var warmupSb = new Storyboard();
+                var dur = TimeSpan.FromMilliseconds(1);
+
+                // Height dependent animation warmup
+                var animH = new DoubleAnimation { From = 0, To = 36, Duration = dur, EasingFunction = easeOut, EnableDependentAnimation = true };
+                Storyboard.SetTarget(animH, dummyTarget);
+                Storyboard.SetTargetProperty(animH, "Height");
+                warmupSb.Children.Add(animH);
+
+                // Translate Y keyframe animation warmup
+                var trans = ((TransformGroup)dummyTarget.RenderTransform).Children[0] as TranslateTransform;
+                var animY = new DoubleAnimationUsingKeyFrames();
+                animY.KeyFrames.Add(new DiscreteDoubleKeyFrame { Value = -10, KeyTime = KeyTime.FromTimeSpan(TimeSpan.Zero) });
+                animY.KeyFrames.Add(new EasingDoubleKeyFrame { Value = 0, KeyTime = KeyTime.FromTimeSpan(dur), EasingFunction = easeOut });
+                Storyboard.SetTarget(animY, trans);
+                Storyboard.SetTargetProperty(animY, "Y");
+                warmupSb.Children.Add(animY);
+
+                // Opacity keyframe animation warmup
+                var animOp = new DoubleAnimationUsingKeyFrames();
+                animOp.KeyFrames.Add(new DiscreteDoubleKeyFrame { Value = 0, KeyTime = KeyTime.FromTimeSpan(TimeSpan.Zero) });
+                animOp.KeyFrames.Add(new EasingDoubleKeyFrame { Value = 0.01, KeyTime = KeyTime.FromTimeSpan(dur), EasingFunction = easeOut });
+                Storyboard.SetTarget(animOp, dummyTarget);
+                Storyboard.SetTargetProperty(animOp, "Opacity");
+                warmupSb.Children.Add(animOp);
+
+                // Scale pulse keyframe animation warmup
+                var scale = ((TransformGroup)dummyTarget.RenderTransform).Children[1] as ScaleTransform;
+                var animScale = new DoubleAnimationUsingKeyFrames();
+                animScale.KeyFrames.Add(new LinearDoubleKeyFrame { Value = 1.0, KeyTime = KeyTime.FromTimeSpan(TimeSpan.Zero) });
+                animScale.KeyFrames.Add(new EasingDoubleKeyFrame { Value = 0.98, KeyTime = KeyTime.FromTimeSpan(dur), EasingFunction = cubicEaseOut });
+                Storyboard.SetTarget(animScale, scale);
+                Storyboard.SetTargetProperty(animScale, "ScaleX");
+                warmupSb.Children.Add(animScale);
+
+                // Rotate chevron animation warmup
+                var rotate = ((TransformGroup)dummyTarget.RenderTransform).Children[2] as RotateTransform;
+                var animRot = new DoubleAnimation { From = 0, To = 90, Duration = dur, EasingFunction = cubicEaseOut };
+                Storyboard.SetTarget(animRot, rotate);
+                Storyboard.SetTargetProperty(animRot, "Angle");
+                warmupSb.Children.Add(animRot);
+
+                warmupSb.Completed += (s, e) =>
+                {
+                    warmupSb.Stop();
+                    AnimationWarmupCanvas.Children.Clear();
+                };
+
+                warmupSb.Begin();
+            }
+        }
+        catch { }
     }
 
     private void UpdateLogo(ElementTheme theme)

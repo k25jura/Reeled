@@ -1077,5 +1077,12 @@
                 </StackPanel>
             </Grid>
         </Grid>
+
+        <!-- Invisible Warmup Container for Preloading & JIT Compilation of Storyboards -->
+        <Canvas x:Name="AnimationWarmupCanvas" 
+                Width="0" Height="0" 
+                Opacity="0" 
+                IsHitTestVisible="False" 
+                Visibility="Visible" />
     </Grid>
 </Page>

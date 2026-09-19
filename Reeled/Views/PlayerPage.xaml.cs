@@ -104,12 +104,38 @@ public sealed partial class PlayerPage : Page
         Loaded += (s, e) =>
         {
             Activate();
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, PreloadAndWarmupAnimations);
         };
 
         Unloaded += (s, e) =>
         {
             Deactivate();
         };
+    }
+
+    private bool _isAnimationsWarmedUp;
+
+    private void PreloadAndWarmupAnimations()
+    {
+        if (_isAnimationsWarmedUp) return;
+        _isAnimationsWarmedUp = true;
+
+        try
+        {
+            if (TopHeaderBar != null)
+                Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(TopHeaderBar);
+            if (BottomControlBar != null)
+                Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(BottomControlBar);
+            if (PlaylistQueueSidebar != null)
+                Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(PlaylistQueueSidebar);
+            if (OsdToastContainer != null)
+                Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(OsdToastContainer);
+            if (MomentsJumpPopup != null)
+                Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(MomentsJumpPopup);
+            if (RootContainer != null)
+                Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(RootContainer);
+        }
+        catch { }
     }
 
     private Storyboard? _sidebarStoryboard;

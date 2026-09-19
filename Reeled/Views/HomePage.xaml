@@ -277,10 +277,15 @@
                         <FontIcon Glyph="&#xE700;" FontSize="14" />
                     </Button>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <FontIcon Glyph="&#xE768;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                        <TextBlock Text="Reeled" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="18" FontWeight="SemiBold" />
-                    </StackPanel>
+                    <Image Grid.Column="1" 
+                           HorizontalAlignment="Left" 
+                           VerticalAlignment="Center"
+                           Height="24"
+                           Stretch="Uniform">
+                        <Image.Source>
+                            <SvgImageSource UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="72" />
+                        </Image.Source>
+                    </Image>
                 </Grid>
 
                 <!-- Row 1: Top Navigation Tabs (Home, Favorites, Saved Moments) -->

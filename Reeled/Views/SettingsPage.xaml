@@ -261,12 +261,24 @@
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
                         BorderThickness="1" 
                         CornerRadius="8" 
-                        Padding="20">
-                    <StackPanel Spacing="10">
-                        <TextBlock Text="About Reeled" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="16" />
-                        <TextBlock Text="Reeled - Clip Player" FontWeight="Normal" />
-                        <TextBlock Text="Powered by LibVLCSharp &amp; VideoLAN LibVLC 3.0 Native Engine." Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        <TextBlock Text="Version 1.0.0 (.NET 8 Windows App SDK)" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                        Padding="24">
+                    <StackPanel Spacing="14">
+                        <Image HorizontalAlignment="Left" 
+                               Height="34" 
+                               Stretch="Uniform">
+                            <Image.Source>
+                                <SvgImageSource UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="102" />
+                            </Image.Source>
+                        </Image>
+                        <TextBlock Text="Clip Player &amp; Highlights Library" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                   FontSize="13" />
+                        <Border Height="1" Background="{ThemeResource CardStrokeColorDefaultBrush}" Margin="0,2" />
+                        <TextBlock Text="Powered by LibVLCSharp &amp; VideoLAN LibVLC 3.0 Native Engine." 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock Text="Version 1.0.0 (.NET 8 Windows App SDK)" 
+                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                     </StackPanel>
                 </Border>
 

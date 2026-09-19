@@ -15,6 +15,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);MVVMTK0045</NoWarn>
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,6 +28,11 @@
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\AppIcon.ico" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+    <Content Include="Assets\light-banner.svg" />
+    <Content Include="Assets\light-icon.svg" />
+    <Content Include="Assets\dark-banner.svg" />
+    <Content Include="Assets\dark-icon.svg" />
+    <Content Include="Assets\releed.png" />
   </ItemGroup>
 
   <ItemGroup>

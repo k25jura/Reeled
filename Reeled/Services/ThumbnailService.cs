@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
+using Windows.Storage.Streams;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Media.Imaging;
 
@@ -99,16 +100,29 @@ public class ThumbnailService : IThumbnailService
             if (dispatcher == null)
                 return null;
 
+            // Read disk bytes asynchronously into memory so no OS file handle remains open on disk
+            byte[] bytes = await File.ReadAllBytesAsync(filePath);
+            if (bytes == null || bytes.Length == 0)
+                return null;
+
             var tcs = new TaskCompletionSource<BitmapImage?>();
             bool enqueued = dispatcher.TryEnqueue(async () =>
             {
                 try
                 {
-                    var file = await StorageFile.GetFileFromPathAsync(filePath);
-                    using var stream = await file.OpenReadAsync();
+                    var memStream = new InMemoryRandomAccessStream();
+                    using (var writer = new DataWriter(memStream))
+                    {
+                        writer.WriteBytes(bytes);
+                        await writer.StoreAsync();
+                        await writer.FlushAsync();
+                        writer.DetachStream();
+                    }
+                    memStream.Seek(0);
+
                     var bitmap = new BitmapImage();
                     bitmap.DecodePixelWidth = 360;
-                    await bitmap.SetSourceAsync(stream);
+                    await bitmap.SetSourceAsync(memStream);
                     tcs.TrySetResult(bitmap);
                 }
                 catch (Exception ex)

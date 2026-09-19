@@ -285,6 +285,28 @@ public partial class HomeViewModel : ObservableObject
         RefreshCurrentViewClips();
     }
 
+    public async Task SelectDirectoryByPathAsync(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return;
+        var node = FindNodeByPath(Directories, path);
+        if (node != null)
+        {
+            await SelectDirectoryAsync(node);
+        }
+    }
+
+    public void ClearThumbnailsInMemory()
+    {
+        foreach (var clip in AllClips)
+        {
+            clip.Thumbnail = null;
+        }
+        foreach (var clip in FilteredClips)
+        {
+            clip.Thumbnail = null;
+        }
+    }
+
     public async Task SyncDirectoriesAsync(bool forceReload = false)
     {
         var settings = await _storageService.LoadSettingsAsync();

@@ -24,6 +24,12 @@ public partial class SettingsViewModel : ObservableObject
     private string _statusMessage = string.Empty;
 
     [ObservableProperty]
+    private string _folderStatusMessage = string.Empty;
+
+    [ObservableProperty]
+    private string _storageStatusMessage = string.Empty;
+
+    [ObservableProperty]
     private string _cacheSizeFormatted = "Calculating...";
 
     [ObservableProperty]
@@ -124,12 +130,15 @@ public partial class SettingsViewModel : ObservableObject
                 settings.WatchDirectories.Add(folder.Path);
                 await _storageService.SaveSettingsAsync(settings);
                 _indexerService.UpdateWatchers(settings.WatchDirectories);
-                StatusMessage = $"Added {folder.Path}";
+                _ = _homeViewModel.SyncDirectoriesAsync(forceReload: true);
+                FolderStatusMessage = $"Added {folder.Path}";
+                StatusMessage = FolderStatusMessage;
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error: {ex.Message}";
+            FolderStatusMessage = $"Error: {ex.Message}";
+            StatusMessage = FolderStatusMessage;
         }
     }
 
@@ -142,7 +151,9 @@ public partial class SettingsViewModel : ObservableObject
             settings.WatchDirectories.Remove(folder);
             await _storageService.SaveSettingsAsync(settings);
             _indexerService.UpdateWatchers(settings.WatchDirectories);
-            StatusMessage = $"Removed {folder}";
+            _ = _homeViewModel.SyncDirectoriesAsync(forceReload: true);
+            FolderStatusMessage = $"Removed {folder}";
+            StatusMessage = FolderStatusMessage;
 
             if (_homeViewModel.CurrentDirectoryPath != null &&
                 (_homeViewModel.CurrentDirectoryPath.Equals(folder, StringComparison.OrdinalIgnoreCase) ||
@@ -154,26 +165,50 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public async Task NavigateToDirectoryAsync(string folderPath)
+    {
+        if (string.IsNullOrEmpty(folderPath)) return;
+        await _homeViewModel.SelectDirectoryByPathAsync(folderPath);
+        _navigationService.NavigateToHome();
+    }
+
+    [RelayCommand]
     public void ClearCache()
     {
         try
         {
             _thumbnailService.ClearMemoryCache();
+            _homeViewModel.ClearThumbnailsInMemory();
+            int deletedCount = 0;
+            long freedBytes = 0;
             string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string cacheDir = Path.Combine(localAppData, "Reeled", "Thumbnails");
             if (Directory.Exists(cacheDir))
             {
                 foreach (var file in Directory.EnumerateFiles(cacheDir))
                 {
-                    try { File.Delete(file); } catch { }
+                    try
+                    {
+                        var fi = new FileInfo(file);
+                        long len = fi.Length;
+                        File.Delete(file);
+                        deletedCount++;
+                        freedBytes += len;
+                    }
+                    catch { }
                 }
             }
             CalculateCacheSize();
-            StatusMessage = "Thumbnail cache cleared";
+            double freedMb = freedBytes / (1024.0 * 1024.0);
+            StorageStatusMessage = deletedCount > 0
+                ? $"Thumbnail cache cleared ({deletedCount} files, {freedMb:F1} MB freed)"
+                : "Thumbnail cache is already empty";
+            StatusMessage = StorageStatusMessage;
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error: {ex.Message}";
+            StorageStatusMessage = $"Error: {ex.Message}";
+            StatusMessage = StorageStatusMessage;
         }
     }
 
@@ -184,11 +219,13 @@ public partial class SettingsViewModel : ObservableObject
         {
             await _clipMetadataCacheService.ClearAsync();
             CalculateClipCacheSize();
-            StatusMessage = "Clip metadata cache cleared";
+            StorageStatusMessage = "Clip metadata cache cleared";
+            StatusMessage = StorageStatusMessage;
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error: {ex.Message}";
+            StorageStatusMessage = $"Error: {ex.Message}";
+            StatusMessage = StorageStatusMessage;
         }
     }
 

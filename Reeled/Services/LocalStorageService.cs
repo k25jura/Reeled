@@ -36,6 +36,7 @@ public class LocalStorageService : ILocalStorageService
                 var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions);
                 if (loaded != null)
                 {
+                    loaded.HasInitializedDefaults = true;
                     _currentSettings = loaded;
                     EnsureValidDefaults(_currentSettings);
                     SaveSettingsSync(_currentSettings);
@@ -62,6 +63,7 @@ public class LocalStorageService : ILocalStorageService
                 var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions);
                 if (loaded != null)
                 {
+                    loaded.HasInitializedDefaults = true;
                     _currentSettings = loaded;
                     EnsureValidDefaults(_currentSettings);
                     return _currentSettings;
@@ -123,19 +125,26 @@ public class LocalStorageService : ILocalStorageService
         {
             settings.WatchDirectories = new();
         }
-        if (settings.WatchDirectories.Count == 0)
+
+        // Only initialize default directories on first run
+        if (!settings.HasInitializedDefaults)
         {
-            string myVideos = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
-            if (Directory.Exists(myVideos) && !settings.WatchDirectories.Contains(myVideos))
+            settings.HasInitializedDefaults = true;
+            if (settings.WatchDirectories.Count == 0)
             {
-                settings.WatchDirectories.Add(myVideos);
-            }
-            string captures = Path.Combine(myVideos, "Captures");
-            if (Directory.Exists(captures) && !settings.WatchDirectories.Contains(captures))
-            {
-                settings.WatchDirectories.Add(captures);
+                string myVideos = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+                if (Directory.Exists(myVideos) && !settings.WatchDirectories.Contains(myVideos))
+                {
+                    settings.WatchDirectories.Add(myVideos);
+                }
+                string captures = Path.Combine(myVideos, "Captures");
+                if (Directory.Exists(captures) && !settings.WatchDirectories.Contains(captures))
+                {
+                    settings.WatchDirectories.Add(captures);
+                }
             }
         }
+
         if (settings.PlaybackSpeed <= 0.25)
         {
             settings.PlaybackSpeed = 1.0;

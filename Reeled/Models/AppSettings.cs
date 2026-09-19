@@ -4,6 +4,7 @@ namespace Reeled.Models;
 
 public class AppSettings
 {
+    public bool HasInitializedDefaults { get; set; } = false;
     public List<string> WatchDirectories { get; set; } = new();
     public string? LastActiveDirectory { get; set; }
     public int Volume { get; set; } = 100;

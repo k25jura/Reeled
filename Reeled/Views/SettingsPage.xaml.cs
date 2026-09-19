@@ -19,11 +19,27 @@ public sealed partial class SettingsPage : Page
     private double _currentIndicatorY = 0;
     private bool _isIndicatorVisible = false;
     private Storyboard? _indicatorStoryboard;
+    private DispatcherTimer? _foldersStatusTimer;
+    private DispatcherTimer? _storageStatusTimer;
 
     public SettingsPage()
     {
         ViewModel = App.GetService<SettingsViewModel>();
         InitializeComponent();
+
+        ViewModel.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(SettingsViewModel.FolderStatusMessage) && !string.IsNullOrEmpty(ViewModel.FolderStatusMessage))
+            {
+                bool isError = ViewModel.FolderStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase);
+                ShowStatusBanner(FoldersStatusBorder, FoldersStatusTranslation, FoldersStatusText, FoldersStatusIcon, ViewModel.FolderStatusMessage, isError, ref _foldersStatusTimer);
+            }
+            else if (e.PropertyName == nameof(SettingsViewModel.StorageStatusMessage) && !string.IsNullOrEmpty(ViewModel.StorageStatusMessage))
+            {
+                bool isError = ViewModel.StorageStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase);
+                ShowStatusBanner(StorageStatusBorder, StorageStatusTranslation, StorageStatusText, StorageStatusIcon, ViewModel.StorageStatusMessage, isError, ref _storageStatusTimer);
+            }
+        };
 
         Loaded += (s, e) =>
         {
@@ -117,6 +133,14 @@ public sealed partial class SettingsPage : Page
         if (sender is Button btn && btn.Tag is string folder)
         {
             await ViewModel.RemoveFolderAsync(folder);
+        }
+    }
+
+    private async void OnDirectoryAnchorClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string folderPath)
+        {
+            await ViewModel.NavigateToDirectoryAsync(folderPath);
         }
     }
 
@@ -288,31 +312,34 @@ public sealed partial class SettingsPage : Page
                 return;
             }
 
-            if (!animate)
-            {
-                if (_indicatorStoryboard != null)
-                {
-                    _indicatorStoryboard.Stop();
-                    _indicatorStoryboard = null;
-                }
-                _currentIndicatorY = targetY;
-                IndicatorTranslation.Y = targetY;
-                return;
-            }
-
-            if (Math.Abs(_currentIndicatorY - targetY) < 1.0)
-                return;
+            double fromY = _currentIndicatorY;
 
             if (_indicatorStoryboard != null)
             {
                 _indicatorStoryboard.Stop();
                 _indicatorStoryboard = null;
+                IndicatorTranslation.Y = fromY;
+                if (IndicatorScale != null) IndicatorScale.ScaleY = 1.0;
             }
+
+            if (!animate)
+            {
+                _currentIndicatorY = targetY;
+                IndicatorTranslation.Y = targetY;
+                if (IndicatorScale != null) IndicatorScale.ScaleY = 1.0;
+                ActiveIndicatorPill.Opacity = 1.0;
+                return;
+            }
+
+            double distance = Math.Abs(targetY - fromY);
+            if (distance < 1.0)
+                return;
 
             var sb = new Storyboard();
             var ease = new QuarticEase { EasingMode = EasingMode.EaseOut };
             var animY = new DoubleAnimation
             {
+                From = fromY,
                 To = targetY,
                 Duration = TimeSpan.FromMilliseconds(220),
                 EasingFunction = ease
@@ -321,8 +348,37 @@ public sealed partial class SettingsPage : Page
             Storyboard.SetTargetProperty(animY, "Y");
             sb.Children.Add(animY);
 
+            if (distance > 5.0 && IndicatorScale != null)
+            {
+                double stretch = Math.Min(1.15, 1.0 + (distance / 500.0));
+                var animScaleKeyFrames = new DoubleAnimationUsingKeyFrames();
+                animScaleKeyFrames.KeyFrames.Add(new DiscreteDoubleKeyFrame
+                {
+                    Value = 1.0,
+                    KeyTime = KeyTime.FromTimeSpan(TimeSpan.Zero)
+                });
+                animScaleKeyFrames.KeyFrames.Add(new EasingDoubleKeyFrame
+                {
+                    Value = stretch,
+                    KeyTime = KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(80)),
+                    EasingFunction = ease
+                });
+                animScaleKeyFrames.KeyFrames.Add(new EasingDoubleKeyFrame
+                {
+                    Value = 1.0,
+                    KeyTime = KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(220)),
+                    EasingFunction = ease
+                });
+
+                sb.Children.Add(animScaleKeyFrames);
+                Storyboard.SetTarget(animScaleKeyFrames, IndicatorScale);
+                Storyboard.SetTargetProperty(animScaleKeyFrames, "ScaleY");
+            }
+
             sb.Completed += (s, e) =>
             {
+                IndicatorTranslation.Y = targetY;
+                if (IndicatorScale != null) IndicatorScale.ScaleY = 1.0;
                 _currentIndicatorY = targetY;
             };
 
@@ -330,6 +386,107 @@ public sealed partial class SettingsPage : Page
             sb.Begin();
         }
         catch { }
+    }
+
+    private void ShowStatusBanner(Border border, TranslateTransform trans, TextBlock textBlock, FontIcon icon, string message, bool isError, ref DispatcherTimer? timer)
+    {
+        if (border == null || trans == null || textBlock == null || icon == null) return;
+
+        timer?.Stop();
+        timer = null;
+
+        textBlock.Text = message;
+        if (isError)
+        {
+            icon.Glyph = "\uE783";
+            icon.Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+            textBlock.Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+        }
+        else
+        {
+            icon.Glyph = "\uE73E";
+            icon.Foreground = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"];
+            textBlock.Foreground = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+        }
+
+        // Accordion space-reserving expansion animation (matches folder cascading in HomePage)
+        var openSb = new Storyboard();
+        var easeOut = new QuarticEase { EasingMode = EasingMode.EaseOut };
+
+        var animHeight = new DoubleAnimation
+        {
+            To = 38.0,
+            Duration = TimeSpan.FromMilliseconds(190),
+            EasingFunction = easeOut,
+            EnableDependentAnimation = true
+        };
+        Storyboard.SetTarget(animHeight, border);
+        Storyboard.SetTargetProperty(animHeight, "Height");
+        openSb.Children.Add(animHeight);
+
+        var animOpacity = new DoubleAnimation
+        {
+            To = 1.0,
+            Duration = TimeSpan.FromMilliseconds(180),
+            EasingFunction = easeOut
+        };
+        Storyboard.SetTarget(animOpacity, border);
+        Storyboard.SetTargetProperty(animOpacity, "Opacity");
+        openSb.Children.Add(animOpacity);
+
+        var animTrans = new DoubleAnimation
+        {
+            To = 0.0,
+            Duration = TimeSpan.FromMilliseconds(190),
+            EasingFunction = easeOut
+        };
+        Storyboard.SetTarget(animTrans, trans);
+        Storyboard.SetTargetProperty(animTrans, "Y");
+        openSb.Children.Add(animTrans);
+
+        openSb.Begin();
+
+        // Auto-collapse after 3.5s with graceful reverse animation
+        var collapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(3500) };
+        collapseTimer.Tick += (s, e) =>
+        {
+            collapseTimer.Stop();
+            var closeSb = new Storyboard();
+            var animCloseHeight = new DoubleAnimation
+            {
+                To = 0.0,
+                Duration = TimeSpan.FromMilliseconds(190),
+                EasingFunction = easeOut,
+                EnableDependentAnimation = true
+            };
+            Storyboard.SetTarget(animCloseHeight, border);
+            Storyboard.SetTargetProperty(animCloseHeight, "Height");
+            closeSb.Children.Add(animCloseHeight);
+
+            var animCloseOpacity = new DoubleAnimation
+            {
+                To = 0.0,
+                Duration = TimeSpan.FromMilliseconds(150),
+                EasingFunction = easeOut
+            };
+            Storyboard.SetTarget(animCloseOpacity, border);
+            Storyboard.SetTargetProperty(animCloseOpacity, "Opacity");
+            closeSb.Children.Add(animCloseOpacity);
+
+            var animCloseTrans = new DoubleAnimation
+            {
+                To = -8.0,
+                Duration = TimeSpan.FromMilliseconds(190),
+                EasingFunction = easeOut
+            };
+            Storyboard.SetTarget(animCloseTrans, trans);
+            Storyboard.SetTargetProperty(animCloseTrans, "Y");
+            closeSb.Children.Add(animCloseTrans);
+
+            closeSb.Begin();
+        };
+        timer = collapseTimer;
+        collapseTimer.Start();
     }
 
     private void OnSettingsScrollViewerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)

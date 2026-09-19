@@ -106,9 +106,9 @@ public sealed partial class HomePage : Page
                 {
                     To = targetOpacity,
                     Duration = TimeSpan.FromMilliseconds(isSelected ? 180 : 140),
-                    EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+                    EasingFunction = new Microsoft.UI.Xaml.Media.Animation.QuarticEase
                     {
-                        EasingMode = isSelected ? Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut : Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseIn
+                        EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut
                     }
                 };
                 var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
@@ -132,8 +132,8 @@ public sealed partial class HomePage : Page
         else
         {
             var defaultTextBrush = isLight
-                ? new SolidColorBrush(Windows.UI.Color.FromArgb(220, 90, 90, 95))
-                : new SolidColorBrush(Windows.UI.Color.FromArgb(200, 160, 160, 168));
+                ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 70, 70, 75))
+                : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 215, 215, 222));
 
             icon.Foreground = defaultTextBrush;
             text.Foreground = defaultTextBrush;
@@ -274,23 +274,18 @@ public sealed partial class HomePage : Page
 
         double distance = Math.Abs(targetY - fromY);
         var moveSb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
-        var backEase = new Microsoft.UI.Xaml.Media.Animation.BackEase
-        {
-            EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut,
-            Amplitude = 0.35
-        };
-        var easeOut = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+        var appleEase = new Microsoft.UI.Xaml.Media.Animation.QuarticEase
         {
             EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut
         };
 
-        // 1. Vertical Glide Animation (Y translation) with Roblox BackEase bounce
+        // 1. Vertical Glide Animation (Y translation) with Apple fluid decelerate
         var animTranslate = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
         {
             From = fromY,
             To = targetY,
-            Duration = TimeSpan.FromMilliseconds(280),
-            EasingFunction = backEase
+            Duration = TimeSpan.FromMilliseconds(240),
+            EasingFunction = appleEase
         };
         moveSb.Children.Add(animTranslate);
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animTranslate, IndicatorTranslation);
@@ -309,14 +304,14 @@ public sealed partial class HomePage : Page
             animScaleKeyFrames.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
             {
                 Value = stretch,
-                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(90)),
-                EasingFunction = easeOut
+                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(80)),
+                EasingFunction = appleEase
             });
             animScaleKeyFrames.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
             {
                 Value = 1.0,
-                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(240)),
-                EasingFunction = easeOut
+                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(220)),
+                EasingFunction = appleEase
             });
 
             moveSb.Children.Add(animScaleKeyFrames);
@@ -488,12 +483,11 @@ public sealed partial class HomePage : Page
         }
 
         var sb = new Storyboard();
-        var openEase = new Microsoft.UI.Xaml.Media.Animation.BackEase
+        var openEase = new Microsoft.UI.Xaml.Media.Animation.QuarticEase
         {
-            EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut,
-            Amplitude = 0.35
+            EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut
         };
-        var closeEase = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+        var closeEase = new Microsoft.UI.Xaml.Media.Animation.QuarticEase
         {
             EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseInOut
         };
@@ -502,7 +496,7 @@ public sealed partial class HomePage : Page
             ? openEase
             : closeEase;
 
-        var duration = TimeSpan.FromMilliseconds(isOpen ? 340 : 260);
+        var duration = TimeSpan.FromMilliseconds(isOpen ? 280 : 240);
 
         // 1. Width animation on container with EnableDependentAnimation = true
         var animWidth = new DoubleAnimation
@@ -833,7 +827,7 @@ public sealed partial class HomePage : Page
         if (itemsToAnimate.Count == 0) return;
 
         // Allow WinUI 3 TreeView a brief cycle to materialize item containers
-        await System.Threading.Tasks.Task.Delay(20);
+        await System.Threading.Tasks.Task.Delay(30);
 
         for (int i = 0; i < itemsToAnimate.Count; i++)
         {
@@ -880,12 +874,12 @@ public sealed partial class HomePage : Page
         }
 
         element.Opacity = 0.0;
-        double slideDistance = -(12.0 + Math.Min(index * 1.0, 8.0));
+        double slideDistance = -(10.0 + Math.Min(index * 0.8, 6.0));
         trans.Y = slideDistance;
 
-        var delay = TimeSpan.FromMilliseconds(Math.Min(index, 14) * 22);
-        var duration = TimeSpan.FromMilliseconds(220);
-        var easeOut = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
+        var delay = TimeSpan.FromMilliseconds(Math.Min(index, 14) * 42);
+        var duration = TimeSpan.FromMilliseconds(250);
+        var easeOut = new Microsoft.UI.Xaml.Media.Animation.QuarticEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
 
         var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
 
@@ -905,7 +899,7 @@ public sealed partial class HomePage : Page
             From = 0.0,
             To = 1.0,
             BeginTime = delay,
-            Duration = TimeSpan.FromMilliseconds(180),
+            Duration = TimeSpan.FromMilliseconds(220),
             EasingFunction = easeOut
         };
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOp, element);
@@ -1123,6 +1117,7 @@ public sealed partial class HomePage : Page
             {
                 targetNode.IsExpanded = !targetNode.IsExpanded;
             }
+            sender.SelectedItem = targetNode;
             await ViewModel.SelectDirectoryAsync(targetNode);
             UpdateActiveIndicator(animate: true);
         }

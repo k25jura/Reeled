@@ -11,6 +11,85 @@
     NavigationCacheMode="Required">
 
     <Page.Resources>
+        <!-- Smooth Navigation Tab Button Style -->
+        <Style x:Key="NavTabButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="RootGrid" Background="Transparent" CornerRadius="6">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualStateGroup.Transitions>
+                                        <VisualTransition From="Normal" To="PointerOver">
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="HoverBorder" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.12">
+                                                    <DoubleAnimation.EasingFunction>
+                                                        <QuarticEase EasingMode="EaseOut" />
+                                                    </DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </VisualTransition>
+                                        <VisualTransition From="PointerOver" To="Normal">
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="HoverBorder" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15">
+                                                    <DoubleAnimation.EasingFunction>
+                                                        <QuarticEase EasingMode="EaseOut" />
+                                                    </DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </VisualTransition>
+                                    </VisualStateGroup.Transitions>
+                                    <VisualState x:Name="Normal">
+                                        <VisualState.Setters>
+                                            <Setter Target="HoverBorder.Opacity" Value="0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="HoverBorder.Opacity" Value="1" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="HoverBorder.Opacity" Value="0.7" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootGrid.Opacity" Value="0.5" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+
+                            <!-- Hover highlight matching folder tree -->
+                            <Border x:Name="HoverBorder"
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                    CornerRadius="6"
+                                    Opacity="0"
+                                    IsHitTestVisible="False" />
+
+                            <ContentPresenter x:Name="ContentPresenter"
+                                              Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              Padding="{TemplateBinding Padding}"
+                                              HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Stretch" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Fluent Windows 11 TreeViewItem Style with Smooth Selection Indicator & Background Transitions -->
         <Style x:Key="CustomTreeViewItemStyle" TargetType="TreeViewItem">
             <Setter Property="MinHeight" Value="36" />
@@ -22,11 +101,11 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="TreeViewItem">
                         <Grid x:Name="ContentPresenterGrid"
-                              Background="Transparent"
-                              CornerRadius="6"
-                              MinHeight="36"
-                              Margin="0,0,16,0"
-                              Padding="0">
+                               Background="Transparent"
+                               CornerRadius="6"
+                               MinHeight="36"
+                               Margin="0,0,16,0"
+                               Padding="0">
 
                             <VisualStateManager.VisualStateGroups>
                                 <VisualStateGroup x:Name="CommonStates">
@@ -34,52 +113,52 @@
                                         <VisualTransition From="Normal" To="Selected">
                                             <Storyboard>
                                                 <DoubleAnimation Storyboard.TargetName="SelectedBackgroundBorder" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.18">
-                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                    <DoubleAnimation.EasingFunction><QuarticEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
                                                 </DoubleAnimation>
                                                 <DoubleAnimation Storyboard.TargetName="SelectionIndicator" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.18">
-                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                    <DoubleAnimation.EasingFunction><QuarticEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
                                                 </DoubleAnimation>
-                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicatorScale" Storyboard.TargetProperty="ScaleY" To="1.0" Duration="0:0:0.18">
-                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicatorScale" Storyboard.TargetProperty="ScaleY" To="1.0" Duration="0:0:0.20">
+                                                    <DoubleAnimation.EasingFunction><QuarticEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
                                                 </DoubleAnimation>
                                             </Storyboard>
                                         </VisualTransition>
                                         <VisualTransition From="PointerOver" To="Selected">
                                             <Storyboard>
                                                 <DoubleAnimation Storyboard.TargetName="SelectedBackgroundBorder" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.18">
-                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                    <DoubleAnimation.EasingFunction><QuarticEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
                                                 </DoubleAnimation>
                                                 <DoubleAnimation Storyboard.TargetName="SelectionIndicator" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.18">
-                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                    <DoubleAnimation.EasingFunction><QuarticEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
                                                 </DoubleAnimation>
-                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicatorScale" Storyboard.TargetProperty="ScaleY" To="1.0" Duration="0:0:0.18">
-                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicatorScale" Storyboard.TargetProperty="ScaleY" To="1.0" Duration="0:0:0.20">
+                                                    <DoubleAnimation.EasingFunction><QuarticEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
                                                 </DoubleAnimation>
                                             </Storyboard>
                                         </VisualTransition>
                                         <VisualTransition From="Selected" To="Normal">
                                             <Storyboard>
                                                 <DoubleAnimation Storyboard.TargetName="SelectedBackgroundBorder" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15">
-                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseIn" /></DoubleAnimation.EasingFunction>
+                                                    <DoubleAnimation.EasingFunction><QuarticEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
                                                 </DoubleAnimation>
                                                 <DoubleAnimation Storyboard.TargetName="SelectionIndicator" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15">
-                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseIn" /></DoubleAnimation.EasingFunction>
+                                                    <DoubleAnimation.EasingFunction><QuarticEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
                                                 </DoubleAnimation>
-                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicatorScale" Storyboard.TargetProperty="ScaleY" To="0.5" Duration="0:0:0.15">
-                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseIn" /></DoubleAnimation.EasingFunction>
+                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicatorScale" Storyboard.TargetProperty="ScaleY" To="0.0" Duration="0:0:0.15">
+                                                    <DoubleAnimation.EasingFunction><QuarticEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
                                                 </DoubleAnimation>
                                             </Storyboard>
                                         </VisualTransition>
                                         <VisualTransition From="Selected" To="PointerOver">
                                             <Storyboard>
                                                 <DoubleAnimation Storyboard.TargetName="SelectedBackgroundBorder" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15">
-                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseIn" /></DoubleAnimation.EasingFunction>
+                                                    <DoubleAnimation.EasingFunction><QuarticEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
                                                 </DoubleAnimation>
                                                 <DoubleAnimation Storyboard.TargetName="SelectionIndicator" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15">
-                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseIn" /></DoubleAnimation.EasingFunction>
+                                                    <DoubleAnimation.EasingFunction><QuarticEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
                                                 </DoubleAnimation>
-                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicatorScale" Storyboard.TargetProperty="ScaleY" To="0.5" Duration="0:0:0.15">
-                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseIn" /></DoubleAnimation.EasingFunction>
+                                                <DoubleAnimation Storyboard.TargetName="SelectionIndicatorScale" Storyboard.TargetProperty="ScaleY" To="0.0" Duration="0:0:0.15">
+                                                    <DoubleAnimation.EasingFunction><QuarticEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
                                                 </DoubleAnimation>
                                             </Storyboard>
                                         </VisualTransition>
@@ -100,6 +179,7 @@
                                             <Setter Target="SelectedBackgroundBorder.Opacity" Value="0" />
                                             <Setter Target="HoverBackgroundBorder.Opacity" Value="0" />
                                             <Setter Target="SelectionIndicator.Opacity" Value="0" />
+                                            <Setter Target="SelectionIndicatorScale.ScaleY" Value="0" />
                                         </VisualState.Setters>
                                     </VisualState>
                                     <VisualState x:Name="PointerOver">
@@ -107,6 +187,7 @@
                                             <Setter Target="SelectedBackgroundBorder.Opacity" Value="0" />
                                             <Setter Target="HoverBackgroundBorder.Opacity" Value="1" />
                                             <Setter Target="SelectionIndicator.Opacity" Value="0" />
+                                            <Setter Target="SelectionIndicatorScale.ScaleY" Value="0" />
                                         </VisualState.Setters>
                                     </VisualState>
                                     <VisualState x:Name="Pressed">
@@ -114,6 +195,7 @@
                                             <Setter Target="SelectedBackgroundBorder.Opacity" Value="0" />
                                             <Setter Target="HoverBackgroundBorder.Opacity" Value="0.8" />
                                             <Setter Target="SelectionIndicator.Opacity" Value="0" />
+                                            <Setter Target="SelectionIndicatorScale.ScaleY" Value="0" />
                                         </VisualState.Setters>
                                     </VisualState>
                                     <VisualState x:Name="Selected">
@@ -214,7 +296,7 @@
                                        RadiusY="1.5"
                                        RenderTransformOrigin="0.5,0.5">
                                 <Rectangle.RenderTransform>
-                                    <ScaleTransform x:Name="SelectionIndicatorScale" ScaleY="0.5" />
+                                    <ScaleTransform x:Name="SelectionIndicatorScale" ScaleY="0.0" />
                                 </Rectangle.RenderTransform>
                             </Rectangle>
 
@@ -332,21 +414,15 @@
                         <!-- Home Tab -->
                         <Button x:Name="HomeNavButton"
                                 Click="OnHomeTabClick"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Stretch"
-                                Padding="0"
-                                Height="38"
-                                CornerRadius="6"
-                                BorderThickness="0"
-                                Style="{ThemeResource SubtleButtonStyle}"
+                                Style="{StaticResource NavTabButtonStyle}"
                                 PointerPressed="OnItemPointerPressed">
-                            <Grid>
+                            <Grid Height="38">
                                 <Border x:Name="HomeSelectedBg"
                                         Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                         CornerRadius="6"
                                         Opacity="0"
                                         IsHitTestVisible="False" />
-                                <Grid Padding="14,0,12,0">
+                                <Grid Padding="14,0,12,0" VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
@@ -359,11 +435,11 @@
                                     <!-- Label -->
                                     <TextBlock x:Name="HomeNavText" Grid.Column="1" Text="Home" FontSize="13" VerticalAlignment="Center" />
 
-                                    <!-- Counter (Clean text, no pill background) -->
+                                    <!-- Counter (Clean text, brightened) -->
                                     <TextBlock Grid.Column="2" 
                                                Text="{x:Bind ViewModel.AllClipsCount, Mode=OneWay}" 
                                                FontSize="12" 
-                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                VerticalAlignment="Center"
                                                Visibility="{x:Bind ViewModel.AllClipsCount, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                 </Grid>
@@ -373,21 +449,15 @@
                         <!-- Favorites Tab -->
                         <Button x:Name="FavoritesNavButton"
                                 Click="OnFavoritesTabClick"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Stretch"
-                                Padding="0"
-                                Height="38"
-                                CornerRadius="6"
-                                BorderThickness="0"
-                                Style="{ThemeResource SubtleButtonStyle}"
+                                Style="{StaticResource NavTabButtonStyle}"
                                 PointerPressed="OnItemPointerPressed">
-                            <Grid>
+                            <Grid Height="38">
                                 <Border x:Name="FavoritesSelectedBg"
                                         Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                         CornerRadius="6"
                                         Opacity="0"
                                         IsHitTestVisible="False" />
-                                <Grid Padding="14,0,12,0">
+                                <Grid Padding="14,0,12,0" VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
@@ -400,11 +470,11 @@
                                     <!-- Label -->
                                     <TextBlock x:Name="FavoritesNavText" Grid.Column="1" Text="Favorites" FontSize="13" VerticalAlignment="Center" />
 
-                                    <!-- Counter (Clean text, no pill background) -->
+                                    <!-- Counter (Clean text, brightened) -->
                                     <TextBlock Grid.Column="2" 
                                                Text="{x:Bind ViewModel.FavoritesCount, Mode=OneWay}" 
                                                FontSize="12" 
-                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                VerticalAlignment="Center"
                                                Visibility="{x:Bind ViewModel.FavoritesCount, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                 </Grid>
@@ -414,21 +484,15 @@
                         <!-- Saved Moments Tab -->
                         <Button x:Name="SavedMomentsNavButton"
                                 Click="OnSavedMomentsTabClick"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Stretch"
-                                Padding="0"
-                                Height="38"
-                                CornerRadius="6"
-                                BorderThickness="0"
-                                Style="{ThemeResource SubtleButtonStyle}"
+                                Style="{StaticResource NavTabButtonStyle}"
                                 PointerPressed="OnItemPointerPressed">
-                            <Grid>
+                            <Grid Height="38">
                                 <Border x:Name="SavedMomentsSelectedBg"
                                         Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                         CornerRadius="6"
                                         Opacity="0"
                                         IsHitTestVisible="False" />
-                                <Grid Padding="14,0,12,0">
+                                <Grid Padding="14,0,12,0" VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
@@ -441,11 +505,11 @@
                                     <!-- Label -->
                                     <TextBlock x:Name="SavedMomentsNavText" Grid.Column="1" Text="Saved Moments" FontSize="13" VerticalAlignment="Center" />
 
-                                    <!-- Counter (Clean text, no pill background) -->
+                                    <!-- Counter (Clean text, brightened) -->
                                     <TextBlock Grid.Column="2" 
                                                Text="{x:Bind ViewModel.SavedMomentsCount, Mode=OneWay}" 
                                                FontSize="12" 
-                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                VerticalAlignment="Center"
                                                Visibility="{x:Bind ViewModel.SavedMomentsCount, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                 </Grid>

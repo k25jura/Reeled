@@ -88,13 +88,15 @@
                 <FontIcon Glyph="&#xE72B;" FontSize="15" />
             </Button>
 
-            <!-- Settings Title (Pinned and clean without description) -->
-            <TextBlock Grid.Column="1" 
-                       Text="Settings" 
-                       Style="{ThemeResource TitleTextBlockStyle}" 
-                       FontSize="20" 
-                       FontWeight="SemiBold" 
-                       VerticalAlignment="Center" />
+            <!-- Settings Title with Icon (Pinned and clean without description) -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE713;" FontSize="18" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                <TextBlock Text="Settings" 
+                           Style="{ThemeResource TitleTextBlockStyle}" 
+                           FontSize="20" 
+                           FontWeight="SemiBold" 
+                           VerticalAlignment="Center" />
+            </StackPanel>
         </Grid>
 
         <!-- Main Body: Left Category Sidebar & Centered Settings Content -->
@@ -106,20 +108,14 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- Category Navigation Sidebar Rail (Fixed left panel) -->
+            <!-- Category Navigation Sidebar Rail (Floating left-center) -->
             <Border Grid.Column="0"
-                    Width="230"
-                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                    BorderThickness="0,0,1,0"
-                    Background="{ThemeResource LayerFillColorDefaultBrush}"
-                    Padding="12,16,12,20">
-                <StackPanel Spacing="3">
-                    <TextBlock Text="Categories"
-                               FontSize="12"
-                               FontWeight="SemiBold"
-                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                               Margin="12,0,0,8" />
-
+                    Width="220"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="16,0,12,0"
+                    VerticalAlignment="Stretch">
+                <StackPanel VerticalAlignment="Center" Spacing="4">
                     <!-- 1. Folders -->
                     <Button x:Name="CatFoldersBtn"
                             Click="OnCategoryButtonClick"
@@ -180,7 +176,7 @@
                         </Grid>
                     </Button>
 
-                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="8,8" />
+                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="8,6" />
 
                     <!-- 5. About -->
                     <Button x:Name="CatAboutBtn"
@@ -231,12 +227,8 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Card Icon -->
-                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6"
-                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                        VerticalAlignment="Center">
-                                    <FontIcon Glyph="&#xE8B7;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
+                                <!-- Card Icon (Clean without background pill) -->
+                                <FontIcon Grid.Column="0" Glyph="&#xE8B7;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
 
                                 <!-- Card Details -->
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
@@ -261,9 +253,17 @@
                             </Grid>
                         </Border>
 
-                        <!-- Watch Folders List Container -->
-                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        <!-- Sub-header for Scanned Directories -->
+                        <TextBlock Text="Configured Library Directories" 
+                                   FontSize="12" 
+                                   FontWeight="SemiBold" 
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                   Margin="2,4,0,0"
+                                   Visibility="{x:Bind ViewModel.WatchFolders.Count, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                        <!-- Watch Folders List Container (Recessed container with clear purpose) -->
+                        <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="14,8"
@@ -273,7 +273,7 @@
                                     <Style TargetType="ListViewItem">
                                         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                                         <Setter Property="Padding" Value="0,4" />
-                                        <Setter Property="MinHeight" Value="38" />
+                                        <Setter Property="MinHeight" Value="42" />
                                     </Style>
                                 </ListView.ItemContainerStyle>
                                 <ListView.ItemTemplate>
@@ -285,8 +285,11 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
 
-                                            <FontIcon Grid.Column="0" Glyph="&#xE8B7;" FontSize="15" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
-                                            <TextBlock Grid.Column="1" Text="{x:Bind}" VerticalAlignment="Center" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                            <FontIcon Grid.Column="0" Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" Width="24" Height="24" />
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                                <TextBlock Text="{x:Bind}" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="Monitored for video clips and moments" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                            </StackPanel>
                                             <Button Grid.Column="2" 
                                                     Click="OnRemoveFolderClick" 
                                                     Tag="{x:Bind}"
@@ -326,11 +329,8 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6"
-                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                        VerticalAlignment="Center">
-                                    <FontIcon Glyph="&#xEC57;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
+                                <!-- Card Icon (Clean without background pill) -->
+                                <FontIcon Grid.Column="0" Glyph="&#xEC57;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
 
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                     <TextBlock Text="Default Playback Speed" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
@@ -346,7 +346,7 @@
                                           VerticalAlignment="Center">
                                     <ComboBoxItem Content="0.5x" Tag="0.5" />
                                     <ComboBoxItem Content="0.75x" Tag="0.75" />
-                                    <ComboBoxItem Content="1.0x (Normal)" Tag="1.0" />
+                                    <ComboBoxItem Content="1.0x" Tag="1.0" />
                                     <ComboBoxItem Content="1.25x" Tag="1.25" />
                                     <ComboBoxItem Content="1.5x" Tag="1.5" />
                                     <ComboBoxItem Content="2.0x" Tag="2.0" />
@@ -367,11 +367,8 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6"
-                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                        VerticalAlignment="Center">
-                                    <FontIcon Glyph="&#xE823;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
+                                <!-- Card Icon (Clean without background pill) -->
+                                <FontIcon Grid.Column="0" Glyph="&#xE823;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
 
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                     <TextBlock Text="Remember Adjusted Playback Speed" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
@@ -382,8 +379,10 @@
 
                                 <ToggleSwitch Grid.Column="2" 
                                               IsOn="{x:Bind ViewModel.RememberPlaybackSpeed, Mode=TwoWay}" 
-                                              OnContent="On" 
-                                              OffContent="Off" 
+                                              OnContent="" 
+                                              OffContent="" 
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
                                               VerticalAlignment="Center" />
                             </Grid>
                         </Border>
@@ -412,11 +411,8 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6"
-                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                        VerticalAlignment="Center">
-                                    <FontIcon Glyph="&#xE790;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
+                                <!-- Card Icon (Clean without background pill) -->
+                                <FontIcon Grid.Column="0" Glyph="&#xE790;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
 
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                     <TextBlock Text="App Theme" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
@@ -461,11 +457,8 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6"
-                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                        VerticalAlignment="Center">
-                                    <FontIcon Glyph="&#xEE65;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
+                                <!-- Card Icon (Clean without background pill) -->
+                                <FontIcon Grid.Column="0" Glyph="&#xEE65;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
 
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                     <TextBlock Text="Skeleton Loading Placeholders" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
@@ -476,8 +469,10 @@
 
                                 <ToggleSwitch Grid.Column="2" 
                                               IsOn="{x:Bind ViewModel.EnableSkeletonLoading, Mode=TwoWay}" 
-                                              OnContent="On" 
-                                              OffContent="Off" 
+                                              OnContent="" 
+                                              OffContent="" 
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
                                               VerticalAlignment="Center" />
                             </Grid>
                         </Border>
@@ -495,11 +490,8 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6"
-                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                        VerticalAlignment="Center">
-                                    <FontIcon Glyph="&#xEB9F;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
+                                <!-- Card Icon (Clean without background pill) -->
+                                <FontIcon Grid.Column="0" Glyph="&#xEB9F;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
 
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                     <TextBlock Text="Thumbnail Cache" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
@@ -533,11 +525,8 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6"
-                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                        VerticalAlignment="Center">
-                                    <FontIcon Glyph="&#xE74C;" FontSize="17" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
+                                <!-- Card Icon (Clean without background pill) -->
+                                <FontIcon Grid.Column="0" Glyph="&#xE74C;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
 
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                     <TextBlock Text="Clip Metadata Cache" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />

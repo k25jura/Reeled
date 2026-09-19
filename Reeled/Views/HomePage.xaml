@@ -284,8 +284,9 @@
                                     Opacity="0" 
                                     IsHitTestVisible="False" />
 
-                            <!-- Active Indicator Handle Pill on Left (Width 3px, Height 16px, CornerRadius 1.5px) -->
+                            <!-- Static SelectionIndicator hidden in favor of unified sliding ActiveIndicatorPill -->
                             <Rectangle x:Name="SelectionIndicator" 
+                                       Visibility="Collapsed"
                                        Width="3" 
                                        Height="16" 
                                        Fill="{ThemeResource AccentFillColorDefaultBrush}" 
@@ -367,7 +368,7 @@
                 <Border.RenderTransform>
                     <TranslateTransform x:Name="SidebarTranslate" X="0" />
                 </Border.RenderTransform>
-            <Grid>
+            <Grid x:Name="SidebarRootGrid">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -516,25 +517,6 @@
                             </Grid>
                         </Button>
                     </StackPanel>
-
-                    <!-- Windows 11 Settings Style Sliding Active Selection Indicator -->
-                    <Border x:Name="ActiveIndicatorPill"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Top"
-                            Width="3"
-                            Height="16"
-                            CornerRadius="1.5"
-                            Background="{ThemeResource AccentFillColorDefaultBrush}"
-                            IsHitTestVisible="False"
-                            Opacity="1"
-                            RenderTransformOrigin="0.5,0.5">
-                        <Border.RenderTransform>
-                            <TransformGroup>
-                                <ScaleTransform x:Name="IndicatorScale" ScaleX="1" ScaleY="1" />
-                                <TranslateTransform x:Name="IndicatorTranslation" X="0" Y="11" />
-                            </TransformGroup>
-                        </Border.RenderTransform>
-                    </Border>
                 </Grid>
 
                 <!-- Row 2: Separator -->
@@ -576,6 +558,7 @@
                               ItemInvoked="OnDirectoryTreeItemInvoked"
                               Expanding="OnDirectoryExpanding"
                               Collapsed="OnDirectoryCollapsed"
+                              Loaded="OnDirectoriesTreeViewLoaded"
                               SelectionMode="Single"
                               Padding="0,0,2,0"
                               ItemContainerStyle="{StaticResource CustomTreeViewItemStyle}"
@@ -677,6 +660,27 @@
                             <FontIcon Glyph="&#xE72C;" FontSize="14" />
                         </Button>
                     </Grid>
+                </Border>
+
+                <!-- Windows 11 Sliding Active Selection Indicator (Unified for Tabs & Folders) -->
+                <Border x:Name="ActiveIndicatorPill"
+                        Grid.RowSpan="6"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Width="3"
+                        Height="16"
+                        CornerRadius="1.5"
+                        Margin="10,0,0,0"
+                        Background="{ThemeResource AccentFillColorDefaultBrush}"
+                        IsHitTestVisible="False"
+                        Opacity="1"
+                        RenderTransformOrigin="0.5,0.5">
+                    <Border.RenderTransform>
+                        <TransformGroup>
+                            <ScaleTransform x:Name="IndicatorScale" ScaleX="1" ScaleY="1" />
+                            <TranslateTransform x:Name="IndicatorTranslation" X="0" Y="48" />
+                        </TransformGroup>
+                    </Border.RenderTransform>
                 </Border>
             </Grid>
         </Border>

@@ -42,7 +42,7 @@ public sealed partial class HomePage : Page
 
         ViewModel.PropertyChanged += (s, e) =>
         {
-            if (e.PropertyName == nameof(HomeViewModel.CurrentSection))
+            if (e.PropertyName == nameof(HomeViewModel.CurrentSection) || e.PropertyName == nameof(HomeViewModel.SelectedDirectory))
             {
                 UpdateActiveIndicator(animate: true);
                 UpdateNavTabVisuals();
@@ -141,10 +141,11 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private double _currentIndicatorY = 11;
-    private double _targetIndicatorY = 11;
+    private double _currentIndicatorY = 48;
+    private double _targetIndicatorY = 48;
     private bool _isIndicatorVisible = true;
     private Microsoft.UI.Xaml.Media.Animation.Storyboard? _indicatorStoryboard;
+    private ScrollViewer? _treeViewScrollViewer;
 
     private void UpdateActiveIndicator(bool animate = true)
     {
@@ -153,40 +154,144 @@ public sealed partial class HomePage : Page
 
         if (ViewModel.IsHomeSelected)
         {
-            double targetY = GetTargetIndicatorY(HomeNavButton, 11);
+            double targetY = GetTargetIndicatorY(HomeNavButton, 48);
             AnimateIndicatorTo(targetY, animate);
         }
         else if (ViewModel.IsFavoritesSelected)
         {
-            double targetY = GetTargetIndicatorY(FavoritesNavButton, 52);
+            double targetY = GetTargetIndicatorY(FavoritesNavButton, 89);
             AnimateIndicatorTo(targetY, animate);
         }
         else if (ViewModel.IsSavedMomentsSelected)
         {
-            double targetY = GetTargetIndicatorY(SavedMomentsNavButton, 93);
+            double targetY = GetTargetIndicatorY(SavedMomentsNavButton, 130);
             AnimateIndicatorTo(targetY, animate);
+        }
+        else if (ViewModel.CurrentSection == NavigationSection.Folder && ViewModel.SelectedDirectory != null)
+        {
+            var node = ViewModel.SelectedDirectory;
+            if (DirectoriesTreeView?.ContainerFromItem(node) is TreeViewItem container)
+            {
+                if (IsContainerVisibleInTreeView(container))
+                {
+                    double targetY = GetTargetIndicatorY(container, _currentIndicatorY);
+                    AnimateIndicatorTo(targetY, animate);
+                }
+                else
+                {
+                    AnimateIndicatorVisibility(false, animate);
+                }
+            }
+            else
+            {
+                // Container might be pending layout pass; check again after layout
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    if (ViewModel.CurrentSection == NavigationSection.Folder && ViewModel.SelectedDirectory == node)
+                    {
+                        if (DirectoriesTreeView?.ContainerFromItem(node) is TreeViewItem delayedContainer && delayedContainer.ActualHeight > 0)
+                        {
+                            if (IsContainerVisibleInTreeView(delayedContainer))
+                            {
+                                double targetY = GetTargetIndicatorY(delayedContainer, _currentIndicatorY);
+                                AnimateIndicatorTo(targetY, animate);
+                            }
+                        }
+                    }
+                });
+            }
         }
         else
         {
-            // When a folder or nothing in the top section is selected
             AnimateIndicatorVisibility(false, animate);
         }
     }
 
-    private double GetTargetIndicatorY(Button targetButton, double fallbackY)
+    private double GetTargetIndicatorY(FrameworkElement targetElement, double fallbackY)
     {
         try
         {
-            if (targetButton != null && TopNavContainer != null && targetButton.ActualHeight > 0 && TopNavContainer.ActualHeight > 0)
+            if (targetElement != null && SidebarRootGrid != null && targetElement.ActualHeight > 0 && SidebarRootGrid.ActualHeight > 0)
             {
-                var transform = targetButton.TransformToVisual(TopNavContainer);
+                var transform = targetElement.TransformToVisual(SidebarRootGrid);
                 var point = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
                 double pillHeight = ActiveIndicatorPill.ActualHeight > 0 ? ActiveIndicatorPill.ActualHeight : 16.0;
-                return point.Y + (targetButton.ActualHeight - pillHeight) / 2.0;
+                return point.Y + (targetElement.ActualHeight - pillHeight) / 2.0;
             }
         }
         catch { }
         return fallbackY;
+    }
+
+    private bool IsContainerVisibleInTreeView(FrameworkElement container)
+    {
+        if (DirectoriesTreeView == null || container.ActualHeight <= 0) return false;
+        try
+        {
+            var transform = container.TransformToVisual(DirectoriesTreeView);
+            var pt = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
+            double bottom = pt.Y + container.ActualHeight;
+            return bottom > 0 && pt.Y < DirectoriesTreeView.ActualHeight;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private void OnDirectoriesTreeViewLoaded(object sender, RoutedEventArgs e)
+    {
+        if (DirectoriesTreeView != null)
+        {
+            _treeViewScrollViewer = FindVisualChild<ScrollViewer>(DirectoriesTreeView);
+            if (_treeViewScrollViewer != null)
+            {
+                _treeViewScrollViewer.ViewChanged += (s, args) =>
+                {
+                    if (ViewModel.CurrentSection == NavigationSection.Folder && ViewModel.SelectedDirectory != null)
+                    {
+                        if (DirectoriesTreeView.ContainerFromItem(ViewModel.SelectedDirectory) is TreeViewItem container)
+                        {
+                            if (IsContainerVisibleInTreeView(container))
+                            {
+                                double targetY = GetTargetIndicatorY(container, _currentIndicatorY);
+                                _currentIndicatorY = targetY;
+                                _targetIndicatorY = targetY;
+                                IndicatorTranslation.Y = targetY;
+                                if (!_isIndicatorVisible)
+                                {
+                                    ActiveIndicatorPill.Opacity = 1.0;
+                                    IndicatorScale.ScaleY = 1.0;
+                                    _isIndicatorVisible = true;
+                                }
+                            }
+                            else
+                            {
+                                if (_isIndicatorVisible)
+                                {
+                                    ActiveIndicatorPill.Opacity = 0.0;
+                                    IndicatorScale.ScaleY = 0.0;
+                                    _isIndicatorVisible = false;
+                                }
+                            }
+                        }
+                    }
+                };
+            }
+        }
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        int count = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T typedChild) return typedChild;
+            var desc = FindVisualChild<T>(child);
+            if (desc != null) return desc;
+        }
+        return null;
     }
 
     private void AnimateIndicatorTo(double targetY, bool animate)
@@ -496,7 +601,7 @@ public sealed partial class HomePage : Page
             ? openEase
             : closeEase;
 
-        var duration = TimeSpan.FromMilliseconds(isOpen ? 280 : 240);
+        var duration = TimeSpan.FromMilliseconds(isOpen ? 380 : 320);
 
         // 1. Width animation on container with EnableDependentAnimation = true
         var animWidth = new DoubleAnimation
@@ -521,18 +626,14 @@ public sealed partial class HomePage : Page
         Storyboard.SetTarget(animTranslate, SidebarTranslate);
         Storyboard.SetTargetProperty(animTranslate, "X");
 
-        // 3. Opacity animation
+        // 3. Subtle Opacity fade in and fade out
         var animOpacity = new DoubleAnimation
         {
             From = startOpacity,
             To = targetOpacity,
-            Duration = TimeSpan.FromMilliseconds(isOpen ? 220 : 180),
+            Duration = TimeSpan.FromMilliseconds(isOpen ? 340 : 260),
             EasingFunction = ease
         };
-        if (!isOpen)
-        {
-            animOpacity.BeginTime = TimeSpan.FromMilliseconds(50);
-        }
         Storyboard.SetTarget(animOpacity, SidebarContentBorder);
         Storyboard.SetTargetProperty(animOpacity, "Opacity");
 
@@ -801,7 +902,16 @@ public sealed partial class HomePage : Page
         UpdateActiveIndicator(animate: true);
     }
 
-    private readonly System.Collections.Generic.List<Storyboard> _activeFolderStoryboards = new();
+    private readonly System.Collections.Generic.Dictionary<FrameworkElement, Storyboard> _folderStoryboards = new();
+
+    private void StopFolderStoryboard(FrameworkElement element)
+    {
+        if (_folderStoryboards.TryGetValue(element, out var oldSb))
+        {
+            oldSb.Stop();
+            _folderStoryboards.Remove(element);
+        }
+    }
 
     private static void CollectVisibleDescendants(DirectoryNode parent, System.Collections.Generic.List<DirectoryNode> list)
     {
@@ -826,6 +936,17 @@ public sealed partial class HomePage : Page
 
         if (itemsToAnimate.Count == 0) return;
 
+        // Synchronously zero out opacity on any already-materialized containers
+        // before the layout delay so they NEVER appear or flash before the cascade starts
+        foreach (var node in itemsToAnimate)
+        {
+            if (sender.ContainerFromItem(node) is TreeViewItem container)
+            {
+                StopFolderStoryboard(container);
+                container.Opacity = 0.0;
+            }
+        }
+
         // Allow WinUI 3 TreeView a brief cycle to materialize item containers
         await System.Threading.Tasks.Task.Delay(30);
 
@@ -845,7 +966,18 @@ public sealed partial class HomePage : Page
         if (dirNode != null)
         {
             dirNode.IsExpanded = false;
+            var descendants = new System.Collections.Generic.List<DirectoryNode>();
+            CollectVisibleDescendants(dirNode, descendants);
+            foreach (var node in descendants)
+            {
+                if (sender.ContainerFromItem(node) is TreeViewItem container)
+                {
+                    StopFolderStoryboard(container);
+                    container.Opacity = 0.0;
+                }
+            }
         }
+        UpdateActiveIndicator(animate: true);
     }
 
     private void OnFolderItemGridLoaded(object sender, RoutedEventArgs e)
@@ -862,6 +994,8 @@ public sealed partial class HomePage : Page
 
     private void AnimateCascadeEntrance(FrameworkElement element, int index)
     {
+        StopFolderStoryboard(element);
+
         Microsoft.UI.Xaml.Media.TranslateTransform trans;
         if (element.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform existingTt)
         {
@@ -873,9 +1007,9 @@ public sealed partial class HomePage : Page
             element.RenderTransform = trans;
         }
 
-        element.Opacity = 0.0;
         double slideDistance = -(10.0 + Math.Min(index * 0.8, 6.0));
         trans.Y = slideDistance;
+        element.Opacity = 0.0;
 
         var delay = TimeSpan.FromMilliseconds(Math.Min(index, 14) * 42);
         var duration = TimeSpan.FromMilliseconds(250);
@@ -883,38 +1017,65 @@ public sealed partial class HomePage : Page
 
         var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
 
-        var animY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        // Use KeyFrames for Y translation so it holds slideDistance until delay, then smoothly eases to 0
+        var animY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
+        animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
         {
-            From = slideDistance,
-            To = 0.0,
-            BeginTime = delay,
-            Duration = duration,
+            Value = slideDistance,
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)
+        });
+        if (delay > TimeSpan.Zero)
+        {
+            animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
+            {
+                Value = slideDistance,
+                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay)
+            });
+        }
+        animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
+        {
+            Value = 0.0,
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay + duration),
             EasingFunction = easeOut
-        };
+        });
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, trans);
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "Y");
 
-        var animOp = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+        // Use KeyFrames for Opacity so it holds 0.0 until delay, then smoothly fades in to 1.0
+        var animOp = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
+        animOp.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
         {
-            From = 0.0,
-            To = 1.0,
-            BeginTime = delay,
-            Duration = TimeSpan.FromMilliseconds(220),
+            Value = 0.0,
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)
+        });
+        if (delay > TimeSpan.Zero)
+        {
+            animOp.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
+            {
+                Value = 0.0,
+                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay)
+            });
+        }
+        animOp.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
+        {
+            Value = 1.0,
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay + TimeSpan.FromMilliseconds(220)),
             EasingFunction = easeOut
-        };
+        });
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOp, element);
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animOp, "Opacity");
 
         sb.Children.Add(animY);
         sb.Children.Add(animOp);
 
-        _activeFolderStoryboards.Add(sb);
+        _folderStoryboards[element] = sb;
 
         sb.Completed += (s, e) =>
         {
-            _activeFolderStoryboards.Remove(sb);
-            trans.Y = 0.0;
+            _folderStoryboards.Remove(element);
+            sb.Stop();
             element.Opacity = 1.0;
+            trans.Y = 0.0;
         };
 
         sb.Begin();

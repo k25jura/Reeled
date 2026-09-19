@@ -261,7 +261,7 @@ public sealed partial class HomePage : Page
         {
             var defaultTextBrush = isLight
                 ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 70, 70, 75))
-                : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 215, 215, 222));
+                : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 210, 210, 210));
 
             icon.Foreground = defaultTextBrush;
             text.Foreground = defaultTextBrush;

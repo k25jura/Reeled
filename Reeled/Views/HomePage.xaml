@@ -589,7 +589,7 @@
                                         <FontIcon Grid.Column="0" 
                                                   Glyph="{x:Bind IconGlyph, Mode=OneWay}" 
                                                   FontSize="15" 
-                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" 
+                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
                                                   VerticalAlignment="Center" />
 
                                         <TextBlock Grid.Column="1" 
@@ -628,11 +628,11 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- Row 5: Bottom Settings & Refresh (Separated Container with Card Background & Border) -->
+                <!-- Row 5: Bottom Settings & Refresh (Integrated with Sidebar Background) -->
                 <Border Grid.Row="5" 
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
                         BorderThickness="0,1,0,0" 
-                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
                         Padding="14,10">
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>

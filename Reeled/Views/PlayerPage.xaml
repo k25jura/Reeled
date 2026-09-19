@@ -9,7 +9,7 @@
     xmlns:models="using:Reeled.Models"
     xmlns:viewmodels="using:Reeled.ViewModels"
     mc:Ignorable="d"
-    Background="#0F0F12"
+    Background="#101010"
     KeyDown="OnPageKeyDown"
     PointerMoved="OnPagePointerMoved"
     PointerWheelChanged="OnPlayerPointerWheelChanged"
@@ -90,8 +90,8 @@
         <!-- Top Header Overlay (Telegram style) -->
         <Border x:Name="TopHeaderBar"
                 VerticalAlignment="Top" 
-                Background="#D916161A" 
-                BorderBrush="#2A2A30" 
+                Background="#E6161616" 
+                BorderBrush="#262626" 
                 BorderThickness="0,0,0,1" 
                 Padding="16,8,16,8">
             <Grid>
@@ -100,8 +100,8 @@
                            FontSize="14" 
                            FontWeight="SemiBold" 
                            Foreground="White" 
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
+                           HorizontalAlignment="Center" 
+                           VerticalAlignment="Center" 
                            TextTrimming="CharacterEllipsis" 
                            MaxWidth="550" />
 
@@ -126,8 +126,8 @@
                 VerticalAlignment="Bottom" 
                 HorizontalAlignment="Stretch" 
                 Margin="0" 
-                Background="#D916161A" 
-                BorderBrush="#2A2A30" 
+                Background="#E6161616" 
+                BorderBrush="#262626" 
                 BorderThickness="0,1,0,0" 
                 CornerRadius="0" 
                 MinHeight="82"
@@ -653,8 +653,8 @@
                 Margin="16,0,0,92"
                 Width="320"
                 MaxHeight="260"
-                Background="#2C2C2E"
-                BorderBrush="#383838"
+                Background="#1C1C1C"
+                BorderBrush="#2A2A2A"
                 BorderThickness="1"
                 CornerRadius="8"
                 Padding="8,10"
@@ -745,8 +745,8 @@
         <Border x:Name="PlaylistQueueSidebar"
                 HorizontalAlignment="Right" 
                 Width="320" 
-                Background="#F216161B" 
-                BorderBrush="#2E2E36" 
+                Background="#F2161616" 
+                BorderBrush="#262626" 
                 BorderThickness="1,0,0,0"
                 Opacity="0"
                 Visibility="Collapsed">

@@ -92,7 +92,7 @@
 
         <!-- Fluent Windows 11 TreeViewItem Style with Smooth Selection Indicator & Background Transitions -->
         <Style x:Key="CustomTreeViewItemStyle" TargetType="TreeViewItem">
-            <Setter Property="MinHeight" Value="36" />
+            <Setter Property="MinHeight" Value="0" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Margin" Value="0,1" />
             <Setter Property="Padding" Value="0" />
@@ -103,7 +103,7 @@
                         <Grid x:Name="ContentPresenterGrid"
                                Background="Transparent"
                                CornerRadius="6"
-                               MinHeight="36"
+                               MinHeight="0"
                                Margin="0,0,16,0"
                                Padding="0">
 
@@ -302,7 +302,7 @@
                             </Rectangle>
 
                             <!-- Row Layout: Indentation + Chevron + Content -->
-                            <Grid Padding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=TreeViewItemTemplateSettings.Indentation}">
+                            <Grid MinHeight="36" Padding="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=TreeViewItemTemplateSettings.Indentation}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />

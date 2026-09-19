@@ -201,6 +201,7 @@ public sealed partial class HomePage : Page
         }
         else if (ViewModel.CurrentSection == NavigationSection.Folder && ViewModel.SelectedDirectory != null)
         {
+            HookTreeViewScrollViewer();
             var node = ViewModel.SelectedDirectory;
             if (!IsNodeVisibleInTree(node))
             {
@@ -410,8 +411,9 @@ public sealed partial class HomePage : Page
         {
             var transform = container.TransformToVisual(DirectoriesTreeView);
             var pt = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
-            double bottom = pt.Y + container.ActualHeight;
-            return bottom > 0 && pt.Y < DirectoriesTreeView.ActualHeight;
+            double pillTop = pt.Y + 10.0;
+            double pillBottom = pillTop + 16.0;
+            return pillBottom > 0 && pillTop < DirectoriesTreeView.ActualHeight;
         }
         catch
         {
@@ -419,57 +421,94 @@ public sealed partial class HomePage : Page
         }
     }
 
+    private void UpdateFolderIndicatorPosition()
+    {
+        if (ViewModel.CurrentSection != NavigationSection.Folder || ViewModel.SelectedDirectory == null)
+            return;
+
+        var node = ViewModel.SelectedDirectory;
+        if (!IsNodeVisibleInTree(node))
+        {
+            if (_isIndicatorVisible)
+            {
+                ActiveIndicatorPill.Opacity = 0.0;
+                IndicatorScale.ScaleY = 0.0;
+                _isIndicatorVisible = false;
+            }
+            return;
+        }
+
+        if (DirectoriesTreeView?.ContainerFromItem(node) is TreeViewItem container)
+        {
+            if (IsContainerVisibleInTreeView(container))
+            {
+                if (_indicatorStoryboard != null)
+                {
+                    _indicatorStoryboard.Stop();
+                    _indicatorStoryboard = null;
+                }
+
+                double targetY = GetTargetIndicatorY(container, _currentIndicatorY);
+                _currentIndicatorY = targetY;
+                _targetIndicatorY = targetY;
+                IndicatorTranslation.Y = targetY;
+                if (!_isIndicatorVisible)
+                {
+                    ActiveIndicatorPill.Opacity = 1.0;
+                    IndicatorScale.ScaleY = 1.0;
+                    _isIndicatorVisible = true;
+                }
+            }
+            else
+            {
+                if (_isIndicatorVisible)
+                {
+                    ActiveIndicatorPill.Opacity = 0.0;
+                    IndicatorScale.ScaleY = 0.0;
+                    _isIndicatorVisible = false;
+                }
+            }
+        }
+        else
+        {
+            if (_isIndicatorVisible)
+            {
+                ActiveIndicatorPill.Opacity = 0.0;
+                IndicatorScale.ScaleY = 0.0;
+                _isIndicatorVisible = false;
+            }
+        }
+    }
+
+    private void HookTreeViewScrollViewer()
+    {
+        if (_treeViewScrollViewer != null) return;
+        if (DirectoriesTreeView == null) return;
+
+        _treeViewScrollViewer = FindVisualChild<ScrollViewer>(DirectoriesTreeView);
+        if (_treeViewScrollViewer != null)
+        {
+            _treeViewScrollViewer.ViewChanged += (s, args) => UpdateFolderIndicatorPosition();
+            _treeViewScrollViewer.ViewChanging += (s, args) => UpdateFolderIndicatorPosition();
+        }
+    }
+
     private void OnDirectoriesTreeViewLoaded(object sender, RoutedEventArgs e)
     {
+        HookTreeViewScrollViewer();
         if (DirectoriesTreeView != null)
         {
-            _treeViewScrollViewer = FindVisualChild<ScrollViewer>(DirectoriesTreeView);
-            if (_treeViewScrollViewer != null)
-            {
-                _treeViewScrollViewer.ViewChanged += (s, args) =>
-                {
-                    if (ViewModel.CurrentSection == NavigationSection.Folder && ViewModel.SelectedDirectory != null)
-                    {
-                        var node = ViewModel.SelectedDirectory;
-                        if (!IsNodeVisibleInTree(node))
-                        {
-                            if (_isIndicatorVisible)
-                            {
-                                ActiveIndicatorPill.Opacity = 0.0;
-                                IndicatorScale.ScaleY = 0.0;
-                                _isIndicatorVisible = false;
-                            }
-                            return;
-                        }
+            DirectoriesTreeView.LayoutUpdated += OnDirectoriesTreeViewLayoutUpdated;
+            DirectoriesTreeView.PointerWheelChanged += (s, args) => UpdateFolderIndicatorPosition();
+        }
+    }
 
-                        if (DirectoriesTreeView.ContainerFromItem(node) is TreeViewItem container)
-                        {
-                            if (IsContainerVisibleInTreeView(container))
-                            {
-                                double targetY = GetTargetIndicatorY(container, _currentIndicatorY);
-                                _currentIndicatorY = targetY;
-                                _targetIndicatorY = targetY;
-                                IndicatorTranslation.Y = targetY;
-                                if (!_isIndicatorVisible)
-                                {
-                                    ActiveIndicatorPill.Opacity = 1.0;
-                                    IndicatorScale.ScaleY = 1.0;
-                                    _isIndicatorVisible = true;
-                                }
-                            }
-                            else
-                            {
-                                if (_isIndicatorVisible)
-                                {
-                                    ActiveIndicatorPill.Opacity = 0.0;
-                                    IndicatorScale.ScaleY = 0.0;
-                                    _isIndicatorVisible = false;
-                                }
-                            }
-                        }
-                    }
-                };
-            }
+    private void OnDirectoriesTreeViewLayoutUpdated(object? sender, object e)
+    {
+        HookTreeViewScrollViewer();
+        if (_treeViewScrollViewer != null && DirectoriesTreeView != null)
+        {
+            DirectoriesTreeView.LayoutUpdated -= OnDirectoriesTreeViewLayoutUpdated;
         }
     }
 
@@ -480,9 +519,10 @@ public sealed partial class HomePage : Page
             if (!node.IsWatchRoot)
             {
                 tvi.Opacity = 0.0;
+                tvi.Height = 0.0;
                 if (tvi.RenderTransform is not Microsoft.UI.Xaml.Media.TranslateTransform)
                 {
-                    tvi.RenderTransform = new Microsoft.UI.Xaml.Media.TranslateTransform { Y = -12.0 };
+                    tvi.RenderTransform = new Microsoft.UI.Xaml.Media.TranslateTransform { Y = -10.0 };
                 }
             }
         }
@@ -1167,13 +1207,17 @@ public sealed partial class HomePage : Page
             _folderAnimationTokens.Remove(dirNode);
         }
 
+        var cts = new System.Threading.CancellationTokenSource();
+        _folderAnimationTokens[dirNode] = cts;
+        var token = cts.Token;
+
         var itemsToAnimate = new System.Collections.Generic.List<DirectoryNode>();
         CollectVisibleDescendants(dirNode, itemsToAnimate);
 
         if (itemsToAnimate.Count == 0) return;
 
-        // Synchronously zero out opacity and translate transform on any already-materialized containers
-        // in the parent's visual subtree before the layout delay so they NEVER appear or flash
+        // Synchronously zero out opacity and height on any already-materialized containers
+        // in the parent's visual subtree before the layout delay so they NEVER appear or jump
         if (sender.ContainerFromItem(dirNode) is TreeViewItem parentContainer)
         {
             var existingContainers = new System.Collections.Generic.List<TreeViewItem>();
@@ -1182,6 +1226,7 @@ public sealed partial class HomePage : Page
             {
                 StopFolderStoryboard(childContainer);
                 childContainer.Opacity = 0.0;
+                childContainer.Height = 0.0;
                 if (childContainer.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
                 {
                     tt.Y = -10.0;
@@ -1190,20 +1235,79 @@ public sealed partial class HomePage : Page
         }
 
         // Allow WinUI 3 TreeView a brief cycle to materialize item containers
-        await System.Threading.Tasks.Task.Delay(30);
+        try
+        {
+            await System.Threading.Tasks.Task.Delay(35, token);
+        }
+        catch (System.Threading.Tasks.TaskCanceledException)
+        {
+            return;
+        }
 
         // Guard against rapid toggling: if collapsed again or another expansion started, abort
-        if (currentGen != _expandingGeneration || !dirNode.IsExpanded) return;
+        if (token.IsCancellationRequested || currentGen != _expandingGeneration || !dirNode.IsExpanded) return;
 
+        var targetContainers = new System.Collections.Generic.List<(TreeViewItem Container, int Index)>();
         for (int i = 0; i < itemsToAnimate.Count; i++)
         {
             var node = itemsToAnimate[i];
             if (sender.ContainerFromItem(node) is TreeViewItem container)
             {
-                AnimateCascadeEntrance(container, i);
+                container.Opacity = 0.0;
+                container.Height = 0.0;
+                targetContainers.Add((container, i));
             }
         }
 
+        if (targetContainers.Count == 0) return;
+
+        // Phase 1: Accordion Space Extension (invisible space extends downwards using Apple QuarticEase)
+        var spaceSb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        var easeOut = new Microsoft.UI.Xaml.Media.Animation.QuarticEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
+        var spaceDuration = TimeSpan.FromMilliseconds(190);
+
+        foreach (var (container, _) in targetContainers)
+        {
+            var animHeight = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+            {
+                From = 0.0,
+                To = 36.0,
+                Duration = spaceDuration,
+                EasingFunction = easeOut,
+                EnableDependentAnimation = true
+            };
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animHeight, container);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animHeight, "Height");
+            spaceSb.Children.Add(animHeight);
+        }
+
+        spaceSb.Begin();
+
+        try
+        {
+            await System.Threading.Tasks.Task.Delay(195, token);
+        }
+        catch (System.Threading.Tasks.TaskCanceledException)
+        {
+            spaceSb.Stop();
+            return;
+        }
+
+        if (token.IsCancellationRequested || currentGen != _expandingGeneration || !dirNode.IsExpanded) return;
+
+        // Restore standard auto-sizing
+        foreach (var (container, _) in targetContainers)
+        {
+            container.Height = double.NaN;
+        }
+
+        // Phase 2: Cascading Folder Animation (top to bottom slide down and fade in)
+        foreach (var (container, index) in targetContainers)
+        {
+            AnimateCascadeEntrance(container, index);
+        }
+
+        _folderAnimationTokens.Remove(dirNode);
         UpdateActiveIndicator(animate: true);
     }
 
@@ -1222,6 +1326,7 @@ public sealed partial class HomePage : Page
                 {
                     StopFolderStoryboard(childContainer);
                     childContainer.Opacity = 0.0;
+                    childContainer.Height = double.NaN;
                     if (childContainer.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
                     {
                         tt.Y = -10.0;
@@ -1261,30 +1366,86 @@ public sealed partial class HomePage : Page
         var itemsToAnimate = new System.Collections.Generic.List<DirectoryNode>();
         CollectVisibleDescendants(dirNode, itemsToAnimate);
 
-        if (itemsToAnimate.Count > 0 && DirectoriesTreeView != null)
+        var targetContainers = new System.Collections.Generic.List<TreeViewItem>();
+        if (DirectoriesTreeView != null)
         {
-            int count = Math.Min(itemsToAnimate.Count, 12);
-            for (int i = 0; i < count; i++)
+            foreach (var node in itemsToAnimate)
             {
-                var childNode = itemsToAnimate[i];
-                if (DirectoriesTreeView.ContainerFromItem(childNode) is TreeViewItem container)
+                if (DirectoriesTreeView.ContainerFromItem(node) is TreeViewItem container)
                 {
-                    AnimateCascadeExit(container, i);
+                    targetContainers.Add(container);
                 }
             }
+        }
 
-            int totalWaitMs = Math.Min(count * 20 + 160, 260);
+        // Immediately rotate parent chevron to collapsed state
+        if (DirectoriesTreeView?.ContainerFromItem(dirNode) is TreeViewItem parentTvi)
+        {
+            VisualStateManager.GoToState(parentTvi, "Collapsed", true);
+        }
+
+        // If selected item is inside this collapsing branch, hide indicator immediately
+        if (ViewModel.SelectedDirectory != null && itemsToAnimate.Contains(ViewModel.SelectedDirectory))
+        {
+            AnimateIndicatorVisibility(false, animate: true);
+        }
+
+        if (targetContainers.Count > 0 && DirectoriesTreeView != null)
+        {
+            // Phase 1: Cascading Folder Exit in REVERSE order (bottom to top)
+            int count = targetContainers.Count;
+            for (int i = 0; i < count; i++)
+            {
+                int reverseIndex = count - 1 - i; // Bottom item has reverseIndex = 0
+                AnimateCascadeExit(targetContainers[i], reverseIndex);
+            }
+
+            int exitWaitMs = Math.Min((count - 1) * 18 + 140, 260);
             try
             {
-                await System.Threading.Tasks.Task.Delay(totalWaitMs, token);
+                await System.Threading.Tasks.Task.Delay(exitWaitMs, token);
             }
             catch (System.Threading.Tasks.TaskCanceledException)
             {
                 return;
             }
-        }
 
-        if (token.IsCancellationRequested) return;
+            if (token.IsCancellationRequested) return;
+
+            // Phase 2: Accordion Space Collapse (space shrinks upward from 36 to 0 using Apple QuarticEase)
+            var spaceSb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+            var easeInOut = new Microsoft.UI.Xaml.Media.Animation.QuarticEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseInOut };
+            var spaceDuration = TimeSpan.FromMilliseconds(180);
+
+            foreach (var container in targetContainers)
+            {
+                var animHeight = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+                {
+                    From = container.ActualHeight > 0 ? container.ActualHeight : 36.0,
+                    To = 0.0,
+                    Duration = spaceDuration,
+                    EasingFunction = easeInOut,
+                    EnableDependentAnimation = true
+                };
+                Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animHeight, container);
+                Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animHeight, "Height");
+                spaceSb.Children.Add(animHeight);
+            }
+
+            spaceSb.Begin();
+
+            try
+            {
+                await System.Threading.Tasks.Task.Delay(185, token);
+            }
+            catch (System.Threading.Tasks.TaskCanceledException)
+            {
+                spaceSb.Stop();
+                return;
+            }
+
+            if (token.IsCancellationRequested) return;
+        }
 
         dirNode.IsExpanded = false;
         _folderAnimationTokens.Remove(dirNode);
@@ -1297,6 +1458,7 @@ public sealed partial class HomePage : Page
             {
                 StopFolderStoryboard(childContainer);
                 childContainer.Opacity = 0.0;
+                childContainer.Height = double.NaN;
                 if (childContainer.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
                 {
                     tt.Y = -10.0;
@@ -1338,13 +1500,13 @@ public sealed partial class HomePage : Page
         trans.Y = slideDistance;
         element.Opacity = 0.0;
 
-        var delay = TimeSpan.FromMilliseconds(Math.Min(index, 10) * 25);
-        var duration = TimeSpan.FromMilliseconds(190);
+        var delay = TimeSpan.FromMilliseconds(Math.Min(index, 10) * 20);
+        var duration = TimeSpan.FromMilliseconds(180);
         var easeOut = new Microsoft.UI.Xaml.Media.Animation.QuarticEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
 
         var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
 
-        // 1. Y translation using Apple QuarticEase decelerate curve (matches sidebar opening)
+        // 1. Y translation using Apple QuarticEase decelerate curve
         var animY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
         animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
         {
@@ -1386,7 +1548,7 @@ public sealed partial class HomePage : Page
         animOp.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
         {
             Value = 1.0,
-            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay + TimeSpan.FromMilliseconds(170)),
+            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay + TimeSpan.FromMilliseconds(160)),
             EasingFunction = easeOut
         });
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOp, element);
@@ -1429,13 +1591,13 @@ public sealed partial class HomePage : Page
         trans.Y = 0.0;
         element.Opacity = 1.0;
 
-        var delay = TimeSpan.FromMilliseconds(Math.Min(index, 10) * 20);
-        var duration = TimeSpan.FromMilliseconds(160);
+        var delay = TimeSpan.FromMilliseconds(Math.Min(index, 10) * 18);
+        var duration = TimeSpan.FromMilliseconds(140);
         var easeInOut = new Microsoft.UI.Xaml.Media.Animation.QuarticEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseInOut };
 
         var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
 
-        // 1. Y translation upward slide using QuarticEase EaseInOut (matches sidebar collapsing)
+        // 1. Y translation upward slide using QuarticEase EaseInOut
         var animY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
         animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
         {

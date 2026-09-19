@@ -1,6 +1,24 @@
-# Reeled
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="Reeled/Assets/light-banner.svg">
+    <source media="(prefers-color-scheme: light)" srcset="Reeled/Assets/dark-banner.svg">
+    <img alt="Reeled" src="Reeled/Assets/dark-banner.svg" width="420">
+  </picture>
+</p>
 
-> **work in progress**: Reeled is currently developing. Features and UI are subject to change.
+<p align="center">
+  <strong>Fast, modern Windows 11 gameplay clip player and library manager</strong>
+</p>
+
+<p align="center">
+  <img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%2011%20%7C%2010-0078D4?logo=windows">
+  <img alt="Framework" src="https://img.shields.io/badge/Framework-WinUI%203-blue">
+  <img alt=".NET" src="https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet">
+  <img alt="Engine" src="https://img.shields.io/badge/Engine-LibVLC-E05A00">
+  <img alt="License" src="https://img.shields.io/badge/License-GPL--3.0-green.svg">
+</p>
+
+> **Work in progress**: Reeled is currently in active development. Features and UI are subject to change.
 
 **Reeled** is a modern Windows 11 video viewer focused on game clips and library manager built with **unpackaged WinUI 3 (Windows App SDK)** targeting **.NET 8** and powered by **LibVLCSharp** and native **VideoLAN LibVLC 3.0**.
 

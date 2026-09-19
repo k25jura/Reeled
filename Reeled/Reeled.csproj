@@ -37,6 +37,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Localization\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
 

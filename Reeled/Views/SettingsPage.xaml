@@ -957,63 +957,75 @@
                                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
                                 BorderThickness="1"
-                                Padding="16,14"
+                                Padding="18,14"
                                 HorizontalAlignment="Stretch">
                             <Border.RenderTransform>
                                 <TranslateTransform x:Name="UpdateAvailableTranslation" Y="-10" />
                             </Border.RenderTransform>
-                            <StackPanel Spacing="10">
-                                <Grid ColumnSpacing="12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="12">
+                                <!-- Top Row: App Logo + Version (No feature update text, no pill badge) -->
+                                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                    <Image x:Name="UpdateLogoImage"
+                                           Height="26" 
+                                           Stretch="Uniform"
+                                           VerticalAlignment="Center">
+                                        <Image.Source>
+                                            <SvgImageSource x:Name="UpdateLogoSvg" UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="78" />
+                                        </Image.Source>
+                                    </Image>
+                                    <TextBlock Text="1.1.0" 
+                                               FontSize="15" 
+                                               FontWeight="SemiBold" 
+                                               VerticalAlignment="Center" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
 
-                                    <FontIcon Grid.Column="0" Glyph="&#xEC05;" FontSize="20" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                <!-- Release Notes / Summary -->
+                                <TextBlock x:Name="UpdateAvailableNotes"
+                                           Text="Includes Ukrainian localization, redesigned settings categories, and performance optimizations." 
+                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           TextWrapping="Wrap" />
 
-                                    <StackPanel Grid.Column="1" Spacing="2">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock Text="Reeled 1.1.0 Feature Update" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
-                                            <Border Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="4" Padding="6,1">
-                                                <TextBlock Text="New" FontSize="11" FontWeight="SemiBold" Foreground="White" />
-                                            </Border>
-                                        </StackPanel>
-                                        <TextBlock Text="Includes Ukrainian localization, redesigned settings categories, and performance optimizations." 
-                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                    </StackPanel>
-
-                                    <!-- Action Button (Download & Install / Install & Restart) -->
-                                    <Button Grid.Column="2" 
-                                            x:Name="DownloadUpdateButton"
-                                            Command="{x:Bind ViewModel.DownloadUpdateCommand}"
-                                            Visibility="{x:Bind ViewModel.IsUpdateReadyToInstall, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
-                                            IsEnabled="{x:Bind ViewModel.IsDownloadingUpdate, Mode=OneWay, Converter={StaticResource InverseBoolConverter}}"
-                                            Style="{ThemeResource AccentButtonStyle}"
-                                            Content="Download &amp; Install"
-                                            VerticalAlignment="Center" />
-
-                                    <Button Grid.Column="2" 
-                                            x:Name="InstallUpdateButton"
-                                            Command="{x:Bind ViewModel.InstallUpdateCommand}"
-                                            Visibility="{x:Bind ViewModel.IsUpdateReadyToInstall, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                            Style="{ThemeResource AccentButtonStyle}"
-                                            Content="Install and Restart"
-                                            VerticalAlignment="Center" />
-                                </Grid>
-
-                                <!-- Progress bar when downloading -->
-                                <StackPanel Spacing="4" 
+                                <!-- Progress section when downloading -->
+                                <StackPanel Spacing="6" 
                                             Visibility="{x:Bind ViewModel.IsDownloadingUpdate, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <Grid>
+                                        <TextBlock Text="{x:Bind ViewModel.DownloadProgressFormatted, Mode=OneWay}" 
+                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                                   HorizontalAlignment="Left" />
+                                        <TextBlock Text="{x:Bind ViewModel.DownloadProgressDetailed, Mode=OneWay}" 
+                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}" 
+                                                   HorizontalAlignment="Right" />
+                                    </Grid>
                                     <ProgressBar Value="{x:Bind ViewModel.DownloadProgress, Mode=OneWay}" 
                                                  Maximum="100" 
                                                  Height="4" 
-                                                 CornerRadius="2" />
-                                    <TextBlock Text="{x:Bind ViewModel.DownloadProgressFormatted, Mode=OneWay}" 
-                                               Style="{ThemeResource CaptionTextBlockStyle}" 
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                 CornerRadius="2" 
+                                                 HorizontalAlignment="Stretch" />
                                 </StackPanel>
+
+                                <!-- Centered Action Buttons (Utilizing space cleanly, centered) -->
+                                <Button x:Name="DownloadUpdateButton" 
+                                        Command="{x:Bind ViewModel.DownloadUpdateCommand}"
+                                        Visibility="{x:Bind ViewModel.CanDownloadUpdate, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Style="{ThemeResource AccentButtonStyle}"
+                                        Content="Download &amp; Install"
+                                        HorizontalAlignment="Center"
+                                        Padding="32,7"
+                                        CornerRadius="6" />
+
+                                <Button x:Name="InstallUpdateButton" 
+                                        Command="{x:Bind ViewModel.InstallUpdateCommand}"
+                                        Visibility="{x:Bind ViewModel.IsUpdateReadyToInstall, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Style="{ThemeResource AccentButtonStyle}"
+                                        Content="Install and Restart"
+                                        HorizontalAlignment="Center"
+                                        Padding="32,7"
+                                        CornerRadius="6" />
                             </StackPanel>
                         </Border>
 
@@ -1030,7 +1042,7 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
-                                <FontIcon Grid.Column="0" Glyph="&#xE895;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                <FontIcon Grid.Column="0" Glyph="&#xE777;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
 
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                     <TextBlock x:Name="AutoCheckUpdatesTitleText" Text="Check for updates automatically" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
@@ -1046,6 +1058,30 @@
                                               MinWidth="0"
                                               HorizontalAlignment="Right"
                                               VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Inline Status Banner for Updates (Cascading space reservation animation) -->
+                        <Border x:Name="UpdatesStatusBorder"
+                                Height="0"
+                                Opacity="0"
+                                CornerRadius="6"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                Margin="0,2,0,0"
+                                Padding="12,0"
+                                HorizontalAlignment="Stretch">
+                            <Border.RenderTransform>
+                                <TranslateTransform x:Name="UpdatesStatusTranslation" Y="-8" />
+                            </Border.RenderTransform>
+                            <Grid ColumnSpacing="8" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon x:Name="UpdatesStatusIcon" Grid.Column="0" Glyph="&#xE73E;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                <TextBlock x:Name="UpdatesStatusText" Grid.Column="1" FontSize="12.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                             </Grid>
                         </Border>
                     </StackPanel>

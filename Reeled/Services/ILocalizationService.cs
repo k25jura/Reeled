@@ -14,5 +14,6 @@ public interface ILocalizationService
     string FormatPlural(string keyPrefix, int count);
 
     void SetLanguage(string languageCode);
+    System.Collections.Generic.IReadOnlyList<string> GetAvailableLanguages();
     event EventHandler? LanguageChanged;
 }

@@ -23,6 +23,7 @@ public sealed partial class SettingsPage : Page
     private Storyboard? _updateCardStoryboard;
     private DispatcherTimer? _foldersStatusTimer;
     private DispatcherTimer? _storageStatusTimer;
+    private DispatcherTimer? _updatesStatusTimer;
 
     public SettingsPage()
     {
@@ -40,6 +41,11 @@ public sealed partial class SettingsPage : Page
             {
                 bool isError = ViewModel.StorageStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase);
                 ShowStatusBanner(StorageStatusBorder, StorageStatusTranslation, StorageStatusText, StorageStatusIcon, ViewModel.StorageStatusMessage, isError, ref _storageStatusTimer);
+            }
+            else if (e.PropertyName == nameof(SettingsViewModel.UpdatesStatusMessage) && !string.IsNullOrEmpty(ViewModel.UpdatesStatusMessage))
+            {
+                bool isError = ViewModel.UpdatesStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase);
+                ShowStatusBanner(UpdatesStatusBorder, UpdatesStatusTranslation, UpdatesStatusText, UpdatesStatusIcon, ViewModel.UpdatesStatusMessage, isError, ref _updatesStatusTimer);
             }
             else if (e.PropertyName == nameof(SettingsViewModel.IsUpdateAvailable))
             {
@@ -120,14 +126,18 @@ public sealed partial class SettingsPage : Page
 
     private void UpdateLogo(ElementTheme theme)
     {
-        if (SettingsLogoSvg == null) return;
         bool isLight = (theme == ElementTheme.Light);
         var uri = isLight 
             ? new System.Uri("ms-appx:///Assets/dark-banner.svg") 
             : new System.Uri("ms-appx:///Assets/light-banner.svg");
-        if (SettingsLogoSvg.UriSource != uri)
+
+        if (SettingsLogoSvg != null && SettingsLogoSvg.UriSource != uri)
         {
             SettingsLogoSvg.UriSource = uri;
+        }
+        if (UpdateLogoSvg != null && UpdateLogoSvg.UriSource != uri)
+        {
+            UpdateLogoSvg.UriSource = uri;
         }
     }
 
@@ -611,12 +621,14 @@ public sealed partial class SettingsPage : Page
         var sb = new Storyboard();
         var appleEase = new QuarticEase { EasingMode = EasingMode.EaseOut };
 
-        double targetHeight = open ? 120.0 : 0.0;
+        double startHeight = open ? 0.0 : UpdateAvailableBorder.ActualHeight;
+        double targetHeight = open ? 126.0 : 0.0;
         double targetOpacity = open ? 1.0 : 0.0;
         double targetY = open ? 0.0 : -10.0;
 
         var animH = new DoubleAnimation
         {
+            From = startHeight,
             To = targetHeight,
             Duration = TimeSpan.FromMilliseconds(220),
             EasingFunction = appleEase,
@@ -648,7 +660,14 @@ public sealed partial class SettingsPage : Page
 
         sb.Completed += (s, e) =>
         {
-            UpdateAvailableBorder.Height = targetHeight;
+            if (open)
+            {
+                UpdateAvailableBorder.Height = double.NaN;
+            }
+            else
+            {
+                UpdateAvailableBorder.Height = 0;
+            }
             UpdateAvailableBorder.Opacity = targetOpacity;
             UpdateAvailableTranslation.Y = targetY;
             UpdateAvailableBorder.IsHitTestVisible = open;
@@ -688,6 +707,7 @@ public sealed partial class SettingsPage : Page
         if (UpdatesSectionTitle != null) UpdatesSectionTitle.Text = loc["Updates_SectionTitle"];
         if (AutoCheckUpdatesTitleText != null) AutoCheckUpdatesTitleText.Text = loc["Updates_AutoCheckTitle"];
         if (AutoCheckUpdatesSubtitleText != null) AutoCheckUpdatesSubtitleText.Text = loc["Updates_AutoCheckSubtitle"];
+        if (UpdateAvailableNotes != null) UpdateAvailableNotes.Text = loc["Updates_AvailableNotes"];
         if (DownloadUpdateButton != null) DownloadUpdateButton.Content = loc["Updates_DownloadButton"];
         if (InstallUpdateButton != null) InstallUpdateButton.Content = loc["Updates_InstallButton"];
     }

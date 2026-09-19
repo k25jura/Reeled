@@ -66,16 +66,26 @@ public partial class SettingsViewModel : ObservableObject
     private bool _isUpdateAvailable;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDownloadUpdate))]
     private bool _isDownloadingUpdate;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDownloadUpdate))]
     private bool _isUpdateReadyToInstall;
+
+    public bool CanDownloadUpdate => !IsDownloadingUpdate && !IsUpdateReadyToInstall;
 
     [ObservableProperty]
     private double _downloadProgress;
 
     [ObservableProperty]
     private string _downloadProgressFormatted = string.Empty;
+
+    [ObservableProperty]
+    private string _downloadProgressDetailed = string.Empty;
+
+    [ObservableProperty]
+    private string _updatesStatusMessage = string.Empty;
 
     [ObservableProperty]
     private string _updateStatusFormatted = string.Empty;
@@ -384,12 +394,16 @@ public partial class SettingsViewModel : ObservableObject
         IsDownloadingUpdate = true;
         DownloadProgress = 0;
         DownloadProgressFormatted = $"{_localizationService["Updates_StatusDownloading"]} 0%";
+        DownloadProgressDetailed = string.Format(_localizationService["Updates_Progress_Format"], "0.0", "38.4", 0, "4.8");
 
         for (int p = 0; p <= 100; p += 5)
         {
             await Task.Delay(80);
             DownloadProgress = p;
+            double downloadedMb = (p / 100.0) * 38.4;
+            double speed = 4.8 + (p % 3) * 0.3;
             DownloadProgressFormatted = $"{_localizationService["Updates_StatusDownloading"]} {p}%";
+            DownloadProgressDetailed = string.Format(_localizationService["Updates_Progress_Format"], $"{downloadedMb:F1}", "38.4", p, $"{speed:F1}");
         }
 
         IsDownloadingUpdate = false;
@@ -403,10 +417,8 @@ public partial class SettingsViewModel : ObservableObject
         IsUpdateReadyToInstall = false;
         IsUpdateAvailable = false;
         UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
-        StorageStatusMessage = _localizationService.EffectiveLanguage == "uk"
-            ? "Оновлення успішно застосовано!"
-            : "Update applied successfully!";
-        StatusMessage = StorageStatusMessage;
+        UpdatesStatusMessage = _localizationService["Updates_Status_Installed"];
+        StatusMessage = UpdatesStatusMessage;
     }
 
     partial void OnAutoCheckUpdatesChanged(bool value)

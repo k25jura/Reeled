@@ -569,6 +569,7 @@
                             <DataTemplate x:DataType="models:DirectoryNode">
                                 <TreeViewItem ItemsSource="{x:Bind SubDirectories, Mode=OneWay}"
                                               IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
+                                              Loading="OnTreeViewItemLoading"
                                               Style="{StaticResource CustomTreeViewItemStyle}">
                                     <Grid Margin="0,0,8,0" ColumnSpacing="8" VerticalAlignment="Center"
                                           Loaded="OnFolderItemGridLoaded"

@@ -170,6 +170,12 @@ public sealed partial class HomePage : Page
         else if (ViewModel.CurrentSection == NavigationSection.Folder && ViewModel.SelectedDirectory != null)
         {
             var node = ViewModel.SelectedDirectory;
+            if (!IsNodeVisibleInTree(node))
+            {
+                AnimateIndicatorVisibility(false, animate);
+                return;
+            }
+
             if (DirectoriesTreeView?.ContainerFromItem(node) is TreeViewItem container)
             {
                 if (IsContainerVisibleInTreeView(container))
@@ -184,12 +190,13 @@ public sealed partial class HomePage : Page
             }
             else
             {
-                // Container might be pending layout pass; check again after layout
+                // Node is logically expanded, but container is pending layout pass; hide indicator so no ghost remains
+                AnimateIndicatorVisibility(false, animate);
                 DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
                 {
                     if (ViewModel.CurrentSection == NavigationSection.Folder && ViewModel.SelectedDirectory == node)
                     {
-                        if (DirectoriesTreeView?.ContainerFromItem(node) is TreeViewItem delayedContainer && delayedContainer.ActualHeight > 0)
+                        if (IsNodeVisibleInTree(node) && DirectoriesTreeView?.ContainerFromItem(node) is TreeViewItem delayedContainer && delayedContainer.ActualHeight > 0)
                         {
                             if (IsContainerVisibleInTreeView(delayedContainer))
                             {
@@ -205,6 +212,28 @@ public sealed partial class HomePage : Page
         {
             AnimateIndicatorVisibility(false, animate);
         }
+    }
+
+    private bool IsNodeVisibleInTree(DirectoryNode target)
+    {
+        if (target == null) return false;
+        foreach (var root in ViewModel.Directories)
+        {
+            if (root == target) return true;
+            if (IsNodeVisibleRecursive(root, target)) return true;
+        }
+        return false;
+    }
+
+    private static bool IsNodeVisibleRecursive(DirectoryNode current, DirectoryNode target)
+    {
+        if (!current.IsExpanded) return false;
+        foreach (var child in current.SubDirectories)
+        {
+            if (child == target) return true;
+            if (IsNodeVisibleRecursive(child, target)) return true;
+        }
+        return false;
     }
 
     private double GetTargetIndicatorY(FrameworkElement targetElement, double fallbackY)
@@ -226,6 +255,7 @@ public sealed partial class HomePage : Page
     private bool IsContainerVisibleInTreeView(FrameworkElement container)
     {
         if (DirectoriesTreeView == null || container.ActualHeight <= 0) return false;
+        if (container.Visibility != Visibility.Visible) return false;
         try
         {
             var transform = container.TransformToVisual(DirectoriesTreeView);
@@ -250,7 +280,19 @@ public sealed partial class HomePage : Page
                 {
                     if (ViewModel.CurrentSection == NavigationSection.Folder && ViewModel.SelectedDirectory != null)
                     {
-                        if (DirectoriesTreeView.ContainerFromItem(ViewModel.SelectedDirectory) is TreeViewItem container)
+                        var node = ViewModel.SelectedDirectory;
+                        if (!IsNodeVisibleInTree(node))
+                        {
+                            if (_isIndicatorVisible)
+                            {
+                                ActiveIndicatorPill.Opacity = 0.0;
+                                IndicatorScale.ScaleY = 0.0;
+                                _isIndicatorVisible = false;
+                            }
+                            return;
+                        }
+
+                        if (DirectoriesTreeView.ContainerFromItem(node) is TreeViewItem container)
                         {
                             if (IsContainerVisibleInTreeView(container))
                             {
@@ -278,6 +320,35 @@ public sealed partial class HomePage : Page
                     }
                 };
             }
+        }
+    }
+
+    private void OnTreeViewItemLoading(FrameworkElement sender, object args)
+    {
+        if (sender is TreeViewItem tvi && tvi.DataContext is DirectoryNode node)
+        {
+            if (!node.IsWatchRoot)
+            {
+                tvi.Opacity = 0.0;
+                if (tvi.RenderTransform is not Microsoft.UI.Xaml.Media.TranslateTransform)
+                {
+                    tvi.RenderTransform = new Microsoft.UI.Xaml.Media.TranslateTransform { Y = -12.0 };
+                }
+            }
+        }
+    }
+
+    private static void FindAllVisualChildren<T>(DependencyObject parent, System.Collections.Generic.List<T> results) where T : DependencyObject
+    {
+        int count = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T typed)
+            {
+                results.Add(typed);
+            }
+            FindAllVisualChildren(child, results);
         }
     }
 
@@ -908,8 +979,13 @@ public sealed partial class HomePage : Page
     {
         if (_folderStoryboards.TryGetValue(element, out var oldSb))
         {
-            oldSb.Stop();
             _folderStoryboards.Remove(element);
+            oldSb.Stop();
+            element.Opacity = 0.0;
+            if (element.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+            {
+                tt.Y = -12.0;
+            }
         }
     }
 
@@ -925,8 +1001,11 @@ public sealed partial class HomePage : Page
         }
     }
 
+    private int _expandingGeneration;
+
     private async void OnDirectoryExpanding(TreeView sender, TreeViewExpandingEventArgs args)
     {
+        int currentGen = ++_expandingGeneration;
         var dirNode = args.Item as DirectoryNode ?? (args.Node?.Content as DirectoryNode);
         if (dirNode == null) return;
         dirNode.IsExpanded = true;
@@ -936,19 +1015,28 @@ public sealed partial class HomePage : Page
 
         if (itemsToAnimate.Count == 0) return;
 
-        // Synchronously zero out opacity on any already-materialized containers
-        // before the layout delay so they NEVER appear or flash before the cascade starts
-        foreach (var node in itemsToAnimate)
+        // Synchronously zero out opacity and translate transform on any already-materialized containers
+        // in the parent's visual subtree before the layout delay so they NEVER appear or flash
+        if (sender.ContainerFromItem(dirNode) is TreeViewItem parentContainer)
         {
-            if (sender.ContainerFromItem(node) is TreeViewItem container)
+            var existingContainers = new System.Collections.Generic.List<TreeViewItem>();
+            FindAllVisualChildren(parentContainer, existingContainers);
+            foreach (var childContainer in existingContainers)
             {
-                StopFolderStoryboard(container);
-                container.Opacity = 0.0;
+                StopFolderStoryboard(childContainer);
+                childContainer.Opacity = 0.0;
+                if (childContainer.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+                {
+                    tt.Y = -12.0;
+                }
             }
         }
 
         // Allow WinUI 3 TreeView a brief cycle to materialize item containers
         await System.Threading.Tasks.Task.Delay(30);
+
+        // Guard against rapid toggling: if collapsed again or another expansion started, abort
+        if (currentGen != _expandingGeneration || !dirNode.IsExpanded) return;
 
         for (int i = 0; i < itemsToAnimate.Count; i++)
         {
@@ -958,22 +1046,29 @@ public sealed partial class HomePage : Page
                 AnimateCascadeEntrance(container, i);
             }
         }
+
+        UpdateActiveIndicator(animate: true);
     }
 
     private void OnDirectoryCollapsed(TreeView sender, TreeViewCollapsedEventArgs args)
     {
+        _expandingGeneration++;
         var dirNode = args.Item as DirectoryNode ?? (args.Node?.Content as DirectoryNode);
         if (dirNode != null)
         {
             dirNode.IsExpanded = false;
-            var descendants = new System.Collections.Generic.List<DirectoryNode>();
-            CollectVisibleDescendants(dirNode, descendants);
-            foreach (var node in descendants)
+            if (sender.ContainerFromItem(dirNode) is TreeViewItem parentContainer)
             {
-                if (sender.ContainerFromItem(node) is TreeViewItem container)
+                var existingContainers = new System.Collections.Generic.List<TreeViewItem>();
+                FindAllVisualChildren(parentContainer, existingContainers);
+                foreach (var childContainer in existingContainers)
                 {
-                    StopFolderStoryboard(container);
-                    container.Opacity = 0.0;
+                    StopFolderStoryboard(childContainer);
+                    childContainer.Opacity = 0.0;
+                    if (childContainer.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+                    {
+                        tt.Y = -12.0;
+                    }
                 }
             }
         }
@@ -1072,10 +1167,13 @@ public sealed partial class HomePage : Page
 
         sb.Completed += (s, e) =>
         {
-            _folderStoryboards.Remove(element);
-            sb.Stop();
-            element.Opacity = 1.0;
-            trans.Y = 0.0;
+            if (_folderStoryboards.TryGetValue(element, out var currentSb) && currentSb == sb)
+            {
+                _folderStoryboards.Remove(element);
+                sb.Stop();
+                element.Opacity = 1.0;
+                trans.Y = 0.0;
+            }
         };
 
         sb.Begin();

@@ -18,7 +18,6 @@ public class AppSettings
     public bool EnableSkeletonLoading { get; set; } = true;
     public double SidebarWidth { get; set; } = 316;
     public string AppTheme { get; set; } = "Default";
-    public bool EnableHardwareAcceleration { get; set; } = true;
 }
 
 public enum RepeatMode

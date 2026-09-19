@@ -190,34 +190,6 @@
                                           VerticalAlignment="Center" />
                         </Grid>
                     </Border>
-
-                    <!-- Hardware Acceleration Card -->
-                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                            BorderThickness="1" 
-                            CornerRadius="8" 
-                            Padding="20">
-                        <Grid ColumnSpacing="16">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                                <TextBlock Text="Hardware-Accelerated Video Decoding" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" />
-                                <TextBlock Text="Use GPU hardware decoding. Turn off if experiencing color distortion with graphics overlays (like NVIDIA RTX Dynamic Vibrance)." 
-                                           Style="{ThemeResource CaptionTextBlockStyle}" 
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                           TextWrapping="Wrap" />
-                            </StackPanel>
-
-                            <ToggleSwitch Grid.Column="1" 
-                                          IsOn="{x:Bind ViewModel.EnableHardwareAcceleration, Mode=TwoWay}" 
-                                          OnContent="On" 
-                                          OffContent="Off" 
-                                          VerticalAlignment="Center" />
-                        </Grid>
-                    </Border>
                 </StackPanel>
 
                 <!-- Playback Options Section -->

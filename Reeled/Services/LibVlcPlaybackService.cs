@@ -81,16 +81,9 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         }
     }
 
-    private readonly ILocalStorageService? _storageService;
-
     public LibVlcPlaybackService()
     {
         _dispatcherQueue = App.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
-        try
-        {
-            _storageService = App.GetService<ILocalStorageService>();
-        }
-        catch { }
 
         try
         {
@@ -110,20 +103,6 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         }
     }
 
-    public void ResetEngine()
-    {
-        try
-        {
-            _mediaPlayer?.Stop();
-            _mediaPlayer?.Dispose();
-            _mediaPlayer = null;
-            _libVLC?.Dispose();
-            _libVLC = null;
-            _currentSwapChainOptions = null;
-        }
-        catch { }
-    }
-
     public void InitializeEngine(string[]? swapChainOptions = null)
     {
         if (_libVLC != null) return;
@@ -139,15 +118,8 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
                 "--file-caching=300",
                 "--live-caching=300",
                 "--disc-caching=300",
-                "--network-caching=300",
-                "--d3d11-format=rgba",
-                "--direct3d11-format=rgba"
+                "--network-caching=300"
             };
-
-            if (_storageService != null && !_storageService.CurrentSettings.EnableHardwareAcceleration)
-            {
-                options.Add("--avcodec-hw=none");
-            }
 
             if (swapChainOptions != null && swapChainOptions.Length > 0)
             {

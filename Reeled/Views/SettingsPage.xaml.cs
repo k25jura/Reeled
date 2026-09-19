@@ -1,7 +1,9 @@
 using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using Windows.Foundation;
 using Reeled.ViewModels;
@@ -13,14 +15,25 @@ public sealed partial class SettingsPage : Page
     public SettingsViewModel ViewModel { get; }
     private bool _isInitializing;
     private bool _isProgrammaticScroll;
-    private Button? _activeCategoryButton;
+    private string _activeSectionTag = "FoldersSection";
+    private double _currentIndicatorY = 0;
+    private bool _isIndicatorVisible = false;
+    private Storyboard? _indicatorStoryboard;
 
     public SettingsPage()
     {
         ViewModel = App.GetService<SettingsViewModel>();
         InitializeComponent();
 
-        Loaded += (s, e) => UpdateThemeVisuals(ActualTheme);
+        Loaded += (s, e) =>
+        {
+            UpdateThemeVisuals(ActualTheme);
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                SetActiveCategory("FoldersSection", animate: false);
+            });
+        };
+
         ActualThemeChanged += (s, e) => UpdateThemeVisuals(ActualTheme);
     }
 
@@ -46,7 +59,6 @@ public sealed partial class SettingsPage : Page
             }
         }
 
-        SetActiveCategoryButton(CatFoldersBtn);
         _isInitializing = false;
     }
 
@@ -113,9 +125,54 @@ public sealed partial class SettingsPage : Page
         if (sender is Button btn && btn.Tag is string sectionName)
         {
             _isProgrammaticScroll = true;
-            SetActiveCategoryButton(btn);
+            SetActiveCategory(sectionName, animate: true);
             ScrollToSection(sectionName);
         }
+    }
+
+    private void OnCategoryPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Button btn)
+        {
+            AnimateButtonScale(btn, 0.98, 80);
+        }
+    }
+
+    private void OnCategoryPointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Button btn)
+        {
+            AnimateButtonScale(btn, 1.0, 160);
+        }
+    }
+
+    private static void AnimateButtonScale(Button btn, double targetScale, double durationMs)
+    {
+        var rootGrid = FindVisualChildByName<Grid>(btn, "RootGrid");
+        if (rootGrid == null) return;
+
+        if (rootGrid.RenderTransform is not ScaleTransform st)
+        {
+            st = new ScaleTransform { CenterX = btn.ActualWidth / 2.0, CenterY = btn.ActualHeight / 2.0 };
+            rootGrid.RenderTransform = st;
+        }
+        else
+        {
+            st.CenterX = btn.ActualWidth / 2.0;
+            st.CenterY = btn.ActualHeight / 2.0;
+        }
+
+        var sb = new Storyboard();
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var animX = new DoubleAnimation { To = targetScale, Duration = TimeSpan.FromMilliseconds(durationMs), EasingFunction = ease };
+        var animY = new DoubleAnimation { To = targetScale, Duration = TimeSpan.FromMilliseconds(durationMs), EasingFunction = ease };
+        Storyboard.SetTarget(animX, st);
+        Storyboard.SetTargetProperty(animX, "ScaleX");
+        Storyboard.SetTarget(animY, st);
+        Storyboard.SetTargetProperty(animY, "ScaleY");
+        sb.Children.Add(animX);
+        sb.Children.Add(animY);
+        sb.Begin();
     }
 
     private void ScrollToSection(string sectionName)
@@ -130,15 +187,14 @@ public sealed partial class SettingsPage : Page
             _ => null
         };
 
-        if (target != null && SettingsScrollViewer != null)
+        if (target != null && SettingsScrollViewer != null && SettingsContentStack != null)
         {
             try
             {
-                var transform = target.TransformToVisual(SettingsScrollViewer);
-                var point = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
-                double targetOffset = SettingsScrollViewer.VerticalOffset + point.Y - 16;
-                if (targetOffset < 0) targetOffset = 0;
-                SettingsScrollViewer.ChangeView(null, targetOffset, null, false);
+                var transform = target.TransformToVisual(SettingsContentStack);
+                var pt = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
+                double targetY = Math.Max(0, pt.Y - 14);
+                SettingsScrollViewer.ChangeView(null, targetY, null, false);
             }
             catch
             {
@@ -147,24 +203,133 @@ public sealed partial class SettingsPage : Page
         }
     }
 
-    private void SetActiveCategoryButton(Button? btn)
+    private void SetActiveCategory(string sectionTag, bool animate)
     {
-        if (_activeCategoryButton == btn) return;
+        if (_activeSectionTag == sectionTag && _isIndicatorVisible) return;
+        _activeSectionTag = sectionTag;
 
-        var normalBrush = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
-        var activeBrush = (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"];
+        var buttons = new[] { CatFoldersBtn, CatPlaybackBtn, CatAppearanceBtn, CatStorageBtn, CatAboutBtn };
+        var icons = new[] { CatFoldersIcon, CatPlaybackIcon, CatAppearanceIcon, CatStorageIcon, CatAboutIcon };
+        var texts = new[] { CatFoldersText, CatPlaybackText, CatAppearanceText, CatStorageText, CatAboutText };
 
-        if (CatFoldersBtn != null) CatFoldersBtn.Background = normalBrush;
-        if (CatPlaybackBtn != null) CatPlaybackBtn.Background = normalBrush;
-        if (CatAppearanceBtn != null) CatAppearanceBtn.Background = normalBrush;
-        if (CatStorageBtn != null) CatStorageBtn.Background = normalBrush;
-        if (CatAboutBtn != null) CatAboutBtn.Background = normalBrush;
+        Button? selectedBtn = null;
 
-        if (btn != null)
+        for (int i = 0; i < buttons.Length; i++)
         {
-            btn.Background = activeBrush;
-            _activeCategoryButton = btn;
+            var btn = buttons[i];
+            if (btn == null) continue;
+
+            bool isSelected = (btn.Tag as string) == sectionTag;
+            if (isSelected) selectedBtn = btn;
+
+            // Animate SelectedBorder opacity inside ControlTemplate
+            var selectedBorder = FindVisualChildByName<Border>(btn, "SelectedBorder");
+            if (selectedBorder != null)
+            {
+                double targetOpacity = isSelected ? 1.0 : 0.0;
+                if (animate)
+                {
+                    var sb = new Storyboard();
+                    var anim = new DoubleAnimation
+                    {
+                        To = targetOpacity,
+                        Duration = TimeSpan.FromMilliseconds(isSelected ? 180 : 150),
+                        EasingFunction = new QuarticEase { EasingMode = EasingMode.EaseOut }
+                    };
+                    Storyboard.SetTarget(anim, selectedBorder);
+                    Storyboard.SetTargetProperty(anim, "Opacity");
+                    sb.Children.Add(anim);
+                    sb.Begin();
+                }
+                else
+                {
+                    selectedBorder.Opacity = targetOpacity;
+                }
+            }
+
+            // Update text font weight & icon color
+            if (texts[i] != null)
+            {
+                texts[i].FontWeight = isSelected ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
+            }
+
+            if (icons[i] != null)
+            {
+                icons[i].Foreground = isSelected
+                    ? (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"]
+                    : (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+            }
         }
+
+        if (selectedBtn != null)
+        {
+            AnimateIndicatorTo(selectedBtn, animate);
+        }
+    }
+
+    private void AnimateIndicatorTo(Button targetBtn, bool animate)
+    {
+        if (ActiveIndicatorPill == null || CategoriesNavRoot == null || IndicatorTranslation == null)
+            return;
+
+        try
+        {
+            var transform = targetBtn.TransformToVisual(CategoriesNavRoot);
+            var pt = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
+            double targetY = pt.Y + (targetBtn.ActualHeight - 18.0) / 2.0;
+
+            if (!_isIndicatorVisible)
+            {
+                _currentIndicatorY = targetY;
+                IndicatorTranslation.Y = targetY;
+                ActiveIndicatorPill.Opacity = 1.0;
+                if (IndicatorScale != null) IndicatorScale.ScaleY = 1.0;
+                _isIndicatorVisible = true;
+                return;
+            }
+
+            if (!animate)
+            {
+                if (_indicatorStoryboard != null)
+                {
+                    _indicatorStoryboard.Stop();
+                    _indicatorStoryboard = null;
+                }
+                _currentIndicatorY = targetY;
+                IndicatorTranslation.Y = targetY;
+                return;
+            }
+
+            if (Math.Abs(_currentIndicatorY - targetY) < 1.0)
+                return;
+
+            if (_indicatorStoryboard != null)
+            {
+                _indicatorStoryboard.Stop();
+                _indicatorStoryboard = null;
+            }
+
+            var sb = new Storyboard();
+            var ease = new QuarticEase { EasingMode = EasingMode.EaseOut };
+            var animY = new DoubleAnimation
+            {
+                To = targetY,
+                Duration = TimeSpan.FromMilliseconds(220),
+                EasingFunction = ease
+            };
+            Storyboard.SetTarget(animY, IndicatorTranslation);
+            Storyboard.SetTargetProperty(animY, "Y");
+            sb.Children.Add(animY);
+
+            sb.Completed += (s, e) =>
+            {
+                _currentIndicatorY = targetY;
+            };
+
+            _indicatorStoryboard = sb;
+            sb.Begin();
+        }
+        catch { }
     }
 
     private void OnSettingsScrollViewerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
@@ -183,31 +348,57 @@ public sealed partial class SettingsPage : Page
 
     private void UpdateActiveCategoryFromScroll()
     {
+        if (SettingsScrollViewer == null) return;
+
         try
         {
-            const double threshold = 140;
+            double scrollY = SettingsScrollViewer.VerticalOffset;
+            double maxScroll = SettingsScrollViewer.ScrollableHeight;
 
-            if (IsSectionVisible(AboutSection, threshold))
-                SetActiveCategoryButton(CatAboutBtn);
-            else if (IsSectionVisible(StorageSection, threshold))
-                SetActiveCategoryButton(CatStorageBtn);
-            else if (IsSectionVisible(AppearanceSection, threshold))
-                SetActiveCategoryButton(CatAppearanceBtn);
-            else if (IsSectionVisible(PlaybackSection, threshold))
-                SetActiveCategoryButton(CatPlaybackBtn);
+            // When reached or close to the bottom of scrollable content (within 32px), select AboutSection
+            if (maxScroll > 0 && (maxScroll - scrollY) <= 32)
+            {
+                SetActiveCategory("AboutSection", animate: true);
+                return;
+            }
+
+            // Check sections from bottom to top
+            const double threshold = 160;
+
+            if (IsSectionAtOrAbove(AboutSection, threshold))
+                SetActiveCategory("AboutSection", animate: true);
+            else if (IsSectionAtOrAbove(StorageSection, threshold))
+                SetActiveCategory("StorageSection", animate: true);
+            else if (IsSectionAtOrAbove(AppearanceSection, threshold))
+                SetActiveCategory("AppearanceSection", animate: true);
+            else if (IsSectionAtOrAbove(PlaybackSection, threshold))
+                SetActiveCategory("PlaybackSection", animate: true);
             else
-                SetActiveCategoryButton(CatFoldersBtn);
+                SetActiveCategory("FoldersSection", animate: true);
         }
         catch
         {
         }
     }
 
-    private bool IsSectionVisible(FrameworkElement? element, double threshold)
+    private bool IsSectionAtOrAbove(FrameworkElement? section, double threshold)
     {
-        if (element == null || SettingsScrollViewer == null) return false;
-        var transform = element.TransformToVisual(SettingsScrollViewer);
-        var point = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
-        return point.Y <= threshold;
+        if (section == null || SettingsScrollViewer == null) return false;
+        var transform = section.TransformToVisual(SettingsScrollViewer);
+        var pt = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
+        return pt.Y <= threshold;
+    }
+
+    private static T? FindVisualChildByName<T>(DependencyObject parent, string name) where T : FrameworkElement
+    {
+        int count = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T typed && typed.Name == name) return typed;
+            var desc = FindVisualChildByName<T>(child, name);
+            if (desc != null) return desc;
+        }
+        return null;
     }
 }

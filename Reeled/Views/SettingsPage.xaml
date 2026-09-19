@@ -9,12 +9,12 @@
     mc:Ignorable="d">
 
     <Page.Resources>
-        <!-- Category Navigation Rail Button Style -->
+        <!-- Category Navigation Rail Button Style with Smooth Transitions -->
         <Style x:Key="SettingsCategoryButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="40" />
-            <Setter Property="Padding" Value="12,0" />
-            <Setter Property="Margin" Value="0,1" />
-            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Height" Value="42" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="CornerRadius" Value="7" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Stretch" />
@@ -23,10 +23,34 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Grid x:Name="RootGrid" Background="{TemplateBinding Background}" CornerRadius="6">
+                        <Grid x:Name="RootGrid" Background="Transparent" CornerRadius="7">
+                            <Grid.RenderTransform>
+                                <ScaleTransform x:Name="ButtonScale" ScaleX="1.0" ScaleY="1.0" />
+                            </Grid.RenderTransform>
+
                             <VisualStateManager.VisualStateGroups>
                                 <VisualStateGroup x:Name="CommonStates">
-                                    <VisualState x:Name="Normal" />
+                                    <VisualStateGroup.Transitions>
+                                        <VisualTransition From="Normal" To="PointerOver">
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="HoverBorder" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.12">
+                                                    <DoubleAnimation.EasingFunction><QuarticEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </VisualTransition>
+                                        <VisualTransition From="PointerOver" To="Normal">
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="HoverBorder" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.15">
+                                                    <DoubleAnimation.EasingFunction><QuarticEase EasingMode="EaseOut" /></DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </VisualTransition>
+                                    </VisualStateGroup.Transitions>
+                                    <VisualState x:Name="Normal">
+                                        <VisualState.Setters>
+                                            <Setter Target="HoverBorder.Opacity" Value="0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
                                     <VisualState x:Name="PointerOver">
                                         <VisualState.Setters>
                                             <Setter Target="HoverBorder.Opacity" Value="1" />
@@ -37,17 +61,30 @@
                                             <Setter Target="HoverBorder.Opacity" Value="0.7" />
                                         </VisualState.Setters>
                                     </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootGrid.Opacity" Value="0.4" />
+                                        </VisualState.Setters>
+                                    </VisualState>
                                 </VisualStateGroup>
                             </VisualStateManager.VisualStateGroups>
 
                             <!-- Hover background -->
                             <Border x:Name="HoverBorder"
                                     Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                    CornerRadius="6"
+                                    CornerRadius="7"
+                                    Opacity="0"
+                                    IsHitTestVisible="False" />
+
+                            <!-- Selected background highlight (ThemeResource aware - light in light mode, dark in dark mode) -->
+                            <Border x:Name="SelectedBorder"
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                    CornerRadius="7"
                                     Opacity="0"
                                     IsHitTestVisible="False" />
 
                             <ContentPresenter Content="{TemplateBinding Content}"
+                                              Padding="{TemplateBinding Padding}"
                                               HorizontalAlignment="Stretch"
                                               VerticalAlignment="Center" />
                         </Grid>
@@ -65,12 +102,13 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Sticky Header Bar (Fixed at top, no subtitle description) -->
+        <!-- Sticky Header Bar (Increased size, spacious, prominent) -->
         <Grid Grid.Row="0"
               Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
               BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
               BorderThickness="0,0,0,1"
-              Padding="24,10,24,10"
+              MinHeight="68"
+              Padding="36,16,36,16"
               Canvas.ZIndex="10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -81,19 +119,19 @@
             <Button Grid.Column="0" 
                     Command="{x:Bind ViewModel.BackToHomeCommand}" 
                     Style="{ThemeResource SubtleButtonStyle}"
-                    Padding="8"
-                    CornerRadius="6"
+                    Padding="10"
+                    CornerRadius="8"
                     ToolTipService.ToolTip="Back to Library"
-                    Margin="0,0,14,0">
-                <FontIcon Glyph="&#xE72B;" FontSize="15" />
+                    Margin="0,0,16,0">
+                <FontIcon Glyph="&#xE72B;" FontSize="16" />
             </Button>
 
-            <!-- Settings Title with Icon (Pinned and clean without description) -->
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                <FontIcon Glyph="&#xE713;" FontSize="18" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+            <!-- Settings Title with Icon -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE713;" FontSize="22" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
                 <TextBlock Text="Settings" 
                            Style="{ThemeResource TitleTextBlockStyle}" 
-                           FontSize="20" 
+                           FontSize="24" 
                            FontWeight="SemiBold" 
                            VerticalAlignment="Center" />
             </StackPanel>
@@ -108,101 +146,135 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- Category Navigation Sidebar Rail (Floating left-center) -->
-            <Border Grid.Column="0"
-                    Width="220"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Padding="16,0,12,0"
-                    VerticalAlignment="Stretch">
-                <StackPanel VerticalAlignment="Center" Spacing="4">
+            <!-- Category Navigation Sidebar Rail (Floating left-center with sliding handle pill) -->
+            <Grid x:Name="CategoriesNavRoot"
+                  Grid.Column="0"
+                  Width="230"
+                  Margin="28,0,16,0"
+                  VerticalAlignment="Center">
+
+                <!-- Sliding Active Handle Indicator Pill (Matching main page sidebar) -->
+                <Border x:Name="ActiveIndicatorPill"
+                        Width="3"
+                        Height="18"
+                        CornerRadius="1.5"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Background="{ThemeResource AccentFillColorDefaultBrush}"
+                        Opacity="0"
+                        IsHitTestVisible="False">
+                    <Border.RenderTransform>
+                        <TransformGroup>
+                            <TranslateTransform x:Name="IndicatorTranslation" Y="0" />
+                            <ScaleTransform x:Name="IndicatorScale" ScaleY="0" CenterY="9" />
+                        </TransformGroup>
+                    </Border.RenderTransform>
+                </Border>
+
+                <!-- Category Buttons Stack -->
+                <StackPanel x:Name="CategoriesStackPanel" Spacing="4" Margin="10,0,0,0">
                     <!-- 1. Folders -->
                     <Button x:Name="CatFoldersBtn"
                             Click="OnCategoryButtonClick"
+                            PointerPressed="OnCategoryPointerPressed"
+                            PointerReleased="OnCategoryPointerReleased"
+                            PointerCanceled="OnCategoryPointerReleased"
                             Tag="FoldersSection"
                             Style="{StaticResource SettingsCategoryButtonStyle}">
-                        <Grid Padding="4,0">
+                        <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <FontIcon Grid.Column="0" Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,12,0" />
-                            <TextBlock Grid.Column="1" Text="Watch Folders" FontSize="13" VerticalAlignment="Center" />
+                            <FontIcon x:Name="CatFoldersIcon" Grid.Column="0" Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="CatFoldersText" Grid.Column="1" Text="Watch Folders" FontSize="13" VerticalAlignment="Center" />
                         </Grid>
                     </Button>
 
                     <!-- 2. Playback -->
                     <Button x:Name="CatPlaybackBtn"
                             Click="OnCategoryButtonClick"
+                            PointerPressed="OnCategoryPointerPressed"
+                            PointerReleased="OnCategoryPointerReleased"
+                            PointerCanceled="OnCategoryPointerReleased"
                             Tag="PlaybackSection"
                             Style="{StaticResource SettingsCategoryButtonStyle}">
-                        <Grid Padding="4,0">
+                        <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <FontIcon Grid.Column="0" Glyph="&#xE768;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,12,0" />
-                            <TextBlock Grid.Column="1" Text="Playback" FontSize="13" VerticalAlignment="Center" />
+                            <FontIcon x:Name="CatPlaybackIcon" Grid.Column="0" Glyph="&#xE768;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="CatPlaybackText" Grid.Column="1" Text="Playback" FontSize="13" VerticalAlignment="Center" />
                         </Grid>
                     </Button>
 
                     <!-- 3. Appearance -->
                     <Button x:Name="CatAppearanceBtn"
                             Click="OnCategoryButtonClick"
+                            PointerPressed="OnCategoryPointerPressed"
+                            PointerReleased="OnCategoryPointerReleased"
+                            PointerCanceled="OnCategoryPointerReleased"
                             Tag="AppearanceSection"
                             Style="{StaticResource SettingsCategoryButtonStyle}">
-                        <Grid Padding="4,0">
+                        <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <FontIcon Grid.Column="0" Glyph="&#xE790;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,12,0" />
-                            <TextBlock Grid.Column="1" Text="Appearance" FontSize="13" VerticalAlignment="Center" />
+                            <FontIcon x:Name="CatAppearanceIcon" Grid.Column="0" Glyph="&#xE790;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="CatAppearanceText" Grid.Column="1" Text="Appearance" FontSize="13" VerticalAlignment="Center" />
                         </Grid>
                     </Button>
 
                     <!-- 4. Performance & Storage -->
                     <Button x:Name="CatStorageBtn"
                             Click="OnCategoryButtonClick"
+                            PointerPressed="OnCategoryPointerPressed"
+                            PointerReleased="OnCategoryPointerReleased"
+                            PointerCanceled="OnCategoryPointerReleased"
                             Tag="StorageSection"
                             Style="{StaticResource SettingsCategoryButtonStyle}">
-                        <Grid Padding="4,0">
+                        <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <FontIcon Grid.Column="0" Glyph="&#xE74C;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Margin="0,0,12,0" />
-                            <TextBlock Grid.Column="1" Text="Storage &amp; Cache" FontSize="13" VerticalAlignment="Center" />
+                            <FontIcon x:Name="CatStorageIcon" Grid.Column="0" Glyph="&#xE74C;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="CatStorageText" Grid.Column="1" Text="Storage &amp; Cache" FontSize="13" VerticalAlignment="Center" />
                         </Grid>
                     </Button>
 
-                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="8,6" />
+                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="6,6,6,6" />
 
                     <!-- 5. About -->
                     <Button x:Name="CatAboutBtn"
                             Click="OnCategoryButtonClick"
+                            PointerPressed="OnCategoryPointerPressed"
+                            PointerReleased="OnCategoryPointerReleased"
+                            PointerCanceled="OnCategoryPointerReleased"
                             Tag="AboutSection"
                             Style="{StaticResource SettingsCategoryButtonStyle}">
-                        <Grid Padding="4,0">
+                        <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <FontIcon Grid.Column="0" Glyph="&#xE946;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,12,0" />
-                            <TextBlock Grid.Column="1" Text="About Reeled" FontSize="13" VerticalAlignment="Center" />
+                            <FontIcon x:Name="CatAboutIcon" Grid.Column="0" Glyph="&#xE946;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="CatAboutText" Grid.Column="1" Text="About Reeled" FontSize="13" VerticalAlignment="Center" />
                         </Grid>
                     </Button>
                 </StackPanel>
-            </Border>
+            </Grid>
 
             <!-- Centered Settings Content Scroll Viewer -->
             <ScrollViewer x:Name="SettingsScrollViewer"
                           Grid.Column="1"
-                          Padding="32,24,32,80"
+                          Padding="32,16,32,16"
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
                           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                           ViewChanged="OnSettingsScrollViewerViewChanged">
-                <StackPanel MaxWidth="760" HorizontalAlignment="Center" Spacing="28">
+                <StackPanel x:Name="SettingsContentStack" MaxWidth="760" HorizontalAlignment="Center" Spacing="22" Margin="0,0,0,180">
 
                     <!-- ========================================== -->
                     <!-- 1. Watch Folders Section                   -->
@@ -286,10 +358,7 @@
                                             </Grid.ColumnDefinitions>
 
                                             <FontIcon Grid.Column="0" Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" Width="24" Height="24" />
-                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-                                                <TextBlock Text="{x:Bind}" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Text="Monitored for video clips and moments" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="{x:Bind}" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                             <Button Grid.Column="2" 
                                                     Click="OnRemoveFolderClick" 
                                                     Tag="{x:Bind}"

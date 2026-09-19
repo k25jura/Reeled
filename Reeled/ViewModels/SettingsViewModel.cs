@@ -36,6 +36,9 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _rememberPlaybackSpeed = true;
 
+    [ObservableProperty]
+    private int _selectedThemeIndex = 0;
+
     public SettingsViewModel(
         ILocalStorageService storageService,
         IClipIndexerService indexerService,
@@ -58,8 +61,29 @@ public partial class SettingsViewModel : ObservableObject
         EnableSkeletonLoading = _storageService.CurrentSettings.EnableSkeletonLoading;
         DefaultPlaybackSpeed = _storageService.CurrentSettings.DefaultPlaybackSpeed;
         RememberPlaybackSpeed = _storageService.CurrentSettings.RememberPlaybackSpeed;
+        SelectedThemeIndex = _storageService.CurrentSettings.AppTheme switch
+        {
+            "Dark" => 1,
+            "Light" => 2,
+            _ => 0
+        };
         CalculateCacheSize();
         CalculateClipCacheSize();
+    }
+
+    public void SetAppTheme(int index)
+    {
+        SelectedThemeIndex = index;
+        string themeStr = index switch
+        {
+            1 => "Dark",
+            2 => "Light",
+            _ => "Default"
+        };
+        var settings = _storageService.CurrentSettings;
+        settings.AppTheme = themeStr;
+        _ = _storageService.SaveSettingsAsync(settings);
+        App.ApplyTheme(themeStr);
     }
 
     public void SetDefaultPlaybackSpeed(double speed)

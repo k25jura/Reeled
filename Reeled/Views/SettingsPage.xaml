@@ -256,6 +256,41 @@
                     </Border>
                 </StackPanel>
 
+                <!-- Appearance Section -->
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Appearance" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="18" FontWeight="SemiBold" />
+
+                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                            BorderThickness="1" 
+                            CornerRadius="8" 
+                            Padding="20">
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                                <TextBlock Text="App Theme" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" />
+                                <TextBlock Text="Select which theme to display, or synchronize with Windows settings" 
+                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+
+                            <ComboBox Grid.Column="1" 
+                                      x:Name="ThemeComboBox"
+                                      SelectionChanged="OnThemeSelectionChanged"
+                                      MinWidth="160"
+                                      VerticalAlignment="Center">
+                                <ComboBoxItem Content="Windows default" Tag="Default" />
+                                <ComboBoxItem Content="Dark" Tag="Dark" />
+                                <ComboBoxItem Content="Light" Tag="Light" />
+                            </ComboBox>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
                 <!-- About & Engine Section -->
                 <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
@@ -264,10 +299,11 @@
                         Padding="24">
                     <StackPanel Spacing="14">
                         <Image HorizontalAlignment="Left" 
+                               x:Name="SettingsLogoImage"
                                Height="34" 
                                Stretch="Uniform">
                             <Image.Source>
-                                <SvgImageSource UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="102" />
+                                <SvgImageSource x:Name="SettingsLogoSvg" UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="102" />
                             </Image.Source>
                         </Image>
                         <TextBlock Text="Clip Player &amp; Highlights Library" 

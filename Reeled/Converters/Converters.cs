@@ -131,7 +131,16 @@ public class SectionActiveBackgroundConverter : IValueConverter
         {
             if (Application.Current.Resources.TryGetValue("SubtleFillColorSecondaryBrush", out var brush))
                 return brush;
-            return new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(20, 255, 255, 255));
+
+            bool isLight = false;
+            if (App.Window?.Content is FrameworkElement root)
+            {
+                isLight = (root.ActualTheme == ElementTheme.Light);
+            }
+
+            return isLight
+                ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(20, 0, 0, 0))
+                : new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(20, 255, 255, 255));
         }
         return new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
     }
@@ -143,14 +152,26 @@ public class SectionActiveForegroundConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        if (value is bool isActive && isActive)
+        bool isActive = value is bool b && b;
+        if (isActive)
         {
             if (Application.Current.Resources.TryGetValue("AccentTextFillColorPrimaryBrush", out var brush))
                 return brush;
+            return new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 96, 205, 255));
         }
+
         if (Application.Current.Resources.TryGetValue("TextFillColorPrimaryBrush", out var normalBrush))
             return normalBrush;
-        return new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
+
+        bool isLight = false;
+        if (App.Window?.Content is FrameworkElement root)
+        {
+            isLight = (root.ActualTheme == ElementTheme.Light);
+        }
+
+        return isLight
+            ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(230, 20, 20, 20))
+            : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();

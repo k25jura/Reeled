@@ -10,7 +10,7 @@
     Title="Reeled"
     mc:Ignorable="d">
     <Window.SystemBackdrop>
-        <MicaBackdrop />
+        <MicaBackdrop Kind="BaseAlt" />
     </Window.SystemBackdrop>
 
     <Grid x:Name="RootWindowGrid" MinWidth="760" MinHeight="500">

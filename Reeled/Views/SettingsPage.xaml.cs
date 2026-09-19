@@ -8,17 +8,25 @@ namespace Reeled.Views;
 public sealed partial class SettingsPage : Page
 {
     public SettingsViewModel ViewModel { get; }
+    private bool _isInitializing;
 
     public SettingsPage()
     {
         ViewModel = App.GetService<SettingsViewModel>();
         InitializeComponent();
+
+        Loaded += (s, e) => UpdateLogo(ActualTheme);
+        ActualThemeChanged += (s, e) => UpdateLogo(ActualTheme);
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        _isInitializing = true;
         ViewModel.Initialize();
+
+        ThemeComboBox.SelectedIndex = ViewModel.SelectedThemeIndex;
+        UpdateLogo(ActualTheme);
 
         double speed = ViewModel.DefaultPlaybackSpeed;
         foreach (ComboBoxItem item in DefaultSpeedComboBox.Items)
@@ -31,6 +39,29 @@ public sealed partial class SettingsPage : Page
                     break;
                 }
             }
+        }
+        _isInitializing = false;
+    }
+
+    private void OnThemeSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+        if (ThemeComboBox.SelectedIndex >= 0)
+        {
+            ViewModel.SetAppTheme(ThemeComboBox.SelectedIndex);
+        }
+    }
+
+    private void UpdateLogo(ElementTheme theme)
+    {
+        if (SettingsLogoSvg == null) return;
+        bool isLight = (theme == ElementTheme.Light);
+        var uri = isLight 
+            ? new System.Uri("ms-appx:///Assets/dark-banner.svg") 
+            : new System.Uri("ms-appx:///Assets/light-banner.svg");
+        if (SettingsLogoSvg.UriSource != uri)
+        {
+            SettingsLogoSvg.UriSource = uri;
         }
     }
 

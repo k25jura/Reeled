@@ -71,4 +71,22 @@ public partial class App : Application
         DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         Window.Activate();
     }
+
+    public static void ApplyTheme(string themeSetting)
+    {
+        if (Window?.Content is FrameworkElement root)
+        {
+            ElementTheme theme = themeSetting switch
+            {
+                "Dark" => ElementTheme.Dark,
+                "Light" => ElementTheme.Light,
+                _ => ElementTheme.Default
+            };
+            root.RequestedTheme = theme;
+            if (Window is MainWindow mainWindow)
+            {
+                mainWindow.UpdateTitleBarTheme(root.ActualTheme);
+            }
+        }
+    }
 }

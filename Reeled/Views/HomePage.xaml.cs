@@ -30,6 +30,12 @@ public sealed partial class HomePage : Page
             }
             UpdateActiveIndicator(animate: false);
             AnimateSidebar(ViewModel.IsSidebarOpen, animate: false);
+            UpdateLogo(ActualTheme);
+        };
+
+        ActualThemeChanged += (s, e) =>
+        {
+            UpdateLogo(ActualTheme);
         };
 
         ViewModel.PropertyChanged += (s, e) =>
@@ -55,6 +61,19 @@ public sealed partial class HomePage : Page
                 }
             }
         };
+    }
+
+    private void UpdateLogo(ElementTheme theme)
+    {
+        if (SidebarLogoSvg == null) return;
+        bool isLight = (theme == ElementTheme.Light);
+        var uri = isLight 
+            ? new System.Uri("ms-appx:///Assets/dark-banner.svg") 
+            : new System.Uri("ms-appx:///Assets/light-banner.svg");
+        if (SidebarLogoSvg.UriSource != uri)
+        {
+            SidebarLogoSvg.UriSource = uri;
+        }
     }
 
     private double _currentIndicatorY = 11;

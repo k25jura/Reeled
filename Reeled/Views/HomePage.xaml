@@ -278,12 +278,13 @@
                     </Button>
 
                     <Image Grid.Column="1" 
+                           x:Name="SidebarLogoImage"
                            HorizontalAlignment="Left" 
                            VerticalAlignment="Center"
                            Height="24"
                            Stretch="Uniform">
                         <Image.Source>
-                            <SvgImageSource UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="72" />
+                            <SvgImageSource x:Name="SidebarLogoSvg" UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="72" />
                         </Image.Source>
                     </Image>
                 </Grid>

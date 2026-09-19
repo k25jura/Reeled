@@ -17,6 +17,7 @@ public class AppSettings
     public bool EnableClipCache { get; set; } = true;
     public bool EnableSkeletonLoading { get; set; } = true;
     public double SidebarWidth { get; set; } = 316;
+    public string AppTheme { get; set; } = "Default";
 }
 
 public enum RepeatMode

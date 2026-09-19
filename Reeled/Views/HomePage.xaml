@@ -815,9 +815,11 @@
             <!-- Clip Cards Grid Container -->
             <Grid Grid.Row="1">
                 <!-- GridView of Clips with Fluid Windows 11 Animations and Centered Layout -->
-                <GridView ItemsSource="{x:Bind ViewModel.FilteredClips, Mode=OneWay}"
+                <GridView x:Name="ClipsGridView"
+                          ItemsSource="{x:Bind ViewModel.FilteredClips, Mode=OneWay}"
                           ItemClick="OnClipItemClick"
                           IsItemClickEnabled="True"
+                          ContainerContentChanging="OnClipContainerContentChanging"
                           SelectionMode="None"
                           Padding="24,18,24,24"
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -958,7 +960,7 @@
                                                 Tag="{x:Bind}">
                                             <FontIcon Glyph="{x:Bind IsFavorite, Mode=OneWay, Converter={StaticResource FavoriteGlyphConverter}}" 
                                                       FontSize="14" 
-                                                      Foreground="White"
+                                                      Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                                       Opacity="{x:Bind IsFavorite, Mode=OneWay, Converter={StaticResource FavoriteOpacityConverter}}" />
                                         </Button>
                                     </Grid>

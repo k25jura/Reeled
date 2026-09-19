@@ -69,6 +69,8 @@ public partial class App : Application
     {
         Window = new MainWindow();
         DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+        var storage = GetService<ILocalStorageService>();
+        ApplyTheme(storage.CurrentSettings.AppTheme);
         Window.Activate();
     }
 
@@ -117,6 +119,10 @@ public partial class App : Application
                     if (page is Views.SettingsPage settingsPage && settingsPage.FindName("SettingsScrollViewer") is FrameworkElement sv)
                     {
                         sv.RequestedTheme = targetTheme;
+                    }
+                    if (page is Views.HomePage homePage && homePage.FindName("ClipsGridView") is FrameworkElement gv)
+                    {
+                        gv.RequestedTheme = targetTheme;
                     }
                 }
 

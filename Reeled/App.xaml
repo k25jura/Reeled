@@ -125,6 +125,9 @@
                             <Color x:Key="LayerFillColorDefault">#FFFFFF</Color>
                             <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="{StaticResource LayerFillColorDefault}" />
 
+                            <Color x:Key="LayerFillColorAlt">#F8F8FA</Color>
+                            <SolidColorBrush x:Key="LayerFillColorAltBrush" Color="{StaticResource LayerFillColorAlt}" />
+
                             <Color x:Key="CardBackgroundFillColorDefault">#FFFFFF</Color>
                             <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="{StaticResource CardBackgroundFillColorDefault}" />
 
@@ -140,11 +143,26 @@
                             <Color x:Key="ControlFillColorDefault">#FFFFFF</Color>
                             <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="{StaticResource ControlFillColorDefault}" />
 
+                            <Color x:Key="ControlFillColorSecondary">#F4F4F6</Color>
+                            <SolidColorBrush x:Key="ControlFillColorSecondaryBrush" Color="{StaticResource ControlFillColorSecondary}" />
+
+                            <Color x:Key="ControlStrokeColorDefault">#E5E5EA</Color>
+                            <SolidColorBrush x:Key="ControlStrokeColorDefaultBrush" Color="{StaticResource ControlStrokeColorDefault}" />
+
                             <Color x:Key="SubtleFillColorSecondary">#EFEFF2</Color>
                             <SolidColorBrush x:Key="SubtleFillColorSecondaryBrush" Color="{StaticResource SubtleFillColorSecondary}" />
 
                             <Color x:Key="SubtleFillColorTertiary">#E4E4E8</Color>
                             <SolidColorBrush x:Key="SubtleFillColorTertiaryBrush" Color="{StaticResource SubtleFillColorTertiary}" />
+
+                            <Color x:Key="TextFillColorPrimary">#1A1A1A</Color>
+                            <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="{StaticResource TextFillColorPrimary}" />
+
+                            <Color x:Key="TextFillColorSecondary">#5C5C60</Color>
+                            <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="{StaticResource TextFillColorSecondary}" />
+
+                            <Color x:Key="TextFillColorTertiary">#8A8A8E</Color>
+                            <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
                         </ResourceDictionary>
                     </ResourceDictionary.ThemeDictionaries>
                 </ResourceDictionary>

@@ -176,6 +176,14 @@ public sealed partial class MainWindow : Window
             if (RootFrame.Content is FrameworkElement p)
             {
                 p.RequestedTheme = RootWindowGrid.RequestedTheme;
+                if (p is Views.HomePage hp && hp.FindName("ClipsGridView") is FrameworkElement gv)
+                {
+                    gv.RequestedTheme = RootWindowGrid.RequestedTheme;
+                }
+                if (p is Views.SettingsPage sp && sp.FindName("SettingsScrollViewer") is FrameworkElement sv)
+                {
+                    sv.RequestedTheme = RootWindowGrid.RequestedTheme;
+                }
             }
         };
 

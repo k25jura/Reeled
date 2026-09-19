@@ -33,6 +33,11 @@ public sealed partial class HomePage : Page
             UpdateLogo(ActualTheme);
             UpdateNavTabVisuals();
 
+            if (ClipsGridView != null)
+            {
+                ClipsGridView.RequestedTheme = ActualTheme;
+            }
+
             // Warm up and preload all animation types, DComp visuals, and Storyboard paths at idle priority
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, PreloadAndWarmupAnimations);
         };
@@ -41,6 +46,10 @@ public sealed partial class HomePage : Page
         {
             UpdateLogo(ActualTheme);
             UpdateNavTabVisuals();
+            if (ClipsGridView != null)
+            {
+                ClipsGridView.RequestedTheme = ActualTheme;
+            }
         };
 
         ViewModel.PropertyChanged += (s, e) =>
@@ -1132,6 +1141,14 @@ public sealed partial class HomePage : Page
         OnSidebarResizeHandlePointerReleased(sender, e);
     }
 
+    private void OnClipContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+    {
+        if (args.ItemContainer != null && args.ItemContainer.RequestedTheme != ActualTheme)
+        {
+            args.ItemContainer.RequestedTheme = ActualTheme;
+        }
+    }
+
     private void OnClipCardPointerEntered(object sender, PointerRoutedEventArgs e)
     {
         if (sender is FrameworkElement card)
@@ -1159,21 +1176,19 @@ public sealed partial class HomePage : Page
                 {
                     grid.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)accentBrush;
                 }
-                if (Application.Current.Resources.TryGetValue("CardBackgroundFillColorSecondaryBrush", out var hoverCardBg))
+                if (grid.ActualTheme == ElementTheme.Light)
                 {
-                    grid.Background = (Microsoft.UI.Xaml.Media.Brush)hoverCardBg;
+                    grid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xF8, 0xF8, 0xFA));
+                }
+                else
+                {
+                    grid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x22, 0x22, 0x22));
                 }
             }
             else
             {
-                if (Application.Current.Resources.TryGetValue("CardStrokeColorDefaultBrush", out var defaultStroke))
-                {
-                    grid.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)defaultStroke;
-                }
-                if (Application.Current.Resources.TryGetValue("CardBackgroundFillColorDefaultBrush", out var defaultCardBg))
-                {
-                    grid.Background = (Microsoft.UI.Xaml.Media.Brush)defaultCardBg;
-                }
+                grid.ClearValue(Grid.BorderBrushProperty);
+                grid.ClearValue(Grid.BackgroundProperty);
             }
         }
 

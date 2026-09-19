@@ -105,7 +105,10 @@
                                CornerRadius="6"
                                MinHeight="0"
                                Margin="0,0,16,0"
-                               Padding="0">
+                               Padding="0"
+                               PointerPressed="OnFolderRowPointerPressed"
+                               PointerReleased="OnFolderRowPointerReset"
+                               PointerCanceled="OnFolderRowPointerReset">
 
                             <VisualStateManager.VisualStateGroups>
                                 <VisualStateGroup x:Name="CommonStates">
@@ -573,8 +576,7 @@
                                               Loading="OnTreeViewItemLoading"
                                               Style="{StaticResource CustomTreeViewItemStyle}">
                                     <Grid Margin="0,0,8,0" ColumnSpacing="8" VerticalAlignment="Center"
-                                          Loaded="OnFolderItemGridLoaded"
-                                          PointerPressed="OnFolderPointerPressed">
+                                          Loaded="OnFolderItemGridLoaded">
                                         <Grid.RenderTransform>
                                             <TranslateTransform />
                                         </Grid.RenderTransform>

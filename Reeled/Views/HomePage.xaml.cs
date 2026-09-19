@@ -1193,18 +1193,27 @@ public sealed partial class HomePage : Page
 
     private int _expandingGeneration;
     private readonly System.Collections.Generic.Dictionary<DirectoryNode, System.Threading.CancellationTokenSource> _folderAnimationTokens = new();
+    private readonly System.Collections.Generic.Dictionary<DirectoryNode, Microsoft.UI.Xaml.Media.Animation.Storyboard> _activeSpaceStoryboards = new();
+    private readonly System.Collections.Generic.HashSet<DirectoryNode> _collapsingNodes = new();
 
     private async void OnDirectoryExpanding(TreeView sender, TreeViewExpandingEventArgs args)
     {
         int currentGen = ++_expandingGeneration;
         var dirNode = args.Item as DirectoryNode ?? (args.Node?.Content as DirectoryNode);
         if (dirNode == null) return;
+        _collapsingNodes.Remove(dirNode);
         dirNode.IsExpanded = true;
 
         if (_folderAnimationTokens.TryGetValue(dirNode, out var existingCts))
         {
             existingCts.Cancel();
             _folderAnimationTokens.Remove(dirNode);
+        }
+
+        if (_activeSpaceStoryboards.TryGetValue(dirNode, out var runningSpaceSb))
+        {
+            runningSpaceSb.Stop();
+            _activeSpaceStoryboards.Remove(dirNode);
         }
 
         var cts = new System.Threading.CancellationTokenSource();
@@ -1216,49 +1225,51 @@ public sealed partial class HomePage : Page
 
         if (itemsToAnimate.Count == 0) return;
 
-        // Synchronously zero out opacity and height on any already-materialized containers
-        // in the parent's visual subtree before the layout delay so they NEVER appear or jump
-        if (sender.ContainerFromItem(dirNode) is TreeViewItem parentContainer)
+        // Zero out opacity and height on any already-materialized containers
+        foreach (var node in itemsToAnimate)
         {
-            var existingContainers = new System.Collections.Generic.List<TreeViewItem>();
-            FindAllVisualChildren(parentContainer, existingContainers);
-            foreach (var childContainer in existingContainers)
+            if (sender.ContainerFromItem(node) is TreeViewItem container)
             {
-                StopFolderStoryboard(childContainer);
-                childContainer.Opacity = 0.0;
-                childContainer.Height = 0.0;
-                if (childContainer.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+                StopFolderStoryboard(container);
+                container.Opacity = 0.0;
+                container.Height = 0.0;
+                if (container.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
                 {
                     tt.Y = -10.0;
                 }
             }
         }
 
-        // Allow WinUI 3 TreeView a brief cycle to materialize item containers
-        try
-        {
-            await System.Threading.Tasks.Task.Delay(35, token);
-        }
-        catch (System.Threading.Tasks.TaskCanceledException)
-        {
-            return;
-        }
-
-        // Guard against rapid toggling: if collapsed again or another expansion started, abort
-        if (token.IsCancellationRequested || currentGen != _expandingGeneration || !dirNode.IsExpanded) return;
-
+        // Fast polling to ensure containers are realized (instant on cached items, reliable on first load)
         var targetContainers = new System.Collections.Generic.List<(TreeViewItem Container, int Index)>();
-        for (int i = 0; i < itemsToAnimate.Count; i++)
+        for (int attempt = 0; attempt < 6; attempt++)
         {
-            var node = itemsToAnimate[i];
-            if (sender.ContainerFromItem(node) is TreeViewItem container)
+            targetContainers.Clear();
+            for (int i = 0; i < itemsToAnimate.Count; i++)
             {
-                container.Opacity = 0.0;
-                container.Height = 0.0;
-                targetContainers.Add((container, i));
+                var node = itemsToAnimate[i];
+                if (sender.ContainerFromItem(node) is TreeViewItem container)
+                {
+                    container.Opacity = 0.0;
+                    container.Height = 0.0;
+                    targetContainers.Add((container, i));
+                }
+            }
+
+            if (targetContainers.Count >= itemsToAnimate.Count)
+                break;
+
+            try
+            {
+                await System.Threading.Tasks.Task.Delay(10, token);
+            }
+            catch (System.Threading.Tasks.TaskCanceledException)
+            {
+                return;
             }
         }
 
+        if (token.IsCancellationRequested || currentGen != _expandingGeneration || !dirNode.IsExpanded) return;
         if (targetContainers.Count == 0) return;
 
         // Phase 1: Accordion Space Extension (invisible space extends downwards using Apple QuarticEase)
@@ -1281,6 +1292,7 @@ public sealed partial class HomePage : Page
             spaceSb.Children.Add(animHeight);
         }
 
+        _activeSpaceStoryboards[dirNode] = spaceSb;
         spaceSb.Begin();
 
         try
@@ -1290,8 +1302,11 @@ public sealed partial class HomePage : Page
         catch (System.Threading.Tasks.TaskCanceledException)
         {
             spaceSb.Stop();
+            _activeSpaceStoryboards.Remove(dirNode);
             return;
         }
+
+        _activeSpaceStoryboards.Remove(dirNode);
 
         if (token.IsCancellationRequested || currentGen != _expandingGeneration || !dirNode.IsExpanded) return;
 
@@ -1318,20 +1333,11 @@ public sealed partial class HomePage : Page
         if (dirNode != null)
         {
             dirNode.IsExpanded = false;
-            if (sender.ContainerFromItem(dirNode) is TreeViewItem parentContainer)
+            _collapsingNodes.Remove(dirNode);
+            if (_activeSpaceStoryboards.TryGetValue(dirNode, out var runningSpaceSb))
             {
-                var existingContainers = new System.Collections.Generic.List<TreeViewItem>();
-                FindAllVisualChildren(parentContainer, existingContainers);
-                foreach (var childContainer in existingContainers)
-                {
-                    StopFolderStoryboard(childContainer);
-                    childContainer.Opacity = 0.0;
-                    childContainer.Height = double.NaN;
-                    if (childContainer.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
-                    {
-                        tt.Y = -10.0;
-                    }
-                }
+                runningSpaceSb.Stop();
+                _activeSpaceStoryboards.Remove(dirNode);
             }
         }
         UpdateActiveIndicator(animate: true);
@@ -1342,12 +1348,14 @@ public sealed partial class HomePage : Page
         e.Handled = true;
         if (sender is FrameworkElement el && el.DataContext is DirectoryNode node && node.HasSubDirectories)
         {
-            if (node.IsExpanded)
+            bool isExpanded = node.IsExpanded && !_collapsingNodes.Contains(node);
+            if (isExpanded)
             {
                 _ = CollapseDirectoryWithAnimationAsync(node);
             }
             else
             {
+                _collapsingNodes.Remove(node);
                 node.IsExpanded = true;
             }
         }
@@ -1355,10 +1363,19 @@ public sealed partial class HomePage : Page
 
     private async System.Threading.Tasks.Task CollapseDirectoryWithAnimationAsync(DirectoryNode dirNode)
     {
+        _collapsingNodes.Add(dirNode);
+
         if (_folderAnimationTokens.TryGetValue(dirNode, out var oldCts))
         {
             oldCts.Cancel();
         }
+
+        if (_activeSpaceStoryboards.TryGetValue(dirNode, out var activeSpaceSb))
+        {
+            activeSpaceSb.Stop();
+            _activeSpaceStoryboards.Remove(dirNode);
+        }
+
         var cts = new System.Threading.CancellationTokenSource();
         _folderAnimationTokens[dirNode] = cts;
         var token = cts.Token;
@@ -1407,10 +1424,15 @@ public sealed partial class HomePage : Page
             }
             catch (System.Threading.Tasks.TaskCanceledException)
             {
+                _collapsingNodes.Remove(dirNode);
                 return;
             }
 
-            if (token.IsCancellationRequested) return;
+            if (token.IsCancellationRequested)
+            {
+                _collapsingNodes.Remove(dirNode);
+                return;
+            }
 
             // Phase 2: Accordion Space Collapse (space shrinks upward from 36 to 0 using Apple QuarticEase)
             var spaceSb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
@@ -1432,6 +1454,7 @@ public sealed partial class HomePage : Page
                 spaceSb.Children.Add(animHeight);
             }
 
+            _activeSpaceStoryboards[dirNode] = spaceSb;
             spaceSb.Begin();
 
             try
@@ -1441,28 +1464,32 @@ public sealed partial class HomePage : Page
             catch (System.Threading.Tasks.TaskCanceledException)
             {
                 spaceSb.Stop();
+                _activeSpaceStoryboards.Remove(dirNode);
+                _collapsingNodes.Remove(dirNode);
                 return;
             }
 
-            if (token.IsCancellationRequested) return;
+            _activeSpaceStoryboards.Remove(dirNode);
+
+            if (token.IsCancellationRequested)
+            {
+                _collapsingNodes.Remove(dirNode);
+                return;
+            }
         }
 
         dirNode.IsExpanded = false;
+        _collapsingNodes.Remove(dirNode);
         _folderAnimationTokens.Remove(dirNode);
 
-        if (DirectoriesTreeView != null && DirectoriesTreeView.ContainerFromItem(dirNode) is TreeViewItem parentContainer)
+        foreach (var container in targetContainers)
         {
-            var existingContainers = new System.Collections.Generic.List<TreeViewItem>();
-            FindAllVisualChildren(parentContainer, existingContainers);
-            foreach (var childContainer in existingContainers)
+            StopFolderStoryboard(container);
+            container.Opacity = 0.0;
+            container.Height = double.NaN;
+            if (container.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
             {
-                StopFolderStoryboard(childContainer);
-                childContainer.Opacity = 0.0;
-                childContainer.Height = double.NaN;
-                if (childContainer.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
-                {
-                    tt.Y = -10.0;
-                }
+                tt.Y = -10.0;
             }
         }
 
@@ -1664,21 +1691,15 @@ public sealed partial class HomePage : Page
         sb.Begin();
     }
 
-    private void OnFolderPointerPressed(object sender, PointerRoutedEventArgs e)
+    private void OnFolderRowPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (sender is FrameworkElement el)
+        if (sender is UIElement el)
         {
-            // Guard against clicks in the far top and bottom container edges
-            var pt = e.GetCurrentPoint(el).Position;
-            if (pt.Y < 3.0 || pt.Y > el.ActualHeight - 3.0)
-            {
-                return;
-            }
             AnimateElementClickPulse(el, 0.98);
         }
     }
 
-    private void OnFolderPointerReset(object sender, PointerRoutedEventArgs e)
+    private void OnFolderRowPointerReset(object sender, PointerRoutedEventArgs e)
     {
         if (sender is UIElement el)
         {
@@ -1859,17 +1880,22 @@ public sealed partial class HomePage : Page
         {
             if (targetNode.HasSubDirectories)
             {
-                if (targetNode.IsExpanded)
+                bool isExpanded = targetNode.IsExpanded && !_collapsingNodes.Contains(targetNode);
+                if (isExpanded)
                 {
                     _ = CollapseDirectoryWithAnimationAsync(targetNode);
                 }
                 else
                 {
+                    _collapsingNodes.Remove(targetNode);
                     targetNode.IsExpanded = true;
                 }
             }
             sender.SelectedItem = targetNode;
-            await ViewModel.SelectDirectoryAsync(targetNode);
+            if (ViewModel.SelectedDirectory != targetNode || ViewModel.CurrentSection != NavigationSection.Folder)
+            {
+                await ViewModel.SelectDirectoryAsync(targetNode);
+            }
             UpdateActiveIndicator(animate: true);
         }
     }

@@ -265,8 +265,13 @@ public partial class HomeViewModel : ObservableObject
         return Task.CompletedTask;
     }
 
-    public Task SelectDirectoryAsync(DirectoryNode node)
+    public async Task SelectDirectoryAsync(DirectoryNode node)
     {
+        if (CurrentSection == NavigationSection.Folder && SelectedDirectory == node)
+        {
+            return;
+        }
+
         CurrentSection = NavigationSection.Folder;
         SelectedDirectory = node;
 
@@ -274,8 +279,10 @@ public partial class HomeViewModel : ObservableObject
         settings.LastActiveDirectory = node.FullPath;
         _ = _storageService.SaveSettingsAsync(settings);
 
+        // Yield to allow click pulse and sidebar animations to start immediately without UI thread contention
+        await Task.Yield();
+
         RefreshCurrentViewClips();
-        return Task.CompletedTask;
     }
 
     public async Task SyncDirectoriesAsync(bool forceReload = false)

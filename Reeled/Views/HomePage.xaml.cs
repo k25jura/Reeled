@@ -79,25 +79,48 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private void UpdateNavTabVisuals()
+    private void UpdateNavTabVisuals(bool animate = true)
     {
-        UpdateNavButtonState(HomeNavButton, HomeNavIcon, HomeNavText, ViewModel.IsHomeSelected);
-        UpdateNavButtonState(FavoritesNavButton, FavoritesNavIcon, FavoritesNavText, ViewModel.IsFavoritesSelected);
-        UpdateNavButtonState(SavedMomentsNavButton, SavedMomentsNavIcon, SavedMomentsNavText, ViewModel.IsSavedMomentsSelected);
+        UpdateNavButtonState(HomeNavButton, HomeSelectedBg, HomeNavIcon, HomeNavText, ViewModel.IsHomeSelected, animate);
+        UpdateNavButtonState(FavoritesNavButton, FavoritesSelectedBg, FavoritesNavIcon, FavoritesNavText, ViewModel.IsFavoritesSelected, animate);
+        UpdateNavButtonState(SavedMomentsNavButton, SavedMomentsSelectedBg, SavedMomentsNavIcon, SavedMomentsNavText, ViewModel.IsSavedMomentsSelected, animate);
     }
 
-    private void UpdateNavButtonState(Button? btn, FontIcon? icon, TextBlock? text, bool isSelected)
+    private void UpdateNavButtonState(Button? btn, Border? selBg, FontIcon? icon, TextBlock? text, bool isSelected, bool animate = true)
     {
         if (btn == null || icon == null || text == null) return;
 
+        btn.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
         bool isLight = (ActualTheme == ElementTheme.Light);
+        double targetOpacity = isSelected ? 1.0 : 0.0;
+
+        if (selBg != null)
+        {
+            if (!animate || Math.Abs(selBg.Opacity - targetOpacity) < 0.01)
+            {
+                selBg.Opacity = targetOpacity;
+            }
+            else
+            {
+                var anim = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+                {
+                    To = targetOpacity,
+                    Duration = TimeSpan.FromMilliseconds(isSelected ? 180 : 140),
+                    EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+                    {
+                        EasingMode = isSelected ? Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut : Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseIn
+                    }
+                };
+                var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+                sb.Children.Add(anim);
+                Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(anim, selBg);
+                Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(anim, "Opacity");
+                sb.Begin();
+            }
+        }
 
         if (isSelected)
         {
-            btn.Background = isLight 
-                ? new SolidColorBrush(Windows.UI.Color.FromArgb(20, 0, 0, 0)) 
-                : new SolidColorBrush(Windows.UI.Color.FromArgb(28, 255, 255, 255));
-
             Brush selectedBrush = isLight
                 ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 20, 20, 20))
                 : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255));
@@ -108,8 +131,6 @@ public sealed partial class HomePage : Page
         }
         else
         {
-            btn.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
-
             var defaultTextBrush = isLight
                 ? new SolidColorBrush(Windows.UI.Color.FromArgb(220, 90, 90, 95))
                 : new SolidColorBrush(Windows.UI.Color.FromArgb(200, 160, 160, 168));
@@ -253,15 +274,23 @@ public sealed partial class HomePage : Page
 
         double distance = Math.Abs(targetY - fromY);
         var moveSb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
-        var easeOut = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
+        var backEase = new Microsoft.UI.Xaml.Media.Animation.BackEase
+        {
+            EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut,
+            Amplitude = 0.35
+        };
+        var easeOut = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+        {
+            EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut
+        };
 
-        // 1. Vertical Glide Animation (Y translation)
+        // 1. Vertical Glide Animation (Y translation) with Roblox BackEase bounce
         var animTranslate = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
         {
             From = fromY,
             To = targetY,
-            Duration = TimeSpan.FromMilliseconds(240),
-            EasingFunction = easeOut
+            Duration = TimeSpan.FromMilliseconds(280),
+            EasingFunction = backEase
         };
         moveSb.Children.Add(animTranslate);
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animTranslate, IndicatorTranslation);
@@ -459,16 +488,23 @@ public sealed partial class HomePage : Page
         }
 
         var sb = new Storyboard();
-        var ease = new CubicEase
+        var openEase = new Microsoft.UI.Xaml.Media.Animation.BackEase
         {
-            EasingMode = isOpen ? EasingMode.EaseOut : EasingMode.EaseInOut
+            EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut,
+            Amplitude = 0.35
         };
-        var duration = TimeSpan.FromMilliseconds(isOpen ? 280 : 250);
+        var closeEase = new Microsoft.UI.Xaml.Media.Animation.CubicEase
+        {
+            EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseInOut
+        };
+
+        Microsoft.UI.Xaml.Media.Animation.EasingFunctionBase ease = isOpen
+            ? openEase
+            : closeEase;
+
+        var duration = TimeSpan.FromMilliseconds(isOpen ? 340 : 260);
 
         // 1. Width animation on container with EnableDependentAnimation = true
-        // Crucial: WinUI 3 requires EnableDependentAnimation for FrameworkElement.Width.
-        // This ensures the layout pipeline updates SidebarColumn (Auto) and MainContentColumn (*) every frame,
-        // delivering a responsive "display flex" resize for the clip viewer on the right.
         var animWidth = new DoubleAnimation
         {
             From = startWidth,
@@ -771,22 +807,41 @@ public sealed partial class HomePage : Page
         UpdateActiveIndicator(animate: true);
     }
 
-    private readonly System.Collections.Generic.HashSet<DirectoryNode> _animatingExpandingParents = new();
     private readonly System.Collections.Generic.List<Storyboard> _activeFolderStoryboards = new();
 
-    private void OnDirectoryExpanding(TreeView sender, TreeViewExpandingEventArgs args)
+    private static void CollectVisibleDescendants(DirectoryNode parent, System.Collections.Generic.List<DirectoryNode> list)
+    {
+        foreach (var child in parent.SubDirectories)
+        {
+            list.Add(child);
+            if (child.IsExpanded && child.SubDirectories.Count > 0)
+            {
+                CollectVisibleDescendants(child, list);
+            }
+        }
+    }
+
+    private async void OnDirectoryExpanding(TreeView sender, TreeViewExpandingEventArgs args)
     {
         var dirNode = args.Item as DirectoryNode ?? (args.Node?.Content as DirectoryNode);
-        if (dirNode != null)
-        {
-            dirNode.IsExpanded = true;
-            _animatingExpandingParents.Add(dirNode);
+        if (dirNode == null) return;
+        dirNode.IsExpanded = true;
 
-            DispatcherQueue.TryEnqueue(async () =>
+        var itemsToAnimate = new System.Collections.Generic.List<DirectoryNode>();
+        CollectVisibleDescendants(dirNode, itemsToAnimate);
+
+        if (itemsToAnimate.Count == 0) return;
+
+        // Allow WinUI 3 TreeView a brief cycle to materialize item containers
+        await System.Threading.Tasks.Task.Delay(20);
+
+        for (int i = 0; i < itemsToAnimate.Count; i++)
+        {
+            var node = itemsToAnimate[i];
+            if (sender.ContainerFromItem(node) is TreeViewItem container)
             {
-                await System.Threading.Tasks.Task.Delay(1200);
-                _animatingExpandingParents.Remove(dirNode);
-            });
+                AnimateCascadeEntrance(container, i);
+            }
         }
     }
 
@@ -796,38 +851,17 @@ public sealed partial class HomePage : Page
         if (dirNode != null)
         {
             dirNode.IsExpanded = false;
-            _animatingExpandingParents.Remove(dirNode);
         }
     }
 
     private void OnFolderItemGridLoaded(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement grid && grid.DataContext is DirectoryNode childNode)
+        if (sender is FrameworkElement grid)
         {
-            // Always guarantee full visibility and zero translate offset
             grid.Opacity = 1.0;
             if (grid.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
             {
                 tt.Y = 0.0;
-            }
-
-            DirectoryNode? parent = null;
-            foreach (var p in _animatingExpandingParents)
-            {
-                if (p.SubDirectories.Contains(childNode))
-                {
-                    parent = p;
-                    break;
-                }
-            }
-
-            if (parent != null)
-            {
-                int index = parent.SubDirectories.IndexOf(childNode);
-                if (index >= 0)
-                {
-                    AnimateCascadeEntrance(grid, index);
-                }
             }
         }
     }
@@ -845,14 +879,11 @@ public sealed partial class HomePage : Page
             element.RenderTransform = trans;
         }
 
-        // Fluid Windows 11 cascade: items slide smoothly down from parent folder
-        double slideDistance = -(14.0 + Math.Min(index * 1.5, 10.0));
+        element.Opacity = 0.0;
+        double slideDistance = -(12.0 + Math.Min(index * 1.0, 8.0));
         trans.Y = slideDistance;
 
-        // NOTE: We do not set element.Opacity = 0.0 here!
-        // Instead, the DoubleAnimation animates From = 0.0 To = 1.0.
-        // If the animation is ever interrupted, recycled, or finished, the base opacity remains 1.0.
-        var delay = TimeSpan.FromMilliseconds(Math.Min(index, 14) * 20);
+        var delay = TimeSpan.FromMilliseconds(Math.Min(index, 14) * 22);
         var duration = TimeSpan.FromMilliseconds(220);
         var easeOut = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
 
@@ -866,15 +897,15 @@ public sealed partial class HomePage : Page
             Duration = duration,
             EasingFunction = easeOut
         };
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, element);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "(UIElement.RenderTransform).(TranslateTransform.Y)");
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, trans);
+        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "Y");
 
         var animOp = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
         {
             From = 0.0,
             To = 1.0,
             BeginTime = delay,
-            Duration = TimeSpan.FromMilliseconds(190),
+            Duration = TimeSpan.FromMilliseconds(180),
             EasingFunction = easeOut
         };
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOp, element);
@@ -1088,6 +1119,10 @@ public sealed partial class HomePage : Page
 
         if (targetNode != null)
         {
+            if (targetNode.HasSubDirectories)
+            {
+                targetNode.IsExpanded = !targetNode.IsExpanded;
+            }
             await ViewModel.SelectDirectoryAsync(targetNode);
             UpdateActiveIndicator(animate: true);
         }

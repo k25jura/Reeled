@@ -24,6 +24,9 @@ public partial class DirectoryNode : ObservableObject
     [ObservableProperty]
     private bool _isSelected;
 
+    [ObservableProperty]
+    private bool _hasSubDirectories;
+
     public ObservableCollection<DirectoryNode> SubDirectories { get; set; } = new();
 
     public string DisplayName =>

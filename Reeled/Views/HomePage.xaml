@@ -146,6 +146,46 @@
                                         </VisualState.Setters>
                                     </VisualState>
                                 </VisualStateGroup>
+
+                                <VisualStateGroup x:Name="ExpansionStates">
+                                    <VisualStateGroup.Transitions>
+                                        <VisualTransition From="Collapsed" To="Expanded">
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="ChevronRotateTransform"
+                                                                 Storyboard.TargetProperty="Angle"
+                                                                 To="90"
+                                                                 Duration="0:0:0.20">
+                                                    <DoubleAnimation.EasingFunction>
+                                                        <CubicEase EasingMode="EaseOut" />
+                                                    </DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </VisualTransition>
+                                        <VisualTransition From="Expanded" To="Collapsed">
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="ChevronRotateTransform"
+                                                                 Storyboard.TargetProperty="Angle"
+                                                                 To="0"
+                                                                 Duration="0:0:0.18">
+                                                    <DoubleAnimation.EasingFunction>
+                                                        <CubicEase EasingMode="EaseOut" />
+                                                    </DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+                                            </Storyboard>
+                                        </VisualTransition>
+                                    </VisualStateGroup.Transitions>
+
+                                    <VisualState x:Name="Collapsed">
+                                        <VisualState.Setters>
+                                            <Setter Target="ChevronRotateTransform.Angle" Value="0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Expanded">
+                                        <VisualState.Setters>
+                                            <Setter Target="ChevronRotateTransform.Angle" Value="90" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
                             </VisualStateManager.VisualStateGroups>
 
                             <!-- Hover background highlight -->
@@ -185,29 +225,25 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Chevron button -->
+                                <!-- Chevron button with animated rotation and auto-hide when no subfolders -->
                                 <Grid x:Name="ExpandCollapseChevron" 
                                       Grid.Column="0" 
                                       Padding="10,0,6,0" 
-                                      Width="Auto" 
+                                      Width="28" 
                                       VerticalAlignment="Center"
                                       Background="Transparent">
-                                    <TextBlock x:Name="CollapsedGlyph" 
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                               Width="12" Height="12" 
-                                               Visibility="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=TreeViewItemTemplateSettings.CollapsedGlyphVisibility}" 
-                                               FontSize="10" 
-                                               Text="{TemplateBinding CollapsedGlyph}" 
-                                               FontFamily="{StaticResource SymbolThemeFontFamily}" 
-                                               VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                    <TextBlock x:Name="ExpandedGlyph" 
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                               Width="12" Height="12" 
-                                               Visibility="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=TreeViewItemTemplateSettings.ExpandedGlyphVisibility}" 
-                                               FontSize="10" 
-                                               Text="{TemplateBinding ExpandedGlyph}" 
-                                               FontFamily="{StaticResource SymbolThemeFontFamily}" 
-                                               VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                    <FontIcon x:Name="ChevronIcon"
+                                              Glyph="&#xE972;"
+                                              FontSize="9"
+                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Center"
+                                              RenderTransformOrigin="0.5,0.5"
+                                              Visibility="{Binding DataContext.HasSubDirectories, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <FontIcon.RenderTransform>
+                                            <RotateTransform x:Name="ChevronRotateTransform" Angle="0" />
+                                        </FontIcon.RenderTransform>
+                                    </FontIcon>
                                 </Grid>
 
                                 <!-- ContentPresenter -->
@@ -228,7 +264,7 @@
         </Style>
     </Page.Resources>
 
-    <Grid x:Name="MainRootGrid" SizeChanged="OnPageSizeChanged">
+    <Grid x:Name="MainRootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" SizeChanged="OnPageSizeChanged">
         <Grid.ColumnDefinitions>
             <ColumnDefinition x:Name="SidebarColumn" Width="Auto" />
             <ColumnDefinition x:Name="MainContentColumn" Width="*" />
@@ -237,7 +273,8 @@
         <!-- Column 0: Left Navigation Sidebar Container -->
         <Grid Grid.Column="0" 
               x:Name="SidebarContainer" 
-              Width="316">
+              Width="316"
+              Background="{ThemeResource LayerFillColorDefaultBrush}">
             <!-- Inner content clipped and translated during collapse/expand -->
             <Border x:Name="SidebarContentBorder"
                     HorizontalAlignment="Left"
@@ -303,26 +340,33 @@
                                 BorderThickness="0"
                                 Style="{ThemeResource SubtleButtonStyle}"
                                 PointerPressed="OnItemPointerPressed">
-                            <Grid Padding="14,0,12,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
+                            <Grid>
+                                <Border x:Name="HomeSelectedBg"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        CornerRadius="6"
+                                        Opacity="0"
+                                        IsHitTestVisible="False" />
+                                <Grid Padding="14,0,12,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
 
-                                <!-- Icon -->
-                                <FontIcon x:Name="HomeNavIcon" Grid.Column="0" Glyph="&#xE80F;" FontSize="16" Margin="0,0,12,0" />
+                                    <!-- Icon -->
+                                    <FontIcon x:Name="HomeNavIcon" Grid.Column="0" Glyph="&#xE80F;" FontSize="16" Margin="0,0,12,0" />
 
-                                <!-- Label -->
-                                <TextBlock x:Name="HomeNavText" Grid.Column="1" Text="Home" FontSize="13" VerticalAlignment="Center" />
+                                    <!-- Label -->
+                                    <TextBlock x:Name="HomeNavText" Grid.Column="1" Text="Home" FontSize="13" VerticalAlignment="Center" />
 
-                                <!-- Counter (Clean text, no pill background) -->
-                                <TextBlock Grid.Column="2" 
-                                           Text="{x:Bind ViewModel.AllClipsCount, Mode=OneWay}" 
-                                           FontSize="12" 
-                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                           VerticalAlignment="Center"
-                                           Visibility="{x:Bind ViewModel.AllClipsCount, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                    <!-- Counter (Clean text, no pill background) -->
+                                    <TextBlock Grid.Column="2" 
+                                               Text="{x:Bind ViewModel.AllClipsCount, Mode=OneWay}" 
+                                               FontSize="12" 
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                               VerticalAlignment="Center"
+                                               Visibility="{x:Bind ViewModel.AllClipsCount, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                </Grid>
                             </Grid>
                         </Button>
 
@@ -337,26 +381,33 @@
                                 BorderThickness="0"
                                 Style="{ThemeResource SubtleButtonStyle}"
                                 PointerPressed="OnItemPointerPressed">
-                            <Grid Padding="14,0,12,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
+                            <Grid>
+                                <Border x:Name="FavoritesSelectedBg"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        CornerRadius="6"
+                                        Opacity="0"
+                                        IsHitTestVisible="False" />
+                                <Grid Padding="14,0,12,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
 
-                                <!-- Heart Icon (EB52 = HeartFill) -->
-                                <FontIcon x:Name="FavoritesNavIcon" Grid.Column="0" Glyph="&#xEB52;" FontSize="16" Margin="0,0,12,0" />
+                                    <!-- Heart Icon (EB52 = HeartFill) -->
+                                    <FontIcon x:Name="FavoritesNavIcon" Grid.Column="0" Glyph="&#xEB52;" FontSize="16" Margin="0,0,12,0" />
 
-                                <!-- Label -->
-                                <TextBlock x:Name="FavoritesNavText" Grid.Column="1" Text="Favorites" FontSize="13" VerticalAlignment="Center" />
+                                    <!-- Label -->
+                                    <TextBlock x:Name="FavoritesNavText" Grid.Column="1" Text="Favorites" FontSize="13" VerticalAlignment="Center" />
 
-                                <!-- Counter (Clean text, no pill background) -->
-                                <TextBlock Grid.Column="2" 
-                                           Text="{x:Bind ViewModel.FavoritesCount, Mode=OneWay}" 
-                                           FontSize="12" 
-                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                           VerticalAlignment="Center"
-                                           Visibility="{x:Bind ViewModel.FavoritesCount, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                    <!-- Counter (Clean text, no pill background) -->
+                                    <TextBlock Grid.Column="2" 
+                                               Text="{x:Bind ViewModel.FavoritesCount, Mode=OneWay}" 
+                                               FontSize="12" 
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                               VerticalAlignment="Center"
+                                               Visibility="{x:Bind ViewModel.FavoritesCount, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                </Grid>
                             </Grid>
                         </Button>
 
@@ -371,26 +422,33 @@
                                 BorderThickness="0"
                                 Style="{ThemeResource SubtleButtonStyle}"
                                 PointerPressed="OnItemPointerPressed">
-                            <Grid Padding="14,0,12,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
+                            <Grid>
+                                <Border x:Name="SavedMomentsSelectedBg"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        CornerRadius="6"
+                                        Opacity="0"
+                                        IsHitTestVisible="False" />
+                                <Grid Padding="14,0,12,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
 
-                                <!-- Icon -->
-                                <FontIcon x:Name="SavedMomentsNavIcon" Grid.Column="0" Glyph="&#xE8A4;" FontSize="16" Margin="0,0,12,0" />
+                                    <!-- Icon -->
+                                    <FontIcon x:Name="SavedMomentsNavIcon" Grid.Column="0" Glyph="&#xE8A4;" FontSize="16" Margin="0,0,12,0" />
 
-                                <!-- Label -->
-                                <TextBlock x:Name="SavedMomentsNavText" Grid.Column="1" Text="Saved Moments" FontSize="13" VerticalAlignment="Center" />
+                                    <!-- Label -->
+                                    <TextBlock x:Name="SavedMomentsNavText" Grid.Column="1" Text="Saved Moments" FontSize="13" VerticalAlignment="Center" />
 
-                                <!-- Counter (Clean text, no pill background) -->
-                                <TextBlock Grid.Column="2" 
-                                           Text="{x:Bind ViewModel.SavedMomentsCount, Mode=OneWay}" 
-                                           FontSize="12" 
-                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                           VerticalAlignment="Center"
-                                           Visibility="{x:Bind ViewModel.SavedMomentsCount, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                    <!-- Counter (Clean text, no pill background) -->
+                                    <TextBlock Grid.Column="2" 
+                                               Text="{x:Bind ViewModel.SavedMomentsCount, Mode=OneWay}" 
+                                               FontSize="12" 
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                               VerticalAlignment="Center"
+                                               Visibility="{x:Bind ViewModel.SavedMomentsCount, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                </Grid>
                             </Grid>
                         </Button>
                     </StackPanel>

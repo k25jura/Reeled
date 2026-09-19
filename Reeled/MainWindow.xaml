@@ -13,7 +13,7 @@
         <MicaBackdrop Kind="BaseAlt" />
     </Window.SystemBackdrop>
 
-    <Grid x:Name="RootWindowGrid" MinWidth="760" MinHeight="500">
+    <Grid x:Name="RootWindowGrid" MinWidth="760" MinHeight="500" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <!-- Solid background transition layer for video playback -->
         <Border x:Name="PlayerBackdropLayer" 
                 Background="#08080A" 
@@ -21,7 +21,7 @@
                 IsHitTestVisible="False" />
 
         <!-- Library / Settings Content Frame (fills the entire window so sidebar extends fully upwards) -->
-        <Frame x:Name="RootFrame" />
+        <Frame x:Name="RootFrame" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" />
 
         <!-- Integrated TitleBar drag region (leaves top-left 48px free for sidebar hamburger button and top-right 140px for OS caption buttons) -->
         <Border x:Name="AppTitleBar" 

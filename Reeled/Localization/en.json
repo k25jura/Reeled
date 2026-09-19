@@ -121,6 +121,7 @@
   "Updates_Size": "Size: 38.4 MB",
   "Updates_Status_Installed": "Update applied successfully!",
   "Updates_Progress_Format": "{0} MB / {1} MB ({2}%) • {3} MB/s",
+  "Updates_PatchNotes": "Release notes",
 
   "About_Tagline": "Modern game clips viewer & player for Windows",
   "About_Version": "Version 1.0.0",

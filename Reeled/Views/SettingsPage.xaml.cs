@@ -21,6 +21,7 @@ public sealed partial class SettingsPage : Page
     private bool _isIndicatorVisible = false;
     private Storyboard? _indicatorStoryboard;
     private Storyboard? _updateCardStoryboard;
+    private Storyboard? _downloadTransitionStoryboard;
     private DispatcherTimer? _foldersStatusTimer;
     private DispatcherTimer? _storageStatusTimer;
     private DispatcherTimer? _updatesStatusTimer;
@@ -50,6 +51,10 @@ public sealed partial class SettingsPage : Page
             else if (e.PropertyName == nameof(SettingsViewModel.IsUpdateAvailable))
             {
                 AnimateUpdateCard(ViewModel.IsUpdateAvailable);
+            }
+            else if (e.PropertyName == nameof(SettingsViewModel.IsDownloadingUpdate))
+            {
+                AnimateDownloadStateTransition(ViewModel.IsDownloadingUpdate);
             }
         };
 
@@ -480,15 +485,17 @@ public sealed partial class SettingsPage : Page
             textBlock.Foreground = textBrush;
         }
 
-        // Accordion space-reserving expansion animation with Apple QuarticEase
+        // Gentle space-reserving expansion animation with Apple QuarticEase (240ms)
         var openSb = new Storyboard();
-        var appleEase = new QuarticEase { EasingMode = EasingMode.EaseOut };
+        var appleEaseOut = new QuarticEase { EasingMode = EasingMode.EaseOut };
+        const double durationMs = 240.0;
 
         var animHeight = new DoubleAnimation
         {
+            From = border.ActualHeight > 0 ? border.ActualHeight : 0.0,
             To = 38.0,
-            Duration = TimeSpan.FromMilliseconds(190),
-            EasingFunction = appleEase,
+            Duration = TimeSpan.FromMilliseconds(durationMs),
+            EasingFunction = appleEaseOut,
             EnableDependentAnimation = true
         };
         Storyboard.SetTarget(animHeight, border);
@@ -497,9 +504,10 @@ public sealed partial class SettingsPage : Page
 
         var animOpacity = new DoubleAnimation
         {
+            From = border.Opacity,
             To = 1.0,
-            Duration = TimeSpan.FromMilliseconds(180),
-            EasingFunction = appleEase
+            Duration = TimeSpan.FromMilliseconds(durationMs),
+            EasingFunction = appleEaseOut
         };
         Storyboard.SetTarget(animOpacity, border);
         Storyboard.SetTargetProperty(animOpacity, "Opacity");
@@ -507,27 +515,38 @@ public sealed partial class SettingsPage : Page
 
         var animTrans = new DoubleAnimation
         {
+            From = trans.Y,
             To = 0.0,
-            Duration = TimeSpan.FromMilliseconds(190),
-            EasingFunction = appleEase
+            Duration = TimeSpan.FromMilliseconds(durationMs),
+            EasingFunction = appleEaseOut
         };
         Storyboard.SetTarget(animTrans, trans);
         Storyboard.SetTargetProperty(animTrans, "Y");
         openSb.Children.Add(animTrans);
 
+        openSb.Completed += (s, e) =>
+        {
+            border.Height = 38.0;
+            border.Opacity = 1.0;
+            trans.Y = 0.0;
+        };
+
         openSb.Begin();
 
-        // Auto-collapse after 3.5s with graceful reverse animation
+        // Auto-collapse after 3.5s with graceful, gentle reverse animation at the same speed (240ms)
         var collapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(3500) };
         collapseTimer.Tick += (s, e) =>
         {
             collapseTimer.Stop();
             var closeSb = new Storyboard();
+            var gentleEase = new QuarticEase { EasingMode = EasingMode.EaseInOut };
+
             var animCloseHeight = new DoubleAnimation
             {
+                From = border.ActualHeight > 0 ? border.ActualHeight : 38.0,
                 To = 0.0,
-                Duration = TimeSpan.FromMilliseconds(190),
-                EasingFunction = appleEase,
+                Duration = TimeSpan.FromMilliseconds(durationMs),
+                EasingFunction = gentleEase,
                 EnableDependentAnimation = true
             };
             Storyboard.SetTarget(animCloseHeight, border);
@@ -536,9 +555,10 @@ public sealed partial class SettingsPage : Page
 
             var animCloseOpacity = new DoubleAnimation
             {
+                From = border.Opacity,
                 To = 0.0,
-                Duration = TimeSpan.FromMilliseconds(150),
-                EasingFunction = appleEase
+                Duration = TimeSpan.FromMilliseconds(durationMs),
+                EasingFunction = gentleEase
             };
             Storyboard.SetTarget(animCloseOpacity, border);
             Storyboard.SetTargetProperty(animCloseOpacity, "Opacity");
@@ -546,13 +566,21 @@ public sealed partial class SettingsPage : Page
 
             var animCloseTrans = new DoubleAnimation
             {
-                To = -8.0,
-                Duration = TimeSpan.FromMilliseconds(190),
-                EasingFunction = appleEase
+                From = trans.Y,
+                To = -6.0,
+                Duration = TimeSpan.FromMilliseconds(durationMs),
+                EasingFunction = gentleEase
             };
             Storyboard.SetTarget(animCloseTrans, trans);
             Storyboard.SetTargetProperty(animCloseTrans, "Y");
             closeSb.Children.Add(animCloseTrans);
+
+            closeSb.Completed += (s2, e2) =>
+            {
+                border.Height = 0.0;
+                border.Opacity = 0.0;
+                trans.Y = -6.0;
+            };
 
             closeSb.Begin();
         };
@@ -619,19 +647,22 @@ public sealed partial class SettingsPage : Page
         _updateCardStoryboard?.Stop();
 
         var sb = new Storyboard();
-        var appleEase = new QuarticEase { EasingMode = EasingMode.EaseOut };
+        var ease = open
+            ? (EasingFunctionBase)new QuarticEase { EasingMode = EasingMode.EaseOut }
+            : (EasingFunctionBase)new QuarticEase { EasingMode = EasingMode.EaseInOut };
 
+        const double durationMs = 240.0;
         double startHeight = open ? 0.0 : UpdateAvailableBorder.ActualHeight;
-        double targetHeight = open ? 126.0 : 0.0;
+        double targetHeight = open ? 134.0 : 0.0;
         double targetOpacity = open ? 1.0 : 0.0;
-        double targetY = open ? 0.0 : -10.0;
+        double targetY = open ? 0.0 : -8.0;
 
         var animH = new DoubleAnimation
         {
             From = startHeight,
             To = targetHeight,
-            Duration = TimeSpan.FromMilliseconds(220),
-            EasingFunction = appleEase,
+            Duration = TimeSpan.FromMilliseconds(durationMs),
+            EasingFunction = ease,
             EnableDependentAnimation = true
         };
         Storyboard.SetTarget(animH, UpdateAvailableBorder);
@@ -640,9 +671,10 @@ public sealed partial class SettingsPage : Page
 
         var animO = new DoubleAnimation
         {
+            From = UpdateAvailableBorder.Opacity,
             To = targetOpacity,
-            Duration = TimeSpan.FromMilliseconds(open ? 200 : 160),
-            EasingFunction = appleEase
+            Duration = TimeSpan.FromMilliseconds(durationMs),
+            EasingFunction = ease
         };
         Storyboard.SetTarget(animO, UpdateAvailableBorder);
         Storyboard.SetTargetProperty(animO, "Opacity");
@@ -650,9 +682,10 @@ public sealed partial class SettingsPage : Page
 
         var animT = new DoubleAnimation
         {
+            From = UpdateAvailableTranslation.Y,
             To = targetY,
-            Duration = TimeSpan.FromMilliseconds(220),
-            EasingFunction = appleEase
+            Duration = TimeSpan.FromMilliseconds(durationMs),
+            EasingFunction = ease
         };
         Storyboard.SetTarget(animT, UpdateAvailableTranslation);
         Storyboard.SetTargetProperty(animT, "Y");
@@ -667,6 +700,18 @@ public sealed partial class SettingsPage : Page
             else
             {
                 UpdateAvailableBorder.Height = 0;
+                if (UpdateActionButtonsContainer != null && ActionButtonsTranslation != null)
+                {
+                    UpdateActionButtonsContainer.Opacity = 1.0;
+                    ActionButtonsTranslation.Y = 0.0;
+                    UpdateActionButtonsContainer.Visibility = Visibility.Visible;
+                }
+                if (UpdateProgressContainer != null && ProgressTranslation != null)
+                {
+                    UpdateProgressContainer.Opacity = 0.0;
+                    ProgressTranslation.Y = 6.0;
+                    UpdateProgressContainer.Visibility = Visibility.Collapsed;
+                }
             }
             UpdateAvailableBorder.Opacity = targetOpacity;
             UpdateAvailableTranslation.Y = targetY;
@@ -676,6 +721,141 @@ public sealed partial class SettingsPage : Page
         if (open) UpdateAvailableBorder.IsHitTestVisible = true;
         _updateCardStoryboard = sb;
         sb.Begin();
+    }
+
+    private void AnimateDownloadStateTransition(bool isDownloading)
+    {
+        if (UpdateActionButtonsContainer == null || UpdateProgressContainer == null ||
+            ActionButtonsTranslation == null || ProgressTranslation == null) return;
+
+        _downloadTransitionStoryboard?.Stop();
+        var sb = new Storyboard();
+        var appleEase = new QuarticEase { EasingMode = EasingMode.EaseOut };
+        const double durationMs = 220.0;
+
+        if (isDownloading)
+        {
+            UpdateProgressContainer.Visibility = Visibility.Visible;
+
+            var animBtnOpacity = new DoubleAnimation
+            {
+                From = UpdateActionButtonsContainer.Opacity,
+                To = 0.0,
+                Duration = TimeSpan.FromMilliseconds(160),
+                EasingFunction = appleEase
+            };
+            Storyboard.SetTarget(animBtnOpacity, UpdateActionButtonsContainer);
+            Storyboard.SetTargetProperty(animBtnOpacity, "Opacity");
+            sb.Children.Add(animBtnOpacity);
+
+            var animBtnTrans = new DoubleAnimation
+            {
+                From = ActionButtonsTranslation.Y,
+                To = -4.0,
+                Duration = TimeSpan.FromMilliseconds(160),
+                EasingFunction = appleEase
+            };
+            Storyboard.SetTarget(animBtnTrans, ActionButtonsTranslation);
+            Storyboard.SetTargetProperty(animBtnTrans, "Y");
+            sb.Children.Add(animBtnTrans);
+
+            var animProgOpacity = new DoubleAnimation
+            {
+                From = UpdateProgressContainer.Opacity,
+                To = 1.0,
+                Duration = TimeSpan.FromMilliseconds(durationMs),
+                EasingFunction = appleEase
+            };
+            Storyboard.SetTarget(animProgOpacity, UpdateProgressContainer);
+            Storyboard.SetTargetProperty(animProgOpacity, "Opacity");
+            sb.Children.Add(animProgOpacity);
+
+            var animProgTrans = new DoubleAnimation
+            {
+                From = 6.0,
+                To = 0.0,
+                Duration = TimeSpan.FromMilliseconds(durationMs),
+                EasingFunction = appleEase
+            };
+            Storyboard.SetTarget(animProgTrans, ProgressTranslation);
+            Storyboard.SetTargetProperty(animProgTrans, "Y");
+            sb.Children.Add(animProgTrans);
+
+            sb.Completed += (s, e) =>
+            {
+                UpdateActionButtonsContainer.Visibility = Visibility.Collapsed;
+                UpdateProgressContainer.Opacity = 1.0;
+                ProgressTranslation.Y = 0.0;
+            };
+        }
+        else
+        {
+            UpdateActionButtonsContainer.Visibility = Visibility.Visible;
+
+            var animProgOpacity = new DoubleAnimation
+            {
+                From = UpdateProgressContainer.Opacity,
+                To = 0.0,
+                Duration = TimeSpan.FromMilliseconds(160),
+                EasingFunction = appleEase
+            };
+            Storyboard.SetTarget(animProgOpacity, UpdateProgressContainer);
+            Storyboard.SetTargetProperty(animProgOpacity, "Opacity");
+            sb.Children.Add(animProgOpacity);
+
+            var animProgTrans = new DoubleAnimation
+            {
+                From = ProgressTranslation.Y,
+                To = -4.0,
+                Duration = TimeSpan.FromMilliseconds(160),
+                EasingFunction = appleEase
+            };
+            Storyboard.SetTarget(animProgTrans, ProgressTranslation);
+            Storyboard.SetTargetProperty(animProgTrans, "Y");
+            sb.Children.Add(animProgTrans);
+
+            var animBtnOpacity = new DoubleAnimation
+            {
+                From = UpdateActionButtonsContainer.Opacity,
+                To = 1.0,
+                Duration = TimeSpan.FromMilliseconds(durationMs),
+                EasingFunction = appleEase
+            };
+            Storyboard.SetTarget(animBtnOpacity, UpdateActionButtonsContainer);
+            Storyboard.SetTargetProperty(animBtnOpacity, "Opacity");
+            sb.Children.Add(animBtnOpacity);
+
+            var animBtnTrans = new DoubleAnimation
+            {
+                From = 6.0,
+                To = 0.0,
+                Duration = TimeSpan.FromMilliseconds(durationMs),
+                EasingFunction = appleEase
+            };
+            Storyboard.SetTarget(animBtnTrans, ActionButtonsTranslation);
+            Storyboard.SetTargetProperty(animBtnTrans, "Y");
+            sb.Children.Add(animBtnTrans);
+
+            sb.Completed += (s, e) =>
+            {
+                UpdateProgressContainer.Visibility = Visibility.Collapsed;
+                UpdateActionButtonsContainer.Opacity = 1.0;
+                ActionButtonsTranslation.Y = 0.0;
+            };
+        }
+
+        _downloadTransitionStoryboard = sb;
+        sb.Begin();
+    }
+
+    private async void OnPatchNotesClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var uri = new Uri("https://github.com/k25jura/Reeled/releases");
+            await Windows.System.Launcher.LaunchUriAsync(uri);
+        }
+        catch { }
     }
 
     private void ApplyLocalization(Reeled.Services.ILocalizationService loc)
@@ -708,6 +888,7 @@ public sealed partial class SettingsPage : Page
         if (AutoCheckUpdatesTitleText != null) AutoCheckUpdatesTitleText.Text = loc["Updates_AutoCheckTitle"];
         if (AutoCheckUpdatesSubtitleText != null) AutoCheckUpdatesSubtitleText.Text = loc["Updates_AutoCheckSubtitle"];
         if (UpdateAvailableNotes != null) UpdateAvailableNotes.Text = loc["Updates_AvailableNotes"];
+        if (PatchNotesText != null) PatchNotesText.Text = loc["Updates_PatchNotes"];
         if (DownloadUpdateButton != null) DownloadUpdateButton.Content = loc["Updates_DownloadButton"];
         if (InstallUpdateButton != null) InstallUpdateButton.Content = loc["Updates_InstallButton"];
     }

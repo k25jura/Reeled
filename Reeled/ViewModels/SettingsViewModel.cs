@@ -396,12 +396,12 @@ public partial class SettingsViewModel : ObservableObject
         DownloadProgressFormatted = $"{_localizationService["Updates_StatusDownloading"]} 0%";
         DownloadProgressDetailed = string.Format(_localizationService["Updates_Progress_Format"], "0.0", "38.4", 0, "4.8");
 
-        for (int p = 0; p <= 100; p += 5)
+        for (int p = 0; p <= 100; p += 2)
         {
-            await Task.Delay(80);
+            await Task.Delay(35);
             DownloadProgress = p;
             double downloadedMb = (p / 100.0) * 38.4;
-            double speed = 4.8 + (p % 3) * 0.3;
+            double speed = 4.8 + (p % 4) * 0.25;
             DownloadProgressFormatted = $"{_localizationService["Updates_StatusDownloading"]} {p}%";
             DownloadProgressDetailed = string.Format(_localizationService["Updates_Progress_Format"], $"{downloadedMb:F1}", "38.4", p, $"{speed:F1}");
         }

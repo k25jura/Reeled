@@ -963,22 +963,48 @@
                                 <TranslateTransform x:Name="UpdateAvailableTranslation" Y="-10" />
                             </Border.RenderTransform>
                             <StackPanel Spacing="12">
-                                <!-- Top Row: App Logo + Version (No feature update text, no pill badge) -->
-                                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                    <Image x:Name="UpdateLogoImage"
-                                           Height="26" 
-                                           Stretch="Uniform"
-                                           VerticalAlignment="Center">
-                                        <Image.Source>
-                                            <SvgImageSource x:Name="UpdateLogoSvg" UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="78" />
-                                        </Image.Source>
-                                    </Image>
-                                    <TextBlock Text="1.1.0" 
-                                               FontSize="15" 
-                                               FontWeight="SemiBold" 
-                                               VerticalAlignment="Center" 
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </StackPanel>
+                                <!-- Top Row: App Logo + Version (Left) & Patch Notes Link (Right) -->
+                                <Grid VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                        <Image x:Name="UpdateLogoImage"
+                                               Height="26" 
+                                               Stretch="Uniform"
+                                               VerticalAlignment="Center">
+                                            <Image.Source>
+                                                <SvgImageSource x:Name="UpdateLogoSvg" UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="78" />
+                                            </Image.Source>
+                                        </Image>
+                                        <TextBlock Text="1.1.0" 
+                                                   FontSize="15" 
+                                                   FontWeight="SemiBold" 
+                                                   VerticalAlignment="Center" 
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+
+                                    <!-- Patch Notes Link (Redirects to GitHub release page) -->
+                                    <HyperlinkButton Grid.Column="1"
+                                                     x:Name="PatchNotesHyperlink"
+                                                     Click="OnPatchNotesClick"
+                                                     Padding="8,4"
+                                                     CornerRadius="6"
+                                                     VerticalAlignment="Center"
+                                                     ToolTipService.ToolTip="View GitHub release notes">
+                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xE8A7;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="PatchNotesText" 
+                                                       Text="Release notes" 
+                                                       FontSize="12.5" 
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" 
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </HyperlinkButton>
+                                </Grid>
 
                                 <!-- Release Notes / Summary -->
                                 <TextBlock x:Name="UpdateAvailableNotes"
@@ -987,45 +1013,66 @@
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                            TextWrapping="Wrap" />
 
-                                <!-- Progress section when downloading -->
-                                <StackPanel Spacing="6" 
-                                            Visibility="{x:Bind ViewModel.IsDownloadingUpdate, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <Grid>
-                                        <TextBlock Text="{x:Bind ViewModel.DownloadProgressFormatted, Mode=OneWay}" 
-                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                                   HorizontalAlignment="Left" />
-                                        <TextBlock Text="{x:Bind ViewModel.DownloadProgressDetailed, Mode=OneWay}" 
-                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
-                                                   FontWeight="SemiBold"
-                                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}" 
-                                                   HorizontalAlignment="Right" />
-                                    </Grid>
-                                    <ProgressBar Value="{x:Bind ViewModel.DownloadProgress, Mode=OneWay}" 
-                                                 Maximum="100" 
-                                                 Height="4" 
-                                                 CornerRadius="2" 
-                                                 HorizontalAlignment="Stretch" />
-                                </StackPanel>
+                                <!-- Action / Progress Transition Host -->
+                                <Grid x:Name="UpdateTransitionHost" MinHeight="36">
+                                    <!-- Progress section when downloading (Smooth animated entrance) -->
+                                    <Border x:Name="UpdateProgressContainer"
+                                            Opacity="0"
+                                            Visibility="Collapsed"
+                                            HorizontalAlignment="Stretch">
+                                        <Border.RenderTransform>
+                                            <TranslateTransform x:Name="ProgressTranslation" Y="6" />
+                                        </Border.RenderTransform>
+                                        <StackPanel Spacing="6">
+                                            <Grid>
+                                                <TextBlock Text="{x:Bind ViewModel.DownloadProgressFormatted, Mode=OneWay}" 
+                                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                                           HorizontalAlignment="Left" />
+                                                <TextBlock Text="{x:Bind ViewModel.DownloadProgressDetailed, Mode=OneWay}" 
+                                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{ThemeResource TextFillColorPrimaryBrush}" 
+                                                           HorizontalAlignment="Right" />
+                                            </Grid>
+                                            <ProgressBar x:Name="UpdateDownloadProgressBar"
+                                                         Value="{x:Bind ViewModel.DownloadProgress, Mode=OneWay}" 
+                                                         Maximum="100" 
+                                                         Height="4" 
+                                                         CornerRadius="2" 
+                                                         HorizontalAlignment="Stretch" />
+                                        </StackPanel>
+                                    </Border>
 
-                                <!-- Centered Action Buttons (Utilizing space cleanly, centered) -->
-                                <Button x:Name="DownloadUpdateButton" 
-                                        Command="{x:Bind ViewModel.DownloadUpdateCommand}"
-                                        Visibility="{x:Bind ViewModel.CanDownloadUpdate, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                        Style="{ThemeResource AccentButtonStyle}"
-                                        Content="Download &amp; Install"
-                                        HorizontalAlignment="Center"
-                                        Padding="32,7"
-                                        CornerRadius="6" />
+                                    <!-- Centered Action Buttons (Download & Install / Install and Restart) -->
+                                    <Border x:Name="UpdateActionButtonsContainer"
+                                            Opacity="1"
+                                            Visibility="Visible"
+                                            HorizontalAlignment="Center">
+                                        <Border.RenderTransform>
+                                            <TranslateTransform x:Name="ActionButtonsTranslation" Y="0" />
+                                        </Border.RenderTransform>
+                                        <Grid HorizontalAlignment="Center">
+                                            <Button x:Name="DownloadUpdateButton" 
+                                                    Command="{x:Bind ViewModel.DownloadUpdateCommand}"
+                                                    Visibility="{x:Bind ViewModel.CanDownloadUpdate, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                    Style="{ThemeResource AccentButtonStyle}"
+                                                    Content="Download &amp; Install"
+                                                    HorizontalAlignment="Center"
+                                                    Padding="32,7"
+                                                    CornerRadius="6" />
 
-                                <Button x:Name="InstallUpdateButton" 
-                                        Command="{x:Bind ViewModel.InstallUpdateCommand}"
-                                        Visibility="{x:Bind ViewModel.IsUpdateReadyToInstall, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                        Style="{ThemeResource AccentButtonStyle}"
-                                        Content="Install and Restart"
-                                        HorizontalAlignment="Center"
-                                        Padding="32,7"
-                                        CornerRadius="6" />
+                                            <Button x:Name="InstallUpdateButton" 
+                                                    Command="{x:Bind ViewModel.InstallUpdateCommand}"
+                                                    Visibility="{x:Bind ViewModel.IsUpdateReadyToInstall, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                    Style="{ThemeResource AccentButtonStyle}"
+                                                    Content="Install and Restart"
+                                                    HorizontalAlignment="Center"
+                                                    Padding="32,7"
+                                                    CornerRadius="6" />
+                                        </Grid>
+                                    </Border>
+                                </Grid>
                             </StackPanel>
                         </Border>
 

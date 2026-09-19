@@ -121,6 +121,7 @@
   "Updates_Size": "Розмір: 38.4 МБ",
   "Updates_Status_Installed": "Оновлення успішно застосовано!",
   "Updates_Progress_Format": "{0} МБ / {1} МБ ({2}%) • {3} МБ/с",
+  "Updates_PatchNotes": "Список змін",
 
   "About_Tagline": "Сучасний переглядач та плеєр ігрових кліпів для Windows",
   "About_Version": "Версія 1.0.0",

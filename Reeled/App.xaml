@@ -63,6 +63,8 @@
 
                             <Color x:Key="TextFillColorTertiary">#666666</Color>
                             <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
+
+                            <FontFamily x:Key="ContentControlThemeFontFamily">Century Gothic, ms-appx:///Assets/Fonts/centurygothic.ttf#Century Gothic</FontFamily>
                         </ResourceDictionary>
 
                         <ResourceDictionary x:Key="Dark">
@@ -113,6 +115,8 @@
 
                             <Color x:Key="TextFillColorTertiary">#666666</Color>
                             <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
+
+                            <FontFamily x:Key="ContentControlThemeFontFamily">Century Gothic, ms-appx:///Assets/Fonts/centurygothic.ttf#Century Gothic</FontFamily>
                         </ResourceDictionary>
 
                         <ResourceDictionary x:Key="Light">
@@ -163,10 +167,72 @@
 
                             <Color x:Key="TextFillColorTertiary">#8A8A8E</Color>
                             <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
+
+                            <FontFamily x:Key="ContentControlThemeFontFamily">Century Gothic, ms-appx:///Assets/Fonts/centurygothic.ttf#Century Gothic</FontFamily>
                         </ResourceDictionary>
                     </ResourceDictionary.ThemeDictionaries>
                 </ResourceDictionary>
             </ResourceDictionary.MergedDictionaries>
+            
+            <!-- Global Century Gothic Font Resources -->
+            <FontFamily x:Key="AppFontFamily">Century Gothic, ms-appx:///Assets/Fonts/centurygothic.ttf#Century Gothic</FontFamily>
+            <FontFamily x:Key="ContentControlThemeFontFamily">Century Gothic, ms-appx:///Assets/Fonts/centurygothic.ttf#Century Gothic</FontFamily>
+
+            <!-- Standard Typography Styles using Century Gothic -->
+            <Style x:Key="BaseTextBlockStyle" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="FontSize" Value="{StaticResource BodyTextBlockFontSize}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="LineStackingStrategy" Value="MaxHeight" />
+                <Setter Property="TextLineBounds" Value="Full" />
+            </Style>
+            <Style x:Key="HeaderTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+                <Setter Property="FontSize" Value="46" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </Style>
+            <Style x:Key="SubheaderTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+                <Setter Property="FontSize" Value="34" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </Style>
+            <Style x:Key="TitleTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+                <Setter Property="FontSize" Value="{StaticResource TitleTextBlockFontSize}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </Style>
+            <Style x:Key="TitleLargeTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+                <Setter Property="FontSize" Value="{StaticResource TitleLargeTextBlockFontSize}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </Style>
+            <Style x:Key="SubtitleTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+                <Setter Property="FontSize" Value="{StaticResource SubtitleTextBlockFontSize}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </Style>
+            <Style x:Key="BodyTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+                <Setter Property="FontWeight" Value="Normal" />
+            </Style>
+            <Style x:Key="BodyStrongTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+                <Setter Property="FontSize" Value="{StaticResource BodyStrongTextBlockFontSize}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </Style>
+            <Style x:Key="CaptionTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+                <Setter Property="FontSize" Value="{StaticResource CaptionTextBlockFontSize}" />
+                <Setter Property="FontWeight" Value="Normal" />
+            </Style>
+            <Style x:Key="DisplayTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource BaseTextBlockStyle}">
+                <Setter Property="FontSize" Value="{StaticResource DisplayTextBlockFontSize}" />
+            </Style>
+
+            <!-- Implicit Styles for Century Gothic -->
+            <Style TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+            </Style>
+            <Style TargetType="Page">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+            </Style>
+            <Style TargetType="RichTextBlock">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+            </Style>
             
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
             <converters:BoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" Invert="True" />

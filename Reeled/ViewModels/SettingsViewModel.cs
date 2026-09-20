@@ -186,6 +186,7 @@ public partial class SettingsViewModel : ObservableObject
     {
         SampleDateFormatPreview = DateTime.Now.ToString("dddd, d MMMM yyyy, HH:mm", _localizationService.CurrentCulture);
         CalculateMomentsStats();
+        CalculateClipCacheSize();
         if (IsUpdateAvailable)
         {
             UpdateStatusFormatted = _localizationService["Updates_StatusAvailable"];
@@ -514,19 +515,13 @@ public partial class SettingsViewModel : ObservableObject
         {
             var (count, bytes) = _clipMetadataCacheService.GetCacheStats();
             double kb = bytes / 1024.0;
-            if (kb < 1024)
-            {
-                ClipCacheSizeFormatted = $"{count} {(count == 1 ? "clip" : "clips")} cached • {kb:F1} KB";
-            }
-            else
-            {
-                double mb = kb / 1024.0;
-                ClipCacheSizeFormatted = $"{count} {(count == 1 ? "clip" : "clips")} cached • {mb:F2} MB";
-            }
+            string clipPlural = _localizationService.FormatPlural("Plural_Clip", count);
+            string sizeStr = kb < 1024 ? $"{kb:F1} KB" : $"{kb / 1024.0:F2} MB";
+            ClipCacheSizeFormatted = string.Format(_localizationService["Storage_ClipCacheStats"], count, clipPlural, sizeStr);
         }
         catch
         {
-            ClipCacheSizeFormatted = "0 clips cached";
+            ClipCacheSizeFormatted = string.Format(_localizationService["Storage_ClipCacheStats"], 0, _localizationService.FormatPlural("Plural_Clip", 0), "0 KB");
         }
     }
 }

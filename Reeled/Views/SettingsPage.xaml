@@ -157,6 +157,7 @@
 
             <!-- Back to Home Button -->
             <Button Grid.Column="0" 
+                    x:Name="BackToHomeButton"
                     Command="{x:Bind ViewModel.BackToHomeCommand}" 
                     Style="{ThemeResource SubtleButtonStyle}"
                     Padding="10"
@@ -169,7 +170,8 @@
             <!-- Settings Title with Icon -->
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                 <FontIcon Glyph="&#xE713;" FontSize="22" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
-                <TextBlock Text="Settings" 
+                <TextBlock x:Name="SettingsTitleText"
+                           Text="Settings" 
                            Style="{ThemeResource TitleTextBlockStyle}" 
                            FontSize="24" 
                            FontWeight="SemiBold" 
@@ -356,7 +358,8 @@
                     <!-- 1. Watch Folders Section                   -->
                     <!-- ========================================== -->
                     <StackPanel x:Name="FoldersSection" Spacing="10">
-                        <TextBlock Text="Watch Folders"
+                        <TextBlock x:Name="FoldersSectionTitle"
+                                   Text="Watch Folders"
                                    FontSize="15"
                                    FontWeight="SemiBold"
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
@@ -380,10 +383,12 @@
 
                                 <!-- Card Details -->
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                    <TextBlock Text="Add Media Folders" 
+                                    <TextBlock x:Name="AddMediaFoldersTitle"
+                                               Text="Add Media Folders" 
                                                Style="{ThemeResource BodyStrongTextBlockStyle}" 
                                                FontSize="14" />
-                                    <TextBlock Text="Directories scanned for MP4, MKV, and AVI gameplay clips" 
+                                    <TextBlock x:Name="AddMediaFoldersSubtitle"
+                                               Text="Directories scanned for MP4, MKV, and AVI gameplay clips" 
                                                Style="{ThemeResource CaptionTextBlockStyle}" 
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
@@ -395,14 +400,15 @@
                                         Style="{ThemeResource AccentButtonStyle}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <FontIcon Glyph="&#xE710;" FontSize="12" />
-                                        <TextBlock Text="Add Folder" />
+                                        <TextBlock x:Name="AddFolderButtonText" Text="Add Folder" />
                                     </StackPanel>
                                 </Button>
                             </Grid>
                         </Border>
 
                         <!-- Sub-header for Scanned Directories -->
-                        <TextBlock Text="Configured Library Directories" 
+                        <TextBlock x:Name="ConfiguredDirectoriesHeader"
+                                   Text="Configured Library Directories" 
                                    FontSize="12" 
                                    FontWeight="SemiBold" 
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
@@ -422,8 +428,8 @@
                                             Spacing="8" 
                                             Margin="0,22,0,22">
                                     <FontIcon Glyph="&#xE8B7;" FontSize="36" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" />
-                                    <TextBlock Text="No folders added" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="15" HorizontalAlignment="Center" />
-                                    <TextBlock Text="Add folders containing your video clips to start browsing your library." 
+                                    <TextBlock x:Name="FoldersEmptyTitleText" Text="No folders added" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="15" HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="FoldersEmptySubtitleText" Text="Add folders containing your video clips to start browsing your library." 
                                                Style="{ThemeResource CaptionTextBlockStyle}" 
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
                                                HorizontalAlignment="Center" />
@@ -513,7 +519,8 @@
                     <!-- 2. Playback Options Section                -->
                     <!-- ========================================== -->
                     <StackPanel x:Name="PlaybackSection" Spacing="8">
-                        <TextBlock Text="Playback Options"
+                        <TextBlock x:Name="PlaybackSectionTitle"
+                                   Text="Playback Options"
                                    FontSize="15"
                                    FontWeight="SemiBold"
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
@@ -536,8 +543,8 @@
                                 <FontIcon Grid.Column="0" Glyph="&#xEC57;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
 
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                    <TextBlock Text="Default Playback Speed" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
-                                    <TextBlock Text="Initial rate applied whenever a clip begins playing" 
+                                    <TextBlock x:Name="DefaultSpeedTitleText" Text="Default Playback Speed" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="DefaultSpeedSubtitleText" Text="Initial rate applied whenever a clip begins playing" 
                                                Style="{ThemeResource CaptionTextBlockStyle}" 
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
@@ -574,8 +581,8 @@
                                 <FontIcon Grid.Column="0" Glyph="&#xE823;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
 
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                    <TextBlock Text="Remember Adjusted Playback Speed" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
-                                    <TextBlock Text="Keep the speed chosen in the player across clips instead of resetting" 
+                                    <TextBlock x:Name="RememberSpeedTitleText" Text="Remember Adjusted Playback Speed" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="RememberSpeedSubtitleText" Text="Keep the speed chosen in the player across clips instead of resetting" 
                                                Style="{ThemeResource CaptionTextBlockStyle}" 
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
@@ -595,7 +602,8 @@
                     <!-- 3. Appearance Section                      -->
                     <!-- ========================================== -->
                     <StackPanel x:Name="AppearanceSection" Spacing="8">
-                        <TextBlock Text="Appearance"
+                        <TextBlock x:Name="AppearanceSectionTitle"
+                                   Text="Appearance"
                                    FontSize="15"
                                    FontWeight="SemiBold"
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
@@ -618,8 +626,8 @@
                                 <FontIcon Grid.Column="0" Glyph="&#xE790;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
 
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                    <TextBlock Text="App Theme" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
-                                    <TextBlock Text="Select theme style or synchronize automatically with Windows" 
+                                    <TextBlock x:Name="AppThemeTitleText" Text="App Theme" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="AppThemeSubtitleText" Text="Select theme style or synchronize automatically with Windows" 
                                                Style="{ThemeResource CaptionTextBlockStyle}" 
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
@@ -629,9 +637,9 @@
                                           SelectionChanged="OnThemeSelectionChanged"
                                           MinWidth="160"
                                           VerticalAlignment="Center">
-                                    <ComboBoxItem Content="Windows default" Tag="Default" />
-                                    <ComboBoxItem Content="Dark" Tag="Dark" />
-                                    <ComboBoxItem Content="Light" Tag="Light" />
+                                    <ComboBoxItem x:Name="ThemeSystemItem" Content="Windows default" Tag="Default" />
+                                    <ComboBoxItem x:Name="ThemeDarkItem" Content="Dark" Tag="Dark" />
+                                    <ComboBoxItem x:Name="ThemeLightItem" Content="Light" Tag="Light" />
                                 </ComboBox>
                             </Grid>
                         </Border>
@@ -675,9 +683,9 @@
                                           SelectionChanged="OnLanguageSelectionChanged"
                                           MinWidth="210"
                                           VerticalAlignment="Center">
-                                    <ComboBoxItem Content="System default (Auto-detect)" Tag="System" />
-                                    <ComboBoxItem Content="English" Tag="en" />
-                                    <ComboBoxItem Content="Українська" Tag="uk" />
+                                    <ComboBoxItem x:Name="LangSystemItem" Content="System default (Auto-detect)" Tag="System" />
+                                    <ComboBoxItem x:Name="LangEnItem" Content="English" Tag="en" />
+                                    <ComboBoxItem x:Name="LangUkItem" Content="Українська" Tag="uk" />
                                 </ComboBox>
                             </Grid>
                         </Border>
@@ -722,7 +730,8 @@
                     <!-- 5. Performance & Storage Section           -->
                     <!-- ========================================== -->
                     <StackPanel x:Name="StorageSection" Spacing="8">
-                        <TextBlock Text="Performance &amp; Storage"
+                        <TextBlock x:Name="StorageSectionTitle"
+                                   Text="Performance &amp; Storage"
                                    FontSize="15"
                                    FontWeight="SemiBold"
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
@@ -745,8 +754,8 @@
                                 <FontIcon Grid.Column="0" Glyph="&#xEE65;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
 
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                    <TextBlock Text="Skeleton Loading Placeholders" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
-                                    <TextBlock Text="Display fluid placeholder cards while scanning folders or loading video items" 
+                                    <TextBlock x:Name="SkeletonLoadingTitleText" Text="Skeleton Loading Placeholders" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="SkeletonLoadingSubtitleText" Text="Display fluid placeholder cards while scanning folders or loading video items" 
                                                Style="{ThemeResource CaptionTextBlockStyle}" 
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
@@ -778,9 +787,9 @@
                                 <FontIcon Grid.Column="0" Glyph="&#xEB9F;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
 
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                    <TextBlock Text="Thumbnail Cache" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="ThumbnailCacheTitleText" Text="Thumbnail Cache" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="Disk storage used:" 
+                                        <TextBlock x:Name="ThumbnailCacheDiskLabel" Text="Disk storage used:" 
                                                    Style="{ThemeResource CaptionTextBlockStyle}" 
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                         <TextBlock Text="{x:Bind ViewModel.CacheSizeFormatted, Mode=OneWay}" 
@@ -790,6 +799,7 @@
                                 </StackPanel>
 
                                 <Button Grid.Column="2" 
+                                        x:Name="ClearThumbnailsButton"
                                         Command="{x:Bind ViewModel.ClearCacheCommand}" 
                                         Content="Clear Thumbnails" 
                                         VerticalAlignment="Center" />
@@ -813,12 +823,12 @@
                                 <FontIcon Grid.Column="0" Glyph="&#xE74C;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
 
                                 <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                    <TextBlock Text="Clip Metadata Cache" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
-                                    <TextBlock Text="Speeds up library indexing and instant folder switching" 
+                                    <TextBlock x:Name="ClipCacheTitleText" Text="Clip Metadata Cache" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="ClipCacheSubtitleText" Text="Speeds up library indexing and instant folder switching" 
                                                Style="{ThemeResource CaptionTextBlockStyle}" 
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,1,0,0">
-                                        <TextBlock Text="Status:" 
+                                        <TextBlock x:Name="ClipCacheStatusLabel" Text="Status:" 
                                                    Style="{ThemeResource CaptionTextBlockStyle}" 
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                         <TextBlock Text="{x:Bind ViewModel.ClipCacheSizeFormatted, Mode=OneWay}" 
@@ -828,6 +838,7 @@
                                 </StackPanel>
 
                                 <Button Grid.Column="2" 
+                                        x:Name="ClearClipCacheButton"
                                         Command="{x:Bind ViewModel.ClearClipCacheCommand}" 
                                         Content="Clear Metadata" 
                                         VerticalAlignment="Center" />
@@ -856,7 +867,7 @@
                                                Style="{ThemeResource CaptionTextBlockStyle}" 
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,1,0,0">
-                                        <TextBlock Text="Status:" 
+                                        <TextBlock x:Name="StorageMomentsStatusLabel" Text="Status:" 
                                                    Style="{ThemeResource CaptionTextBlockStyle}" 
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                         <TextBlock Text="{x:Bind ViewModel.MomentsStatsFormatted, Mode=OneWay}" 
@@ -943,7 +954,7 @@
                                         <ProgressRing IsActive="{x:Bind ViewModel.IsCheckingForUpdates, Mode=OneWay}" 
                                                       Visibility="{x:Bind ViewModel.IsCheckingForUpdates, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                                       Width="14" Height="14" />
-                                        <TextBlock Text="Check for updates" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="CheckUpdatesButtonText" Text="Check for updates" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
                             </Grid>
@@ -1137,7 +1148,8 @@
                     <!-- 7. About Section                           -->
                     <!-- ========================================== -->
                     <StackPanel x:Name="AboutSection" Spacing="8">
-                        <TextBlock Text="About Reeled"
+                        <TextBlock x:Name="AboutSectionTitle"
+                                   Text="About Reeled"
                                    FontSize="15"
                                    FontWeight="SemiBold"
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
@@ -1149,7 +1161,7 @@
                                 BorderThickness="1" 
                                 CornerRadius="8" 
                                 Padding="20,18">
-                            <StackPanel Spacing="14">
+                            <StackPanel Spacing="12">
                                 <Image HorizontalAlignment="Left" 
                                        x:Name="SettingsLogoImage"
                                        Height="30" 
@@ -1158,16 +1170,79 @@
                                         <SvgImageSource x:Name="SettingsLogoSvg" UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="90" />
                                     </Image.Source>
                                 </Image>
-                                <TextBlock Text="Fast &amp; Fluent Gameplay Clips Library &amp; Video Player" 
+                                <TextBlock x:Name="AboutTaglineText"
+                                           Text="Modern game clips viewer &amp; player for Windows" 
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
                                            FontSize="13" />
-                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                                <TextBlock Text="Powered by LibVLCSharp &amp; VideoLAN LibVLC 3.0 Native Engine." 
+                                <TextBlock x:Name="AboutDeveloperText"
+                                           Text="Everything in one app for me and others to use"
                                            Style="{ThemeResource CaptionTextBlockStyle}"
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <TextBlock Text="Version 1.0.0 (.NET 8 Windows App SDK x64)" 
+
+                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                                <TextBlock x:Name="AboutFrameworkText"
+                                           Text="Built with WinUI 3, Windows App SDK &amp; LibVLC" 
+                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock x:Name="AboutVersionText"
+                                           Text="Version 1.0.0 (.NET 8 Windows App SDK x64)" 
                                            Style="{ThemeResource CaptionTextBlockStyle}" 
                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+
+                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Action Links (GitHub, Releases, Issues) -->
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                        <HyperlinkButton x:Name="AboutGithubButton"
+                                                         Click="OnAboutGithubClick"
+                                                         Padding="0"
+                                                         ToolTipService.ToolTip="GitHub Repository">
+                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE71B;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                                <TextBlock x:Name="AboutGithubText" Text="GitHub Repository" FontSize="12.5" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                        </HyperlinkButton>
+
+                                        <TextBlock Text="•" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
+
+                                        <HyperlinkButton x:Name="AboutReleasesButton"
+                                                         Click="OnPatchNotesClick"
+                                                         Padding="0"
+                                                         ToolTipService.ToolTip="Release Notes">
+                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE8A7;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                                <TextBlock x:Name="AboutReleasesText" Text="Release Notes" FontSize="12.5" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                        </HyperlinkButton>
+
+                                        <TextBlock Text="•" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
+
+                                        <HyperlinkButton x:Name="AboutIssuesButton"
+                                                         Click="OnAboutIssuesClick"
+                                                         Padding="0"
+                                                         ToolTipService.ToolTip="Report an Issue">
+                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE7BA;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                                <TextBlock x:Name="AboutIssuesText" Text="Report an Issue" FontSize="12.5" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                        </HyperlinkButton>
+                                    </StackPanel>
+
+                                    <!-- License Badge / Text -->
+                                    <TextBlock Grid.Column="1"
+                                               x:Name="AboutLicenseText"
+                                               Text="GPL-3.0 Public License • Open Source"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                               VerticalAlignment="Center" />
+                                </Grid>
                             </StackPanel>
                         </Border>
                     </StackPanel>

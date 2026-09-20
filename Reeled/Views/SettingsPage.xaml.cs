@@ -68,6 +68,11 @@ public sealed partial class SettingsPage : Page
             });
         };
 
+        ViewModel.Loc.LanguageChanged += (s, e) =>
+        {
+            ApplyLocalization(ViewModel.Loc);
+        };
+
         ActualThemeChanged += (s, e) => UpdateThemeVisuals(ActualTheme);
     }
 
@@ -858,11 +863,35 @@ public sealed partial class SettingsPage : Page
         catch { }
     }
 
+    private async void OnAboutGithubClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var uri = new Uri("https://github.com/k25jura/Reeled");
+            await Windows.System.Launcher.LaunchUriAsync(uri);
+        }
+        catch { }
+    }
+
+    private async void OnAboutIssuesClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var uri = new Uri("https://github.com/k25jura/Reeled/issues");
+            await Windows.System.Launcher.LaunchUriAsync(uri);
+        }
+        catch { }
+    }
+
     private void ApplyLocalization(Reeled.Services.ILocalizationService loc)
     {
         if (loc == null) return;
 
-        // Categories
+        // Header
+        if (SettingsTitleText != null) SettingsTitleText.Text = loc["Settings_Title"];
+        if (BackToHomeButton != null) ToolTipService.SetToolTip(BackToHomeButton, loc["Settings_Back"]);
+
+        // Categories Navigation Rail
         if (CatFoldersText != null) CatFoldersText.Text = loc["Cat_Folders"];
         if (CatPlaybackText != null) CatPlaybackText.Text = loc["Cat_Playback"];
         if (CatAppearanceText != null) CatAppearanceText.Text = loc["Cat_Appearance"];
@@ -871,26 +900,76 @@ public sealed partial class SettingsPage : Page
         if (CatUpdatesText != null) CatUpdatesText.Text = loc["Cat_Updates"];
         if (CatAboutText != null) CatAboutText.Text = loc["Cat_About"];
 
-        // Localization Section
+        // 1. Watch Folders Section
+        if (FoldersSectionTitle != null) FoldersSectionTitle.Text = loc["Folders_SectionTitle"];
+        if (AddMediaFoldersTitle != null) AddMediaFoldersTitle.Text = loc["Folders_AddCardTitle"];
+        if (AddMediaFoldersSubtitle != null) AddMediaFoldersSubtitle.Text = loc["Folders_AddCardSubtitle"];
+        if (AddFolderButtonText != null) AddFolderButtonText.Text = loc["Folders_AddButton"];
+        if (ConfiguredDirectoriesHeader != null) ConfiguredDirectoriesHeader.Text = loc["Folders_ConfiguredTitle"];
+        if (FoldersEmptyTitleText != null) FoldersEmptyTitleText.Text = loc["Folders_EmptyTitle"];
+        if (FoldersEmptySubtitleText != null) FoldersEmptySubtitleText.Text = loc["Folders_EmptySubtitle"];
+
+        // 2. Playback Options Section
+        if (PlaybackSectionTitle != null) PlaybackSectionTitle.Text = loc["Playback_SectionTitle"];
+        if (DefaultSpeedTitleText != null) DefaultSpeedTitleText.Text = loc["Playback_DefaultSpeedTitle"];
+        if (DefaultSpeedSubtitleText != null) DefaultSpeedSubtitleText.Text = loc["Playback_DefaultSpeedSubtitle"];
+        if (RememberSpeedTitleText != null) RememberSpeedTitleText.Text = loc["Playback_RememberSpeedTitle"];
+        if (RememberSpeedSubtitleText != null) RememberSpeedSubtitleText.Text = loc["Playback_RememberSpeedSubtitle"];
+
+        // 3. Appearance Section
+        if (AppearanceSectionTitle != null) AppearanceSectionTitle.Text = loc["Appearance_SectionTitle"];
+        if (AppThemeTitleText != null) AppThemeTitleText.Text = loc["Appearance_ThemeTitle"];
+        if (AppThemeSubtitleText != null) AppThemeSubtitleText.Text = loc["Appearance_ThemeSubtitle"];
+        if (ThemeSystemItem != null) ThemeSystemItem.Content = loc["Appearance_ThemeWindows"];
+        if (ThemeDarkItem != null) ThemeDarkItem.Content = loc["Appearance_ThemeDark"];
+        if (ThemeLightItem != null) ThemeLightItem.Content = loc["Appearance_ThemeLight"];
+
+        // 4. Language & Region Section
         if (LocalizationSectionTitle != null) LocalizationSectionTitle.Text = loc["Language_SectionTitle"];
         if (AppLanguageTitleText != null) AppLanguageTitleText.Text = loc["Language_AppLanguageTitle"];
         if (AppLanguageSubtitleText != null) AppLanguageSubtitleText.Text = loc["Language_AppLanguageSubtitle"];
+        if (LangSystemItem != null) LangSystemItem.Content = loc["Language_SystemDefault"];
+        if (LangEnItem != null) LangEnItem.Content = loc["Language_English"];
+        if (LangUkItem != null) LangUkItem.Content = loc["Language_Ukrainian"];
         if (DateFormatTitleText != null) DateFormatTitleText.Text = loc["Language_DateFormatTitle"];
         if (DateFormatSubtitleText != null) DateFormatSubtitleText.Text = loc["Language_DateFormatSubtitle"];
 
-        // Storage Section (Moments)
+        // 5. Performance & Storage Section
+        if (StorageSectionTitle != null) StorageSectionTitle.Text = loc["Storage_SectionTitle"];
+        if (SkeletonLoadingTitleText != null) SkeletonLoadingTitleText.Text = loc["Appearance_SkeletonTitle"];
+        if (SkeletonLoadingSubtitleText != null) SkeletonLoadingSubtitleText.Text = loc["Appearance_SkeletonSubtitle"];
+        if (ThumbnailCacheTitleText != null) ThumbnailCacheTitleText.Text = loc["Storage_ThumbnailsTitle"];
+        if (ThumbnailCacheDiskLabel != null) ThumbnailCacheDiskLabel.Text = loc["Storage_DiskUsageLabel"];
+        if (ClearThumbnailsButton != null) ClearThumbnailsButton.Content = loc["Storage_ThumbnailsButton"];
+        if (ClipCacheTitleText != null) ClipCacheTitleText.Text = loc["Storage_ClipCacheTitle"];
+        if (ClipCacheSubtitleText != null) ClipCacheSubtitleText.Text = loc["Storage_ClipCacheSubtitle"];
+        if (ClipCacheStatusLabel != null) ClipCacheStatusLabel.Text = loc["Storage_StatusLabel"];
+        if (ClearClipCacheButton != null) ClearClipCacheButton.Content = loc["Storage_ClipCacheButton"];
         if (StorageMomentsTitleText != null) StorageMomentsTitleText.Text = loc["Storage_MomentsTitle"];
         if (StorageMomentsSubtitleText != null) StorageMomentsSubtitleText.Text = loc["Storage_MomentsSubtitle"];
+        if (StorageMomentsStatusLabel != null) StorageMomentsStatusLabel.Text = loc["Storage_StatusLabel"];
         if (ClearMomentsButton != null) ClearMomentsButton.Content = loc["Storage_MomentsButton"];
 
-        // Updates Section
+        // 6. Updates Section
         if (UpdatesSectionTitle != null) UpdatesSectionTitle.Text = loc["Updates_SectionTitle"];
+        if (CheckUpdatesButtonText != null) CheckUpdatesButtonText.Text = loc["Updates_CheckButton"];
         if (AutoCheckUpdatesTitleText != null) AutoCheckUpdatesTitleText.Text = loc["Updates_AutoCheckTitle"];
         if (AutoCheckUpdatesSubtitleText != null) AutoCheckUpdatesSubtitleText.Text = loc["Updates_AutoCheckSubtitle"];
         if (UpdateAvailableNotes != null) UpdateAvailableNotes.Text = loc["Updates_AvailableNotes"];
         if (PatchNotesText != null) PatchNotesText.Text = loc["Updates_PatchNotes"];
         if (DownloadUpdateButton != null) DownloadUpdateButton.Content = loc["Updates_DownloadButton"];
         if (InstallUpdateButton != null) InstallUpdateButton.Content = loc["Updates_InstallButton"];
+
+        // 7. About Section
+        if (AboutSectionTitle != null) AboutSectionTitle.Text = loc["Cat_About"];
+        if (AboutTaglineText != null) AboutTaglineText.Text = loc["About_Tagline"];
+        if (AboutDeveloperText != null) AboutDeveloperText.Text = loc["About_Developer"];
+        if (AboutFrameworkText != null) AboutFrameworkText.Text = loc["About_Framework"];
+        if (AboutVersionText != null) AboutVersionText.Text = $"{loc["About_Version"]} (.NET 8 Windows App SDK x64)";
+        if (AboutGithubText != null) AboutGithubText.Text = loc["About_GitHub"];
+        if (AboutReleasesText != null) AboutReleasesText.Text = loc["About_Releases"];
+        if (AboutIssuesText != null) AboutIssuesText.Text = loc["About_Issues"];
+        if (AboutLicenseText != null) AboutLicenseText.Text = loc["About_License"];
     }
 
     private bool IsSectionAtOrAbove(FrameworkElement? section, double threshold)

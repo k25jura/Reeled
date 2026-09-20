@@ -636,11 +636,7 @@
                                           x:Name="ThemeComboBox"
                                           SelectionChanged="OnThemeSelectionChanged"
                                           MinWidth="160"
-                                          VerticalAlignment="Center">
-                                    <ComboBoxItem x:Name="ThemeSystemItem" Content="Windows default" Tag="Default" />
-                                    <ComboBoxItem x:Name="ThemeDarkItem" Content="Dark" Tag="Dark" />
-                                    <ComboBoxItem x:Name="ThemeLightItem" Content="Light" Tag="Light" />
-                                </ComboBox>
+                                          VerticalAlignment="Center" />
                             </Grid>
                         </Border>
                     </StackPanel>
@@ -682,11 +678,7 @@
                                           x:Name="LanguageComboBox"
                                           SelectionChanged="OnLanguageSelectionChanged"
                                           MinWidth="210"
-                                          VerticalAlignment="Center">
-                                    <ComboBoxItem x:Name="LangSystemItem" Content="System default (Auto-detect)" Tag="System" />
-                                    <ComboBoxItem x:Name="LangEnItem" Content="English" Tag="en" />
-                                    <ComboBoxItem x:Name="LangUkItem" Content="Українська" Tag="uk" />
-                                </ComboBox>
+                                          VerticalAlignment="Center" />
                             </Grid>
                         </Border>
 
@@ -1192,57 +1184,46 @@
 
                                 <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
 
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
+                                <!-- Action Links (GitHub, Releases, Issues) -->
+                                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                    <HyperlinkButton x:Name="AboutGithubButton"
+                                                     Click="OnAboutGithubClick"
+                                                     Padding="0">
+                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xE71B;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                            <TextBlock x:Name="AboutGithubText" Text="GitHub Repository" FontSize="12.5" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                    </HyperlinkButton>
 
-                                    <!-- Action Links (GitHub, Releases, Issues) -->
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                        <HyperlinkButton x:Name="AboutGithubButton"
-                                                         Click="OnAboutGithubClick"
-                                                         Padding="0"
-                                                         ToolTipService.ToolTip="GitHub Repository">
-                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                <FontIcon Glyph="&#xE71B;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                                <TextBlock x:Name="AboutGithubText" Text="GitHub Repository" FontSize="12.5" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" />
-                                            </StackPanel>
-                                        </HyperlinkButton>
+                                    <TextBlock Text="•" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
 
-                                        <TextBlock Text="•" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
+                                    <HyperlinkButton x:Name="AboutReleasesButton"
+                                                     Click="OnPatchNotesClick"
+                                                     Padding="0">
+                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xE8A7;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                            <TextBlock x:Name="AboutReleasesText" Text="Release Notes" FontSize="12.5" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                    </HyperlinkButton>
 
-                                        <HyperlinkButton x:Name="AboutReleasesButton"
-                                                         Click="OnPatchNotesClick"
-                                                         Padding="0"
-                                                         ToolTipService.ToolTip="Release Notes">
-                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                <FontIcon Glyph="&#xE8A7;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                                <TextBlock x:Name="AboutReleasesText" Text="Release Notes" FontSize="12.5" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" />
-                                            </StackPanel>
-                                        </HyperlinkButton>
+                                    <TextBlock Text="•" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
 
-                                        <TextBlock Text="•" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
+                                    <HyperlinkButton x:Name="AboutIssuesButton"
+                                                     Click="OnAboutIssuesClick"
+                                                     Padding="0">
+                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xE7BA;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                            <TextBlock x:Name="AboutIssuesText" Text="Report an Issue" FontSize="12.5" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                    </HyperlinkButton>
+                                </StackPanel>
 
-                                        <HyperlinkButton x:Name="AboutIssuesButton"
-                                                         Click="OnAboutIssuesClick"
-                                                         Padding="0"
-                                                         ToolTipService.ToolTip="Report an Issue">
-                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                <FontIcon Glyph="&#xE7BA;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                                <TextBlock x:Name="AboutIssuesText" Text="Report an Issue" FontSize="12.5" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" />
-                                            </StackPanel>
-                                        </HyperlinkButton>
-                                    </StackPanel>
-
-                                    <!-- License Badge / Text -->
-                                    <TextBlock Grid.Column="1"
-                                               x:Name="AboutLicenseText"
-                                               Text="GPL-3.0 Public License • Open Source"
-                                               Style="{ThemeResource CaptionTextBlockStyle}"
-                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                               VerticalAlignment="Center" />
-                                </Grid>
+                                <!-- License Badge / Text (Dedicated line to prevent overlapping and cropping) -->
+                                <TextBlock x:Name="AboutLicenseText"
+                                           Text="GPL-3.0 Public License • Open Source"
+                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                           Margin="0,2,0,0" />
                             </StackPanel>
                         </Border>
                     </StackPanel>

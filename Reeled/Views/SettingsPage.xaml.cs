@@ -82,8 +82,6 @@ public sealed partial class SettingsPage : Page
         _isInitializing = true;
         ViewModel.Initialize();
 
-        ThemeComboBox.SelectedIndex = ViewModel.SelectedThemeIndex;
-        LanguageComboBox.SelectedIndex = ViewModel.SelectedLanguageIndex;
         ApplyLocalization(ViewModel.Loc);
         UpdateThemeVisuals(ActualTheme);
 
@@ -920,19 +918,47 @@ public sealed partial class SettingsPage : Page
         if (AppearanceSectionTitle != null) AppearanceSectionTitle.Text = loc["Appearance_SectionTitle"];
         if (AppThemeTitleText != null) AppThemeTitleText.Text = loc["Appearance_ThemeTitle"];
         if (AppThemeSubtitleText != null) AppThemeSubtitleText.Text = loc["Appearance_ThemeSubtitle"];
-        if (ThemeSystemItem != null) ThemeSystemItem.Content = loc["Appearance_ThemeWindows"];
-        if (ThemeDarkItem != null) ThemeDarkItem.Content = loc["Appearance_ThemeDark"];
-        if (ThemeLightItem != null) ThemeLightItem.Content = loc["Appearance_ThemeLight"];
 
         // 4. Language & Region Section
         if (LocalizationSectionTitle != null) LocalizationSectionTitle.Text = loc["Language_SectionTitle"];
         if (AppLanguageTitleText != null) AppLanguageTitleText.Text = loc["Language_AppLanguageTitle"];
         if (AppLanguageSubtitleText != null) AppLanguageSubtitleText.Text = loc["Language_AppLanguageSubtitle"];
-        if (LangSystemItem != null) LangSystemItem.Content = loc["Language_SystemDefault"];
-        if (LangEnItem != null) LangEnItem.Content = loc["Language_English"];
-        if (LangUkItem != null) LangUkItem.Content = loc["Language_Ukrainian"];
         if (DateFormatTitleText != null) DateFormatTitleText.Text = loc["Language_DateFormatTitle"];
         if (DateFormatSubtitleText != null) DateFormatSubtitleText.Text = loc["Language_DateFormatSubtitle"];
+
+        // Dynamic Dropdown Items (Theme & Language)
+        bool prevInit = _isInitializing;
+        _isInitializing = true;
+        try
+        {
+            if (ThemeComboBox != null)
+            {
+                int themeIdx = ViewModel.SelectedThemeIndex;
+                ThemeComboBox.ItemsSource = new string[]
+                {
+                    loc["Appearance_ThemeWindows"],
+                    loc["Appearance_ThemeDark"],
+                    loc["Appearance_ThemeLight"]
+                };
+                ThemeComboBox.SelectedIndex = themeIdx;
+            }
+
+            if (LanguageComboBox != null)
+            {
+                int langIdx = ViewModel.SelectedLanguageIndex;
+                LanguageComboBox.ItemsSource = new string[]
+                {
+                    loc["Language_SystemDefault"],
+                    loc["Language_English"],
+                    loc["Language_Ukrainian"]
+                };
+                LanguageComboBox.SelectedIndex = langIdx;
+            }
+        }
+        finally
+        {
+            _isInitializing = prevInit;
+        }
 
         // 5. Performance & Storage Section
         if (StorageSectionTitle != null) StorageSectionTitle.Text = loc["Storage_SectionTitle"];
@@ -969,6 +995,9 @@ public sealed partial class SettingsPage : Page
         if (AboutGithubText != null) AboutGithubText.Text = loc["About_GitHub"];
         if (AboutReleasesText != null) AboutReleasesText.Text = loc["About_Releases"];
         if (AboutIssuesText != null) AboutIssuesText.Text = loc["About_Issues"];
+        if (AboutGithubButton != null) ToolTipService.SetToolTip(AboutGithubButton, loc["About_GitHub"]);
+        if (AboutReleasesButton != null) ToolTipService.SetToolTip(AboutReleasesButton, loc["About_Releases"]);
+        if (AboutIssuesButton != null) ToolTipService.SetToolTip(AboutIssuesButton, loc["About_Issues"]);
         if (AboutLicenseText != null) AboutLicenseText.Text = loc["About_License"];
     }
 

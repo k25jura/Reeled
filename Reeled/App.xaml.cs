@@ -61,7 +61,7 @@ public partial class App : Application
         // ViewModels
         services.AddSingleton<HomeViewModel>();
         services.AddSingleton<PlayerViewModel>();
-        services.AddTransient<SettingsViewModel>();
+        services.AddSingleton<SettingsViewModel>();
 
         return services.BuildServiceProvider();
     }

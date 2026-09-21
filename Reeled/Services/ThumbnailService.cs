@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
@@ -16,6 +18,15 @@ public class ThumbnailService : IThumbnailService
 {
     private readonly string _cacheDirectory;
     private readonly ConcurrentDictionary<string, Task<BitmapImage?>> _inFlightThumbnails = new();
+    private readonly SemaphoreSlim _diskExtractionThrottler = new(4, 4);
+
+    // Bounded LRU in-memory cache for BitmapImages (max 96 items, approx 40 to 60 MB RAM)
+    private readonly object _cacheLock = new();
+    private readonly Dictionary<string, LinkedListNode<CacheEntry>> _memoryCache = new();
+    private readonly LinkedList<CacheEntry> _lruList = new();
+    private const int MaxMemoryCacheEntries = 96;
+
+    private record CacheEntry(string Key, BitmapImage Bitmap);
 
     public ThumbnailService()
     {
@@ -24,25 +35,79 @@ public class ThumbnailService : IThumbnailService
         Directory.CreateDirectory(_cacheDirectory);
     }
 
-    public Task<BitmapImage?> GetThumbnailAsync(string videoPath)
+    public bool TryGetFromMemoryCache(string videoPath, out BitmapImage? bitmap)
+    {
+        if (string.IsNullOrEmpty(videoPath))
+        {
+            bitmap = null;
+            return false;
+        }
+
+        lock (_cacheLock)
+        {
+            if (_memoryCache.TryGetValue(videoPath, out var node))
+            {
+                _lruList.Remove(node);
+                _lruList.AddFirst(node);
+                bitmap = node.Value.Bitmap;
+                return true;
+            }
+
+            bitmap = null;
+            return false;
+        }
+    }
+
+    private void AddToMemoryCache(string videoPath, BitmapImage bitmap)
+    {
+        if (string.IsNullOrEmpty(videoPath) || bitmap == null)
+            return;
+
+        lock (_cacheLock)
+        {
+            if (_memoryCache.TryGetValue(videoPath, out var existingNode))
+            {
+                _lruList.Remove(existingNode);
+                _lruList.AddFirst(existingNode);
+                return;
+            }
+
+            if (_memoryCache.Count >= MaxMemoryCacheEntries)
+            {
+                var oldest = _lruList.Last;
+                if (oldest != null)
+                {
+                    _lruList.RemoveLast();
+                    _memoryCache.Remove(oldest.Value.Key);
+                }
+            }
+
+            var newNode = new LinkedListNode<CacheEntry>(new CacheEntry(videoPath, bitmap));
+            _lruList.AddFirst(newNode);
+            _memoryCache[videoPath] = newNode;
+        }
+    }
+
+    public async Task<string?> EnsureThumbnailOnDiskAsync(string videoPath)
     {
         if (string.IsNullOrEmpty(videoPath) || !File.Exists(videoPath))
-            return Task.FromResult<BitmapImage?>(null);
+            return null;
 
-        return _inFlightThumbnails.GetOrAdd(videoPath, async path =>
+        try
         {
+            string cacheKey = ComputeCacheKey(videoPath);
+            string cacheFile = Path.Combine(_cacheDirectory, $"{cacheKey}.jpg");
+
+            if (File.Exists(cacheFile))
+                return cacheFile;
+
+            await _diskExtractionThrottler.WaitAsync();
             try
             {
-                string cacheKey = ComputeCacheKey(path);
-                string cacheFile = Path.Combine(_cacheDirectory, $"{cacheKey}.jpg");
-
                 if (File.Exists(cacheFile))
-                {
-                    return await LoadBitmapFromDiskAsync(cacheFile);
-                }
+                    return cacheFile;
 
-                // Extract via Windows Shell at optimized 360px width
-                var storageFile = await StorageFile.GetFileFromPathAsync(path);
+                var storageFile = await StorageFile.GetFileFromPathAsync(videoPath);
                 using var thumb = await storageFile.GetThumbnailAsync(
                     ThumbnailMode.VideosView,
                     360,
@@ -50,14 +115,66 @@ public class ThumbnailService : IThumbnailService
 
                 if (thumb != null && thumb.Size > 0)
                 {
-                    // Save to disk cache
+                    string tempFile = cacheFile + "." + Guid.NewGuid().ToString("N") + ".tmp";
                     using (var inputStream = thumb.AsStreamForRead())
-                    using (var fileStream = File.Create(cacheFile))
+                    using (var fileStream = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true))
                     {
                         await inputStream.CopyToAsync(fileStream);
                     }
 
-                    return await LoadBitmapFromDiskAsync(cacheFile);
+                    try
+                    {
+                        File.Move(tempFile, cacheFile, overwrite: true);
+                    }
+                    catch
+                    {
+                        try { if (File.Exists(tempFile)) File.Delete(tempFile); } catch { }
+                    }
+
+                    return cacheFile;
+                }
+            }
+            finally
+            {
+                _diskExtractionThrottler.Release();
+            }
+        }
+        catch (Exception)
+        {
+            // Fallback gracefully on shell thumbnail failure
+        }
+
+        return null;
+    }
+
+    public Task<BitmapImage?> GetThumbnailAsync(string videoPath)
+    {
+        if (string.IsNullOrEmpty(videoPath) || !File.Exists(videoPath))
+            return Task.FromResult<BitmapImage?>(null);
+
+        if (TryGetFromMemoryCache(videoPath, out var cachedBitmap))
+        {
+            return Task.FromResult<BitmapImage?>(cachedBitmap);
+        }
+
+        return _inFlightThumbnails.GetOrAdd(videoPath, async path =>
+        {
+            try
+            {
+                if (TryGetFromMemoryCache(path, out var doubleCheckBitmap))
+                {
+                    return doubleCheckBitmap;
+                }
+
+                string? cacheFile = await EnsureThumbnailOnDiskAsync(path);
+                if (cacheFile != null && File.Exists(cacheFile))
+                {
+                    var bmp = await LoadBitmapFromDiskAsync(cacheFile);
+                    if (bmp != null)
+                    {
+                        AddToMemoryCache(path, bmp);
+                    }
+                    return bmp;
                 }
             }
             catch (Exception)
@@ -100,8 +217,15 @@ public class ThumbnailService : IThumbnailService
             if (dispatcher == null)
                 return null;
 
-            // Read disk bytes asynchronously into memory so no OS file handle remains open on disk
-            byte[] bytes = await File.ReadAllBytesAsync(filePath);
+            // Open with FileShare.ReadWrite | FileShare.Delete so background writes or indexers never lock it out
+            byte[] bytes;
+            using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, useAsync: true))
+            {
+                if (fs.Length == 0) return null;
+                bytes = new byte[fs.Length];
+                await fs.ReadExactlyAsync(bytes, 0, bytes.Length);
+            }
+
             if (bytes == null || bytes.Length == 0)
                 return null;
 
@@ -146,6 +270,11 @@ public class ThumbnailService : IThumbnailService
 
     public void ClearMemoryCache()
     {
+        lock (_cacheLock)
+        {
+            _memoryCache.Clear();
+            _lruList.Clear();
+        }
         _inFlightThumbnails.Clear();
     }
 }

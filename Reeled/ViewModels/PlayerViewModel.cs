@@ -64,12 +64,37 @@ public partial class PlayerViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasAudioTracks;
 
-    public string SelectedAudioTrackTitle =>
-        SelectedAudioTrack != null ? SelectedAudioTrack.DisplayName : "Audio";
+    [ObservableProperty]
+    private SubtitleTrackInfo? _selectedSubtitleTrack;
+
+    [ObservableProperty]
+    private bool _hasSubtitles;
+
+    public IReadOnlyList<int> ActiveAudioTracks => _playbackService.ActiveAudioTracks;
+
+    public string SelectedAudioTrackTitle
+    {
+        get
+        {
+            var active = _playbackService.ActiveAudioTracks;
+            if (active.Count == 0)
+            {
+                return _localizationService["Player_DisableAudio"];
+            }
+            if (active.Count == 1)
+            {
+                int id = active.First();
+                var track = AudioTracks.FirstOrDefault(t => t.Id == id);
+                return track?.DisplayName ?? "Audio";
+            }
+            return string.Format(_localizationService["Player_MixedAudioTracks"], active.Count);
+        }
+    }
 
     public ObservableCollection<GameClip> Playlist { get; } = new();
     public ObservableCollection<ClipBookmark> Bookmarks { get; } = new();
     public ObservableCollection<AudioTrackInfo> AudioTracks { get; } = new();
+    public ObservableCollection<SubtitleTrackInfo> SubtitleTracks { get; } = new();
 
     private bool _isDraggingSlider;
 
@@ -119,16 +144,20 @@ public partial class PlayerViewModel : ObservableObject
         OnPropertyChanged(nameof(RepeatOpacity));
     }
 
-    partial void OnPlaybackRateChanged(float value) => OnPropertyChanged(nameof(FormattedPlaybackRate));
+    partial void OnPlaybackRateChanged(float value)
+    {
+        _playbackService?.SetPlaybackRate(value);
+        OnPropertyChanged(nameof(FormattedPlaybackRate));
+    }
     partial void OnIsFullscreenChanged(bool value) => OnPropertyChanged(nameof(FullscreenGlyph));
     partial void OnVolumeChanged(int value) => OnPropertyChanged(nameof(VolumeGlyph));
     partial void OnIsMutedChanged(bool value) => OnPropertyChanged(nameof(VolumeGlyph));
 
     public bool HasPreviousClip =>
-        CurrentClip != null && Playlist.IndexOf(CurrentClip) > 0;
+        CurrentClip != null && Playlist.Count > 0;
 
     public bool HasNextClip =>
-        CurrentClip != null && Playlist.IndexOf(CurrentClip) < Playlist.Count - 1;
+        CurrentClip != null && Playlist.Count > 1;
 
     public PlayerViewModel(
         ILibVlcPlaybackService playbackService,
@@ -154,15 +183,17 @@ public partial class PlayerViewModel : ObservableObject
         _playbackService.PlaybackStopped += () => IsPlaying = false;
         _playbackService.MediaEnded += OnMediaEnded;
         _playbackService.AudioTracksChanged += RefreshAudioTracks;
+        _playbackService.SubtitlesChanged += RefreshSubtitleTracks;
 
-        Volume = _storageService.CurrentSettings.Volume;
-        IsMuted = _storageService.CurrentSettings.IsMuted;
+        Volume = Math.Clamp(_storageService.CurrentSettings.DefaultVolume, 0, 100);
+        IsMuted = _storageService.CurrentSettings.StartMuted;
         double initialSpeed = _storageService.CurrentSettings.RememberPlaybackSpeed
             ? _storageService.CurrentSettings.PlaybackSpeed
             : _storageService.CurrentSettings.DefaultPlaybackSpeed;
         if (initialSpeed <= 0.1) initialSpeed = 1.0;
         PlaybackRate = (float)initialSpeed;
-        RepeatMode = _storageService.CurrentSettings.RepeatMode;
+        _playbackService.SetPlaybackRate(PlaybackRate);
+        RepeatMode = _storageService.CurrentSettings.DefaultRepeatMode;
     }
 
     public void LoadClip(GameClip clip, IEnumerable<GameClip> playlist)
@@ -190,14 +221,22 @@ public partial class PlayerViewModel : ObservableObject
         CurrentTime = TimeSpan.Zero;
         ProgressValue = 0.0;
 
-        if (!_storageService.CurrentSettings.RememberPlaybackSpeed)
-        {
-            double defaultSpeed = _storageService.CurrentSettings.DefaultPlaybackSpeed;
-            if (defaultSpeed <= 0.1) defaultSpeed = 1.0;
-            PlaybackRate = (float)defaultSpeed;
-            _playbackService.SetPlaybackRate(PlaybackRate);
-            OnPropertyChanged(nameof(FormattedPlaybackRate));
-        }
+        double speedToApply = _storageService.CurrentSettings.RememberPlaybackSpeed
+            ? _storageService.CurrentSettings.PlaybackSpeed
+            : _storageService.CurrentSettings.DefaultPlaybackSpeed;
+        if (speedToApply <= 0.1) speedToApply = 1.0;
+        PlaybackRate = (float)speedToApply;
+        _playbackService.SetPlaybackRate(PlaybackRate);
+        OnPropertyChanged(nameof(FormattedPlaybackRate));
+
+        IsMuted = _storageService.CurrentSettings.StartMuted;
+        _playbackService.SetMute(IsMuted);
+
+        Volume = Math.Clamp(_storageService.CurrentSettings.DefaultVolume, 0, 100);
+        _playbackService.SetVolume(Volume);
+        OnPropertyChanged(nameof(VolumeGlyph));
+
+        RepeatMode = _storageService.CurrentSettings.DefaultRepeatMode;
 
         Bookmarks.Clear();
         foreach (var bm in clip.Bookmarks)
@@ -279,22 +318,49 @@ public partial class PlayerViewModel : ObservableObject
     [RelayCommand]
     public void PlayPrevious()
     {
-        if (!HasPreviousClip || CurrentClip == null) return;
+        if (CurrentClip == null || Playlist.Count == 0) return;
+
+        if (CurrentTime.TotalSeconds > 3.0)
+        {
+            _playbackService.SeekTime(0);
+            CurrentTime = TimeSpan.Zero;
+            ProgressValue = 0;
+            OnPropertyChanged(nameof(FormattedCurrentTime));
+            ShowToast("00:00");
+            return;
+        }
+
         int idx = Playlist.IndexOf(CurrentClip);
         if (idx > 0)
         {
             SetClip(Playlist[idx - 1]);
+        }
+        else if (idx == 0 && Playlist.Count > 1)
+        {
+            SetClip(Playlist[Playlist.Count - 1]);
+        }
+        else
+        {
+            _playbackService.SeekTime(0);
+            CurrentTime = TimeSpan.Zero;
+            ProgressValue = 0;
+            OnPropertyChanged(nameof(FormattedCurrentTime));
         }
     }
 
     [RelayCommand]
     public void PlayNext()
     {
-        if (!HasNextClip || CurrentClip == null) return;
+        if (CurrentClip == null || Playlist.Count == 0) return;
+
         int idx = Playlist.IndexOf(CurrentClip);
         if (idx >= 0 && idx < Playlist.Count - 1)
         {
             SetClip(Playlist[idx + 1]);
+        }
+        else if (Playlist.Count > 1)
+        {
+            SetClip(Playlist[0]);
         }
     }
 
@@ -548,6 +614,7 @@ public partial class PlayerViewModel : ObservableObject
         }
         SelectedAudioTrack = AudioTracks.FirstOrDefault(t => t.IsSelected);
         HasAudioTracks = AudioTracks.Count > 0;
+        OnPropertyChanged(nameof(ActiveAudioTracks));
         OnPropertyChanged(nameof(SelectedAudioTrackTitle));
     }
 
@@ -557,8 +624,93 @@ public partial class PlayerViewModel : ObservableObject
         if (success)
         {
             RefreshAudioTracks();
-            string name = SelectedAudioTrack?.DisplayName ?? (trackId == -1 ? "Audio Disabled" : "Audio track changed");
+            string name = SelectedAudioTrack?.DisplayName ?? (trackId == -1 ? _localizationService["Player_DisableAudio"] : "Audio track changed");
             ShowToast(name);
+        }
+    }
+
+    public void ToggleAudioTrack(int trackId)
+    {
+        var current = new HashSet<int>(_playbackService.ActiveAudioTracks);
+        if (trackId == -1)
+        {
+            current.Clear();
+        }
+        else
+        {
+            if (current.Contains(trackId))
+            {
+                current.Remove(trackId);
+            }
+            else
+            {
+                current.Add(trackId);
+            }
+        }
+
+        _playbackService.SetAudioTracks(current);
+        RefreshAudioTracks();
+        ShowToast(SelectedAudioTrackTitle);
+    }
+
+    public void DisableAudio()
+    {
+        _playbackService.SetAudioTracks(Array.Empty<int>());
+        RefreshAudioTracks();
+        ShowToast(_localizationService["Player_DisableAudio"]);
+    }
+
+    public void RefreshSubtitleTracks()
+    {
+        var tracks = _playbackService.GetSubtitleTracks();
+        SubtitleTracks.Clear();
+        foreach (var t in tracks)
+        {
+            SubtitleTracks.Add(t);
+        }
+        SelectedSubtitleTrack = SubtitleTracks.FirstOrDefault(t => t.IsSelected);
+        HasSubtitles = SubtitleTracks.Count > 0;
+    }
+
+    public void SelectSubtitleTrack(int trackId)
+    {
+        bool success = _playbackService.SetSubtitleTrack(trackId);
+        if (success)
+        {
+            RefreshSubtitleTracks();
+            string name = SelectedSubtitleTrack?.DisplayName ?? (trackId == -1 ? _localizationService["Player_Toast_SubtitlesDisabled"] : "Subtitles");
+            ShowToast(name);
+        }
+    }
+
+    public async Task AddSubtitleFileAsync(IntPtr windowHandle)
+    {
+        try
+        {
+            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+            picker.ViewMode = Windows.Storage.Pickers.PickerViewMode.List;
+            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.VideosLibrary;
+            picker.FileTypeFilter.Add(".ass");
+            picker.FileTypeFilter.Add(".ssa");
+            picker.FileTypeFilter.Add(".srt");
+            picker.FileTypeFilter.Add(".vtt");
+            picker.FileTypeFilter.Add(".sub");
+
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, windowHandle);
+            var file = await picker.PickSingleFileAsync();
+            if (file != null)
+            {
+                bool added = _playbackService.AddSubtitleFile(file.Path);
+                if (added)
+                {
+                    RefreshSubtitleTracks();
+                    ShowToast(string.Format(_localizationService["Player_Toast_SubtitlesLoaded"], file.Name));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error adding subtitle file: {ex.Message}");
         }
     }
 
@@ -588,10 +740,17 @@ public partial class PlayerViewModel : ObservableObject
         {
             try
             {
-                App.Window.AppWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.Default);
+                if (App.Window is MainWindow mainWindow)
+                {
+                    mainWindow.SetFullscreen(false);
+                }
+                else
+                {
+                    App.Window.AppWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.Default);
+                    IsFullscreen = false;
+                }
             }
             catch { }
-            IsFullscreen = false;
         }
         _playbackService.Stop();
         _navigationService.NavigateToHome();
@@ -607,6 +766,11 @@ public partial class PlayerViewModel : ObservableObject
 
     public void ShowToast(string message)
     {
+        if (!_storageService.CurrentSettings.EnableOsdNotifications)
+        {
+            return;
+        }
+
         if (StatusToast == message)
         {
             StatusToast = string.Empty;

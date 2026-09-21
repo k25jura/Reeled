@@ -348,11 +348,12 @@
             <!-- Centered Settings Content Scroll Viewer -->
             <ScrollViewer x:Name="SettingsScrollViewer"
                           Grid.Column="1"
-                          Padding="32,16,32,16"
+                          Padding="32,16,32,0"
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
                           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                           ViewChanged="OnSettingsScrollViewerViewChanged">
-                <StackPanel x:Name="SettingsContentStack" MaxWidth="760" HorizontalAlignment="Center" Spacing="22" Margin="0,0,0,180">
+                <StackPanel x:Name="SettingsContentRoot" HorizontalAlignment="Stretch" Margin="0">
+                    <StackPanel x:Name="SettingsContentStack" MaxWidth="760" HorizontalAlignment="Center" Spacing="22">
 
                     <!-- ========================================== -->
                     <!-- 1. Watch Folders Section                   -->
@@ -596,6 +597,174 @@
                                               VerticalAlignment="Center" />
                             </Grid>
                         </Border>
+
+                        <!-- Card 3: Default Playback Volume -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE767;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="DefaultVolumeTitleText" Text="Default playback volume" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="DefaultVolumeSubtitleText" Text="Initial audio volume level applied when opening video clips" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                    <Slider x:Name="DefaultVolumeSlider"
+                                            Minimum="0"
+                                            Maximum="100"
+                                            SmallChange="1"
+                                            LargeChange="5"
+                                            StepFrequency="1"
+                                            Value="{x:Bind ViewModel.Volume, Mode=OneWay}"
+                                            ValueChanged="OnDefaultVolumeSliderValueChanged"
+                                            Width="130"
+                                            VerticalAlignment="Center" />
+                                    <TextBlock Text="{x:Bind ViewModel.VolumeFormatted, Mode=OneWay}"
+                                               FontSize="12.5"
+                                               FontWeight="SemiBold"
+                                               Width="40"
+                                               TextAlignment="Right"
+                                               VerticalAlignment="Center"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 4: Start Muted -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE74F;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="StartMutedTitleText" Text="Start muted" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="StartMutedSubtitleText" Text="Automatically mute audio when opening new video clips" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2" 
+                                              IsOn="{x:Bind ViewModel.StartMuted, Mode=TwoWay}" 
+                                              OnContent="" 
+                                              OffContent="" 
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 5: Default Repeat Mode -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE8EE;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="DefaultRepeatTitleText" Text="Default repeat mode" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="DefaultRepeatSubtitleText" Text="Playback behavior when reaching the end of a clip" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ComboBox Grid.Column="2" 
+                                          x:Name="DefaultRepeatComboBox"
+                                          SelectionChanged="OnDefaultRepeatSelectionChanged"
+                                          MinWidth="180"
+                                          VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 6: Auto-Hide Controls Timeout -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE916;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="AutoHideTitleText" Text="Auto-hide controls timeout" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="AutoHideSubtitleText" Text="Fade out player controls after a period of mouse inactivity" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ComboBox Grid.Column="2" 
+                                          x:Name="AutoHideTimeoutComboBox"
+                                          SelectionChanged="OnAutoHideSelectionChanged"
+                                          MinWidth="180"
+                                          VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 7: On-Screen Display (OSD) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xEA8F;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="OsdTitleText" Text="On-screen display (OSD)" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="OsdSubtitleText" Text="Show visual indicator toasts for volume, speed, and bookmark actions" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2" 
+                                              IsOn="{x:Bind ViewModel.EnableOsdNotifications, Mode=TwoWay}" 
+                                              OnContent="" 
+                                              OffContent="" 
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
                     </StackPanel>
 
                     <!-- ========================================== -->
@@ -637,6 +806,38 @@
                                           SelectionChanged="OnThemeSelectionChanged"
                                           MinWidth="160"
                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 2: Saved Moments Badges -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE8A4;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="MomentsBadgesTitleText" Text="Show saved moments badges" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="MomentsBadgesSubtitleText" Text="Display bookmark counter pill on video thumbnail cards in the library" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2" 
+                                              IsOn="{x:Bind ViewModel.ShowMomentsBadges, Mode=TwoWay}" 
+                                              OnContent="" 
+                                              OffContent="" 
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
                             </Grid>
                         </Border>
                     </StackPanel>
@@ -762,7 +963,39 @@
                             </Grid>
                         </Border>
 
-                        <!-- Card 2: Thumbnail Cache -->
+                        <!-- Card 2: Clip Metadata Caching Toggle -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE74C;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="EnableClipCacheTitleText" Text="Clip metadata caching" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="EnableClipCacheSubtitleText" Text="Cache video properties locally to accelerate folder switching and indexing" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2" 
+                                              IsOn="{x:Bind ViewModel.EnableClipCache, Mode=TwoWay}" 
+                                              OnContent="" 
+                                              OffContent="" 
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 3: Thumbnail Cache -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
                                 BorderThickness="1" 
@@ -1135,11 +1368,15 @@
                             </Grid>
                         </Border>
                     </StackPanel>
+                    <!-- End of UpdateSection -->
+
+                </StackPanel>
+                <!-- End of SettingsContentStack (760px) -->
 
                     <!-- ========================================== -->
-                    <!-- 7. About Section                           -->
+                    <!-- 7. Full-Width About Hero Section           -->
                     <!-- ========================================== -->
-                    <StackPanel x:Name="AboutSection" Spacing="8">
+                    <StackPanel x:Name="AboutSection" HorizontalAlignment="Stretch" Margin="0,32,0,0" Spacing="8">
                         <TextBlock x:Name="AboutSectionTitle"
                                    Text="About Reeled"
                                    FontSize="15"
@@ -1147,87 +1384,218 @@
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                    Margin="2,0,0,2" />
 
-                        <!-- About Card -->
+                        <!-- Full-Width Website-Style Hero Banner Card -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                                BorderThickness="1" 
-                                CornerRadius="8" 
-                                Padding="20,18">
-                            <StackPanel Spacing="12">
-                                <Image HorizontalAlignment="Left" 
-                                       x:Name="SettingsLogoImage"
-                                       Height="30" 
-                                       Stretch="Uniform">
-                                    <Image.Source>
-                                        <SvgImageSource x:Name="SettingsLogoSvg" UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="90" />
-                                    </Image.Source>
-                                </Image>
-                                <TextBlock x:Name="AboutTaglineText"
-                                           Text="Modern game clips viewer &amp; player for Windows" 
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                           FontSize="13" />
-                                <TextBlock x:Name="AboutDeveloperText"
-                                           Text="Everything in one app for me and others to use"
-                                           Style="{ThemeResource CaptionTextBlockStyle}"
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                BorderThickness="1,1,1,0" 
+                                CornerRadius="12,12,0,0" 
+                                Padding="28,24"
+                                HorizontalAlignment="Stretch">
+                            <StackPanel Spacing="16">
+                                <!-- Centered Branding Header & Attribution -->
+                                <StackPanel Spacing="10" HorizontalAlignment="Center">
+                                    <!-- Much Bigger Centered App Logo -->
+                                    <Image HorizontalAlignment="Center" 
+                                           x:Name="SettingsLogoImage"
+                                           Height="80" 
+                                           Stretch="Uniform">
+                                        <Image.Source>
+                                            <SvgImageSource x:Name="SettingsLogoSvg" UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="256" />
+                                        </Image.Source>
+                                    </Image>
 
-                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                    <!-- Centered Tagline -->
+                                    <TextBlock x:Name="AboutTaglineText"
+                                               Text="Modern game clips viewer &amp; player for Windows" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                               FontSize="14" 
+                                               HorizontalAlignment="Center"
+                                               TextAlignment="Center" />
 
-                                <TextBlock x:Name="AboutFrameworkText"
-                                           Text="Built with WinUI 3, Windows App SDK &amp; LibVLC" 
-                                           Style="{ThemeResource CaptionTextBlockStyle}"
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <TextBlock x:Name="AboutVersionText"
-                                           Text="Version 1.0.0 (.NET 8 Windows App SDK x64)" 
-                                           Style="{ThemeResource CaptionTextBlockStyle}" 
-                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                    <!-- Centered Version & Framework Details -->
+                                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,2,0,0">
+                                        <TextBlock x:Name="AboutVersionText"
+                                                   Text="Version 1.0.0 (.NET 8 Windows App SDK x64)" 
+                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                        <TextBlock Text="•" Foreground="{ThemeResource TextFillColorTertiaryBrush}" FontSize="11" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="AboutFrameworkText"
+                                                   Text="Built with WinUI 3, Windows App SDK &amp; LibVLC" 
+                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                    </StackPanel>
 
-                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-
-                                <!-- Action Links (GitHub, Releases, Issues) -->
-                                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                    <HyperlinkButton x:Name="AboutGithubButton"
-                                                     Click="OnAboutGithubClick"
-                                                     Padding="0">
-                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                            <FontIcon Glyph="&#xE71B;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                            <TextBlock x:Name="AboutGithubText" Text="GitHub Repository" FontSize="12.5" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" />
-                                        </StackPanel>
-                                    </HyperlinkButton>
-
-                                    <TextBlock Text="•" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
-
-                                    <HyperlinkButton x:Name="AboutReleasesButton"
-                                                     Click="OnPatchNotesClick"
-                                                     Padding="0">
-                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                            <FontIcon Glyph="&#xE8A7;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                            <TextBlock x:Name="AboutReleasesText" Text="Release Notes" FontSize="12.5" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" />
-                                        </StackPanel>
-                                    </HyperlinkButton>
-
-                                    <TextBlock Text="•" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
-
-                                    <HyperlinkButton x:Name="AboutIssuesButton"
-                                                     Click="OnAboutIssuesClick"
-                                                     Padding="0">
-                                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                            <FontIcon Glyph="&#xE7BA;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                            <TextBlock x:Name="AboutIssuesText" Text="Report an Issue" FontSize="12.5" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" />
-                                        </StackPanel>
-                                    </HyperlinkButton>
+                                    <!-- Author Attribution (No background pill, clean and centered) -->
+                                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" Margin="0,2,0,0">
+                                        <FontIcon Glyph="&#xEB51;" FontSize="12" Foreground="{ThemeResource SystemFillColorCriticalBrush}" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="AboutCreatedByText"
+                                                   Text="Created by k25jura" 
+                                                   FontSize="12.5" 
+                                                   FontWeight="SemiBold" 
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
                                 </StackPanel>
 
-                                <!-- License Badge / Text (Dedicated line to prevent overlapping and cropping) -->
-                                <TextBlock x:Name="AboutLicenseText"
-                                           Text="GPL-3.0 Public License • Open Source"
-                                           Style="{ThemeResource CaptionTextBlockStyle}"
-                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                           Margin="0,2,0,0" />
+                                <!-- Live System & Debug Diagnostics Card -->
+                                <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="16,14"
+                                        Margin="0,4,0,0">
+                                    <StackPanel Spacing="12">
+                                        <!-- Diagnostics Header & Copy Button -->
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                                <TextBlock x:Name="AboutDiagnosticsTitleText"
+                                                           Text="System &amp; Debug Diagnostics" 
+                                                           Style="{ThemeResource BodyStrongTextBlockStyle}" 
+                                                           FontSize="13.5" />
+                                                <TextBlock x:Name="AboutDiagnosticsSubtitleText"
+                                                           Text="Live runtime environment and library metrics" 
+                                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            </StackPanel>
+
+                                            <Button Grid.Column="1"
+                                                    x:Name="CopyDiagnosticsButton"
+                                                    Command="{x:Bind ViewModel.CopyDiagnosticsCommand}"
+                                                    Style="{ThemeResource SubtleButtonStyle}"
+                                                    Padding="10,6"
+                                                    CornerRadius="6"
+                                                    VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                    <FontIcon Glyph="&#xE8C8;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                                    <TextBlock x:Name="CopyDiagnosticsButtonText" Text="Copy Debug Info" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
+                                        </Grid>
+
+                                        <!-- Inline Status Banner for Diagnostics Copy (Cascading space reservation animation) -->
+                                        <Border x:Name="AboutStatusBorder"
+                                                Height="0"
+                                                Opacity="0"
+                                                CornerRadius="6"
+                                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                                BorderThickness="1"
+                                                Margin="0,2,0,0"
+                                                Padding="12,0"
+                                                HorizontalAlignment="Stretch">
+                                            <Border.RenderTransform>
+                                                <TranslateTransform x:Name="AboutStatusTranslation" Y="-8" />
+                                            </Border.RenderTransform>
+                                            <Grid ColumnSpacing="8" VerticalAlignment="Center">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <FontIcon x:Name="AboutStatusIcon" Grid.Column="0" Glyph="&#xE73E;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                                <TextBlock x:Name="AboutStatusText" Grid.Column="1" FontSize="12.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Diagnostics 2x2 Grid -->
+                                        <Grid RowSpacing="10" ColumnSpacing="20">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Row 0, Col 0: OS -->
+                                            <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2">
+                                                <TextBlock x:Name="DiagOsLabel" Text="Operating System" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                <TextBlock Text="{x:Bind ViewModel.OsVersionFormatted, Mode=OneWay}" FontSize="12.5" FontWeight="SemiBold" />
+                                            </StackPanel>
+
+                                            <!-- Row 0, Col 1: Architecture & Runtime -->
+                                            <StackPanel Grid.Row="0" Grid.Column="1" Spacing="2">
+                                                <TextBlock x:Name="DiagArchLabel" Text="Architecture &amp; Runtime" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="{x:Bind ViewModel.ArchitectureFormatted, Mode=OneWay}" FontSize="12.5" FontWeight="SemiBold" />
+                                                    <TextBlock Text="•" Foreground="{ThemeResource TextFillColorTertiaryBrush}" FontSize="11" VerticalAlignment="Center" />
+                                                    <TextBlock Text="{x:Bind ViewModel.RuntimeFormatted, Mode=OneWay}" FontSize="12.5" FontWeight="SemiBold" />
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                            <!-- Row 1, Col 0: Working Set Memory -->
+                                            <StackPanel Grid.Row="1" Grid.Column="0" Spacing="2">
+                                                <TextBlock x:Name="DiagMemoryLabel" Text="Working Set Memory" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                <TextBlock Text="{x:Bind ViewModel.MemoryUsageFormatted, Mode=OneWay}" FontSize="12.5" FontWeight="SemiBold" />
+                                            </StackPanel>
+
+                                            <!-- Row 1, Col 1: Library Stats -->
+                                            <StackPanel Grid.Row="1" Grid.Column="1" Spacing="2">
+                                                <TextBlock x:Name="DiagLibraryLabel" Text="Library Stats" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                <TextBlock Text="{x:Bind ViewModel.LibraryStatsFormatted, Mode=OneWay}" FontSize="12.5" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="0,4,0,2" />
+
+                                <!-- Action Links & License Row -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Action Links (GitHub, Releases, Issues) -->
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                        <HyperlinkButton x:Name="AboutGithubButton"
+                                                         Click="OnAboutGithubClick"
+                                                         Padding="0">
+                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE71B;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                                <TextBlock x:Name="AboutGithubText" Text="GitHub Repository" FontSize="12.5" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                        </HyperlinkButton>
+
+                                        <TextBlock Text="•" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
+
+                                        <HyperlinkButton x:Name="AboutReleasesButton"
+                                                         Click="OnPatchNotesClick"
+                                                         Padding="0">
+                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE8A7;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                                <TextBlock x:Name="AboutReleasesText" Text="Release Notes" FontSize="12.5" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                        </HyperlinkButton>
+
+                                        <TextBlock Text="•" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
+
+                                        <HyperlinkButton x:Name="AboutIssuesButton"
+                                                         Click="OnAboutIssuesClick"
+                                                         Padding="0">
+                                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE7BA;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                                <TextBlock x:Name="AboutIssuesText" Text="Report an Issue" FontSize="12.5" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                        </HyperlinkButton>
+                                    </StackPanel>
+
+                                    <!-- License Badge / Text -->
+                                    <TextBlock Grid.Column="1"
+                                               x:Name="AboutLicenseText"
+                                               Text="GPL-3.0 Public License • Open Source"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                               VerticalAlignment="Center" />
+                                </Grid>
                             </StackPanel>
                         </Border>
                     </StackPanel>
-
                 </StackPanel>
             </ScrollViewer>
         </Grid>

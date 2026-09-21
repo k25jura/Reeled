@@ -811,11 +811,11 @@
                               SelectedIndex="{x:Bind ViewModel.SortIndex, Mode=TwoWay}" 
                               VerticalAlignment="Center" 
                               Width="150">
-                        <ComboBoxItem x:Name="SortNewestItem" Content="Newest Date" />
-                        <ComboBoxItem x:Name="SortOldestItem" Content="Oldest Date" />
-                        <ComboBoxItem x:Name="SortNameAZItem" Content="Name A-Z" />
-                        <ComboBoxItem x:Name="SortDurationItem" Content="Longest Duration" />
-                        <ComboBoxItem x:Name="SortFileSizeItem" Content="Largest Size" />
+                        <ComboBoxItem x:Name="SortNewestItem" />
+                        <ComboBoxItem x:Name="SortOldestItem" />
+                        <ComboBoxItem x:Name="SortNameAZItem" />
+                        <ComboBoxItem x:Name="SortDurationItem" />
+                        <ComboBoxItem x:Name="SortFileSizeItem" />
                     </ComboBox>
                 </Grid>
             </Border>
@@ -833,16 +833,13 @@
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
                           ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     
-                    <GridView.ItemContainerTransitions>
-                        <TransitionCollection>
-                            <EntranceThemeTransition FromVerticalOffset="30" />
-                            <AddDeleteThemeTransition />
-                        </TransitionCollection>
-                    </GridView.ItemContainerTransitions>
-
                     <GridView.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <ItemsWrapGrid Orientation="Horizontal" HorizontalAlignment="Center" MaximumRowsOrColumns="-1" />
+                            <ItemsWrapGrid Orientation="Horizontal" 
+                                           HorizontalAlignment="Left" 
+                                           MaximumRowsOrColumns="-1"
+                                           ItemWidth="266"
+                                           ItemHeight="248" />
                         </ItemsPanelTemplate>
                     </GridView.ItemsPanel>
 
@@ -859,8 +856,7 @@
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="GridViewItem">
-                                        <ContentPresenter ContentTransitions="{TemplateBinding ContentTransitions}"
-                                                          HorizontalAlignment="Stretch"
+                                        <ContentPresenter HorizontalAlignment="Stretch"
                                                           VerticalAlignment="Stretch" />
                                     </ControlTemplate>
                                 </Setter.Value>
@@ -908,7 +904,7 @@
                                     <!-- Saved Moments Badge (Bottom Left Pill) -->
                                     <Border HorizontalAlignment="Left" VerticalAlignment="Bottom"
                                             Background="#B3000000" CornerRadius="12" Margin="8,0,0,8" Padding="8,3"
-                                            Visibility="{x:Bind HasBookmarks, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            Visibility="{x:Bind ShowBookmarkBadge, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                         <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                                             <FontIcon Glyph="&#xE8A4;" FontSize="11" Foreground="#FFD700" VerticalAlignment="Center" />
                                             <TextBlock Text="{x:Bind FormattedBookmarkCount, Mode=OneWay}" 

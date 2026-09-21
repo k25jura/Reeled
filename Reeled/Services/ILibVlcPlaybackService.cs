@@ -14,6 +14,7 @@ public interface ILibVlcPlaybackService : IDisposable
     event Action? PlaybackStopped;
     event Action? MediaEnded;
     event Action? AudioTracksChanged;
+    event Action? SubtitlesChanged;
 
     MediaPlayer? CurrentMediaPlayer { get; }
     bool IsPlaying { get; }
@@ -24,8 +25,16 @@ public interface ILibVlcPlaybackService : IDisposable
     bool IsMuted { get; }
     float PlaybackRate { get; }
     int CurrentAudioTrack { get; }
+    IReadOnlyList<int> ActiveAudioTracks { get; }
     IReadOnlyList<Reeled.Models.AudioTrackInfo> GetAudioTracks();
     bool SetAudioTrack(int trackId);
+    bool SetAudioTracks(IEnumerable<int> trackIds);
+
+    int CurrentSubtitleTrack { get; }
+    IReadOnlyList<Reeled.Models.SubtitleTrackInfo> GetSubtitleTracks();
+    bool SetSubtitleTrack(int trackId);
+    bool AddSubtitleFile(string filePath);
+    void SetSubtitleDelay(long delayMs);
 
     void InitializeEngine(string[]? swapChainOptions = null);
     void DisposeEngine();

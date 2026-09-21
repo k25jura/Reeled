@@ -17,6 +17,7 @@ public sealed partial class PlayerPage : Page
     public PlayerViewModel ViewModel { get; }
     private readonly DispatcherTimer _inactivityTimer;
     private bool _isUserDraggingSlider;
+    private Windows.Foundation.Point _lastPointerPosition;
 
     private Storyboard? _controlsStoryboard;
     private bool _areControlsShowing = true;
@@ -35,7 +36,16 @@ public sealed partial class PlayerPage : Page
         ViewModel = App.GetService<PlayerViewModel>();
         InitializeComponent();
 
-        _inactivityTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.0) };
+        int initialTimeout = 2;
+        try
+        {
+            var storage = App.GetService<Services.ILocalStorageService>();
+            if (storage?.CurrentSettings != null)
+                initialTimeout = storage.CurrentSettings.AutoHideControlsSeconds;
+        }
+        catch { }
+
+        _inactivityTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(initialTimeout > 0 ? initialTimeout : 2.0) };
         _inactivityTimer.Tick += (s, e) =>
         {
             if (ViewModel.IsPlaying && !ViewModel.IsSidebarOpen && !AreFlyoutsOrPopupsOpen)
@@ -73,6 +83,10 @@ public sealed partial class PlayerPage : Page
                 {
                     ViewModel.IsControlsVisible = true;
                 }
+                else
+                {
+                    RestartInactivityTimer();
+                }
                 DispatcherQueue.TryEnqueue(RenderTimelineMarkers);
             }
             else if (e.PropertyName == nameof(PlayerViewModel.PlaybackRate))
@@ -88,8 +102,11 @@ public sealed partial class PlayerPage : Page
 
         SizeChanged += (s, e) =>
         {
-            RefreshVideoLayout();
-            DispatcherQueue.TryEnqueue(RenderTimelineMarkers);
+            if (Visibility == Visibility.Visible)
+            {
+                RefreshVideoLayout();
+                DispatcherQueue.TryEnqueue(RenderTimelineMarkers);
+            }
         };
 
         // Wire up pointer handlers on TimelineSlider with handledEventsToo = true to detect manual scrubbing
@@ -152,8 +169,8 @@ public sealed partial class PlayerPage : Page
             if (MomentsFlyoutButton != null) ToolTipService.SetToolTip(MomentsFlyoutButton, loc["Player_Tooltip_TimelineBookmarks"]);
             if (ClipQueueButton != null) ToolTipService.SetToolTip(ClipQueueButton, loc["Player_Tooltip_ClipQueue"]);
             if (PlaybackSpeedDropDown != null) ToolTipService.SetToolTip(PlaybackSpeedDropDown, loc["Player_Tooltip_PlaybackSpeed"]);
-            if (ClipInfoButton != null) ToolTipService.SetToolTip(ClipInfoButton, loc["Player_Tooltip_ClipInformation"]);
             if (AudioTrackDropDown != null) ToolTipService.SetToolTip(AudioTrackDropDown, loc["Player_Tooltip_AudioTrack"]);
+            if (SubtitlesDropDown != null) ToolTipService.SetToolTip(SubtitlesDropDown, loc["Player_Tooltip_Subtitles"]);
             if (MuteButton != null) ToolTipService.SetToolTip(MuteButton, loc["Player_Tooltip_MuteUnmute"]);
             if (FullscreenButton != null) ToolTipService.SetToolTip(FullscreenButton, loc["Player_Tooltip_Fullscreen"]);
             if (MomentsPromptDismissButton != null) ToolTipService.SetToolTip(MomentsPromptDismissButton, loc["Player_Dismiss"]);
@@ -172,16 +189,13 @@ public sealed partial class PlayerPage : Page
             if (CustomSpeedLabel != null) CustomSpeedLabel.Text = loc["Player_CustomSpeed"];
             if (ResetSpeedButton != null) ResetSpeedButton.Content = loc["Player_Reset"];
 
-            // Clip Info Flyout
-            if (ClipInfoFlyoutTitle != null) ClipInfoFlyoutTitle.Text = loc["Player_ClipInfoTitle"];
-            if (ClipInfoFileNameLabel != null) ClipInfoFileNameLabel.Text = loc["Player_FileName"];
-            if (ClipInfoDurationLabel != null) ClipInfoDurationLabel.Text = loc["Player_Duration"];
-            if (ClipInfoBookmarksLabel != null) ClipInfoBookmarksLabel.Text = loc["Player_Bookmarks"];
-            if (ClipInfoDateModifiedLabel != null) ClipInfoDateModifiedLabel.Text = loc["Player_DateModified"];
-            if (ClipInfoFilePathLabel != null) ClipInfoFilePathLabel.Text = loc["Player_FilePath"];
+            // Audio Tracks Flyout
+            if (AudioTracksFlyoutHeaderTitle != null) AudioTracksFlyoutHeaderTitle.Text = loc["Player_AudioTracksTitle"];
 
-            // Audio Flyout default item
-            if (DefaultAudioTrackItem != null) DefaultAudioTrackItem.Text = loc["Player_DefaultAudioTrack"];
+            // Subtitles Flyout
+            if (SubtitlesFlyoutHeaderTitle != null) SubtitlesFlyoutHeaderTitle.Text = loc["Player_SubtitlesTitle"];
+            if (AddSubtitleFileText != null) AddSubtitleFileText.Text = loc["Player_AddSubtitleFile"];
+            if (AddSubtitleFileButton != null) ToolTipService.SetToolTip(AddSubtitleFileButton, loc["Player_Tooltip_AddSubtitleFile"]);
 
             // Moments Jump Prompt
             if (MomentsPromptTitle != null) MomentsPromptTitle.Text = loc["Player_MomentsInClip"];
@@ -320,7 +334,6 @@ public sealed partial class PlayerPage : Page
         {
             PlayerVideoView.InvalidateMeasure();
             PlayerVideoView.InvalidateArrange();
-            PlayerVideoView.UpdateLayout();
         });
     }
 
@@ -332,7 +345,7 @@ public sealed partial class PlayerPage : Page
         UpdateControlsVisibility(true, animate: false);
         SetFullscreenLayout(ViewModel.IsFullscreen);
         AnimateSidebar(ViewModel.IsSidebarOpen, animate: false);
-        _inactivityTimer.Start();
+        RestartInactivityTimer();
         RefreshVideoLayout();
         CheckAndShowMomentsPrompt();
         DispatcherQueue.TryEnqueue(RenderTimelineMarkers);
@@ -362,6 +375,28 @@ public sealed partial class PlayerPage : Page
         catch { }
     }
 
+    private void RestartInactivityTimer()
+    {
+        _inactivityTimer.Stop();
+        try
+        {
+            var storage = App.GetService<Services.ILocalStorageService>();
+            int seconds = storage?.CurrentSettings?.AutoHideControlsSeconds ?? 2;
+            if (seconds <= 0)
+            {
+                // Never auto-hide controls
+                return;
+            }
+            _inactivityTimer.Interval = TimeSpan.FromSeconds(seconds);
+            _inactivityTimer.Start();
+        }
+        catch
+        {
+            _inactivityTimer.Interval = TimeSpan.FromSeconds(2.0);
+            _inactivityTimer.Start();
+        }
+    }
+
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
@@ -375,16 +410,22 @@ public sealed partial class PlayerPage : Page
 
     private void OnPagePointerMoved(object sender, PointerRoutedEventArgs e)
     {
+        var currentPoint = e.GetCurrentPoint(this).Position;
+        if (Math.Abs(currentPoint.X - _lastPointerPosition.X) < 1.0 &&
+            Math.Abs(currentPoint.Y - _lastPointerPosition.Y) < 1.0)
+        {
+            return;
+        }
+        _lastPointerPosition = currentPoint;
+
         if (App.Window is MainWindow mainWindow)
         {
             mainWindow.SetCursorHidden(false);
-            mainWindow.SetCaptionControlsVisible(true);
         }
         ViewModel.IsControlsVisible = true;
         if (!AreFlyoutsOrPopupsOpen)
         {
-            _inactivityTimer.Stop();
-            _inactivityTimer.Start();
+            RestartInactivityTimer();
         }
     }
 
@@ -413,7 +454,11 @@ public sealed partial class PlayerPage : Page
 
     private void OnVolumeSliderValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
-        ViewModel.SetVolume((int)e.NewValue);
+        int newVol = (int)Math.Round(e.NewValue);
+        if (ViewModel.Volume != newVol)
+        {
+            ViewModel.SetVolume(newVol);
+        }
     }
 
     private void OnSpeedItemClick(object sender, RoutedEventArgs e)
@@ -470,8 +515,7 @@ public sealed partial class PlayerPage : Page
         _openFlyoutsCount = Math.Max(0, _openFlyoutsCount - 1);
         if (!AreFlyoutsOrPopupsOpen && ViewModel.IsPlaying)
         {
-            _inactivityTimer.Stop();
-            _inactivityTimer.Start();
+            RestartInactivityTimer();
         }
     }
 
@@ -496,54 +540,194 @@ public sealed partial class PlayerPage : Page
         }
     }
 
-    private void OnAudioTracksMenuFlyoutOpening(object sender, object e)
+    private void OnAudioTracksFlyoutOpening(object sender, object e)
     {
+        PopulateAudioTracksList();
+    }
+
+    private void PopulateAudioTracksList()
+    {
+        if (AudioTracksListPanel == null) return;
         var loc = App.GetService<Services.ILocalizationService>();
-        AudioTracksMenuFlyout.Items.Clear();
+        var appFont = Application.Current.Resources["AppFontFamily"] as Microsoft.UI.Xaml.Media.FontFamily;
+        AudioTracksListPanel.Children.Clear();
+
         var tracks = ViewModel.AudioTracks;
         if (tracks.Count == 0)
         {
-            AudioTracksMenuFlyout.Items.Add(new MenuFlyoutItem
+            var emptyText = new TextBlock
             {
-                Text = loc?["Player_DefaultAudioTrack"] ?? "Default Audio Track",
-                IsEnabled = false
-            });
+                Text = loc?["Player_NoAudioTracks"] ?? "No audio tracks",
+                FontSize = 12,
+                Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+                Margin = new Thickness(4, 8, 4, 8)
+            };
+            if (appFont != null) emptyText.FontFamily = appFont;
+            AudioTracksListPanel.Children.Add(emptyText);
             return;
         }
 
+        var activeIds = ViewModel.ActiveAudioTracks;
         foreach (var track in tracks)
         {
-            var radioItem = new RadioMenuFlyoutItem
+            var textBlock = new TextBlock
             {
                 Text = track.DisplayName,
-                IsChecked = track.IsSelected,
-                GroupName = "AudioTracks",
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 3, 0, 0)
+            };
+            if (appFont != null) textBlock.FontFamily = appFont;
+
+            var cb = new CheckBox
+            {
+                Content = textBlock,
+                IsChecked = activeIds.Contains(track.Id),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(4, 2, 4, 2),
                 Tag = track.Id
             };
-            radioItem.Click += (s, args) =>
+            int trackId = track.Id;
+            cb.Click += (s, args) =>
             {
-                if (s is RadioMenuFlyoutItem item && item.Tag is int trackId)
-                {
-                    ViewModel.SelectAudioTrack(trackId);
-                }
+                ViewModel.ToggleAudioTrack(trackId);
+                PopulateAudioTracksList();
             };
-            AudioTracksMenuFlyout.Items.Add(radioItem);
+            AudioTracksListPanel.Children.Add(cb);
         }
 
-        AudioTracksMenuFlyout.Items.Add(new MenuFlyoutSeparator());
+        var separator = new Border
+        {
+            Height = 1,
+            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(26, 255, 255, 255)),
+            Margin = new Thickness(0, 4, 0, 4)
+        };
+        AudioTracksListPanel.Children.Add(separator);
 
-        var disableItem = new RadioMenuFlyoutItem
+        var disableText = new TextBlock
         {
             Text = loc?["Player_DisableAudio"] ?? "Disable Audio",
-            IsChecked = ViewModel.SelectedAudioTrack == null,
-            GroupName = "AudioTracks",
-            Tag = -1
+            FontSize = 12,
+            Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 3, 0, 0)
         };
-        disableItem.Click += (s, args) =>
+        if (appFont != null) disableText.FontFamily = appFont;
+
+        var disableCb = new CheckBox
         {
-            ViewModel.SelectAudioTrack(-1);
+            Content = disableText,
+            IsChecked = activeIds.Count == 0,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(4, 2, 4, 2)
         };
-        AudioTracksMenuFlyout.Items.Add(disableItem);
+        disableCb.Click += (s, args) =>
+        {
+            ViewModel.DisableAudio();
+            PopulateAudioTracksList();
+        };
+        AudioTracksListPanel.Children.Add(disableCb);
+    }
+
+    private void OnSubtitlesFlyoutOpening(object sender, object e)
+    {
+        PopulateSubtitlesList();
+    }
+
+    private void PopulateSubtitlesList()
+    {
+        if (SubtitlesListPanel == null) return;
+        var loc = App.GetService<Services.ILocalizationService>();
+        var appFont = Application.Current.Resources["AppFontFamily"] as Microsoft.UI.Xaml.Media.FontFamily;
+        SubtitlesListPanel.Children.Clear();
+
+        var tracks = ViewModel.SubtitleTracks;
+        if (tracks.Count > 0)
+        {
+            foreach (var track in tracks)
+            {
+                var textBlock = new TextBlock
+                {
+                    Text = track.DisplayName,
+                    FontSize = 12,
+                    Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 3, 0, 0)
+                };
+                if (appFont != null) textBlock.FontFamily = appFont;
+
+                var rb = new RadioButton
+                {
+                    GroupName = "SubtitlesFlyoutGroup",
+                    Content = textBlock,
+                    IsChecked = track.IsSelected,
+                    VerticalContentAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(4, 2, 4, 2),
+                    Tag = track.Id
+                };
+                int trackId = track.Id;
+                rb.Click += (s, args) =>
+                {
+                    ViewModel.SelectSubtitleTrack(trackId);
+                    PopulateSubtitlesList();
+                };
+                SubtitlesListPanel.Children.Add(rb);
+            }
+        }
+        else
+        {
+            var hintText = new TextBlock
+            {
+                Text = loc?["Player_NoSubtitlesHint"] ?? "Load an external subtitle file (.ass, .ssa, .srt, .vtt)",
+                FontSize = 11,
+                Foreground = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"],
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(4, 6, 4, 6)
+            };
+            if (appFont != null) hintText.FontFamily = appFont;
+            SubtitlesListPanel.Children.Add(hintText);
+        }
+
+        var separator = new Border
+        {
+            Height = 1,
+            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(26, 255, 255, 255)),
+            Margin = new Thickness(0, 4, 0, 4)
+        };
+        SubtitlesListPanel.Children.Add(separator);
+
+        var disableText = new TextBlock
+        {
+            Text = loc?["Player_DisableSubtitles"] ?? "Disable Subtitles",
+            FontSize = 12,
+            Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 3, 0, 0)
+        };
+        if (appFont != null) disableText.FontFamily = appFont;
+
+        var disableRb = new RadioButton
+        {
+            GroupName = "SubtitlesFlyoutGroup",
+            Content = disableText,
+            IsChecked = ViewModel.SelectedSubtitleTrack == null,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(4, 2, 4, 2)
+        };
+        disableRb.Click += (s, args) =>
+        {
+            ViewModel.SelectSubtitleTrack(-1);
+            PopulateSubtitlesList();
+        };
+        SubtitlesListPanel.Children.Add(disableRb);
+    }
+
+    private async void OnAddSubtitleFileClick(object sender, RoutedEventArgs e)
+    {
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.Window);
+        await ViewModel.AddSubtitleFileAsync(hwnd);
+        PopulateSubtitlesList();
     }
 
     private void OnFullscreenButtonClick(object sender, RoutedEventArgs e)
@@ -959,8 +1143,7 @@ public sealed partial class PlayerPage : Page
             MomentsPopupTranslation.Y = 24;
             if (!AreFlyoutsOrPopupsOpen && ViewModel.IsPlaying)
             {
-                _inactivityTimer.Stop();
-                _inactivityTimer.Start();
+                RestartInactivityTimer();
             }
             return;
         }
@@ -998,8 +1181,7 @@ public sealed partial class PlayerPage : Page
             MomentsPopupTranslation.Y = 24;
             if (!AreFlyoutsOrPopupsOpen && ViewModel.IsPlaying)
             {
-                _inactivityTimer.Stop();
-                _inactivityTimer.Start();
+                RestartInactivityTimer();
             }
         };
 
@@ -1039,6 +1221,39 @@ public sealed partial class PlayerPage : Page
         if (e.AddedItems.Count > 0 && e.AddedItems[0] is GameClip clip)
         {
             ViewModel.SelectPlaylistClip(clip);
+        }
+    }
+
+    private void OnPlaylistContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+    {
+        if (args.InRecycleQueue) return;
+        if (args.Item is Models.GameClip clip && clip.Thumbnail == null)
+        {
+            var thumbnailService = App.GetService<Services.IThumbnailService>();
+            if (thumbnailService != null)
+            {
+                if (thumbnailService.TryGetFromMemoryCache(clip.FilePath, out var cached))
+                {
+                    clip.Thumbnail = cached;
+                }
+                else
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        var thumb = await thumbnailService.GetThumbnailAsync(clip.FilePath);
+                        if (thumb != null)
+                        {
+                            DispatcherQueue.TryEnqueue(() =>
+                            {
+                                if (clip.Thumbnail == null)
+                                {
+                                    clip.Thumbnail = thumb;
+                                }
+                            });
+                        }
+                    });
+                }
+            }
         }
     }
 

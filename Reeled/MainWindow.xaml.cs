@@ -38,6 +38,9 @@ public sealed partial class MainWindow : Window
     public Microsoft.UI.Xaml.Controls.Frame NavigationFrame => RootFrame;
 
     private bool _isCursorHidden;
+    private bool _areCaptionControlsVisible = true;
+    private bool _hasSubclassedChildWindows;
+    private string? _cachedIconPath;
     private Storyboard? _transitionStoryboard;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -87,9 +90,38 @@ public sealed partial class MainWindow : Window
     private static extern int ShowCursor(bool bShow);
 
     [DllImport("User32.dll")]
+    private static extern IntPtr CreateCursor(IntPtr hInst, int xHotSpot, int yHotSpot, int nWidth, int nHeight, byte[] pvANDPlane, byte[] pvXORPlane);
+
+    [DllImport("User32.dll")]
+    private static extern bool GetCursorPos(out POINT lpPoint);
+
+    [DllImport("User32.dll")]
+    private static extern bool SetCursorPos(int x, int y);
+
+    [DllImport("User32.dll", CharSet = CharSet.Auto)]
+    private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("User32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool EnumChildWindows(IntPtr hwndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
     private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    private static readonly byte[] _blankAndMask = new byte[] { 0xFF };
+    private static readonly byte[] _blankXorMask = new byte[] { 0x00 };
+    private IntPtr _blankCursor = IntPtr.Zero;
+
+    private IntPtr GetOrCreateBlankCursor()
+    {
+        if (_blankCursor == IntPtr.Zero)
+        {
+            try
+            {
+                _blankCursor = CreateCursor(IntPtr.Zero, 0, 0, 1, 1, _blankAndMask, _blankXorMask);
+            }
+            catch { }
+        }
+        return _blankCursor;
+    }
 
     public MainWindow()
     {
@@ -98,7 +130,7 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
-        AppWindow.SetIcon("Assets/AppIcon.ico");
+        EnsureWindowIcon();
 
         // Subclass window to enforce minimum window dimensions at the OS level
         _subclassProc = WindowSubclassProc;
@@ -123,25 +155,23 @@ public sealed partial class MainWindow : Window
         {
             if (e.DidSizeChange)
             {
-                uint curDpi = GetDpiForWindow(hwnd);
-                double curScale = (curDpi > 0 ? curDpi : 96) / 96.0;
-                int minW = (int)(MinWindowWidth * curScale);
-                int minH = (int)(MinWindowHeight * curScale);
-
-                if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter &&
-                    presenter.State == Microsoft.UI.Windowing.OverlappedPresenterState.Restored)
+                if (IsPlayerVisible)
                 {
-                    if (AppWindow.Size.Width < minW || AppWindow.Size.Height < minH)
-                    {
-                        AppWindow.Resize(new Windows.Graphics.SizeInt32(
-                            Math.Max(AppWindow.Size.Width, minW),
-                            Math.Max(AppWindow.Size.Height, minH)));
-                    }
+                    PlayerViewControl?.RefreshVideoLayout();
                 }
-
-                PlayerViewControl?.RefreshVideoLayout();
             }
         };
+
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            // Pre-warm the player overlay surface so DirectX SwapChain & LibVLC initialize before first clip
+            if (PlayerOverlayContainer != null)
+            {
+                PlayerOverlayContainer.Opacity = 0.0;
+                PlayerOverlayContainer.IsHitTestVisible = false;
+                PlayerOverlayContainer.Visibility = Visibility.Visible;
+            }
+        });
 
         Closed += (s, e) =>
         {
@@ -209,13 +239,13 @@ public sealed partial class MainWindow : Window
     private void OnWindowGlobalKeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (e.Handled) return;
-        if (PlayerOverlayContainer.Visibility == Visibility.Visible)
+        if (IsPlayerVisible)
         {
             PlayerViewControl.HandleKeyDown(e);
         }
     }
 
-    public bool IsPlayerVisible => PlayerOverlayContainer?.Visibility == Visibility.Visible;
+    public bool IsPlayerVisible => PlayerOverlayContainer?.Visibility == Visibility.Visible && PlayerOverlayContainer.IsHitTestVisible;
 
     private void OnNavigatedToPlayer(Models.GameClip clip, System.Collections.Generic.List<Models.GameClip> playlist)
     {
@@ -224,7 +254,8 @@ public sealed partial class MainWindow : Window
 
         _transitionStoryboard?.Stop();
 
-        // Make player visible immediately so DirectX SwapChain initializes without delay
+        // Make player interactive and visible
+        PlayerOverlayContainer.IsHitTestVisible = true;
         PlayerOverlayContainer.Visibility = Visibility.Visible;
         PlayerBackdropLayer.Visibility = Visibility.Visible;
         PlayerViewControl.Activate();
@@ -286,7 +317,7 @@ public sealed partial class MainWindow : Window
         _transitionStoryboard?.Stop();
 
         // If player is not open (e.g. returning from Settings), return to Home instantly without delay
-        if (PlayerOverlayContainer.Visibility != Visibility.Visible)
+        if (!IsPlayerVisible)
         {
             if (RootFrame.CanGoBack)
             {
@@ -297,6 +328,7 @@ public sealed partial class MainWindow : Window
                 RootFrame.Navigate(typeof(HomePage), null, new SuppressNavigationTransitionInfo());
             }
             UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
+            EnsureWindowIcon();
             return;
         }
 
@@ -351,8 +383,9 @@ public sealed partial class MainWindow : Window
 
         sb.Completed += (s, e) =>
         {
-            PlayerOverlayContainer.Visibility = Visibility.Collapsed;
             PlayerOverlayContainer.Opacity = 0.0;
+            PlayerOverlayContainer.IsHitTestVisible = false;
+            PlayerOverlayContainer.Visibility = Visibility.Collapsed;
             PlayerBackdropLayer.Visibility = Visibility.Collapsed;
             PlayerBackdropLayer.Opacity = 0.0;
             RootFrame.Opacity = 1.0;
@@ -361,6 +394,7 @@ public sealed partial class MainWindow : Window
             PlayerViewControl.Deactivate();
             SetCursorHidden(false);
             SetCaptionControlsVisible(true);
+            EnsureWindowIcon();
 
             // Restore title bar buttons to the current app theme
             UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
@@ -386,8 +420,10 @@ public sealed partial class MainWindow : Window
         PlayerViewControl.Deactivate();
         SetCursorHidden(false);
         SetCaptionControlsVisible(true);
-        PlayerOverlayContainer.Visibility = Visibility.Collapsed;
+        EnsureWindowIcon();
         PlayerOverlayContainer.Opacity = 0.0;
+        PlayerOverlayContainer.IsHitTestVisible = false;
+        PlayerOverlayContainer.Visibility = Visibility.Collapsed;
         PlayerBackdropLayer.Visibility = Visibility.Collapsed;
         PlayerBackdropLayer.Opacity = 0.0;
         RootFrame.Opacity = 1.0;
@@ -419,13 +455,29 @@ public sealed partial class MainWindow : Window
         else
         {
             AppWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.Default);
-            if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
-            {
-                presenter.Maximize();
-            }
+            _areCaptionControlsVisible = true;
             AppTitleBar.Visibility = Visibility.Visible;
             PlayerViewControl.SetFullscreenLayout(false);
+            EnsureWindowIcon();
+            UpdateTitleBarTheme(ElementTheme.Dark);
         }
+    }
+
+    private void EnsureChildWindowsSubclassed()
+    {
+        if (_hasSubclassedChildWindows) return;
+        _hasSubclassedChildWindows = true;
+
+        try
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            EnumChildWindows(hwnd, (childHwnd, lParam) =>
+            {
+                SetWindowSubclass(childHwnd, _subclassProc, 1, 0);
+                return true;
+            }, IntPtr.Zero);
+        }
+        catch { }
     }
 
     public void SetCursorHidden(bool hide)
@@ -433,31 +485,59 @@ public sealed partial class MainWindow : Window
         if (_isCursorHidden == hide) return;
         _isCursorHidden = hide;
 
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+
         if (hide)
         {
+            EnsureChildWindowsSubclassed();
+
+            while (ShowCursor(false) >= 0) { }
+            IntPtr blank = GetOrCreateBlankCursor();
+            if (blank != IntPtr.Zero)
+            {
+                SetCursor(blank);
+            }
+            else
+            {
+                SetCursor(IntPtr.Zero);
+            }
+
             try
             {
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                SendMessage(hwnd, WM_SETCURSOR, hwnd, (IntPtr)1);
                 EnumChildWindows(hwnd, (childHwnd, lParam) =>
                 {
-                    SetWindowSubclass(childHwnd, _subclassProc, 1, 0);
+                    SendMessage(childHwnd, WM_SETCURSOR, childHwnd, (IntPtr)1);
                     return true;
                 }, IntPtr.Zero);
             }
             catch { }
-
-            while (ShowCursor(false) >= 0) { }
-            SetCursor(IntPtr.Zero);
         }
         else
         {
             while (ShowCursor(true) < 0) { }
             SetCursor(LoadCursor(IntPtr.Zero, IDC_ARROW));
+
+            try
+            {
+                SendMessage(hwnd, WM_SETCURSOR, hwnd, (IntPtr)1);
+                EnumChildWindows(hwnd, (childHwnd, lParam) =>
+                {
+                    SendMessage(childHwnd, WM_SETCURSOR, childHwnd, (IntPtr)1);
+                    return true;
+                }, IntPtr.Zero);
+            }
+            catch { }
         }
     }
 
     public void SetCaptionControlsVisible(bool visible)
     {
+        if (_areCaptionControlsVisible == visible)
+        {
+            return;
+        }
+
         if (AppWindow?.Presenter == null)
         {
             return;
@@ -470,7 +550,13 @@ public sealed partial class MainWindow : Window
 
         if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
         {
-            presenter.SetBorderAndTitleBar(true, visible);
+            _areCaptionControlsVisible = visible;
+            try
+            {
+                presenter.SetBorderAndTitleBar(true, visible);
+            }
+            catch { }
+
             if (AppTitleBar != null)
             {
                 AppTitleBar.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
@@ -478,33 +564,52 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    public void EnsureWindowIcon()
+    {
+        try
+        {
+            _cachedIconPath ??= System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico");
+            if (System.IO.File.Exists(_cachedIconPath))
+            {
+                AppWindow.SetIcon(_cachedIconPath);
+            }
+        }
+        catch { }
+    }
+
     public void UpdateTitleBarTheme(ElementTheme actualTheme)
     {
         if (Microsoft.UI.Windowing.AppWindowTitleBar.IsCustomizationSupported() && AppWindow.TitleBar != null)
         {
-            bool isDark = (actualTheme == ElementTheme.Dark);
-            var titleBar = AppWindow.TitleBar;
-
-            titleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
-            titleBar.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
-
-            if (isDark)
+            try
             {
-                titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
-                titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
-                titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(30, 255, 255, 255);
-                titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(180, 255, 255, 255);
-                titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(50, 255, 255, 255);
-                titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(120, 255, 255, 255);
+                bool isDark = (actualTheme == ElementTheme.Dark);
+                var titleBar = AppWindow.TitleBar;
+
+                titleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+                titleBar.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+
+                if (isDark)
+                {
+                    titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
+                    titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
+                    titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(30, 255, 255, 255);
+                    titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(180, 255, 255, 255);
+                    titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(50, 255, 255, 255);
+                    titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(120, 255, 255, 255);
+                }
+                else
+                {
+                    titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 24, 24, 27);
+                    titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 24, 24, 27);
+                    titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(30, 0, 0, 0);
+                    titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(180, 24, 24, 27);
+                    titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(50, 0, 0, 0);
+                    titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(120, 0, 0, 0);
+                }
             }
-            else
+            catch (Exception)
             {
-                titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 24, 24, 27);
-                titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 24, 24, 27);
-                titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(30, 0, 0, 0);
-                titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(180, 24, 24, 27);
-                titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(50, 0, 0, 0);
-                titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(120, 0, 0, 0);
             }
         }
     }
@@ -519,7 +624,15 @@ public sealed partial class MainWindow : Window
     {
         if (uMsg == WM_SETCURSOR && _isCursorHidden)
         {
-            SetCursor(IntPtr.Zero);
+            IntPtr blank = GetOrCreateBlankCursor();
+            if (blank != IntPtr.Zero)
+            {
+                SetCursor(blank);
+            }
+            else
+            {
+                SetCursor(IntPtr.Zero);
+            }
             return (IntPtr)1;
         }
 
@@ -535,46 +648,6 @@ public sealed partial class MainWindow : Window
 
             Marshal.StructureToPtr(mmi, lParam, true);
             return IntPtr.Zero;
-        }
-
-        if (uMsg == WM_SIZING)
-        {
-            var rect = Marshal.PtrToStructure<RECT>(lParam);
-            uint dpi = GetDpiForWindow(hWnd);
-            double scale = (dpi > 0 ? dpi : 96) / 96.0;
-            int minW = (int)(MinWindowWidth * scale);
-            int minH = (int)(MinWindowHeight * scale);
-
-            int width = rect.right - rect.left;
-            int height = rect.bottom - rect.top;
-            int edge = (int)wParam;
-
-            if (width < minW)
-            {
-                if (edge == WMSZ_LEFT || edge == WMSZ_TOPLEFT || edge == WMSZ_BOTTOMLEFT)
-                {
-                    rect.left = rect.right - minW;
-                }
-                else
-                {
-                    rect.right = rect.left + minW;
-                }
-            }
-
-            if (height < minH)
-            {
-                if (edge == WMSZ_TOP || edge == WMSZ_TOPLEFT || edge == WMSZ_TOPRIGHT)
-                {
-                    rect.top = rect.bottom - minH;
-                }
-                else
-                {
-                    rect.bottom = rect.top + minH;
-                }
-            }
-
-            Marshal.StructureToPtr(rect, lParam, true);
-            return (IntPtr)1;
         }
 
         return DefSubclassProc(hWnd, uMsg, wParam, lParam);

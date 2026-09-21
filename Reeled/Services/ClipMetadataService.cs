@@ -67,17 +67,12 @@ public class ClipMetadataService : IClipMetadataService
             // If WinRT storage properties fail, basic FileInfo is already set
         }
 
-        // Asynchronously load thumbnail in background so UI populates without blocking
+        // Asynchronously ensure thumbnail exists on disk cache without creating BitmapImage in memory
         _ = Task.Run(async () =>
         {
             try
             {
-                var thumb = await _thumbnailService.GetThumbnailAsync(clip.FilePath);
-                if (thumb != null)
-                {
-                    var dispatcher = App.DispatcherQueue ?? Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-                    dispatcher?.TryEnqueue(() => clip.Thumbnail = thumb);
-                }
+                clip.ThumbnailCachePath = await _thumbnailService.EnsureThumbnailOnDiskAsync(clip.FilePath);
             }
             catch { }
         });

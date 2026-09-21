@@ -11,13 +11,15 @@ namespace Reeled.Services;
 
 public class ClipMetadataCacheService : IClipMetadataCacheService
 {
+    private readonly ILocalStorageService _storageService;
     private readonly string _cacheFilePath;
     private readonly ConcurrentDictionary<string, CachedClipMetadata> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _saveLock = new(1, 1);
     private bool _isDirty;
 
-    public ClipMetadataCacheService()
+    public ClipMetadataCacheService(ILocalStorageService storageService)
     {
+        _storageService = storageService;
         string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         string cacheDir = Path.Combine(localAppData, "Reeled", "Cache");
         Directory.CreateDirectory(cacheDir);
@@ -53,6 +55,12 @@ public class ClipMetadataCacheService : IClipMetadataCacheService
 
     public bool TryGet(string filePath, long length, long lastWriteTimeTicks, out CachedClipMetadata? cached)
     {
+        if (!_storageService.CurrentSettings.EnableClipCache)
+        {
+            cached = null;
+            return false;
+        }
+
         if (_cache.TryGetValue(filePath, out var item))
         {
             if (item.FileSizeBytes == length && item.LastWriteTimeUtcTicks == lastWriteTimeTicks)
@@ -68,6 +76,7 @@ public class ClipMetadataCacheService : IClipMetadataCacheService
 
     public void Set(CachedClipMetadata metadata)
     {
+        if (!_storageService.CurrentSettings.EnableClipCache) return;
         if (string.IsNullOrEmpty(metadata.FilePath)) return;
         _cache[metadata.FilePath] = metadata;
         _isDirty = true;
@@ -75,6 +84,7 @@ public class ClipMetadataCacheService : IClipMetadataCacheService
 
     public async Task SaveAsync()
     {
+        if (!_storageService.CurrentSettings.EnableClipCache) return;
         if (!_isDirty) return;
 
         await _saveLock.WaitAsync();

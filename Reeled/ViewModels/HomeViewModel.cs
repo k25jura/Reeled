@@ -84,6 +84,22 @@ public partial class HomeViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowProgressRingLoading))]
     private bool _enableSkeletonLoading = true;
 
+    [ObservableProperty]
+    private bool _showMomentsBadges = true;
+
+    partial void OnShowMomentsBadgesChanged(bool value)
+    {
+        _dispatcherQueue.TryEnqueue(RefreshMomentsBadgeVisibility);
+    }
+
+    public void RefreshMomentsBadgeVisibility()
+    {
+        foreach (var clip in AllClips)
+        {
+            clip.NotifyMomentsBadgeChanged();
+        }
+    }
+
     public bool ShowSkeletonLoading => IsLoading && EnableSkeletonLoading;
     public bool ShowProgressRingLoading => IsLoading && !EnableSkeletonLoading;
 
@@ -171,6 +187,7 @@ public partial class HomeViewModel : ObservableObject
         OnPropertyChanged(nameof(EmptyStateSubtitle));
         OnPropertyChanged(nameof(ClipsCountSummary));
         OnPropertyChanged(nameof(SavedMomentsCount));
+        OnPropertyChanged(nameof(TotalStorageUsedFormatted));
         foreach (var clip in AllClips)
         {
             clip.RefreshFormattedStrings();
@@ -233,12 +250,19 @@ public partial class HomeViewModel : ObservableObject
     {
         get
         {
+            var loc = _localizationService ?? App.GetService<ILocalizationService>();
+            string bUnit = loc?["Unit_Byte"] ?? "B";
+            string kbUnit = loc?["Unit_KB"] ?? "KB";
+            string mbUnit = loc?["Unit_MB"] ?? "MB";
+            string gbUnit = loc?["Unit_GB"] ?? "GB";
+            var culture = loc?.CurrentCulture ?? System.Globalization.CultureInfo.InvariantCulture;
+
             long total = Clips.Sum(c => c.FileSizeBytes);
-            if (total < 1024) return $"{total} B";
+            if (total < 1024) return string.Format(culture, "{0} {1}", total, bUnit);
             double mb = total / (1024.0 * 1024.0);
-            if (mb < 1024) return $"{mb:F1} MB";
+            if (mb < 1024) return string.Format(culture, "{0:F1} {1}", mb, mbUnit);
             double gb = mb / 1024.0;
-            return $"{gb:F2} GB";
+            return string.Format(culture, "{0:F2} {1}", gb, gbUnit);
         }
     }
 
@@ -266,6 +290,8 @@ public partial class HomeViewModel : ObservableObject
 
     public async Task InitializeAsync()
     {
+        EnableSkeletonLoading = _storageService.CurrentSettings.EnableSkeletonLoading;
+        ShowMomentsBadges = _storageService.CurrentSettings.ShowMomentsBadges;
         await SyncDirectoriesAsync();
     }
 

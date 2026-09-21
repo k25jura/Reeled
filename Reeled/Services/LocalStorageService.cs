@@ -145,13 +145,19 @@ public class LocalStorageService : ILocalStorageService
             }
         }
 
-        if (settings.PlaybackSpeed <= 0.25)
+        if (settings.PlaybackSpeed < 0.25)
         {
             settings.PlaybackSpeed = 1.0;
         }
-        if (settings.DefaultPlaybackSpeed <= 0.25)
+        if (settings.DefaultPlaybackSpeed < 0.25)
         {
             settings.DefaultPlaybackSpeed = 1.0;
         }
+        if (settings.DefaultVolume <= 0)
+        {
+            settings.DefaultVolume = settings.Volume > 0 ? settings.Volume : 100;
+        }
+        settings.DefaultVolume = Math.Clamp(settings.DefaultVolume, 0, 100);
+        settings.Volume = Math.Clamp(settings.Volume, 0, 100);
     }
 }

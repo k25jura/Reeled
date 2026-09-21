@@ -11,7 +11,6 @@
     mc:Ignorable="d"
     Background="#101010"
     KeyDown="OnPageKeyDown"
-    PointerMoved="OnPagePointerMoved"
     PointerWheelChanged="OnPlayerPointerWheelChanged"
     PointerPressed="OnPlayerPagePointerPressed">
 
@@ -539,63 +538,13 @@
                             </DropDownButton.Flyout>
                         </DropDownButton>
 
-                        <Button x:Name="ClipInfoButton"
-                                ToolTipService.ToolTip="Clip Information"
-                                Width="32" Height="32"
-                                Padding="0"
-                                MinWidth="0" MinHeight="0"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                IsTabStop="False"
-                                Style="{StaticResource PlayerIconButtonStyle}">
-                            <FontIcon Glyph="&#xE700;" FontSize="13" Foreground="White" />
-                            <Button.Flyout>
-                                <Flyout x:Name="ClipInfoFlyout" Placement="Top" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
-                                    <StackPanel Spacing="10" MinWidth="260" MaxWidth="340" Padding="8,6">
-                                        <TextBlock x:Name="ClipInfoFlyoutTitle" Text="Clip Information" FontWeight="SemiBold" FontSize="14" Foreground="White" />
-                                        
-                                        <StackPanel Spacing="2">
-                                            <TextBlock x:Name="ClipInfoFileNameLabel" Text="File Name" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                            <TextBlock Text="{x:Bind ViewModel.CurrentClip.FileName, Mode=OneWay}" FontSize="12" Foreground="White" TextWrapping="Wrap" />
-                                        </StackPanel>
-
-                                        <Grid ColumnSpacing="16">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            
-                                             <StackPanel Grid.Column="0" Spacing="2">
-                                                <TextBlock x:Name="ClipInfoDurationLabel" Text="Duration" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                                <TextBlock Text="{x:Bind ViewModel.FormattedTotalTime, Mode=OneWay}" FontSize="12" Foreground="White" />
-                                            </StackPanel>
-
-                                            <StackPanel Grid.Column="1" Spacing="2">
-                                                <TextBlock x:Name="ClipInfoBookmarksLabel" Text="Bookmarks" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                                <TextBlock Text="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" FontSize="12" Foreground="White" />
-                                            </StackPanel>
-                                        </Grid>
-
-                                        <StackPanel Spacing="2">
-                                            <TextBlock x:Name="ClipInfoDateModifiedLabel" Text="Date Modified" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                            <TextBlock Text="{x:Bind ViewModel.CurrentClip.FormattedDate, Mode=OneWay}" FontSize="12" Foreground="White" />
-                                        </StackPanel>
-
-                                        <StackPanel Spacing="2">
-                                            <TextBlock x:Name="ClipInfoFilePathLabel" Text="File Path" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                            <TextBlock Text="{x:Bind ViewModel.CurrentClip.FilePath, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" />
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Flyout>
-                            </Button.Flyout>
-                        </Button>
                     </StackPanel>
 
-                    <!-- Right: Audio Track Selector, Mute Button, Volume Slider, Percentage Text, Separator, Fullscreen Button (Far Right) -->
+                    <!-- Right: Audio Track Selector, Subtitles Selector, Mute Button, Volume Slider, Percentage Text, Separator, Fullscreen Button (Far Right) -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                         <!-- Video Audio Track Selector -->
                         <DropDownButton x:Name="AudioTrackDropDown"
-                                        ToolTipService.ToolTip="Audio Track"
+                                        ToolTipService.ToolTip="Audio Tracks"
                                         Width="32" Height="32"
                                         Padding="0"
                                         MinWidth="0" MinHeight="0"
@@ -605,9 +554,83 @@
                                         Style="{StaticResource PlayerIconButtonStyle}">
                             <FontIcon Glyph="&#xE8D4;" FontSize="13" Foreground="White" />
                             <DropDownButton.Flyout>
-                                <MenuFlyout x:Name="AudioTracksMenuFlyout" Opening="OnAudioTracksMenuFlyoutOpening" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
-                                    <MenuFlyoutItem x:Name="DefaultAudioTrackItem" Text="Default Audio Track" IsEnabled="False" />
-                                </MenuFlyout>
+                                <Flyout x:Name="AudioTracksFlyout" Placement="Top" Opening="OnAudioTracksFlyoutOpening" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
+                                    <Grid MinWidth="260" MaxWidth="320" Padding="8,6" RowSpacing="8">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Header -->
+                                        <Grid Grid.Row="0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE8D4;" FontSize="14" Foreground="White" />
+                                                <TextBlock x:Name="AudioTracksFlyoutHeaderTitle" Text="Audio Tracks" FontWeight="SemiBold" FontSize="14" Foreground="White" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Audio Tracks List -->
+                                        <ScrollViewer Grid.Row="1" MaxHeight="220" VerticalScrollBarVisibility="Auto">
+                                            <StackPanel x:Name="AudioTracksListPanel" Spacing="4" />
+                                        </ScrollViewer>
+                                    </Grid>
+                                </Flyout>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+
+                        <!-- Subtitles Selector -->
+                        <DropDownButton x:Name="SubtitlesDropDown"
+                                        ToolTipService.ToolTip="Subtitles"
+                                        Width="32" Height="32"
+                                        Padding="0"
+                                        MinWidth="0" MinHeight="0"
+                                        HorizontalContentAlignment="Center"
+                                        VerticalContentAlignment="Center"
+                                        IsTabStop="False"
+                                        Style="{StaticResource PlayerIconButtonStyle}">
+                            <FontIcon Glyph="&#xE134;" FontSize="13" Foreground="White" />
+                            <DropDownButton.Flyout>
+                                <Flyout x:Name="SubtitlesFlyout" Placement="Top" Opening="OnSubtitlesFlyoutOpening" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
+                                    <Grid MinWidth="280" MaxWidth="340" Padding="8,6" RowSpacing="8">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Header -->
+                                        <Grid Grid.Row="0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE134;" FontSize="14" Foreground="White" />
+                                                <TextBlock x:Name="SubtitlesFlyoutHeaderTitle" Text="Subtitles" FontWeight="SemiBold" FontSize="14" Foreground="White" />
+                                            </StackPanel>
+                                            <Button x:Name="AddSubtitleFileButton"
+                                                    Grid.Column="1"
+                                                    ToolTipService.ToolTip="Add Subtitle File"
+                                                    Click="OnAddSubtitleFileClick"
+                                                    Padding="8,4"
+                                                    CornerRadius="4"
+                                                    Style="{ThemeResource SubtleButtonStyle}">
+                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                    <FontIcon Glyph="&#xE710;" FontSize="11" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                                    <TextBlock x:Name="AddSubtitleFileText" Text="Add File" FontSize="12" Foreground="White" />
+                                                </StackPanel>
+                                            </Button>
+                                        </Grid>
+
+                                        <!-- Subtitles List -->
+                                        <ScrollViewer Grid.Row="1" MaxHeight="220" VerticalScrollBarVisibility="Auto">
+                                            <StackPanel x:Name="SubtitlesListPanel" Spacing="4" />
+                                        </ScrollViewer>
+                                    </Grid>
+                                </Flyout>
                             </DropDownButton.Flyout>
                         </DropDownButton>
 
@@ -809,6 +832,7 @@
                           ItemsSource="{x:Bind ViewModel.Playlist, Mode=OneWay}"
                           SelectedItem="{x:Bind ViewModel.CurrentClip, Mode=OneWay}"
                           SelectionChanged="OnPlaylistSelectionChanged"
+                          ContainerContentChanging="OnPlaylistContainerContentChanging"
                           SelectionMode="Single">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="models:GameClip">

@@ -19,7 +19,7 @@ public partial class DirectoryNode : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IconGlyph))]
-    private bool _isExpanded = true;
+    private bool _isExpanded = false;
 
     [ObservableProperty]
     private bool _isSelected;

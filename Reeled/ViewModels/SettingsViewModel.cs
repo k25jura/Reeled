@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Windows.Storage.Pickers;
+using Reeled.Models;
 using Reeled.Services;
 
 namespace Reeled.ViewModels;
@@ -50,6 +51,30 @@ public partial class SettingsViewModel : ObservableObject
     private bool _rememberPlaybackSpeed = true;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VolumeFormatted))]
+    private int _volume = 100;
+
+    public string VolumeFormatted => $"{Volume}%";
+
+    [ObservableProperty]
+    private bool _startMuted;
+
+    [ObservableProperty]
+    private int _selectedRepeatModeIndex = 0;
+
+    [ObservableProperty]
+    private int _selectedAutoHideIndex = 0;
+
+    [ObservableProperty]
+    private bool _enableOsdNotifications = true;
+
+    [ObservableProperty]
+    private bool _enableClipCache = true;
+
+    [ObservableProperty]
+    private bool _showMomentsBadges = true;
+
+    [ObservableProperty]
     private int _selectedThemeIndex = 0;
 
     [ObservableProperty]
@@ -57,6 +82,25 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private string _sampleDateFormatPreview = string.Empty;
+
+    // Diagnostics & About Hero
+    [ObservableProperty]
+    private string _osVersionFormatted = string.Empty;
+
+    [ObservableProperty]
+    private string _architectureFormatted = string.Empty;
+
+    [ObservableProperty]
+    private string _runtimeFormatted = string.Empty;
+
+    [ObservableProperty]
+    private string _memoryUsageFormatted = string.Empty;
+
+    [ObservableProperty]
+    private string _libraryStatsFormatted = string.Empty;
+
+    [ObservableProperty]
+    private string _aboutStatusMessage = string.Empty;
 
     // Updates properties
     [ObservableProperty]
@@ -117,6 +161,8 @@ public partial class SettingsViewModel : ObservableObject
         {
             UpdateFormattedStrings();
         };
+
+        Initialize();
     }
 
     public void Initialize()
@@ -129,6 +175,24 @@ public partial class SettingsViewModel : ObservableObject
         EnableSkeletonLoading = _storageService.CurrentSettings.EnableSkeletonLoading;
         DefaultPlaybackSpeed = _storageService.CurrentSettings.DefaultPlaybackSpeed;
         RememberPlaybackSpeed = _storageService.CurrentSettings.RememberPlaybackSpeed;
+        Volume = _storageService.CurrentSettings.DefaultVolume;
+        StartMuted = _storageService.CurrentSettings.StartMuted;
+        SelectedRepeatModeIndex = _storageService.CurrentSettings.DefaultRepeatMode switch
+        {
+            RepeatMode.One => 1,
+            RepeatMode.All => 2,
+            _ => 0
+        };
+        SelectedAutoHideIndex = _storageService.CurrentSettings.AutoHideControlsSeconds switch
+        {
+            3 => 1,
+            5 => 2,
+            0 => 3,
+            _ => 0
+        };
+        EnableOsdNotifications = _storageService.CurrentSettings.EnableOsdNotifications;
+        EnableClipCache = _storageService.CurrentSettings.EnableClipCache;
+        ShowMomentsBadges = _storageService.CurrentSettings.ShowMomentsBadges;
         SelectedThemeIndex = _storageService.CurrentSettings.AppTheme switch
         {
             "Dark" => 1,
@@ -187,6 +251,7 @@ public partial class SettingsViewModel : ObservableObject
         SampleDateFormatPreview = DateTime.Now.ToString("dddd, d MMMM yyyy, HH:mm", _localizationService.CurrentCulture);
         CalculateMomentsStats();
         CalculateClipCacheSize();
+        UpdateDiagnostics();
         if (IsUpdateAvailable)
         {
             UpdateStatusFormatted = _localizationService["Updates_StatusAvailable"];
@@ -206,6 +271,7 @@ public partial class SettingsViewModel : ObservableObject
         DefaultPlaybackSpeed = speed;
         var settings = _storageService.CurrentSettings;
         settings.DefaultPlaybackSpeed = speed;
+        settings.PlaybackSpeed = speed;
         _ = _storageService.SaveSettingsAsync(settings);
     }
 
@@ -214,6 +280,165 @@ public partial class SettingsViewModel : ObservableObject
         var settings = _storageService.CurrentSettings;
         settings.RememberPlaybackSpeed = value;
         _ = _storageService.SaveSettingsAsync(settings);
+    }
+
+    public void SetVolume(int volume)
+    {
+        Volume = Math.Clamp(volume, 0, 100);
+        var settings = _storageService.CurrentSettings;
+        if (settings.DefaultVolume != Volume)
+        {
+            settings.DefaultVolume = Volume;
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    partial void OnVolumeChanged(int value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.DefaultVolume != value)
+        {
+            settings.DefaultVolume = value;
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    partial void OnStartMutedChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.StartMuted != value)
+        {
+            settings.StartMuted = value;
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    public void SetRepeatMode(int index)
+    {
+        SelectedRepeatModeIndex = index;
+        var mode = index switch
+        {
+            1 => RepeatMode.One,
+            2 => RepeatMode.All,
+            _ => RepeatMode.Off
+        };
+        var settings = _storageService.CurrentSettings;
+        if (settings.DefaultRepeatMode != mode)
+        {
+            settings.DefaultRepeatMode = mode;
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    public void SetAutoHideTimeout(int index)
+    {
+        SelectedAutoHideIndex = index;
+        int seconds = index switch
+        {
+            1 => 3,
+            2 => 5,
+            3 => 0,
+            _ => 2
+        };
+        var settings = _storageService.CurrentSettings;
+        if (settings.AutoHideControlsSeconds != seconds)
+        {
+            settings.AutoHideControlsSeconds = seconds;
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    partial void OnEnableOsdNotificationsChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.EnableOsdNotifications != value)
+        {
+            settings.EnableOsdNotifications = value;
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    partial void OnEnableClipCacheChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.EnableClipCache != value)
+        {
+            settings.EnableClipCache = value;
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    partial void OnShowMomentsBadgesChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.ShowMomentsBadges != value)
+        {
+            settings.ShowMomentsBadges = value;
+            _ = _storageService.SaveSettingsAsync(settings);
+            _homeViewModel.ShowMomentsBadges = value;
+        }
+    }
+
+    public void UpdateDiagnostics()
+    {
+        try
+        {
+            var os = Environment.OSVersion;
+            string osName = os.Platform == PlatformID.Win32NT ? $"Windows (Build {os.Version.Build})" : os.VersionString;
+            OsVersionFormatted = osName;
+
+            ArchitectureFormatted = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToUpperInvariant();
+            RuntimeFormatted = $".NET {Environment.Version.Major}.{Environment.Version.Minor}.{Environment.Version.Build}";
+
+            using var proc = System.Diagnostics.Process.GetCurrentProcess();
+            double mb = proc.WorkingSet64 / (1024.0 * 1024.0);
+            string mbUnit = _localizationService["Unit_MB"];
+            MemoryUsageFormatted = string.Format(_localizationService.CurrentCulture, "{0:F1} {1}", mb, mbUnit);
+
+            int folderCount = WatchFolders.Count;
+            int clipCount = _homeViewModel.AllClips.Count;
+            string folderPlural = _localizationService.FormatPlural("Plural_Folder", folderCount);
+            string clipPlural = _localizationService.FormatPlural("Plural_Clip", clipCount);
+            LibraryStatsFormatted = $"{folderCount} {folderPlural}, {clipCount} {clipPlural}";
+        }
+        catch
+        {
+            OsVersionFormatted = "Windows (x64)";
+            ArchitectureFormatted = "X64";
+            RuntimeFormatted = ".NET 8.0";
+            MemoryUsageFormatted = "Normal";
+            LibraryStatsFormatted = $"{WatchFolders.Count} folders, {_homeViewModel.AllClips.Count} clips";
+        }
+    }
+
+    [RelayCommand]
+    public Task CopyDiagnosticsAsync()
+    {
+        try
+        {
+            UpdateDiagnostics();
+            var text = "--- Reeled Diagnostics ---\n" +
+                       $"Version: 1.0.0\n" +
+                       $"OS: {OsVersionFormatted}\n" +
+                       $"Architecture: {ArchitectureFormatted}\n" +
+                       $"Runtime: {RuntimeFormatted}\n" +
+                       $"Working Set Memory: {MemoryUsageFormatted}\n" +
+                       $"Library: {LibraryStatsFormatted}\n" +
+                       $"Theme: {_storageService.CurrentSettings.AppTheme}\n" +
+                       $"Language: {_localizationService.CurrentLanguage} (Effective: {_localizationService.EffectiveLanguage})\n" +
+                       "--------------------------";
+
+            var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            dataPackage.SetText(text);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
+
+            AboutStatusMessage = _localizationService["About_DiagnosticsCopied"];
+        }
+        catch (Exception ex)
+        {
+            AboutStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
+        }
+        return Task.CompletedTask;
     }
 
     [RelayCommand]
@@ -234,13 +459,13 @@ public partial class SettingsViewModel : ObservableObject
                 await _storageService.SaveSettingsAsync(settings);
                 _indexerService.UpdateWatchers(settings.WatchDirectories);
                 _ = _homeViewModel.SyncDirectoriesAsync(forceReload: true);
-                FolderStatusMessage = $"Added {folder.Path}";
+                FolderStatusMessage = string.Format(_localizationService["Folders_Status_Added"], folder.Path);
                 StatusMessage = FolderStatusMessage;
             }
         }
         catch (Exception ex)
         {
-            FolderStatusMessage = $"Error: {ex.Message}";
+            FolderStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
             StatusMessage = FolderStatusMessage;
         }
     }
@@ -255,7 +480,7 @@ public partial class SettingsViewModel : ObservableObject
             await _storageService.SaveSettingsAsync(settings);
             _indexerService.UpdateWatchers(settings.WatchDirectories);
             _ = _homeViewModel.SyncDirectoriesAsync(forceReload: true);
-            FolderStatusMessage = $"Removed {folder}";
+            FolderStatusMessage = string.Format(_localizationService["Folders_Status_Removed"], folder);
             StatusMessage = FolderStatusMessage;
 
             if (_homeViewModel.CurrentDirectoryPath != null &&
@@ -303,14 +528,15 @@ public partial class SettingsViewModel : ObservableObject
             }
             CalculateCacheSize();
             double freedMb = freedBytes / (1024.0 * 1024.0);
+            string mbUnit = _localizationService["Unit_MB"];
             StorageStatusMessage = deletedCount > 0
-                ? $"Thumbnail cache cleared ({deletedCount} files, {freedMb:F1} MB freed)"
-                : "Thumbnail cache is already empty";
+                ? string.Format(_localizationService.CurrentCulture, _localizationService["Storage_Status_ThumbnailsCleared"], deletedCount, freedMb, mbUnit)
+                : _localizationService["Storage_Status_ThumbnailsEmpty"];
             StatusMessage = StorageStatusMessage;
         }
         catch (Exception ex)
         {
-            StorageStatusMessage = $"Error: {ex.Message}";
+            StorageStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
             StatusMessage = StorageStatusMessage;
         }
     }
@@ -322,12 +548,12 @@ public partial class SettingsViewModel : ObservableObject
         {
             await _clipMetadataCacheService.ClearAsync();
             CalculateClipCacheSize();
-            StorageStatusMessage = "Clip metadata cache cleared";
+            StorageStatusMessage = _localizationService["Storage_Status_ClipMetadataCleared"];
             StatusMessage = StorageStatusMessage;
         }
         catch (Exception ex)
         {
-            StorageStatusMessage = $"Error: {ex.Message}";
+            StorageStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
             StatusMessage = StorageStatusMessage;
         }
     }
@@ -362,7 +588,7 @@ public partial class SettingsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            StorageStatusMessage = $"Error: {ex.Message}";
+            StorageStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
             StatusMessage = StorageStatusMessage;
         }
     }
@@ -501,27 +727,34 @@ public partial class SettingsViewModel : ObservableObject
             }
 
             double mb = total / (1024.0 * 1024.0);
-            CacheSizeFormatted = $"{mb:F1} MB";
+            string mbUnit = _localizationService["Unit_MB"];
+            CacheSizeFormatted = string.Format(_localizationService.CurrentCulture, "{0:F1} {1}", mb, mbUnit);
         }
         catch
         {
-            CacheSizeFormatted = "0 KB";
+            string kbUnit = _localizationService["Unit_KB"];
+            CacheSizeFormatted = string.Format(_localizationService.CurrentCulture, "0 {0}", kbUnit);
         }
     }
 
     private void CalculateClipCacheSize()
     {
+        string kbUnit = _localizationService["Unit_KB"];
+        string mbUnit = _localizationService["Unit_MB"];
         try
         {
             var (count, bytes) = _clipMetadataCacheService.GetCacheStats();
             double kb = bytes / 1024.0;
             string clipPlural = _localizationService.FormatPlural("Plural_Clip", count);
-            string sizeStr = kb < 1024 ? $"{kb:F1} KB" : $"{kb / 1024.0:F2} MB";
+            string sizeStr = kb < 1024 
+                ? string.Format(_localizationService.CurrentCulture, "{0:F1} {1}", kb, kbUnit)
+                : string.Format(_localizationService.CurrentCulture, "{0:F2} {1}", kb / 1024.0, mbUnit);
             ClipCacheSizeFormatted = string.Format(_localizationService["Storage_ClipCacheStats"], count, clipPlural, sizeStr);
         }
         catch
         {
-            ClipCacheSizeFormatted = string.Format(_localizationService["Storage_ClipCacheStats"], 0, _localizationService.FormatPlural("Plural_Clip", 0), "0 KB");
+            string zeroKb = string.Format(_localizationService.CurrentCulture, "0 {0}", kbUnit);
+            ClipCacheSizeFormatted = string.Format(_localizationService["Storage_ClipCacheStats"], 0, _localizationService.FormatPlural("Plural_Clip", 0), zeroKb);
         }
     }
 }

@@ -64,12 +64,29 @@ public partial class GameClip : ObservableObject
         {
             OnPropertyChanged(nameof(BookmarkCount));
             OnPropertyChanged(nameof(HasBookmarks));
+            OnPropertyChanged(nameof(ShowBookmarkBadge));
             OnPropertyChanged(nameof(FormattedBookmarkCount));
         };
     }
 
     public int BookmarkCount => Bookmarks.Count;
     public bool HasBookmarks => Bookmarks.Count > 0;
+    public bool ShowBookmarkBadge
+    {
+        get
+        {
+            try
+            {
+                var storage = App.GetService<Services.ILocalStorageService>();
+                bool enabled = storage?.CurrentSettings?.ShowMomentsBadges ?? true;
+                return HasBookmarks && enabled;
+            }
+            catch
+            {
+                return HasBookmarks;
+            }
+        }
+    }
     public string FormattedBookmarkCount
     {
         get
@@ -91,7 +108,11 @@ public partial class GameClip : ObservableObject
     {
         OnPropertyChanged(nameof(FormattedDate));
         OnPropertyChanged(nameof(FormattedBookmarkCount));
+        OnPropertyChanged(nameof(ShowBookmarkBadge));
+        OnPropertyChanged(nameof(FormattedFileSize));
     }
+
+    public void NotifyMomentsBadgeChanged() => OnPropertyChanged(nameof(ShowBookmarkBadge));
 
     public string FormattedDuration =>
         Duration.Hours > 0
@@ -102,13 +123,20 @@ public partial class GameClip : ObservableObject
     {
         get
         {
-            if (FileSizeBytes < 1024) return $"{FileSizeBytes} B";
+            var loc = App.GetService<Services.ILocalizationService>();
+            string bUnit = loc?["Unit_Byte"] ?? "B";
+            string kbUnit = loc?["Unit_KB"] ?? "KB";
+            string mbUnit = loc?["Unit_MB"] ?? "MB";
+            string gbUnit = loc?["Unit_GB"] ?? "GB";
+            var culture = loc?.CurrentCulture ?? System.Globalization.CultureInfo.InvariantCulture;
+
+            if (FileSizeBytes < 1024) return string.Format(culture, "{0} {1}", FileSizeBytes, bUnit);
             double kb = FileSizeBytes / 1024.0;
-            if (kb < 1024) return $"{kb:F1} KB";
+            if (kb < 1024) return string.Format(culture, "{0:F1} {1}", kb, kbUnit);
             double mb = kb / 1024.0;
-            if (mb < 1024) return $"{mb:F1} MB";
+            if (mb < 1024) return string.Format(culture, "{0:F1} {1}", mb, mbUnit);
             double gb = mb / 1024.0;
-            return $"{gb:F2} GB";
+            return string.Format(culture, "{0:F2} {1}", gb, gbUnit);
         }
     }
 
@@ -180,4 +208,10 @@ public partial class GameClip : ObservableObject
             return res;
         }
     }
+
+    public override bool Equals(object? obj) =>
+        obj is GameClip other && string.Equals(FilePath, other.FilePath, StringComparison.OrdinalIgnoreCase);
+
+    public override int GetHashCode() =>
+        string.IsNullOrEmpty(FilePath) ? 0 : StringComparer.OrdinalIgnoreCase.GetHashCode(FilePath);
 }

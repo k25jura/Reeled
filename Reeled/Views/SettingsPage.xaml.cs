@@ -13,7 +13,7 @@ namespace Reeled.Views;
 public sealed partial class SettingsPage : Page
 {
     public SettingsViewModel ViewModel { get; }
-    private bool _isInitializing;
+    private bool _isInitializing = true;
     private bool _isProgrammaticScroll;
     private string _activeSectionTag = "FoldersSection";
     private double _currentIndicatorY = 0;
@@ -25,6 +25,7 @@ public sealed partial class SettingsPage : Page
     private DispatcherTimer? _foldersStatusTimer;
     private DispatcherTimer? _storageStatusTimer;
     private DispatcherTimer? _updatesStatusTimer;
+    private DispatcherTimer? _aboutStatusTimer;
 
     public SettingsPage()
     {
@@ -35,18 +36,23 @@ public sealed partial class SettingsPage : Page
         {
             if (e.PropertyName == nameof(SettingsViewModel.FolderStatusMessage) && !string.IsNullOrEmpty(ViewModel.FolderStatusMessage))
             {
-                bool isError = ViewModel.FolderStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase);
+                bool isError = ViewModel.FolderStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || ViewModel.FolderStatusMessage.StartsWith("Помилка", StringComparison.OrdinalIgnoreCase);
                 ShowStatusBanner(FoldersStatusBorder, FoldersStatusTranslation, FoldersStatusText, FoldersStatusIcon, ViewModel.FolderStatusMessage, isError, ref _foldersStatusTimer);
             }
             else if (e.PropertyName == nameof(SettingsViewModel.StorageStatusMessage) && !string.IsNullOrEmpty(ViewModel.StorageStatusMessage))
             {
-                bool isError = ViewModel.StorageStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase);
+                bool isError = ViewModel.StorageStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || ViewModel.StorageStatusMessage.StartsWith("Помилка", StringComparison.OrdinalIgnoreCase);
                 ShowStatusBanner(StorageStatusBorder, StorageStatusTranslation, StorageStatusText, StorageStatusIcon, ViewModel.StorageStatusMessage, isError, ref _storageStatusTimer);
             }
             else if (e.PropertyName == nameof(SettingsViewModel.UpdatesStatusMessage) && !string.IsNullOrEmpty(ViewModel.UpdatesStatusMessage))
             {
-                bool isError = ViewModel.UpdatesStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase);
+                bool isError = ViewModel.UpdatesStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || ViewModel.UpdatesStatusMessage.StartsWith("Помилка", StringComparison.OrdinalIgnoreCase);
                 ShowStatusBanner(UpdatesStatusBorder, UpdatesStatusTranslation, UpdatesStatusText, UpdatesStatusIcon, ViewModel.UpdatesStatusMessage, isError, ref _updatesStatusTimer);
+            }
+            else if (e.PropertyName == nameof(SettingsViewModel.AboutStatusMessage) && !string.IsNullOrEmpty(ViewModel.AboutStatusMessage))
+            {
+                bool isError = ViewModel.AboutStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || ViewModel.AboutStatusMessage.StartsWith("Помилка", StringComparison.OrdinalIgnoreCase);
+                ShowStatusBanner(AboutStatusBorder, AboutStatusTranslation, AboutStatusText, AboutStatusIcon, ViewModel.AboutStatusMessage, isError, ref _aboutStatusTimer);
             }
             else if (e.PropertyName == nameof(SettingsViewModel.IsUpdateAvailable))
             {
@@ -64,6 +70,7 @@ public sealed partial class SettingsPage : Page
             UpdateThemeVisuals(ActualTheme);
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
+                _isInitializing = false;
                 SetActiveCategory("FoldersSection", animate: false);
             });
         };
@@ -98,13 +105,21 @@ public sealed partial class SettingsPage : Page
             }
         }
 
-        _isInitializing = false;
+        if (DefaultVolumeSlider != null) DefaultVolumeSlider.Value = ViewModel.Volume;
+        if (DefaultRepeatComboBox != null) DefaultRepeatComboBox.SelectedIndex = ViewModel.SelectedRepeatModeIndex;
+        if (AutoHideTimeoutComboBox != null) AutoHideTimeoutComboBox.SelectedIndex = ViewModel.SelectedAutoHideIndex;
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        _isInitializing = true;
     }
 
     private void OnThemeSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_isInitializing) return;
-        if (ThemeComboBox.SelectedIndex >= 0)
+        if (ThemeComboBox.SelectedIndex >= 0 && ThemeComboBox.SelectedIndex != ViewModel.SelectedThemeIndex)
         {
             ViewModel.SetAppTheme(ThemeComboBox.SelectedIndex);
             UpdateThemeVisuals(ActualTheme);
@@ -114,7 +129,7 @@ public sealed partial class SettingsPage : Page
     private void OnLanguageSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_isInitializing) return;
-        if (LanguageComboBox.SelectedIndex >= 0)
+        if (LanguageComboBox.SelectedIndex >= 0 && LanguageComboBox.SelectedIndex != ViewModel.SelectedLanguageIndex)
         {
             ViewModel.SetLanguage(LanguageComboBox.SelectedIndex);
             ApplyLocalization(ViewModel.Loc);
@@ -151,6 +166,7 @@ public sealed partial class SettingsPage : Page
 
     private void OnDefaultSpeedSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_isInitializing) return;
         if (DefaultSpeedComboBox.SelectedItem is ComboBoxItem item &&
             item.Tag is string tag &&
             double.TryParse(tag, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double speed))
@@ -159,6 +175,34 @@ public sealed partial class SettingsPage : Page
             {
                 ViewModel.SetDefaultPlaybackSpeed(speed);
             }
+        }
+    }
+
+    private void OnDefaultVolumeSliderValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+        int newVol = (int)Math.Round(e.NewValue);
+        if (ViewModel.Volume != newVol)
+        {
+            ViewModel.SetVolume(newVol);
+        }
+    }
+
+    private void OnDefaultRepeatSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+        if (DefaultRepeatComboBox.SelectedIndex >= 0 && DefaultRepeatComboBox.SelectedIndex != ViewModel.SelectedRepeatModeIndex)
+        {
+            ViewModel.SetRepeatMode(DefaultRepeatComboBox.SelectedIndex);
+        }
+    }
+
+    private void OnAutoHideSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+        if (AutoHideTimeoutComboBox.SelectedIndex >= 0 && AutoHideTimeoutComboBox.SelectedIndex != ViewModel.SelectedAutoHideIndex)
+        {
+            ViewModel.SetAutoHideTimeout(AutoHideTimeoutComboBox.SelectedIndex);
         }
     }
 
@@ -252,11 +296,16 @@ public sealed partial class SettingsPage : Page
             _ => null
         };
 
-        if (target != null && SettingsScrollViewer != null && SettingsContentStack != null)
+        if (target != null && SettingsScrollViewer != null && SettingsContentRoot != null)
         {
             try
             {
-                var transform = target.TransformToVisual(SettingsContentStack);
+                if (sectionName == "AboutSection")
+                {
+                    SettingsScrollViewer.ChangeView(null, SettingsScrollViewer.ScrollableHeight, null, false);
+                    return;
+                }
+                var transform = target.TransformToVisual(SettingsContentRoot);
                 var pt = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
                 double targetY = Math.Max(0, pt.Y - 14);
                 SettingsScrollViewer.ChangeView(null, targetY, null, false);
@@ -913,11 +962,23 @@ public sealed partial class SettingsPage : Page
         if (DefaultSpeedSubtitleText != null) DefaultSpeedSubtitleText.Text = loc["Playback_DefaultSpeedSubtitle"];
         if (RememberSpeedTitleText != null) RememberSpeedTitleText.Text = loc["Playback_RememberSpeedTitle"];
         if (RememberSpeedSubtitleText != null) RememberSpeedSubtitleText.Text = loc["Playback_RememberSpeedSubtitle"];
+        if (DefaultVolumeTitleText != null) DefaultVolumeTitleText.Text = loc["Playback_VolumeTitle"];
+        if (DefaultVolumeSubtitleText != null) DefaultVolumeSubtitleText.Text = loc["Playback_VolumeSubtitle"];
+        if (StartMutedTitleText != null) StartMutedTitleText.Text = loc["Playback_StartMutedTitle"];
+        if (StartMutedSubtitleText != null) StartMutedSubtitleText.Text = loc["Playback_StartMutedSubtitle"];
+        if (DefaultRepeatTitleText != null) DefaultRepeatTitleText.Text = loc["Playback_RepeatModeTitle"];
+        if (DefaultRepeatSubtitleText != null) DefaultRepeatSubtitleText.Text = loc["Playback_RepeatModeSubtitle"];
+        if (AutoHideTitleText != null) AutoHideTitleText.Text = loc["Playback_AutoHideTitle"];
+        if (AutoHideSubtitleText != null) AutoHideSubtitleText.Text = loc["Playback_AutoHideSubtitle"];
+        if (OsdTitleText != null) OsdTitleText.Text = loc["Playback_OsdTitle"];
+        if (OsdSubtitleText != null) OsdSubtitleText.Text = loc["Playback_OsdSubtitle"];
 
         // 3. Appearance Section
         if (AppearanceSectionTitle != null) AppearanceSectionTitle.Text = loc["Appearance_SectionTitle"];
         if (AppThemeTitleText != null) AppThemeTitleText.Text = loc["Appearance_ThemeTitle"];
         if (AppThemeSubtitleText != null) AppThemeSubtitleText.Text = loc["Appearance_ThemeSubtitle"];
+        if (MomentsBadgesTitleText != null) MomentsBadgesTitleText.Text = loc["Appearance_MomentsBadgesTitle"];
+        if (MomentsBadgesSubtitleText != null) MomentsBadgesSubtitleText.Text = loc["Appearance_MomentsBadgesSubtitle"];
 
         // 4. Language & Region Section
         if (LocalizationSectionTitle != null) LocalizationSectionTitle.Text = loc["Language_SectionTitle"];
@@ -926,7 +987,7 @@ public sealed partial class SettingsPage : Page
         if (DateFormatTitleText != null) DateFormatTitleText.Text = loc["Language_DateFormatTitle"];
         if (DateFormatSubtitleText != null) DateFormatSubtitleText.Text = loc["Language_DateFormatSubtitle"];
 
-        // Dynamic Dropdown Items (Theme & Language)
+        // Dynamic Dropdown Items (Theme, Language, Repeat Mode & Auto-Hide)
         bool prevInit = _isInitializing;
         _isInitializing = true;
         try
@@ -954,6 +1015,31 @@ public sealed partial class SettingsPage : Page
                 };
                 LanguageComboBox.SelectedIndex = langIdx;
             }
+
+            if (DefaultRepeatComboBox != null)
+            {
+                int repIdx = ViewModel.SelectedRepeatModeIndex;
+                DefaultRepeatComboBox.ItemsSource = new string[]
+                {
+                    loc["Playback_RepeatOff"],
+                    loc["Playback_RepeatOne"],
+                    loc["Playback_RepeatAll"]
+                };
+                DefaultRepeatComboBox.SelectedIndex = repIdx;
+            }
+
+            if (AutoHideTimeoutComboBox != null)
+            {
+                int autoHideIdx = ViewModel.SelectedAutoHideIndex;
+                AutoHideTimeoutComboBox.ItemsSource = new string[]
+                {
+                    loc["Playback_AutoHide_2s"],
+                    loc["Playback_AutoHide_3s"],
+                    loc["Playback_AutoHide_5s"],
+                    loc["Playback_AutoHide_Never"]
+                };
+                AutoHideTimeoutComboBox.SelectedIndex = autoHideIdx;
+            }
         }
         finally
         {
@@ -964,6 +1050,8 @@ public sealed partial class SettingsPage : Page
         if (StorageSectionTitle != null) StorageSectionTitle.Text = loc["Storage_SectionTitle"];
         if (SkeletonLoadingTitleText != null) SkeletonLoadingTitleText.Text = loc["Appearance_SkeletonTitle"];
         if (SkeletonLoadingSubtitleText != null) SkeletonLoadingSubtitleText.Text = loc["Appearance_SkeletonSubtitle"];
+        if (EnableClipCacheTitleText != null) EnableClipCacheTitleText.Text = loc["Storage_EnableClipCacheTitle"];
+        if (EnableClipCacheSubtitleText != null) EnableClipCacheSubtitleText.Text = loc["Storage_EnableClipCacheSubtitle"];
         if (ThumbnailCacheTitleText != null) ThumbnailCacheTitleText.Text = loc["Storage_ThumbnailsTitle"];
         if (ThumbnailCacheDiskLabel != null) ThumbnailCacheDiskLabel.Text = loc["Storage_DiskUsageLabel"];
         if (ClearThumbnailsButton != null) ClearThumbnailsButton.Content = loc["Storage_ThumbnailsButton"];
@@ -989,7 +1077,15 @@ public sealed partial class SettingsPage : Page
         // 7. About Section
         if (AboutSectionTitle != null) AboutSectionTitle.Text = loc["Cat_About"];
         if (AboutTaglineText != null) AboutTaglineText.Text = loc["About_Tagline"];
-        if (AboutDeveloperText != null) AboutDeveloperText.Text = loc["About_Developer"];
+        if (AboutCreatedByText != null) AboutCreatedByText.Text = loc["About_CreatedBy"];
+        if (AboutDiagnosticsTitleText != null) AboutDiagnosticsTitleText.Text = loc["About_DiagnosticsTitle"];
+        if (AboutDiagnosticsSubtitleText != null) AboutDiagnosticsSubtitleText.Text = loc["About_DiagnosticsSubtitle"];
+        if (CopyDiagnosticsButtonText != null) CopyDiagnosticsButtonText.Text = loc["About_DiagnosticsCopy"];
+        if (CopyDiagnosticsButton != null) ToolTipService.SetToolTip(CopyDiagnosticsButton, loc["About_DiagnosticsCopy"]);
+        if (DiagOsLabel != null) DiagOsLabel.Text = loc["About_DiagOS"];
+        if (DiagArchLabel != null) DiagArchLabel.Text = $"{loc["About_DiagArch"]} & {loc["About_DiagRuntime"]}";
+        if (DiagMemoryLabel != null) DiagMemoryLabel.Text = loc["About_DiagMemory"];
+        if (DiagLibraryLabel != null) DiagLibraryLabel.Text = loc["About_DiagLibrary"];
         if (AboutFrameworkText != null) AboutFrameworkText.Text = loc["About_Framework"];
         if (AboutVersionText != null) AboutVersionText.Text = $"{loc["About_Version"]} (.NET 8 Windows App SDK x64)";
         if (AboutGithubText != null) AboutGithubText.Text = loc["About_GitHub"];

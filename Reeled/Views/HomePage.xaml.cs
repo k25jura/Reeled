@@ -14,13 +14,16 @@ namespace Reeled.Views;
 public sealed partial class HomePage : Page
 {
     public HomeViewModel ViewModel { get; }
+    private Services.IThumbnailService? _thumbnailService;
 
     public HomePage()
     {
         ViewModel = App.GetService<HomeViewModel>();
+        _thumbnailService = App.GetService<Services.IThumbnailService>();
         InitializeComponent();
 
         _sidebarWidth = ViewModel.SidebarWidth >= 200 ? ViewModel.SidebarWidth : 316.0;
+        ApplyLocalization();
 
         Loaded += (s, e) =>
         {
@@ -37,6 +40,16 @@ public sealed partial class HomePage : Page
             if (ClipsGridView != null)
             {
                 ClipsGridView.RequestedTheme = ActualTheme;
+            }
+
+            if (ClipsSearchBox != null)
+            {
+                ClipsSearchBox.Loaded += (s, e) => ApplyLocalization();
+            }
+
+            if (SortOptionsComboBox != null)
+            {
+                SortOptionsComboBox.Loaded += (s, e) => ApplyLocalization();
             }
 
             // Warm up and preload all animation types, DComp visuals, and Storyboard paths at idle priority
@@ -111,7 +124,16 @@ public sealed partial class HomePage : Page
             if (ExplorerHyperlinkButton != null) ToolTipService.SetToolTip(ExplorerHyperlinkButton, loc["Tooltip_OpenInExplorer"]);
 
             // Search Box Placeholder
-            if (ClipsSearchBox != null) ClipsSearchBox.PlaceholderText = loc["Search_Placeholder"];
+            if (ClipsSearchBox != null)
+            {
+                string searchPh = loc["Search_Placeholder"];
+                ClipsSearchBox.PlaceholderText = searchPh;
+                var innerTextBox = FindDescendant<TextBox>(ClipsSearchBox);
+                if (innerTextBox != null)
+                {
+                    innerTextBox.PlaceholderText = searchPh;
+                }
+            }
 
             // Sort Dropdown Items
             if (SortNewestItem != null) SortNewestItem.Content = loc["Sort_NewestDate"];
@@ -119,6 +141,19 @@ public sealed partial class HomePage : Page
             if (SortNameAZItem != null) SortNameAZItem.Content = loc["Sort_TitleAZ"];
             if (SortDurationItem != null) SortDurationItem.Content = loc["Sort_Duration"];
             if (SortFileSizeItem != null) SortFileSizeItem.Content = loc["Sort_FileSize"];
+
+            if (SortOptionsComboBox != null)
+            {
+                var selectedItem = SortOptionsComboBox.SelectedItem as ComboBoxItem;
+                if (selectedItem != null)
+                {
+                    var presenter = FindDescendant<ContentPresenter>(SortOptionsComboBox);
+                    if (presenter != null)
+                    {
+                        presenter.Content = selectedItem.Content;
+                    }
+                }
+            }
 
             // Folders Empty Fallback Prompt
             if (FoldersFallbackTitleText != null) FoldersFallbackTitleText.Text = loc["Folders_FallbackTitle"];
@@ -1197,6 +1232,44 @@ public sealed partial class HomePage : Page
         {
             args.ItemContainer.RequestedTheme = ActualTheme;
         }
+
+        if (args.InRecycleQueue)
+        {
+            return;
+        }
+
+        if (args.Item is Models.GameClip clip && clip.Thumbnail == null)
+        {
+            LoadClipThumbnail(clip);
+        }
+    }
+
+    private void LoadClipThumbnail(Models.GameClip clip)
+    {
+        if (clip.Thumbnail != null) return;
+        _thumbnailService ??= App.GetService<Services.IThumbnailService>();
+        if (_thumbnailService == null) return;
+
+        if (_thumbnailService.TryGetFromMemoryCache(clip.FilePath, out var cachedThumb))
+        {
+            clip.Thumbnail = cachedThumb;
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            var thumb = await _thumbnailService.GetThumbnailAsync(clip.FilePath);
+            if (thumb != null)
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (clip.Thumbnail == null)
+                    {
+                        clip.Thumbnail = thumb;
+                    }
+                });
+            }
+        });
     }
 
     private void OnClipCardPointerEntered(object sender, PointerRoutedEventArgs e)
@@ -2333,5 +2406,19 @@ public sealed partial class HomePage : Page
         {
             ViewModel.DeleteClip(clip);
         }
+    }
+
+    private static T? FindDescendant<T>(DependencyObject parent) where T : DependencyObject
+    {
+        if (parent == null) return null;
+        int count = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T typedChild) return typedChild;
+            var found = FindDescendant<T>(child);
+            if (found != null) return found;
+        }
+        return null;
     }
 }

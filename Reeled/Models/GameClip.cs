@@ -12,7 +12,14 @@ public partial class GameClip : ObservableObject
     private string _filePath = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayName))]
     private string _fileName = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayName))]
+    private string? _customTitle;
+
+    public string DisplayName => !string.IsNullOrWhiteSpace(CustomTitle) ? CustomTitle : FileName;
 
     [ObservableProperty]
     private string _directoryPath = string.Empty;
@@ -55,6 +62,9 @@ public partial class GameClip : ObservableObject
 
     [ObservableProperty]
     private bool _isFavorite;
+
+    [ObservableProperty]
+    private bool _isActive;
 
     public ObservableCollection<ClipBookmark> Bookmarks { get; set; } = new();
 

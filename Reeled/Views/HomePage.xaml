@@ -349,6 +349,9 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- CollectionViewSource for fluid Google Photos-style Date Grouping -->
+        <CollectionViewSource x:Name="ClipsGroupedSource" IsSourceGrouped="True" />
     </Page.Resources>
 
     <Grid x:Name="MainRootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" SizeChanged="OnPageSizeChanged">
@@ -727,8 +730,7 @@
             <!-- Top Header & Search / Sort Toolbar -->
             <Border Grid.Row="0" 
                     Padding="24,36,24,12" 
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                    BorderThickness="0,0,0,1">
+                    BorderThickness="0">
                 <Grid ColumnSpacing="16" RowSpacing="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
@@ -737,17 +739,23 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- Sidebar Expand Button (Shown only when sidebar is collapsed) -->
-                    <Button Grid.Column="0" 
-                            x:Name="ShowSidebarButton"
-                            Click="OnToggleSidebarClick"
-                            ToolTipService.ToolTip="Show Sidebar"
-                            Style="{ThemeResource SubtleButtonStyle}"
-                            Visibility="{x:Bind ViewModel.IsSidebarCollapsed, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                            Padding="6" Margin="0,0,4,0"
-                            VerticalAlignment="Center">
-                        <FontIcon Glyph="&#xE700;" FontSize="16" />
-                    </Button>
+                    <!-- Sidebar Expand Button Container with Smooth Width and Opacity Interpolation -->
+                    <Grid Grid.Column="0" 
+                          x:Name="ShowSidebarContainer" 
+                          Width="0" 
+                          Opacity="0" 
+                          Visibility="Collapsed" 
+                          VerticalAlignment="Center">
+                        <Button x:Name="ShowSidebarButton"
+                                Click="OnToggleSidebarClick"
+                                ToolTipService.ToolTip="Show Sidebar"
+                                Style="{ThemeResource SubtleButtonStyle}"
+                                Padding="6" 
+                                Margin="0,0,8,0"
+                                VerticalAlignment="Center">
+                            <FontIcon Glyph="&#xE700;" FontSize="16" />
+                        </Button>
+                    </Grid>
 
                     <!-- Folder Title and Count Info -->
                     <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
@@ -799,47 +807,154 @@
                     <!-- Search Box -->
                     <AutoSuggestBox x:Name="ClipsSearchBox"
                                     Grid.Column="2" 
-                                    Width="240" 
+                                    Width="220" 
                                     PlaceholderText="Search clips..." 
                                     QueryIcon="Find"
                                     Text="{x:Bind ViewModel.SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                                     VerticalAlignment="Center" />
 
-                    <!-- Sort Dropdown -->
-                    <ComboBox x:Name="SortOptionsComboBox"
-                              Grid.Column="3" 
-                              SelectedIndex="{x:Bind ViewModel.SortIndex, Mode=TwoWay}" 
-                              VerticalAlignment="Center" 
-                              Width="150">
-                        <ComboBoxItem x:Name="SortNewestItem" />
-                        <ComboBoxItem x:Name="SortOldestItem" />
-                        <ComboBoxItem x:Name="SortNameAZItem" />
-                        <ComboBoxItem x:Name="SortDurationItem" />
-                        <ComboBoxItem x:Name="SortFileSizeItem" />
-                    </ComboBox>
+                    <!-- Toolbar Actions: Sort and View Options Buttons -->
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <!-- Sort DropDown Button -->
+                        <DropDownButton x:Name="SortOptionsButton"
+                                        VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <FontIcon x:Name="CurrentSortIcon" Glyph="&#xE787;" FontSize="13" />
+                                <TextBlock x:Name="CurrentSortText" Text="Newest Date" FontSize="12.5" />
+                            </StackPanel>
+                            <DropDownButton.Flyout>
+                                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                    <MenuFlyoutItem x:Name="SortNewestItem" Click="OnSortMenuItemClick" Tag="0">
+                                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE787;" FontSize="14" /></MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutItem x:Name="SortOldestItem" Click="OnSortMenuItemClick" Tag="1">
+                                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE787;" FontSize="14" /></MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutSeparator />
+                                    <MenuFlyoutItem x:Name="SortNameAZItem" Click="OnSortMenuItemClick" Tag="2">
+                                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8D2;" FontSize="14" /></MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutItem x:Name="SortNameZAItem" Click="OnSortMenuItemClick" Tag="3">
+                                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE8D2;" FontSize="14" /></MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutSeparator />
+                                    <MenuFlyoutItem x:Name="SortDurationItem" Click="OnSortMenuItemClick" Tag="4">
+                                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE916;" FontSize="14" /></MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutItem x:Name="SortFileSizeItem" Click="OnSortMenuItemClick" Tag="5">
+                                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74C;" FontSize="14" /></MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                </MenuFlyout>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+
+                        <!-- View Options DropDown Button -->
+                        <DropDownButton x:Name="ViewOptionsButton"
+                                        VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xE74C;" FontSize="13" />
+                                <TextBlock x:Name="ViewOptionsText" Text="View" FontSize="12.5" />
+                            </StackPanel>
+                            <DropDownButton.Flyout>
+                                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                    <MenuFlyoutItem x:Name="ViewDensityHeader" Text="Card Size" IsEnabled="False" />
+                                    <ToggleMenuFlyoutItem x:Name="ViewDensityComfortableItem" Click="OnViewDensityItemClick" Tag="0">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE790;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="ViewDensityCompactItem" Click="OnViewDensityItemClick" Tag="1">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE74C;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="ViewDensityLargeItem" Click="OnViewDensityItemClick" Tag="2">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE8B9;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <MenuFlyoutSeparator />
+                                    <MenuFlyoutItem x:Name="ViewGroupingHeader" Text="Group by Date" IsEnabled="False" />
+                                    <ToggleMenuFlyoutItem x:Name="ViewGroupingNoneItem" Click="OnViewGroupingItemClick" Tag="0">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE711;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="ViewGroupingDayItem" Click="OnViewGroupingItemClick" Tag="1">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE787;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="ViewGroupingMonthItem" Click="OnViewGroupingItemClick" Tag="2">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE787;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <ToggleMenuFlyoutItem x:Name="ViewGroupingYearItem" Click="OnViewGroupingItemClick" Tag="3">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xEC92;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                    <MenuFlyoutSeparator />
+                                    <ToggleMenuFlyoutItem x:Name="ViewMetadataHoverItem" Click="OnViewMetadataHoverToggleClick">
+                                        <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE890;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
+                                    </ToggleMenuFlyoutItem>
+                                </MenuFlyout>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+                    </StackPanel>
                 </Grid>
             </Border>
 
             <!-- Clip Cards Grid Container -->
             <Grid Grid.Row="1">
-                <!-- GridView of Clips with Fluid Windows 11 Animations and Centered Layout -->
+                <!-- GridView of Clips with Date Grouping and Responsive Edge-to-Edge Wrapping -->
                 <GridView x:Name="ClipsGridView"
-                          ItemsSource="{x:Bind ViewModel.FilteredClips, Mode=OneWay}"
+                          Visibility="{x:Bind ViewModel.ShowSkeletonLoading, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
                           ItemClick="OnClipItemClick"
                           IsItemClickEnabled="True"
                           ContainerContentChanging="OnClipContainerContentChanging"
                           SelectionMode="None"
-                          Padding="24,18,24,24"
+                          Padding="24,14,24,24"
+                          SizeChanged="OnClipsGridViewSizeChanged"
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
                           ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    
+
+                    <GridView.GroupStyle>
+                        <GroupStyle>
+                            <GroupStyle.HeaderContainerStyle>
+                                <Style TargetType="GridViewHeaderItem">
+                                    <Setter Property="HorizontalAlignment" Value="Stretch" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="MinHeight" Value="0" />
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="Margin" Value="0,0,0,8" />
+                                </Style>
+                            </GroupStyle.HeaderContainerStyle>
+                            <GroupStyle.HeaderTemplate>
+                                <DataTemplate x:DataType="models:ClipGroup">
+                                    <StackPanel Margin="0,12,0,4">
+                                        <!-- Subtle Divider Line between Groups (shown for 2nd group onward) -->
+                                        <Border Height="1" 
+                                                Background="{ThemeResource DividerStrokeColorDefaultBrush}" 
+                                                Margin="0,0,0,14" 
+                                                Visibility="{x:Bind ShowGroupDivider, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                                        <!-- Date Title and Stats Row -->
+                                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xE787;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                            <TextBlock Text="{x:Bind Title}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            <TextBlock Text="•" FontSize="13" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
+                                            <TextBlock Text="{x:Bind Subtitle}" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </GroupStyle.HeaderTemplate>
+                            <GroupStyle.Panel>
+                                <ItemsPanelTemplate>
+                                    <ItemsWrapGrid Orientation="Horizontal" 
+                                                   HorizontalAlignment="Stretch" 
+                                                   ItemWidth="280" 
+                                                   ItemHeight="158" 
+                                                   MaximumRowsOrColumns="-1" />
+                                </ItemsPanelTemplate>
+                            </GroupStyle.Panel>
+                        </GroupStyle>
+                    </GridView.GroupStyle>
+
                     <GridView.ItemsPanel>
                         <ItemsPanelTemplate>
                             <ItemsWrapGrid Orientation="Horizontal" 
-                                           HorizontalAlignment="Left" 
-                                           MaximumRowsOrColumns="-1"
-                                           ItemWidth="266"
-                                           ItemHeight="248" />
+                                           HorizontalAlignment="Stretch" 
+                                           ItemWidth="280" 
+                                           ItemHeight="158" 
+                                           MaximumRowsOrColumns="-1" />
                         </ItemsPanelTemplate>
                     </GridView.ItemsPanel>
 
@@ -850,7 +965,7 @@
                             <Setter Property="BorderThickness" Value="0" />
                             <Setter Property="BorderBrush" Value="Transparent" />
                             <Setter Property="Background" Value="Transparent" />
-                            <Setter Property="CornerRadius" Value="8" />
+                            <Setter Property="CornerRadius" Value="10" />
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                             <Setter Property="VerticalContentAlignment" Value="Stretch" />
                             <Setter Property="Template">
@@ -866,10 +981,16 @@
 
                     <GridView.ItemTemplate>
                         <DataTemplate x:DataType="models:GameClip">
-                            <Grid Width="254" Height="236" CornerRadius="8"
-                                  Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            <Grid x:Name="CardRootGrid"
+                                  CornerRadius="10"
+                                  Background="{ThemeResource LayerFillColorAltBrush}"
                                   BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                   BorderThickness="1"
+                                  HorizontalAlignment="Stretch"
+                                  VerticalAlignment="Stretch"
+                                  RenderTransformOrigin="0.5,0.5"
+                                  Loaded="OnClipCardLoaded"
+                                  Unloaded="OnClipCardUnloaded"
                                   PointerEntered="OnClipCardPointerEntered"
                                   PointerExited="OnClipCardPointerExited"
                                   PointerPressed="OnClipCardPointerPressed"
@@ -879,176 +1000,270 @@
                                   DoubleTapped="OnClipCardDoubleTapped"
                                   RightTapped="OnClipCardRightTapped">
 
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="142" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
+                                <Grid.RenderTransform>
+                                    <ScaleTransform x:Name="CardScale" ScaleX="1.0" ScaleY="1.0" />
+                                </Grid.RenderTransform>
 
-                                <!-- Video Thumbnail Area -->
-                                <Grid Grid.Row="0" CornerRadius="8,8,0,0">
-                                    <!-- Thumbnail Image -->
-                                    <Image Source="{x:Bind Thumbnail, Mode=OneWay}" 
-                                           Stretch="UniformToFill" 
-                                           HorizontalAlignment="Center" 
-                                           VerticalAlignment="Center" />
+                                <!-- 1. Fullscreen Thumbnail Image -->
+                                <Image Source="{x:Bind Thumbnail, Mode=OneWay}" 
+                                       Stretch="UniformToFill" 
+                                       HorizontalAlignment="Center" 
+                                       VerticalAlignment="Center" />
 
-                                    <!-- Fallback Graphic if Thumbnail Loading -->
-                                    <Grid Background="{ThemeResource LayerFillColorAltBrush}"
-                                          Visibility="{x:Bind Thumbnail, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=invert}">
-                                        <FontIcon Glyph="&#xE714;" FontSize="36" 
-                                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}" 
-                                                  HorizontalAlignment="Center" 
-                                                  VerticalAlignment="Center" />
-                                    </Grid>
+                                <!-- Fallback Graphic if Thumbnail Loading -->
+                                <Grid Background="{ThemeResource LayerFillColorAltBrush}"
+                                      Visibility="{x:Bind Thumbnail, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=invert}">
+                                    <FontIcon Glyph="&#xE714;" FontSize="32" 
+                                              Foreground="{ThemeResource TextFillColorTertiaryBrush}" 
+                                              HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center" />
+                                </Grid>
 
-                                    <!-- Saved Moments Badge (Bottom Left Pill) -->
-                                    <Border HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                                            Background="#B3000000" CornerRadius="12" Margin="8,0,0,8" Padding="8,3"
+                                <!-- 2. Top Scrim Gradient Overlay for Badges & Favorite -->
+                                <Border VerticalAlignment="Top" Height="48" IsHitTestVisible="False">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
+                                            <GradientStop Color="#88000000" Offset="0.0" />
+                                            <GradientStop Color="#00000000" Offset="1.0" />
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                </Border>
+
+                                <!-- Top Badges Row -->
+                                <Grid VerticalAlignment="Top" Margin="8,8,8,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Left: Saved Moments Frosted Badge -->
+                                    <Border Grid.Column="0" HorizontalAlignment="Left"
+                                            Background="#80000000"
+                                            BorderBrush="#33FFFFFF"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="6,2"
                                             Visibility="{x:Bind ShowBookmarkBadge, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                        <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                                            <FontIcon Glyph="&#xE8A4;" FontSize="11" Foreground="#FFD700" VerticalAlignment="Center" />
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xE8A4;" FontSize="10" Foreground="#FFD700" VerticalAlignment="Center" />
                                             <TextBlock Text="{x:Bind FormattedBookmarkCount, Mode=OneWay}" 
-                                                       FontSize="11" FontWeight="SemiBold" Foreground="#FFD700" VerticalAlignment="Center" />
+                                                       FontSize="11" FontWeight="SemiBold" Foreground="#FFF0A0" VerticalAlignment="Center" />
                                         </StackPanel>
                                     </Border>
 
-                                    <!-- Hover Play Overlay Pill (Animated on Hover) -->
-                                    <Border x:Name="PlayOverlay"
-                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                            Background="#99000000" CornerRadius="20" Width="40" Height="40"
-                                            Opacity="0"
-                                            RenderTransformOrigin="0.5,0.5">
-                                        <Border.RenderTransform>
-                                            <ScaleTransform x:Name="PlayOverlayScale" ScaleX="0.8" ScaleY="0.8" />
-                                        </Border.RenderTransform>
-                                        <FontIcon Glyph="&#xE768;" FontSize="18" Foreground="White" Margin="3,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    </Border>
+                                    <!-- Right: Glassmorphic Favorite Button with Pulse Ring & Sparkles -->
+                                    <Grid Grid.Column="1" Width="28" Height="28" HorizontalAlignment="Right">
+                                        <!-- Pulse Expansion Ring on Favorite -->
+                                        <Border x:Name="FavoritePulseRing"
+                                                Width="28" Height="28" CornerRadius="14"
+                                                BorderBrush="#FFE57F" BorderThickness="1.5"
+                                                Opacity="0" IsHitTestVisible="False"
+                                                RenderTransformOrigin="0.5,0.5">
+                                            <Border.RenderTransform>
+                                                <ScaleTransform x:Name="FavoritePulseScale" ScaleX="0.8" ScaleY="0.8" />
+                                            </Border.RenderTransform>
+                                        </Border>
 
-                                    <!-- Duration Badge (Bottom Right Pill) -->
-                                    <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                           Background="#B3000000" CornerRadius="12" Margin="0,0,8,8" Padding="8,3">
-                                        <TextBlock Text="{x:Bind FormattedDuration, Mode=OneWay}" 
-                                                   FontSize="12" FontWeight="Normal" Foreground="White" />
-                                    </Border>
-                                </Grid>
+                                        <!-- Sparkle Particles Canvas -->
+                                        <Canvas x:Name="FavoriteSparklesCanvas" Width="28" Height="28" Opacity="0" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
+                                            <Canvas.RenderTransform>
+                                                <ScaleTransform x:Name="FavoriteSparklesScale" ScaleX="0.8" ScaleY="0.8" />
+                                            </Canvas.RenderTransform>
+                                            <Ellipse Canvas.Left="2" Canvas.Top="3" Width="3" Height="3" Fill="#FFE082" />
+                                            <Ellipse Canvas.Left="23" Canvas.Top="4" Width="2.5" Height="2.5" Fill="#FFD54F" />
+                                            <Ellipse Canvas.Left="1" Canvas.Top="21" Width="2.5" Height="2.5" Fill="#FFCA28" />
+                                            <Ellipse Canvas.Left="22" Canvas.Top="20" Width="3" Height="3" Fill="#FFE082" />
+                                        </Canvas>
 
-                                <!-- Card Info Section -->
-                                <Grid Grid.Row="1" Padding="12,8,10,10">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="*" />
-                                    </Grid.RowDefinitions>
-
-                                    <!-- Clip Title & White Favorite Star Button -->
-                                    <Grid Grid.Row="0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <TextBlock Grid.Column="0" 
-                                                   Text="{x:Bind FileName, Mode=OneWay}" 
-                                                   Style="{ThemeResource BodyStrongTextBlockStyle}" 
-                                                   FontSize="13" 
-                                                   MaxLines="2"
-                                                   TextWrapping="Wrap"
-                                                   VerticalAlignment="Center"
-                                                   TextTrimming="CharacterEllipsis" 
-                                                   ToolTipService.ToolTip="{x:Bind FileName, Mode=OneWay}" />
-
-                                        <Button Grid.Column="1" 
+                                        <Button x:Name="FavoriteButton"
                                                 Style="{ThemeResource SubtleButtonStyle}" 
-                                                Padding="4" Margin="4,0,0,0"
+                                                Padding="0" Width="28" Height="28"
+                                                CornerRadius="14"
+                                                Background="#55000000"
+                                                BorderBrush="#25FFFFFF"
+                                                BorderThickness="1"
                                                 ToolTipService.ToolTip="Toggle Favorite"
                                                 Click="OnFavoriteClick"
-                                                Tag="{x:Bind}">
-                                            <FontIcon Glyph="{x:Bind IsFavorite, Mode=OneWay, Converter={StaticResource FavoriteGlyphConverter}}" 
-                                                      FontSize="14" 
+                                                Tag="{x:Bind}"
+                                                RenderTransformOrigin="0.5,0.5">
+                                            <Button.RenderTransform>
+                                                <ScaleTransform x:Name="FavoriteScale" ScaleX="1.0" ScaleY="1.0" />
+                                            </Button.RenderTransform>
+                                            <FontIcon x:Name="FavoriteIcon"
+                                                      Glyph="{x:Bind IsFavorite, Mode=OneWay, Converter={StaticResource FavoriteGlyphConverter}}" 
+                                                      FontSize="12" 
                                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                                       Opacity="{x:Bind IsFavorite, Mode=OneWay, Converter={StaticResource FavoriteOpacityConverter}}" />
                                         </Button>
                                     </Grid>
+                                </Grid>
 
-                                    <!-- Metadata Subline (Revealed on Hover with Fluid Slide & Fade) -->
-                                    <Grid x:Name="MetadataRow" Grid.Row="1" VerticalAlignment="Bottom" Margin="0,4,0,0"
-                                          Opacity="0">
+                                <!-- 3. Center Play Overlay Icon (Scale & Fade on hover) -->
+                                <Border x:Name="PlayOverlay"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Background="#80000000"
+                                        BorderBrush="#33FFFFFF"
+                                        BorderThickness="1"
+                                        CornerRadius="24" Width="48" Height="48"
+                                        Opacity="0"
+                                        IsHitTestVisible="False"
+                                        RenderTransformOrigin="0.5,0.5">
+                                    <Border.RenderTransform>
+                                        <ScaleTransform x:Name="PlayOverlayScale" ScaleX="0.8" ScaleY="0.8" />
+                                    </Border.RenderTransform>
+                                    <FontIcon Glyph="&#xE768;" FontSize="20" Foreground="White" Margin="3,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+
+                                <!-- 4. Bottom Scrim Gradient Overlay for Title & Metadata -->
+                                <Border VerticalAlignment="Bottom" Height="86" IsHitTestVisible="False">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
+                                            <GradientStop Color="#00000000" Offset="0.0" />
+                                            <GradientStop Color="#80000000" Offset="0.3" />
+                                            <GradientStop Color="#EE000000" Offset="1.0" />
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                </Border>
+
+                                <!-- 5. Bottom Info Content -->
+                                <Grid VerticalAlignment="Bottom" Padding="10,0,10,8">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Title (bound to DisplayName) with translate transform for hover slide -->
+                                    <TextBlock x:Name="ClipTitleText"
+                                               Grid.Row="0"
+                                               Text="{x:Bind DisplayName, Mode=OneWay}" 
+                                               FontSize="12.5" 
+                                               FontWeight="SemiBold" 
+                                               Foreground="White"
+                                               MaxLines="1"
+                                               TextTrimming="CharacterEllipsis" 
+                                               ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}">
+                                        <TextBlock.RenderTransform>
+                                            <TranslateTransform x:Name="TitleTransform" Y="0" />
+                                        </TextBlock.RenderTransform>
+                                    </TextBlock>
+
+                                    <!-- Subline: Duration Pill, Date, File Size -->
+                                    <Grid x:Name="MetadataRow" Grid.Row="1" Margin="0,4,0,0" Opacity="0.85">
                                         <Grid.RenderTransform>
-                                            <TranslateTransform x:Name="MetadataTransform" Y="4" />
+                                            <TranslateTransform x:Name="MetadataTransform" Y="0" />
                                         </Grid.RenderTransform>
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
-                                        <TextBlock Grid.Column="0" 
+                                        <!-- Duration Capsule -->
+                                        <Border Grid.Column="0"
+                                                Background="#66000000"
+                                                BorderBrush="#25FFFFFF"
+                                                BorderThickness="1"
+                                                CornerRadius="4"
+                                                Padding="4,1"
+                                                Margin="0,0,6,0"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Text="{x:Bind FormattedDuration, Mode=OneWay}" 
+                                                       FontSize="10.5" 
+                                                       FontWeight="Medium" 
+                                                       Foreground="White" />
+                                        </Border>
+
+                                        <!-- Date -->
+                                        <TextBlock Grid.Column="1" 
                                                    Text="{x:Bind FormattedDate, Mode=OneWay}" 
-                                                   Style="{ThemeResource CaptionTextBlockStyle}" 
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                                   FontSize="11" 
+                                                   Foreground="#CCFFFFFF" 
                                                    TextTrimming="CharacterEllipsis" 
                                                    VerticalAlignment="Center" />
 
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                            <TextBlock Text="{x:Bind FormattedFileSize, Mode=OneWay}" 
-                                                       Style="{ThemeResource CaptionTextBlockStyle}" 
-                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                        </StackPanel>
+                                        <!-- File Size -->
+                                        <TextBlock Grid.Column="2" 
+                                                   Text="{x:Bind FormattedFileSize, Mode=OneWay}" 
+                                                   FontSize="11" 
+                                                   Foreground="#CCFFFFFF" 
+                                                   VerticalAlignment="Center"
+                                                   Margin="4,0,0,0" />
                                     </Grid>
                                 </Grid>
+
+                                <!-- Accent Outline on Hover -->
+                                <Border x:Name="HoverHighlightBorder"
+                                        CornerRadius="10"
+                                        BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                                        BorderThickness="1.5"
+                                        Opacity="0"
+                                        IsHitTestVisible="False" />
                             </Grid>
                         </DataTemplate>
                     </GridView.ItemTemplate>
                 </GridView>
 
                 <!-- Skeleton Loading Grid View (Shown when loading and skeleton loading enabled) -->
-                <ScrollViewer Visibility="{x:Bind ViewModel.ShowSkeletonLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                              Padding="24,18,24,24"
+                <ScrollViewer x:Name="SkeletonScrollViewer"
+                              Visibility="{x:Bind ViewModel.ShowSkeletonLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                              Padding="24,14,24,24"
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled"
                               IsHitTestVisible="False">
-                    <ItemsControl ItemsSource="{x:Bind ViewModel.SkeletonPlaceholders, Mode=OneWay}">
+                    <ItemsControl x:Name="SkeletonItemsControl" ItemsSource="{x:Bind ViewModel.SkeletonPlaceholders, Mode=OneWay}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <ItemsWrapGrid Orientation="Horizontal" HorizontalAlignment="Center" MaximumRowsOrColumns="-1" />
+                                <ItemsWrapGrid Orientation="Horizontal" HorizontalAlignment="Left" ItemWidth="280" ItemHeight="158" MaximumRowsOrColumns="-1" />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Width="254" Height="236" CornerRadius="8" Margin="6"
-                                      Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                <Grid CornerRadius="10" Margin="6"
+                                      Background="{ThemeResource LayerFillColorAltBrush}"
                                       BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                      BorderThickness="1">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="142" />
-                                        <RowDefinition Height="*" />
-                                    </Grid.RowDefinitions>
+                                      BorderThickness="1"
+                                      Loaded="OnSkeletonCardLoaded">
 
-                                    <!-- Video Thumbnail Placeholder Area -->
-                                    <Grid Grid.Row="0" CornerRadius="8,8,0,0" Background="{ThemeResource LayerFillColorAltBrush}">
-                                        <FontIcon Glyph="&#xE714;" FontSize="32" 
-                                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}" 
-                                                  Opacity="0.4"
-                                                  HorizontalAlignment="Center" 
-                                                  VerticalAlignment="Center" />
-                                        <!-- Duration placeholder pill -->
-                                        <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                                Background="#33000000" CornerRadius="9" Margin="0,0,8,8" Width="44" Height="18" />
-                                    </Grid>
+                                    <!-- Center Placeholder Video Icon -->
+                                    <FontIcon Glyph="&#xE714;" FontSize="28" 
+                                              Foreground="{ThemeResource TextFillColorTertiaryBrush}" 
+                                              Opacity="0.25"
+                                              HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center" />
 
-                                    <!-- Info Placeholder Area -->
-                                    <Grid Grid.Row="1" Padding="12,12,10,10">
-                                        <StackPanel Spacing="8" VerticalAlignment="Top">
-                                            <Border Height="12" Width="160" HorizontalAlignment="Left" CornerRadius="4" 
-                                                    Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.3" />
-                                            <Border Height="10" Width="100" HorizontalAlignment="Left" CornerRadius="3" 
-                                                    Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.2" />
+                                    <!-- Top-Right Placeholder Circle -->
+                                    <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8"
+                                            Width="26" Height="26" CornerRadius="13"
+                                            Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.12" />
+
+                                    <!-- Bottom Scrim Gradient -->
+                                    <Border VerticalAlignment="Bottom" Height="70" IsHitTestVisible="False">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
+                                                <GradientStop Color="#00000000" Offset="0.0" />
+                                                <GradientStop Color="#40000000" Offset="0.4" />
+                                                <GradientStop Color="#90000000" Offset="1.0" />
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                    </Border>
+
+                                    <!-- Bottom Placeholder Info Bars -->
+                                    <Grid VerticalAlignment="Bottom" Padding="10,0,10,10">
+                                        <StackPanel Spacing="6">
+                                            <!-- Title Bar Placeholder -->
+                                            <Border Height="12" Width="140" HorizontalAlignment="Left" CornerRadius="4" 
+                                                    Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.28" />
+
+                                            <!-- Metadata Row Placeholders -->
+                                            <Grid>
+                                                <!-- Duration pill placeholder -->
+                                                <Border Height="14" Width="46" HorizontalAlignment="Left" CornerRadius="4" 
+                                                        Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.2" />
+                                                <!-- Size placeholder -->
+                                                <Border Height="10" Width="38" HorizontalAlignment="Right" CornerRadius="3" 
+                                                        Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.16" />
+                                            </Grid>
                                         </StackPanel>
-
-                                        <Grid VerticalAlignment="Bottom">
-                                            <Border Height="9" Width="64" HorizontalAlignment="Left" CornerRadius="3" 
-                                                    Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.15" />
-                                            <Border Height="9" Width="42" HorizontalAlignment="Right" CornerRadius="3" 
-                                                    Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.15" />
-                                        </Grid>
                                     </Grid>
                                 </Grid>
                             </DataTemplate>
@@ -1090,5 +1305,15 @@
                 Opacity="0" 
                 IsHitTestVisible="False" 
                 Visibility="Visible" />
+
+        <!-- Middle-Click Pan Autoscroll Indicator Overlay -->
+        <Canvas x:Name="AutoscrollCanvas" IsHitTestVisible="False" Visibility="Collapsed">
+            <Grid x:Name="AutoscrollIndicator" Width="36" Height="36" Margin="-18,-18,0,0">
+                <Ellipse Fill="#E6181818" Stroke="{ThemeResource CardStrokeColorDefaultBrush}" StrokeThickness="1.5" />
+                <FontIcon Glyph="&#xE70E;" FontSize="10" Foreground="#C0C0C0" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,4,0,0" />
+                <Ellipse Width="6" Height="6" Fill="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <FontIcon Glyph="&#xE70D;" FontSize="10" Foreground="#C0C0C0" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,4" />
+            </Grid>
+        </Canvas>
     </Grid>
 </Page>

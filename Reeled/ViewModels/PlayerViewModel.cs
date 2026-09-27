@@ -59,6 +59,9 @@ public partial class PlayerViewModel : ObservableObject
     private string _statusToast = string.Empty;
 
     [ObservableProperty]
+    private ClipBookmark? _activeBookmark;
+
+    [ObservableProperty]
     private AudioTrackInfo? _selectedAudioTrack;
 
     [ObservableProperty]
@@ -71,6 +74,10 @@ public partial class PlayerViewModel : ObservableObject
     private bool _hasSubtitles;
 
     public IReadOnlyList<int> ActiveAudioTracks => _playbackService.ActiveAudioTracks;
+
+    public long LastPositionTimeTicks { get; private set; }
+    public double AnchorSeconds { get; private set; }
+    private long _seekSuppressionUntilTicks;
 
     public string SelectedAudioTrackTitle
     {
@@ -218,6 +225,10 @@ public partial class PlayerViewModel : ObservableObject
     private void SetClip(GameClip clip)
     {
         CurrentClip = clip;
+        foreach (var item in Playlist)
+        {
+            item.IsActive = string.Equals(item.FilePath, clip.FilePath, StringComparison.OrdinalIgnoreCase);
+        }
         CurrentTime = TimeSpan.Zero;
         ProgressValue = 0.0;
 
@@ -239,22 +250,28 @@ public partial class PlayerViewModel : ObservableObject
         RepeatMode = _storageService.CurrentSettings.DefaultRepeatMode;
 
         Bookmarks.Clear();
-        foreach (var bm in clip.Bookmarks)
+        foreach (var bm in clip.Bookmarks.OrderBy(b => b.Timestamp))
         {
             Bookmarks.Add(bm);
         }
+        ActiveBookmark = null;
 
         OnPropertyChanged(nameof(FormattedCurrentTime));
         OnPropertyChanged(nameof(FormattedTotalTime));
         OnPropertyChanged(nameof(HasPreviousClip));
         OnPropertyChanged(nameof(HasNextClip));
 
+        AudioTracks.Clear();
+        SubtitleTracks.Clear();
+        RefreshAudioTracks();
+        RefreshSubtitleTracks();
+
         _ = _playbackService.PlayMediaAsync(clip.FilePath);
     }
 
     private void OnPlaybackPositionChanged(float position)
     {
-        if (!_isDraggingSlider)
+        if (!_isDraggingSlider && !IsPlaying)
         {
             ProgressValue = position * 100.0;
         }
@@ -262,11 +279,63 @@ public partial class PlayerViewModel : ObservableObject
 
     private void OnPlaybackTimeChanged(long timeMs)
     {
+        double sec = timeMs / 1000.0;
+        long nowTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+
+        // If we recently initiated a seek or skip, ignore incoming stale time ticks from before the seek
+        if (nowTicks < _seekSuppressionUntilTicks)
+        {
+            if (Math.Abs(sec - CurrentTime.TotalSeconds) > 1.2)
+            {
+                return;
+            }
+            _seekSuppressionUntilTicks = 0;
+        }
+
+        LastPositionTimeTicks = nowTicks;
+        AnchorSeconds = sec;
         if (!_isDraggingSlider)
         {
-            CurrentTime = TimeSpan.FromMilliseconds(timeMs);
-            OnPropertyChanged(nameof(FormattedCurrentTime));
+            UpdatePlaybackTime(TimeSpan.FromMilliseconds(timeMs));
+            // Only update ProgressValue if not playing (to avoid 250ms snap-backs against 50fps timer)
+            // or if the drift between ProgressValue and sec is significant (> 0.5s)
+            if (!IsPlaying || TotalTime <= TimeSpan.Zero || Math.Abs(CurrentTime.TotalSeconds - sec) > 0.5)
+            {
+                if (TotalTime > TimeSpan.Zero)
+                {
+                    ProgressValue = (sec / TotalTime.TotalSeconds) * 100.0;
+                }
+            }
         }
+    }
+
+    public void UpdatePlaybackTime(TimeSpan currentTime)
+    {
+        CurrentTime = currentTime;
+        OnPropertyChanged(nameof(FormattedCurrentTime));
+
+        ClipBookmark? matching = null;
+        foreach (var bm in Bookmarks)
+        {
+            if (bm.IsRange && bm.EndTimestamp.HasValue)
+            {
+                if (currentTime >= bm.Timestamp && currentTime <= bm.EndTimestamp.Value)
+                {
+                    matching = bm;
+                    break;
+                }
+            }
+            else
+            {
+                if (Math.Abs((currentTime - bm.Timestamp).TotalSeconds) <= 1.5)
+                {
+                    matching = bm;
+                    break;
+                }
+            }
+        }
+
+        ActiveBookmark = matching;
     }
 
     private void OnPlaybackLengthChanged(long lengthMs)
@@ -367,53 +436,46 @@ public partial class PlayerViewModel : ObservableObject
     [RelayCommand]
     public void SkipForward()
     {
-        _playbackService.SkipSeconds(5);
-        if (TotalTime > TimeSpan.Zero)
-        {
-            CurrentTime = TimeSpan.FromSeconds(Math.Clamp(CurrentTime.TotalSeconds + 5, 0, TotalTime.TotalSeconds));
-            ProgressValue = (CurrentTime.TotalSeconds / TotalTime.TotalSeconds) * 100.0;
-            OnPropertyChanged(nameof(FormattedCurrentTime));
-        }
+        SkipBySeconds(5);
         ShowToast("+5s");
     }
 
     [RelayCommand]
     public void SkipBackward()
     {
-        _playbackService.SkipSeconds(-5);
-        if (TotalTime > TimeSpan.Zero)
-        {
-            CurrentTime = TimeSpan.FromSeconds(Math.Clamp(CurrentTime.TotalSeconds - 5, 0, TotalTime.TotalSeconds));
-            ProgressValue = (CurrentTime.TotalSeconds / TotalTime.TotalSeconds) * 100.0;
-            OnPropertyChanged(nameof(FormattedCurrentTime));
-        }
+        SkipBySeconds(-5);
         ShowToast("-5s");
     }
 
     [RelayCommand]
     public void FineForward()
     {
-        _playbackService.SkipSeconds(1);
-        if (TotalTime > TimeSpan.Zero)
-        {
-            CurrentTime = TimeSpan.FromSeconds(Math.Clamp(CurrentTime.TotalSeconds + 1, 0, TotalTime.TotalSeconds));
-            ProgressValue = (CurrentTime.TotalSeconds / TotalTime.TotalSeconds) * 100.0;
-            OnPropertyChanged(nameof(FormattedCurrentTime));
-        }
+        SkipBySeconds(1);
         ShowToast("+1s");
     }
 
     [RelayCommand]
     public void FineBackward()
     {
-        _playbackService.SkipSeconds(-1);
-        if (TotalTime > TimeSpan.Zero)
-        {
-            CurrentTime = TimeSpan.FromSeconds(Math.Clamp(CurrentTime.TotalSeconds - 1, 0, TotalTime.TotalSeconds));
-            ProgressValue = (CurrentTime.TotalSeconds / TotalTime.TotalSeconds) * 100.0;
-            OnPropertyChanged(nameof(FormattedCurrentTime));
-        }
+        SkipBySeconds(-1);
         ShowToast("-1s");
+    }
+
+    private void SkipBySeconds(int seconds)
+    {
+        if (TotalTime <= TimeSpan.Zero) return;
+        double targetSec = Math.Clamp(CurrentTime.TotalSeconds + seconds, 0, TotalTime.TotalSeconds);
+        long targetMs = (long)(targetSec * 1000.0);
+
+        AnchorSeconds = targetSec;
+        LastPositionTimeTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+        _seekSuppressionUntilTicks = LastPositionTimeTicks + (long)(0.40 * System.Diagnostics.Stopwatch.Frequency);
+
+        CurrentTime = TimeSpan.FromSeconds(targetSec);
+        ProgressValue = (targetSec / TotalTime.TotalSeconds) * 100.0;
+        OnPropertyChanged(nameof(FormattedCurrentTime));
+
+        _playbackService.SeekTime(targetMs);
     }
 
     public void OnSliderDragStarted()
@@ -439,20 +501,56 @@ public partial class PlayerViewModel : ObservableObject
     {
         _isDraggingSlider = false;
         float ratio = (float)(value / 100.0);
+        if (TotalTime > TimeSpan.Zero)
+        {
+            double targetSec = TotalTime.TotalSeconds * ratio;
+            AnchorSeconds = targetSec;
+            LastPositionTimeTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+            _seekSuppressionUntilTicks = LastPositionTimeTicks + (long)(0.40 * System.Diagnostics.Stopwatch.Frequency);
+            CurrentTime = TimeSpan.FromSeconds(targetSec);
+            ProgressValue = value;
+            OnPropertyChanged(nameof(FormattedCurrentTime));
+        }
         _playbackService.SetPosition(ratio);
     }
 
-    [RelayCommand]
-    public async Task AddBookmarkAsync(string? label = null)
+    public async Task AddBookmarkWithDetailsAsync(string? label, TimeSpan? endTimestamp, string? colorHex)
     {
         if (CurrentClip == null) return;
 
         double pos = ProgressValue / 100.0;
+        double? endPos = endTimestamp.HasValue && TotalTime > TimeSpan.Zero
+            ? Math.Clamp(endTimestamp.Value.TotalSeconds / TotalTime.TotalSeconds, 0.0, 1.0)
+            : null;
+
+        string finalLabel;
+        if (string.IsNullOrWhiteSpace(label))
+        {
+            if (endTimestamp.HasValue && endTimestamp.Value > CurrentTime)
+            {
+                string endStr = endTimestamp.Value.Hours > 0
+                    ? endTimestamp.Value.ToString(@"hh\:mm\:ss")
+                    : endTimestamp.Value.ToString(@"mm\:ss");
+                finalLabel = $"Moment {FormattedCurrentTime} - {endStr}";
+            }
+            else
+            {
+                finalLabel = $"Mark at {FormattedCurrentTime}";
+            }
+        }
+        else
+        {
+            finalLabel = label.Trim();
+        }
+
         var bookmark = new ClipBookmark
         {
             Timestamp = CurrentTime,
             PositionPercentage = pos,
-            Label = string.IsNullOrWhiteSpace(label) ? $"Mark at {FormattedCurrentTime}" : label.Trim()
+            EndTimestamp = endTimestamp,
+            EndPositionPercentage = endPos,
+            ColorHex = string.IsNullOrWhiteSpace(colorHex) ? "#FFD700" : colorHex,
+            Label = finalLabel
         };
 
         Bookmarks.Add(bookmark);
@@ -467,13 +565,26 @@ public partial class PlayerViewModel : ObservableObject
         list.Add(bookmark);
         await _storageService.SaveSettingsAsync(settings);
 
+        SortBookmarks();
+
         ShowToast(string.Format(_localizationService["Player_Toast_SavedMarker"], bookmark.FormattedTimestamp));
+    }
+
+    [RelayCommand]
+    public async Task AddBookmarkAsync(string? label = null)
+    {
+        await AddBookmarkWithDetailsAsync(label, null, null);
     }
 
     [RelayCommand]
     public async Task RemoveBookmarkAsync(ClipBookmark bookmark)
     {
         if (CurrentClip == null || bookmark == null) return;
+
+        if (ActiveBookmark?.Id == bookmark.Id)
+        {
+            ActiveBookmark = null;
+        }
 
         Bookmarks.Remove(bookmark);
         CurrentClip.Bookmarks.Remove(bookmark);
@@ -508,10 +619,81 @@ public partial class PlayerViewModel : ObservableObject
         ShowToast(string.Format(_localizationService["Player_Toast_RenamedMoment"], trimmed));
     }
 
+    public async Task UpdateBookmarkDetailsAsync(ClipBookmark bookmark, TimeSpan newStart, TimeSpan? newEnd, string newLabel, string newColor)
+    {
+        if (CurrentClip == null || bookmark == null) return;
+
+        bookmark.Timestamp = newStart;
+        bookmark.EndTimestamp = newEnd;
+        bookmark.PositionPercentage = TotalTime > TimeSpan.Zero
+            ? Math.Clamp(newStart.TotalSeconds / TotalTime.TotalSeconds, 0.0, 1.0)
+            : 0.0;
+        bookmark.EndPositionPercentage = newEnd.HasValue && TotalTime > TimeSpan.Zero
+            ? Math.Clamp(newEnd.Value.TotalSeconds / TotalTime.TotalSeconds, 0.0, 1.0)
+            : null;
+
+        string trimmed = string.IsNullOrWhiteSpace(newLabel) ? $"Mark at {bookmark.FormattedTimestamp}" : newLabel.Trim();
+        bookmark.Label = trimmed;
+
+        if (!string.IsNullOrWhiteSpace(newColor))
+        {
+            bookmark.ColorHex = newColor;
+        }
+
+        var settings = _storageService.CurrentSettings;
+        if (settings.Bookmarks.TryGetValue(CurrentClip.FilePath, out var list))
+        {
+            var match = list.Find(b => b.Id == bookmark.Id);
+            if (match != null)
+            {
+                match.Timestamp = bookmark.Timestamp;
+                match.EndTimestamp = bookmark.EndTimestamp;
+                match.PositionPercentage = bookmark.PositionPercentage;
+                match.EndPositionPercentage = bookmark.EndPositionPercentage;
+                match.Label = bookmark.Label;
+                match.ColorHex = bookmark.ColorHex;
+            }
+            await _storageService.SaveSettingsAsync(settings);
+        }
+
+        SortBookmarks();
+
+        ShowToast(string.Format(_localizationService["Player_Toast_ChangedMoment"], bookmark.Label));
+    }
+
+    private void SortBookmarks()
+    {
+        var sorted = Bookmarks.OrderBy(b => b.Timestamp).ToList();
+        Bookmarks.Clear();
+        foreach (var b in sorted)
+        {
+            Bookmarks.Add(b);
+        }
+        if (CurrentClip != null)
+        {
+            var clipSorted = CurrentClip.Bookmarks.OrderBy(b => b.Timestamp).ToList();
+            CurrentClip.Bookmarks.Clear();
+            foreach (var b in clipSorted)
+            {
+                CurrentClip.Bookmarks.Add(b);
+            }
+        }
+    }
+
     [RelayCommand]
     public void JumpToBookmark(ClipBookmark bookmark)
     {
         if (bookmark == null) return;
+        double targetSec = bookmark.Timestamp.TotalSeconds;
+        AnchorSeconds = targetSec;
+        LastPositionTimeTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+        _seekSuppressionUntilTicks = LastPositionTimeTicks + (long)(0.40 * System.Diagnostics.Stopwatch.Frequency);
+        CurrentTime = bookmark.Timestamp;
+        if (TotalTime > TimeSpan.Zero)
+        {
+            ProgressValue = Math.Clamp(targetSec / TotalTime.TotalSeconds * 100.0, 0.0, 100.0);
+        }
+        OnPropertyChanged(nameof(FormattedCurrentTime));
         _playbackService.SeekTime((long)bookmark.Timestamp.TotalMilliseconds);
         ShowToast(string.Format(_localizationService["Player_Toast_JumpedTo"], bookmark.FormattedTimestamp));
     }

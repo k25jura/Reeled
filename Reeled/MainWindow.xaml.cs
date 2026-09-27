@@ -106,22 +106,10 @@ public sealed partial class MainWindow : Window
     private static extern bool EnumChildWindows(IntPtr hwndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
     private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
-    private static readonly byte[] _blankAndMask = new byte[] { 0xFF };
-    private static readonly byte[] _blankXorMask = new byte[] { 0x00 };
-    private IntPtr _blankCursor = IntPtr.Zero;
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+    private const int DWMWA_TRANSITIONS_FORCEDISABLED = 3;
 
-    private IntPtr GetOrCreateBlankCursor()
-    {
-        if (_blankCursor == IntPtr.Zero)
-        {
-            try
-            {
-                _blankCursor = CreateCursor(IntPtr.Zero, 0, 0, 1, 1, _blankAndMask, _blankXorMask);
-            }
-            catch { }
-        }
-        return _blankCursor;
-    }
 
     public MainWindow()
     {
@@ -173,8 +161,22 @@ public sealed partial class MainWindow : Window
             }
         });
 
+        Activated += (s, e) =>
+        {
+            if (e.WindowActivationState == WindowActivationState.Deactivated)
+            {
+                SetCursorHidden(false);
+            }
+        };
+
+        AppWindow.Closing += (s, e) =>
+        {
+            Helpers.CursorHelper.RestoreGlobalCursor();
+        };
+
         Closed += (s, e) =>
         {
+            Helpers.CursorHelper.RestoreGlobalCursor();
             try
             {
                 var playbackService = App.GetService<ILibVlcPlaybackService>();
@@ -446,6 +448,14 @@ public sealed partial class MainWindow : Window
         var playerVM = App.GetService<PlayerViewModel>();
         playerVM.IsFullscreen = isFullscreen;
 
+        try
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            int disableTransitions = isFullscreen ? 1 : 0;
+            DwmSetWindowAttribute(hwnd, DWMWA_TRANSITIONS_FORCEDISABLED, ref disableTransitions, sizeof(int));
+        }
+        catch { }
+
         if (isFullscreen)
         {
             AppWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen);
@@ -483,27 +493,33 @@ public sealed partial class MainWindow : Window
     public void SetCursorHidden(bool hide)
     {
         if (_isCursorHidden == hide) return;
-        _isCursorHidden = hide;
-
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
 
         if (hide)
         {
+            var settingsService = App.GetService<Services.ILocalStorageService>();
+            if (settingsService?.CurrentSettings?.AutoHideCursor == false)
+            {
+                return;
+            }
+
+            _isCursorHidden = true;
+            Helpers.CursorHelper.HideGlobalCursor();
+
+            var blank = Helpers.CursorHelper.GetBlankInputCursor();
+            Helpers.CursorHelper.SetElementCursor(RootWindowGrid, blank);
+            Helpers.CursorHelper.SetElementCursor(PlayerOverlayContainer, blank);
+
             EnsureChildWindowsSubclassed();
 
-            while (ShowCursor(false) >= 0) { }
-            IntPtr blank = GetOrCreateBlankCursor();
-            if (blank != IntPtr.Zero)
+            IntPtr blankH = Helpers.CursorHelper.GetBlankHCursor();
+            if (blankH != IntPtr.Zero)
             {
-                SetCursor(blank);
-            }
-            else
-            {
-                SetCursor(IntPtr.Zero);
+                SetCursor(blankH);
             }
 
             try
             {
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
                 SendMessage(hwnd, WM_SETCURSOR, hwnd, (IntPtr)1);
                 EnumChildWindows(hwnd, (childHwnd, lParam) =>
                 {
@@ -515,11 +531,17 @@ public sealed partial class MainWindow : Window
         }
         else
         {
-            while (ShowCursor(true) < 0) { }
+            _isCursorHidden = false;
+            Helpers.CursorHelper.RestoreGlobalCursor();
+
+            Helpers.CursorHelper.SetElementCursor(RootWindowGrid, null);
+            Helpers.CursorHelper.SetElementCursor(PlayerOverlayContainer, null);
+
             SetCursor(LoadCursor(IntPtr.Zero, IDC_ARROW));
 
             try
             {
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
                 SendMessage(hwnd, WM_SETCURSOR, hwnd, (IntPtr)1);
                 EnumChildWindows(hwnd, (childHwnd, lParam) =>
                 {
@@ -624,14 +646,10 @@ public sealed partial class MainWindow : Window
     {
         if (uMsg == WM_SETCURSOR && _isCursorHidden)
         {
-            IntPtr blank = GetOrCreateBlankCursor();
+            IntPtr blank = Helpers.CursorHelper.GetBlankHCursor();
             if (blank != IntPtr.Zero)
             {
                 SetCursor(blank);
-            }
-            else
-            {
-                SetCursor(IntPtr.Zero);
             }
             return (IntPtr)1;
         }

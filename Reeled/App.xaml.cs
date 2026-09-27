@@ -22,6 +22,7 @@ public partial class App : Application
 
         UnhandledException += (sender, args) =>
         {
+            Helpers.CursorHelper.RestoreGlobalCursor();
             try
             {
                 string log = $"[UnhandledException] {DateTime.Now}\nMessage: {args.Message}\nException: {args.Exception}\nStackTrace:\n{args.Exception?.StackTrace}\n\n";
@@ -33,12 +34,18 @@ public partial class App : Application
 
         AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
         {
+            Helpers.CursorHelper.RestoreGlobalCursor();
             try
             {
                 string log = $"[AppDomain Unhandled] {DateTime.Now}\nExceptionObject: {args.ExceptionObject}\n\n";
                 System.IO.File.AppendAllText("reeled_crash.log", log);
             }
             catch { }
+        };
+
+        AppDomain.CurrentDomain.ProcessExit += (sender, args) =>
+        {
+            Helpers.CursorHelper.RestoreGlobalCursor();
         };
 
         Services = ConfigureServices();

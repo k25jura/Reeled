@@ -36,13 +36,16 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
     private int _storedVolume = 100;
     private bool _storedMute = false;
     private float _storedPlaybackRate = 1.0f;
-    public int Volume => _mediaPlayer != null ? _mediaPlayer.Volume : _storedVolume;
+    public int Volume => _storedVolume;
     public bool IsMuted => _mediaPlayer != null ? _mediaPlayer.Mute : _storedMute;
     public float PlaybackRate => _mediaPlayer != null ? _mediaPlayer.Rate : _storedPlaybackRate;
     public int CurrentAudioTrack => _mediaPlayer?.AudioTrack ?? -1;
 
     private readonly List<MediaPlayer> _secondaryAudioPlayers = new();
+    private readonly Dictionary<int, MediaPlayer> _secondaryPlayersByTrack = new();
     private readonly List<int> _activeAudioTracks = new();
+    private CancellationTokenSource? _secondaryAudioCts;
+    private long _lastSecondarySyncTimestamp;
 
     public IReadOnlyList<int> ActiveAudioTracks
     {
@@ -50,7 +53,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         {
             lock (_secondaryAudioPlayers)
             {
-                return _activeAudioTracks.Count > 0 ? _activeAudioTracks.ToArray() : (CurrentAudioTrack > 0 ? new[] { CurrentAudioTrack } : Array.Empty<int>());
+                return _activeAudioTracks.Count > 0 ? _activeAudioTracks.ToArray() : (CurrentAudioTrack >= 0 ? new[] { CurrentAudioTrack } : Array.Empty<int>());
             }
         }
     }
@@ -91,7 +94,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
 
     public bool SetAudioTrack(int trackId)
     {
-        return SetAudioTracks(trackId > 0 ? new[] { trackId } : Array.Empty<int>());
+        return SetAudioTracks(trackId >= 0 ? new[] { trackId } : Array.Empty<int>());
     }
 
     public bool SetAudioTracks(IEnumerable<int> trackIds)
@@ -99,7 +102,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         var validTracks = new List<int>();
         foreach (int t in trackIds)
         {
-            if (t > 0 && !validTracks.Contains(t))
+            if (t >= 0 && !validTracks.Contains(t))
             {
                 validTracks.Add(t);
             }
@@ -144,6 +147,17 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
     {
         lock (_secondaryAudioPlayers)
         {
+            if (_secondaryAudioCts != null)
+            {
+                try
+                {
+                    _secondaryAudioCts.Cancel();
+                    _secondaryAudioCts.Dispose();
+                }
+                catch { }
+                _secondaryAudioCts = null;
+            }
+
             foreach (var p in _secondaryAudioPlayers)
             {
                 try
@@ -154,6 +168,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
                 catch { }
             }
             _secondaryAudioPlayers.Clear();
+            _secondaryPlayersByTrack.Clear();
         }
     }
 
@@ -166,6 +181,10 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         string filePath = _currentFilePath;
         lock (_secondaryAudioPlayers)
         {
+            var cts = new CancellationTokenSource();
+            _secondaryAudioCts = cts;
+            var token = cts.Token;
+
             foreach (int trackId in secondaryTracks)
             {
                 try
@@ -177,18 +196,22 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
                     media.AddOption(":no-sub-autodetect-file");
                     media.AddOption($":audio-track-id={trackId}");
                     slavePlayer.Media = media;
-                    slavePlayer.Volume = Math.Clamp(Volume, 0, 150);
+                    slavePlayer.Volume = _storedVolume;
                     slavePlayer.Mute = IsMuted;
                     slavePlayer.SetRate(PlaybackRate);
+                    _secondaryPlayersByTrack[trackId] = slavePlayer;
 
                     int targetTrack = trackId;
                     slavePlayer.Playing += (s, e) =>
                     {
+                        if (token.IsCancellationRequested) return;
                         Dispatch(() =>
                         {
                             try
                             {
+                                if (token.IsCancellationRequested) return;
                                 slavePlayer.SetAudioTrack(targetTrack);
+                                slavePlayer.Volume = _storedVolume;
                                 if (_mediaPlayer != null)
                                 {
                                     long t = _mediaPlayer.Time;
@@ -212,9 +235,20 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
                     {
                         for (int r = 0; r < 5; r++)
                         {
-                            await Task.Delay(100);
+                            if (token.IsCancellationRequested) break;
                             try
                             {
+                                await Task.Delay(100, token);
+                            }
+                            catch
+                            {
+                                break;
+                            }
+                            if (token.IsCancellationRequested) break;
+
+                            try
+                            {
+                                if (token.IsCancellationRequested) break;
                                 if (slavePlayer.AudioTrack != targetTrack)
                                 {
                                     slavePlayer.SetAudioTrack(targetTrack);
@@ -234,7 +268,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
                             }
                             catch { }
                         }
-                    });
+                    }, token);
 
                     _secondaryAudioPlayers.Add(slavePlayer);
                 }
@@ -367,6 +401,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
             {
                 "--no-osd",
                 "--no-video-title-show",
+                "--no-mouse-events",
                 "--drop-late-frames",
                 "--skip-frames",
                 "--file-caching=300",
@@ -382,6 +417,8 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
 
             _libVLC = new LibVLC(enableDebugLogs: false, options.ToArray());
             _mediaPlayer = new MediaPlayer(_libVLC);
+            _mediaPlayer.EnableMouseInput = false;
+            _mediaPlayer.EnableKeyInput = false;
             RegisterPlayerEvents(_mediaPlayer);
         }
         catch (Exception ex)
@@ -389,6 +426,8 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
             try { File.AppendAllText("reeled_crash.log", $"[InitializeEngine Error] {ex}\n"); } catch { }
             _libVLC = new LibVLC();
             _mediaPlayer = new MediaPlayer(_libVLC);
+            _mediaPlayer.EnableMouseInput = false;
+            _mediaPlayer.EnableKeyInput = false;
             RegisterPlayerEvents(_mediaPlayer);
         }
     }
@@ -453,11 +492,17 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
             }
             lock (_secondaryAudioPlayers)
             {
-                foreach (var p in _secondaryAudioPlayers)
+                long now = Environment.TickCount64;
+                if (now - _lastSecondarySyncTimestamp > 3000)
                 {
-                    if (p.IsPlaying && Math.Abs(p.Time - e.Time) > 250)
+                    foreach (var p in _secondaryAudioPlayers)
                     {
-                        p.Time = e.Time;
+                        if (p.IsPlaying && Math.Abs(p.Time - e.Time) > 1500)
+                        {
+                            _lastSecondarySyncTimestamp = now;
+                            p.Time = e.Time;
+                            break;
+                        }
                     }
                 }
             }
@@ -468,7 +513,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         {
             if (_mediaPlayer != null)
             {
-                _mediaPlayer.Volume = Math.Clamp(_storedVolume, 0, 150);
+                ApplyAllVolumes();
                 _mediaPlayer.Mute = _storedMute;
                 if (_storedPlaybackRate > 0.1f)
                 {
@@ -482,7 +527,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
             {
                 if (_mediaPlayer != null && _mediaPlayer.IsPlaying)
                 {
-                    _mediaPlayer.Volume = Math.Clamp(_storedVolume, 0, 150);
+                    ApplyAllVolumes();
                     _mediaPlayer.Mute = _storedMute;
                     if (_storedPlaybackRate > 0.1f)
                     {
@@ -501,6 +546,16 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
                 }
             }));
             Task.Delay(350).ContinueWith(_ => Dispatch(() =>
+            {
+                AudioTracksChanged?.Invoke();
+                SubtitlesChanged?.Invoke();
+            }));
+            Task.Delay(800).ContinueWith(_ => Dispatch(() =>
+            {
+                AudioTracksChanged?.Invoke();
+                SubtitlesChanged?.Invoke();
+            }));
+            Task.Delay(1400).ContinueWith(_ => Dispatch(() =>
             {
                 AudioTracksChanged?.Invoke();
                 SubtitlesChanged?.Invoke();
@@ -529,6 +584,12 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
             return;
 
+        StopSecondaryAudio();
+        lock (_secondaryAudioPlayers)
+        {
+            _activeAudioTracks.Clear();
+        }
+
         _currentFilePath = filePath;
 
         if (_libVLC == null || _mediaPlayer == null || _currentSwapChainOptions == null)
@@ -545,19 +606,6 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
                 var newMedia = new Media(_libVLC, filePath, FromType.FromPath);
                 _currentMedia = newMedia;
                 _mediaPlayer.Play(newMedia);
-
-                lock (_secondaryAudioPlayers)
-                {
-                    if (_activeAudioTracks.Count > 1)
-                    {
-                        var secondary = new List<int>();
-                        for (int i = 1; i < _activeAudioTracks.Count; i++)
-                        {
-                            secondary.Add(_activeAudioTracks[i]);
-                        }
-                        Task.Delay(300).ContinueWith(_ => Dispatch(() => SyncSecondaryAudioTracks(secondary)));
-                    }
-                }
 
                 if (oldMedia != null)
                 {
@@ -685,20 +733,25 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         });
     }
 
-    public void SetVolume(int volume)
+    private void ApplyAllVolumes()
     {
-        _storedVolume = Math.Clamp(volume, 0, 150);
         if (_mediaPlayer != null)
         {
             _mediaPlayer.Volume = _storedVolume;
         }
         lock (_secondaryAudioPlayers)
         {
-            foreach (var p in _secondaryAudioPlayers)
+            foreach (var kvp in _secondaryPlayersByTrack)
             {
-                p.Volume = _storedVolume;
+                kvp.Value.Volume = _storedVolume;
             }
         }
+    }
+
+    public void SetVolume(int volume)
+    {
+        _storedVolume = Math.Clamp(volume, 0, 150);
+        ApplyAllVolumes();
     }
 
     public void SetMute(bool isMuted)

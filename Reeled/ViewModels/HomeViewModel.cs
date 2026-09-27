@@ -35,6 +35,7 @@ public partial class HomeViewModel : ObservableObject
     public ObservableCollection<GameClip> AllClips { get; } = new();
     public ObservableCollection<GameClip> Clips { get; } = new();
     public ObservableCollection<GameClip> FilteredClips { get; } = new();
+    public ObservableCollection<ClipGroup> GroupedClips { get; } = new();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsHomeSelected))]
@@ -71,7 +72,38 @@ public partial class HomeViewModel : ObservableObject
     private string _searchQuery = string.Empty;
 
     [ObservableProperty]
-    private int _sortIndex = 0; // 0: Newest, 1: Oldest, 2: Name, 3: Duration, 4: Size
+    private int _sortIndex = 0; // 0: Newest, 1: Oldest, 2: Name A-Z, 3: Name Z-A, 4: Duration, 5: Size
+
+    [ObservableProperty]
+    private DateGroupingMode _dateGrouping = DateGroupingMode.None;
+
+    partial void OnDateGroupingChanged(DateGroupingMode value)
+    {
+        var settings = _storageService.CurrentSettings;
+        settings.DateGrouping = value;
+        _ = _storageService.SaveSettingsAsync(settings);
+        RegroupClips();
+    }
+
+    [ObservableProperty]
+    private ViewDensityMode _viewDensity = ViewDensityMode.Comfortable;
+
+    partial void OnViewDensityChanged(ViewDensityMode value)
+    {
+        var settings = _storageService.CurrentSettings;
+        settings.ViewDensity = value;
+        _ = _storageService.SaveSettingsAsync(settings);
+    }
+
+    [ObservableProperty]
+    private bool _metadataHoverOnly = false;
+
+    partial void OnMetadataHoverOnlyChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        settings.MetadataHoverOnly = value;
+        _ = _storageService.SaveSettingsAsync(settings);
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
@@ -192,6 +224,7 @@ public partial class HomeViewModel : ObservableObject
         {
             clip.RefreshFormattedStrings();
         }
+        RegroupClips();
     }
 
     [ObservableProperty]
@@ -278,6 +311,18 @@ public partial class HomeViewModel : ObservableObject
         _localizationService = localizationService;
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
+        var settings = _storageService.CurrentSettings;
+        _enableSkeletonLoading = settings.EnableSkeletonLoading;
+        _showMomentsBadges = settings.ShowMomentsBadges;
+        _dateGrouping = settings.DateGrouping;
+        _viewDensity = settings.ViewDensity;
+        _metadataHoverOnly = settings.MetadataHoverOnly;
+        _sortIndex = settings.SortIndex;
+        if (settings.SidebarWidth > 0)
+        {
+            _sidebarWidth = settings.SidebarWidth;
+        }
+
         _indexerService.ClipAdded += OnClipAdded;
         _indexerService.ClipDeleted += OnClipDeleted;
         _indexerService.ClipRenamed += OnClipRenamed;
@@ -292,6 +337,10 @@ public partial class HomeViewModel : ObservableObject
     {
         EnableSkeletonLoading = _storageService.CurrentSettings.EnableSkeletonLoading;
         ShowMomentsBadges = _storageService.CurrentSettings.ShowMomentsBadges;
+        DateGrouping = _storageService.CurrentSettings.DateGrouping;
+        ViewDensity = _storageService.CurrentSettings.ViewDensity;
+        MetadataHoverOnly = _storageService.CurrentSettings.MetadataHoverOnly;
+        SortIndex = _storageService.CurrentSettings.SortIndex;
         await SyncDirectoriesAsync();
     }
 
@@ -384,15 +433,32 @@ public partial class HomeViewModel : ObservableObject
         IsLoading = true;
         StatusMessage = "Loading watch directories...";
 
-        var trees = await _indexerService.BuildDirectoryTreesAsync(settings.WatchDirectories);
-        Directories.Clear();
-        foreach (var tree in trees)
+        var expandedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        void CollectExpanded(IEnumerable<DirectoryNode> nodes)
         {
-            Directories.Add(tree);
+            foreach (var node in nodes)
+            {
+                if (node.IsExpanded) expandedPaths.Add(node.FullPath);
+                CollectExpanded(node.SubDirectories);
+            }
         }
+        CollectExpanded(Directories);
+
+        var trees = await _indexerService.BuildDirectoryTreesAsync(settings.WatchDirectories);
+        void RestoreExpanded(IEnumerable<DirectoryNode> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                if (expandedPaths.Contains(node.FullPath))
+                {
+                    node.IsExpanded = true;
+                }
+                RestoreExpanded(node.SubDirectories);
+            }
+        }
+        RestoreExpanded(trees);
 
         _indexerService.UpdateWatchers(settings.WatchDirectories);
-        OnPropertyChanged(nameof(HasDirectories));
 
         var allClipsList = new List<GameClip>();
         foreach (var dir in settings.WatchDirectories)
@@ -423,8 +489,43 @@ public partial class HomeViewModel : ObservableObject
                 }
             }
 
+            if (settings.CustomClipTitles.TryGetValue(clip.FilePath, out var customTitle) && !string.IsNullOrWhiteSpace(customTitle))
+            {
+                clip.CustomTitle = customTitle;
+            }
+
             AllClips.Add(clip);
         }
+
+        void UpdateNodeClipCounts(DirectoryNode node)
+        {
+            foreach (var sub in node.SubDirectories)
+            {
+                UpdateNodeClipCounts(sub);
+            }
+
+            if (node.IsWatchRoot)
+            {
+                node.ClipCount = AllClips.Count(c => c.FilePath.StartsWith(node.FullPath, StringComparison.OrdinalIgnoreCase));
+            }
+            else
+            {
+                node.ClipCount = AllClips.Count(c => string.Equals(c.DirectoryPath, node.FullPath, StringComparison.OrdinalIgnoreCase)
+                                                  || c.FilePath.StartsWith(node.FullPath + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        foreach (var tree in trees)
+        {
+            UpdateNodeClipCounts(tree);
+        }
+
+        Directories.Clear();
+        foreach (var tree in trees)
+        {
+            Directories.Add(tree);
+        }
+        OnPropertyChanged(nameof(HasDirectories));
 
         _loadedWatchDirectories.Clear();
         foreach (var d in settings.WatchDirectories)
@@ -688,6 +789,26 @@ public partial class HomeViewModel : ObservableObject
         UpdateCounts();
     }
 
+    public async Task SetClipCustomTitleAsync(GameClip? clip, string? newTitle)
+    {
+        if (clip == null) return;
+        newTitle = string.IsNullOrWhiteSpace(newTitle) ? null : newTitle.Trim();
+
+        clip.CustomTitle = newTitle;
+        var settings = _storageService.CurrentSettings;
+        if (newTitle == null)
+        {
+            settings.CustomClipTitles.Remove(clip.FilePath);
+        }
+        else
+        {
+            settings.CustomClipTitles[clip.FilePath] = newTitle;
+        }
+        await _storageService.SaveSettingsAsync(settings);
+        StatusMessage = newTitle != null ? $"Title updated: {newTitle}" : "Reset to original file name";
+        ApplyFilterAndSort();
+    }
+
     [RelayCommand]
     public void OpenSettings()
     {
@@ -701,6 +822,9 @@ public partial class HomeViewModel : ObservableObject
 
     partial void OnSortIndexChanged(int value)
     {
+        var settings = _storageService.CurrentSettings;
+        settings.SortIndex = value;
+        _ = _storageService.SaveSettingsAsync(settings);
         ApplyFilterAndSort();
     }
 
@@ -710,16 +834,18 @@ public partial class HomeViewModel : ObservableObject
 
         if (!string.IsNullOrWhiteSpace(SearchQuery))
         {
-            query = query.Where(c => c.FileName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
+            query = query.Where(c => c.FileName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                                     c.DisplayName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
         }
 
         query = SortIndex switch
         {
             0 => query.OrderByDescending(c => c.EffectiveDate),
             1 => query.OrderBy(c => c.EffectiveDate),
-            2 => query.OrderBy(c => c.FileName, StringComparer.OrdinalIgnoreCase),
-            3 => query.OrderByDescending(c => c.Duration),
-            4 => query.OrderByDescending(c => c.FileSizeBytes),
+            2 => query.OrderBy(c => c.DisplayName, StringComparer.OrdinalIgnoreCase),
+            3 => query.OrderByDescending(c => c.DisplayName, StringComparer.OrdinalIgnoreCase),
+            4 => query.OrderByDescending(c => c.Duration),
+            5 => query.OrderByDescending(c => c.FileSizeBytes),
             _ => query
         };
 
@@ -728,8 +854,131 @@ public partial class HomeViewModel : ObservableObject
         {
             FilteredClips.Add(c);
         }
+
+        RegroupClips();
         OnPropertyChanged(nameof(HasClips));
         OnPropertyChanged(nameof(ShowEmptyState));
+    }
+
+    public void RegroupClips()
+    {
+        GroupedClips.Clear();
+        if (FilteredClips.Count == 0)
+        {
+            return;
+        }
+
+        if (DateGrouping == DateGroupingMode.None)
+        {
+            var flatGroup = new ClipGroup("all", string.Empty, string.Empty, FilteredClips, isHeaderVisible: false);
+            GroupedClips.Add(flatGroup);
+            return;
+        }
+
+        var loc = _localizationService ?? App.GetService<ILocalizationService>();
+        var culture = loc?.CurrentCulture ?? System.Globalization.CultureInfo.CurrentCulture;
+        string todayStr = loc?["Date_Today"] ?? "Today";
+        string yesterdayStr = loc?["Date_Yesterday"] ?? "Yesterday";
+        var now = DateTime.Now.Date;
+
+        IEnumerable<IGrouping<string, GameClip>> groups = DateGrouping switch
+        {
+            DateGroupingMode.Day => FilteredClips.GroupBy(c => c.EffectiveDate.Date.ToString("yyyy-MM-dd")),
+            DateGroupingMode.Month => FilteredClips.GroupBy(c => c.EffectiveDate.ToString("yyyy-MM")),
+            DateGroupingMode.Year => FilteredClips.GroupBy(c => c.EffectiveDate.ToString("yyyy")),
+            _ => FilteredClips.GroupBy(c => "all")
+        };
+
+        bool isFirst = true;
+        foreach (var group in groups)
+        {
+            var firstClip = group.First();
+            var dt = firstClip.EffectiveDate.ToLocalTime();
+            string title;
+
+            if (DateGrouping == DateGroupingMode.Day)
+            {
+                var diff = now - dt.Date;
+                if (diff.TotalDays == 0)
+                {
+                    title = $"{todayStr} • {FormatGroupDate(dt, culture, includeDayOfWeek: false)}";
+                }
+                else if (diff.TotalDays == 1)
+                {
+                    title = $"{yesterdayStr} • {FormatGroupDate(dt, culture, includeDayOfWeek: false)}";
+                }
+                else
+                {
+                    title = FormatGroupDate(dt, culture, includeDayOfWeek: true);
+                }
+            }
+            else if (DateGrouping == DateGroupingMode.Month)
+            {
+                title = FormatGroupMonth(dt, culture);
+            }
+            else
+            {
+                title = dt.ToString("yyyy", culture);
+            }
+
+            int count = group.Count();
+            long totalBytes = group.Sum(c => c.FileSizeBytes);
+            string sizeFormatted = FormatBytes(totalBytes, loc, culture);
+            string pluralClip = loc != null ? loc.FormatPlural("Plural_Clip", count) : (count == 1 ? "clip" : "clips");
+            string subtitle = $"{count} {pluralClip} • {sizeFormatted}";
+
+            var clipGroup = new ClipGroup(group.Key, title, subtitle, group, isHeaderVisible: true)
+            {
+                ShowGroupDivider = !isFirst
+            };
+            isFirst = false;
+            GroupedClips.Add(clipGroup);
+        }
+    }
+
+    private static string FormatGroupDate(DateTime dt, System.Globalization.CultureInfo culture, bool includeDayOfWeek)
+    {
+        bool dayFirst = culture.DateTimeFormat.LongDatePattern.IndexOf('d') < culture.DateTimeFormat.LongDatePattern.IndexOf('M');
+        string pattern;
+        if (includeDayOfWeek)
+        {
+            pattern = dayFirst ? "dddd, d MMMM yyyy" : "dddd, MMMM d, yyyy";
+        }
+        else
+        {
+            pattern = dayFirst ? "d MMMM yyyy" : "MMMM d, yyyy";
+        }
+
+        string result = dt.ToString(pattern, culture);
+        if (!string.IsNullOrEmpty(result) && char.IsLower(result[0]))
+        {
+            result = char.ToUpper(result[0], culture) + result.Substring(1);
+        }
+        return result;
+    }
+
+    private static string FormatGroupMonth(DateTime dt, System.Globalization.CultureInfo culture)
+    {
+        string result = dt.ToString("MMMM yyyy", culture);
+        if (!string.IsNullOrEmpty(result) && char.IsLower(result[0]))
+        {
+            result = char.ToUpper(result[0], culture) + result.Substring(1);
+        }
+        return result;
+    }
+
+    private static string FormatBytes(long total, ILocalizationService? loc, System.Globalization.CultureInfo culture)
+    {
+        string bUnit = loc?["Unit_Byte"] ?? "B";
+        string kbUnit = loc?["Unit_KB"] ?? "KB";
+        string mbUnit = loc?["Unit_MB"] ?? "MB";
+        string gbUnit = loc?["Unit_GB"] ?? "GB";
+
+        if (total < 1024) return string.Format(culture, "{0} {1}", total, bUnit);
+        double mb = total / (1024.0 * 1024.0);
+        if (mb < 1024) return string.Format(culture, "{0:F1} {1}", mb, mbUnit);
+        double gb = mb / 1024.0;
+        return string.Format(culture, "{0:F2} {1}", gb, gbUnit);
     }
 
     private void OnClipAdded(string filePath)

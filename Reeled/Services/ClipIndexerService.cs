@@ -144,7 +144,7 @@ public class ClipIndexerService : IClipIndexerService
             }
 
             int subClipsTotal = node.SubDirectories.Sum(s => s.ClipCount);
-            node.ClipCount = directClips > 0 ? directClips : subClipsTotal;
+            node.ClipCount = directClips + subClipsTotal;
             node.HasSubDirectories = node.SubDirectories.Count > 0;
         }
         catch (Exception)

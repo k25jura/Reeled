@@ -181,7 +181,8 @@ public sealed partial class SettingsPage : Page
     private void OnDefaultVolumeSliderValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
         if (_isInitializing) return;
-        int newVol = (int)Math.Round(e.NewValue);
+        int newVol = (int)Math.Round(e.NewValue / 5.0) * 5;
+        newVol = Math.Clamp(newVol, 0, 100);
         if (ViewModel.Volume != newVol)
         {
             ViewModel.SetVolume(newVol);
@@ -970,6 +971,8 @@ public sealed partial class SettingsPage : Page
         if (DefaultRepeatSubtitleText != null) DefaultRepeatSubtitleText.Text = loc["Playback_RepeatModeSubtitle"];
         if (AutoHideTitleText != null) AutoHideTitleText.Text = loc["Playback_AutoHideTitle"];
         if (AutoHideSubtitleText != null) AutoHideSubtitleText.Text = loc["Playback_AutoHideSubtitle"];
+        if (AutoHideCursorTitleText != null) AutoHideCursorTitleText.Text = loc["Playback_AutoHideCursorTitle"];
+        if (AutoHideCursorSubtitleText != null) AutoHideCursorSubtitleText.Text = loc["Playback_AutoHideCursorSubtitle"];
         if (OsdTitleText != null) OsdTitleText.Text = loc["Playback_OsdTitle"];
         if (OsdSubtitleText != null) OsdSubtitleText.Text = loc["Playback_OsdSubtitle"];
 
@@ -979,6 +982,8 @@ public sealed partial class SettingsPage : Page
         if (AppThemeSubtitleText != null) AppThemeSubtitleText.Text = loc["Appearance_ThemeSubtitle"];
         if (MomentsBadgesTitleText != null) MomentsBadgesTitleText.Text = loc["Appearance_MomentsBadgesTitle"];
         if (MomentsBadgesSubtitleText != null) MomentsBadgesSubtitleText.Text = loc["Appearance_MomentsBadgesSubtitle"];
+        if (BackdropBlurTitleText != null) BackdropBlurTitleText.Text = loc["Appearance_BackdropBlurTitle"];
+        if (BackdropBlurSubtitleText != null) BackdropBlurSubtitleText.Text = loc["Appearance_BackdropBlurSubtitle"];
 
         // 4. Language & Region Section
         if (LocalizationSectionTitle != null) LocalizationSectionTitle.Text = loc["Language_SectionTitle"];

@@ -39,6 +39,86 @@
             <Setter Property="MinHeight" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+        </Style>
+
+        <AcrylicBrush x:Key="PlayerFlyoutBackdropBrush"
+                      TintColor="#161616"
+                      TintOpacity="0.72"
+                      TintLuminosityOpacity="0.65"
+                      FallbackColor="#C4161616" />
+
+        <Style x:Key="PlayerFlyoutPresenterStyle" TargetType="FlyoutPresenter">
+            <Setter Property="Background" Value="{StaticResource PlayerFlyoutBackdropBrush}" />
+            <Setter Property="BorderBrush" Value="#303030" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+
+        <Style x:Key="ActiveMomentDotDismissButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="MomentColorCircleButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#40FFFFFF" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="RootGrid" Background="Transparent" Width="{TemplateBinding Width}" Height="{TemplateBinding Height}">
+                            <Ellipse x:Name="BackgroundEllipse"
+                                     Fill="{TemplateBinding Background}"
+                                     Stroke="{TemplateBinding BorderBrush}"
+                                     StrokeThickness="{TemplateBinding BorderThickness}"
+                                     Width="{TemplateBinding Width}"
+                                     Height="{TemplateBinding Height}" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal" />
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Target="BackgroundEllipse.Stroke" Value="#E0FFFFFF" />
+                                            <Setter Target="BackgroundEllipse.StrokeThickness" Value="2" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Target="BackgroundEllipse.Stroke" Value="#FFFFFFFF" />
+                                            <Setter Target="BackgroundEllipse.StrokeThickness" Value="2" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <VisualState.Setters>
+                                            <Setter Target="RootGrid.Opacity" Value="0.4" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Page.Resources>
 
@@ -53,37 +133,40 @@
                            Initialized="OnVideoViewInitialized" />
 
             <!-- Pause / Play Big Overlay Indicator on Click -->
-            <Button HorizontalAlignment="Stretch" 
+            <Button x:Name="MediaOverlayButton"
+                    HorizontalAlignment="Stretch" 
                     VerticalAlignment="Stretch" 
                     Command="{x:Bind ViewModel.TogglePlayPauseCommand}"
                     DoubleTapped="OnVideoOverlayDoubleTapped"
                     Style="{StaticResource CleanMediaOverlayButtonStyle}" />
         </Grid>
 
-        <!-- VLC-style OSD Notification in Top Right Corner with solid black outline stroke -->
+        <!-- VLC-style OSD Notification at top center with solid black outline stroke -->
         <Grid x:Name="OsdToastContainer" 
-              HorizontalAlignment="Right" 
+              HorizontalAlignment="Center" 
               VerticalAlignment="Top" 
-              Margin="0,48,48,0" 
+              Margin="0,48,0,0" 
               IsHitTestVisible="False"
               Visibility="Collapsed"
               Opacity="0">
             <!-- 8-Directional Black Outline Layers for solid 2px stroke -->
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="-2,-2,2,2" />
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="2,-2,-2,2" />
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="-2,2,2,-2" />
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="2,2,-2,-2" />
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="0,-2,0,2" />
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="0,2,0,-2" />
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="-2,0,2,0" />
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" Margin="2,0,-2,0" />
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="-2,-2,2,2" />
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="2,-2,-2,2" />
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="-2,2,2,-2" />
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="2,2,-2,-2" />
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="0,-2,0,2" />
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="0,2,0,-2" />
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="-2,0,2,0" />
+            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="2,0,-2,0" />
 
             <!-- Main White Foreground Text -->
             <TextBlock x:Name="OsdToastText"
                        Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}"
                        FontSize="64" 
                        FontWeight="Normal" 
-                       Foreground="White" />
+                       Foreground="White"
+                       TextAlignment="Center"
+                       HorizontalAlignment="Center" />
         </Grid>
 
         <!-- Top Header Overlay (Telegram style) -->
@@ -121,6 +204,94 @@
             </Grid>
         </Border>
 
+        <!-- Floating Active Moment Badge (Prominent moment indicator; remains visible when controls auto-hide) -->
+        <Border x:Name="ActiveMomentPromptBadge"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom"
+                Margin="0,0,0,48"
+                Background="#F2121212"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="18"
+                Padding="16,6"
+                Opacity="0"
+                Visibility="Collapsed"
+                IsHitTestVisible="True">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="ActiveMomentBadgeTranslation" Y="-64" />
+            </Border.RenderTransform>
+            <Grid ColumnSpacing="10" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Ellipse x:Name="ActiveMomentDot" Grid.Column="0" Width="10" Height="10" Fill="#FFD700" VerticalAlignment="Center" Margin="0,0,2,0" />
+                <TextBlock x:Name="ActiveMomentText" Grid.Column="1" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                <TextBlock x:Name="ActiveMomentRange" Grid.Column="2" FontSize="12" Foreground="#C8C8C8" VerticalAlignment="Center" />
+
+                <Button x:Name="DismissActiveMomentButton"
+                        Grid.Column="3"
+                        Click="OnDismissActiveMomentClick"
+                        ToolTipService.ToolTip="Dismiss"
+                        Style="{ThemeResource SubtleButtonStyle}"
+                        Width="22" Height="22"
+                        Padding="0" MinWidth="0" MinHeight="0"
+                        CornerRadius="11"
+                        VerticalAlignment="Center">
+                    <FontIcon Glyph="&#xE711;" FontSize="9" Foreground="#A0A0A0" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Interactive Timeline Picker Prompt Badge -->
+        <Border x:Name="TimelinePickerPromptBadge"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom"
+                Margin="0,0,0,112"
+                Background="#F2121212"
+                BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="18"
+                Padding="16,6"
+                Opacity="0"
+                Visibility="Collapsed"
+                IsHitTestVisible="True">
+            <Grid ColumnSpacing="10" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <FontIcon Grid.Column="0" Glyph="&#xE7C1;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TimelinePickerPromptText" Grid.Column="1" Text="Choose moment time:" FontSize="13" Foreground="White" VerticalAlignment="Center" />
+                <TextBlock x:Name="TimelinePickerCurrentTimeText" Grid.Column="2" Text="00:00" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+
+                <Button x:Name="TimelinePickerConfirmButton"
+                        Grid.Column="3"
+                        Click="OnConfirmTimelinePickerClick"
+                        Content="Set"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Padding="10,3" MinWidth="0" MinHeight="26"
+                        FontSize="12" CornerRadius="13"
+                        VerticalAlignment="Center" />
+
+                <Button x:Name="TimelinePickerCancelButton"
+                        Grid.Column="4"
+                        Click="OnCancelTimelinePickerClick"
+                        Content="Cancel"
+                        Style="{ThemeResource SubtleButtonStyle}"
+                        Padding="8,3" MinWidth="0" MinHeight="26"
+                        FontSize="12" CornerRadius="13"
+                        VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
         <!-- Bottom Control Bar (Full-width edge-to-edge, VLC layout, WinUI styling) -->
         <Border x:Name="BottomControlBar"
                 VerticalAlignment="Bottom" 
@@ -130,16 +301,21 @@
                 BorderBrush="#262626" 
                 BorderThickness="0,1,0,0" 
                 CornerRadius="0" 
-                MinHeight="82"
-                Padding="16,6,16,10">
-            <Grid RowSpacing="6">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+                Padding="16,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-                <!-- Row 0: Full-Width Scrubbing Slider with Left/Right Timestamps -->
-                <Grid Grid.Row="0" ColumnSpacing="10" VerticalAlignment="Center">
+                <Grid Grid.Column="0" RowSpacing="6">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                <!-- Row 0: Timeline Slider with Timestamps -->
+                <Grid Grid.Row="0" Height="32">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
@@ -151,33 +327,91 @@
                                FontSize="12" 
                                Foreground="#C0C0C0" 
                                VerticalAlignment="Center" 
+                               Margin="0"
                                MinWidth="42" />
 
-                    <!-- Timeline Slider with Overlaid Moments Markers -->
-                    <Grid Grid.Column="1" VerticalAlignment="Center">
-                        <!-- Moments Markers Canvas (Yellow ticks on the timeline, behind the slider thumb) -->
-                        <Canvas x:Name="TimelineMarkersCanvas"
-                                IsHitTestVisible="False"
-                                HorizontalAlignment="Stretch"
-                                VerticalAlignment="Stretch" />
-
-                        <Slider x:Name="TimelineSlider" 
-                                Minimum="0" 
-                                Maximum="100" 
-                                ThumbToolTipValueConverter="{StaticResource SliderTimestampTooltipConverter}"
-                                Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}"
-                                ValueChanged="OnTimelineSliderValueChanged"
-                                SizeChanged="OnTimelineSliderSizeChanged"
-                                IsTabStop="False"
-                                HorizontalAlignment="Stretch"
-                                Margin="0" />
-                    </Grid>
+                    <!-- Timeline Slider with Embedded Markers Canvas and Thumb on Top -->
+                    <Slider x:Name="TimelineSlider" 
+                            Grid.Column="1"
+                            Minimum="0" 
+                            Maximum="100" 
+                            CornerRadius="4"
+                            Padding="0"
+                            ThumbToolTipValueConverter="{StaticResource SliderTimestampTooltipConverter}"
+                            Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}"
+                            ValueChanged="OnTimelineSliderValueChanged"
+                            SizeChanged="OnTimelineSliderSizeChanged"
+                            Loaded="OnTimelineSliderLoaded"
+                            IsTabStop="False"
+                            HorizontalAlignment="Stretch"
+                            Height="32"
+                            Margin="0">
+                        <Slider.Resources>
+                            <x:Double x:Key="SliderTrackThemeHeight">8</x:Double>
+                            <x:Double x:Key="SliderHorizontalThumbWidth">18</x:Double>
+                            <x:Double x:Key="SliderHorizontalThumbHeight">18</x:Double>
+                            <x:Double x:Key="SliderInnerThumbWidth">14</x:Double>
+                            <x:Double x:Key="SliderInnerThumbHeight">14</x:Double>
+                            <x:Double x:Key="SliderHorizontalHeight">32</x:Double>
+                            <x:Double x:Key="SliderPreContentMargin">12</x:Double>
+                            <x:Double x:Key="SliderPostContentMargin">12</x:Double>
+                            <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
+                            <CornerRadius x:Key="SliderThumbCornerRadius">9</CornerRadius>
+                            <Style TargetType="Thumb" x:Key="SliderThumbStyle">
+                                <Setter Property="BorderThickness" Value="1" />
+                                <Setter Property="Background" Value="{ThemeResource SliderThumbBackground}" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="{ThemeResource SliderOuterThumbBackground}" 
+                                                    BorderBrush="{ThemeResource SliderThumbBorderBrush}" 
+                                                    BorderThickness="{TemplateBinding BorderThickness}" 
+                                                    CornerRadius="{ThemeResource SliderThumbCornerRadius}">
+                                                <Ellipse x:Name="SliderInnerThumb" 
+                                                         RenderTransformOrigin="0.5, 0.5" 
+                                                         Fill="{TemplateBinding Background}" 
+                                                         Width="{ThemeResource SliderInnerThumbWidth}" 
+                                                         Height="{ThemeResource SliderInnerThumbHeight}" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Slider.Resources>
+                        <Slider.Template>
+                            <ControlTemplate TargetType="Slider">
+                                <Grid Margin="{TemplateBinding Padding}">
+                                    <Border x:Name="FocusBorder" CornerRadius="4" Control.IsTemplateFocusTarget="True" />
+                                    <Grid x:Name="SliderContainer" Background="{ThemeResource SliderContainerBackground}">
+                                        <Grid x:Name="HorizontalTemplate" MinHeight="32">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="12" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="12" />
+                                            </Grid.RowDefinitions>
+                                            <Rectangle x:Name="HorizontalTrackRect" Fill="{TemplateBinding Background}" Height="8" Grid.Row="1" Grid.ColumnSpan="3" RadiusX="4" RadiusY="4" />
+                                            <Rectangle x:Name="HorizontalDecreaseRect" Fill="{TemplateBinding Foreground}" Grid.Row="1" RadiusX="4" RadiusY="4" />
+                                            <Canvas x:Name="TimelineMarkersCanvas" IsHitTestVisible="False" Grid.Row="1" Grid.ColumnSpan="3" />
+                                            <Thumb x:Name="HorizontalThumb" Style="{StaticResource SliderThumbStyle}" DataContext="{TemplateBinding Value}" Height="18" Width="18" CornerRadius="9" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" FocusVisualMargin="-14,-6,-14,-6" AutomationProperties.AccessibilityView="Raw" />
+                                        </Grid>
+                                        <Grid x:Name="VerticalTemplate" Visibility="Collapsed" />
+                                    </Grid>
+                                </Grid>
+                            </ControlTemplate>
+                        </Slider.Template>
+                    </Slider>
 
                     <TextBlock Grid.Column="2" 
                                Text="{x:Bind ViewModel.FormattedTotalTime, Mode=OneWay}" 
                                FontSize="12" 
                                Foreground="#C0C0C0" 
                                VerticalAlignment="Center" 
+                               Margin="0"
                                MinWidth="42" 
                                TextAlignment="Right" />
                 </Grid>
@@ -190,7 +424,13 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Left: Grouped playback/seek/moments/tools sections with AppBarSeparators -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <ScrollViewer Grid.Column="0"
+                                  HorizontalScrollBarVisibility="Hidden"
+                                  HorizontalScrollMode="Auto"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  VerticalScrollMode="Disabled"
+                                  Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                         <!-- Section 1: Playback Controls -->
                         <Button x:Name="PlayPauseButton"
                                 ToolTipService.ToolTip="Play / Pause (Space)"
@@ -297,7 +537,6 @@
                         <!-- Section 3: Moments Controls -->
                         <Button x:Name="MarkMomentButton"
                                 ToolTipService.ToolTip="Mark Moment (B)"
-                                Click="OnAddMarkerClick"
                                 Width="32" Height="32"
                                 Padding="0"
                                 MinWidth="0" MinHeight="0"
@@ -306,6 +545,179 @@
                                 IsTabStop="False"
                                 Style="{StaticResource PlayerIconButtonStyle}">
                             <FontIcon Glyph="&#xE7C1;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            <Button.Flyout>
+                                <Flyout x:Name="MarkMomentFlyout" Placement="Top" Opened="OnMarkMomentFlyoutOpened" Closed="OnFlyoutClosed" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
+                                     <StackPanel Spacing="10" MinWidth="320" MaxWidth="360" Padding="14,12">
+                                        <!-- Header -->
+                                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                            <FontIcon Glyph="&#xE7C1;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                            <TextBlock x:Name="MarkMomentFlyoutTitle" Text="Mark Moment" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                                        </StackPanel>
+
+                                        <!-- Mode switcher -->
+                                        <Grid ColumnSpacing="6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Button x:Name="MarkPointModeButton"
+                                                    Grid.Column="0"
+                                                    Content="Single Point"
+                                                    Click="OnMarkModePointClick"
+                                                    HorizontalAlignment="Stretch"
+                                                    Padding="0,5"
+                                                    FontSize="11"
+                                                    CornerRadius="4" />
+                                            <Button x:Name="MarkRangeModeButton"
+                                                    Grid.Column="1"
+                                                    Content="Time Range"
+                                                    Click="OnMarkModeRangeClick"
+                                                    HorizontalAlignment="Stretch"
+                                                    Padding="0,5"
+                                                    FontSize="11"
+                                                    CornerRadius="4"
+                                                    Style="{ThemeResource SubtleButtonStyle}" />
+                                        </Grid>
+
+                                        <!-- Mode Panels Container with smooth height morphing -->
+                                        <Grid x:Name="MarkModeContainer" SizeChanged="OnElementClipSizeChanged">
+                                            <!-- Point panel -->
+                                            <Grid x:Name="MarkPointPanel" ColumnSpacing="6" VerticalAlignment="Top" RenderTransformOrigin="0.5,0.5">
+                                                <Grid.RenderTransform>
+                                                    <TranslateTransform x:Name="MarkPointTranslation" Y="0" />
+                                                </Grid.RenderTransform>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Button x:Name="MarkPointSetCurrentButton"
+                                                        Grid.Column="0"
+                                                        Content="Current"
+                                                        Click="OnMarkPointSetCurrentClick"
+                                                        VerticalAlignment="Center" />
+                                                <TextBox x:Name="MarkPointTimeBox"
+                                                         Grid.Column="1"
+                                                         IsReadOnly="True"
+                                                         TextAlignment="Center"
+                                                         VerticalAlignment="Center" />
+                                                <Button x:Name="MarkPointChooseButton"
+                                                        Grid.Column="2"
+                                                        Content="Choose"
+                                                        Click="OnMarkPointChooseClick"
+                                                        VerticalAlignment="Center" />
+                                            </Grid>
+
+                                            <!-- Range panel -->
+                                            <StackPanel x:Name="MarkRangePanel" Visibility="Collapsed" Spacing="8" VerticalAlignment="Top" RenderTransformOrigin="0.5,0.5">
+                                                <StackPanel.RenderTransform>
+                                                    <TranslateTransform x:Name="MarkRangeTranslation" Y="0" />
+                                                </StackPanel.RenderTransform>
+                                                <!-- Start row -->
+                                                <StackPanel Spacing="3">
+                                                    <TextBlock x:Name="MarkRangeStartLabel" Text="Start:" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    <Grid ColumnSpacing="6">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Button x:Name="MarkRangeSetStartButton" Grid.Column="0" Content="Current" Click="OnMarkRangeSetStartClick" VerticalAlignment="Center" />
+                                                        <TextBox x:Name="MarkRangeStartTimeBox" Grid.Column="1" IsReadOnly="True" TextAlignment="Center" VerticalAlignment="Center" />
+                                                        <Button x:Name="MarkRangeChooseStartButton" Grid.Column="2" Content="Choose" Click="OnMarkRangeChooseStartClick" VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </StackPanel>
+
+                                                <!-- End row -->
+                                                <StackPanel Spacing="3">
+                                                    <TextBlock x:Name="MarkRangeEndLabel" Text="End:" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    <Grid ColumnSpacing="6">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Button x:Name="MarkRangeSetEndButton" Grid.Column="0" Content="Current" Click="OnMarkRangeSetEndClick" VerticalAlignment="Center" />
+                                                        <TextBox x:Name="MarkRangeEndTimeBox" Grid.Column="1" IsReadOnly="True" TextAlignment="Center" VerticalAlignment="Center" />
+                                                        <Button x:Name="MarkRangeChooseEndButton" Grid.Column="2" Content="Choose" Click="OnMarkRangeChooseEndClick" VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </StackPanel>
+
+                                                <!-- Quick duration grid -->
+                                                <Grid ColumnSpacing="6" Margin="0,2,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Button Grid.Column="0" Content="+5s" Tag="5" Click="OnQuickRangeDurationClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                                    <Button Grid.Column="1" Content="+10s" Tag="10" Click="OnQuickRangeDurationClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                                    <Button Grid.Column="2" Content="+15s" Tag="15" Click="OnQuickRangeDurationClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                                    <Button Grid.Column="3" Content="+30s" Tag="30" Click="OnQuickRangeDurationClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Title input -->
+                                        <TextBox x:Name="MarkMomentLabelBox" PlaceholderText="Title or note (optional)" Margin="0,2,0,0" />
+
+                                        <!-- Color selector row -->
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock x:Name="MarkMomentColorLabel" Text="Color" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                            <StackPanel x:Name="MarkMomentColorPanel" Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                                <Button Tag="#FFD700" ToolTipService.ToolTip="Gold" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#FFD700" />
+                                                <Button Tag="#4CC2FF" ToolTipService.ToolTip="Cyan" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#4CC2FF" />
+                                                <Button Tag="#2ECC71" ToolTipService.ToolTip="Emerald" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#2ECC71" />
+                                                <Button Tag="#FF6B6B" ToolTipService.ToolTip="Coral" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#FF6B6B" />
+                                                <Button Tag="#AF52DE" ToolTipService.ToolTip="Violet" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#AF52DE" />
+                                                <Button Tag="#FF9500" ToolTipService.ToolTip="Orange" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#FF9500" />
+                                                <Button x:Name="CustomColorPickerButton"
+                                                        ToolTipService.ToolTip="Custom Color"
+                                                        Tag="Custom"
+                                                        Style="{StaticResource MomentColorCircleButtonStyle}"
+                                                        Background="#2D2D2D"
+                                                        BorderBrush="#60FFFFFF">
+                                                    <FontIcon x:Name="CustomColorPickerPipetteIcon" Glyph="&#xEF3C;" FontSize="10" Foreground="White" />
+                                                    <Button.Flyout>
+                                                        <Flyout x:Name="CustomColorFlyout" Placement="Top" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
+                                                            <StackPanel Padding="12,10" Spacing="8">
+                                                                <ColorPicker x:Name="CustomColorPickerControl"
+                                                                             ColorChanged="OnCustomColorPickerColorChanged"
+                                                                             IsColorSpectrumVisible="True"
+                                                                             IsColorSliderVisible="True"
+                                                                             IsHexInputVisible="False"
+                                                                             IsColorChannelTextInputVisible="False"
+                                                                             IsAlphaEnabled="False"
+                                                                             ColorSpectrumShape="Box" />
+                                                                <TextBox x:Name="CustomColorHexInput"
+                                                                         PlaceholderText="#RRGGBB"
+                                                                         FontSize="11"
+                                                                         TextAlignment="Center"
+                                                                         MaxLength="7"
+                                                                         TextChanged="OnCustomColorHexInputTextChanged"
+                                                                         Margin="0,2,0,0" />
+                                                            </StackPanel>
+                                                        </Flyout>
+                                                    </Button.Flyout>
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Save button -->
+                                        <Button x:Name="MarkMomentSaveButton"
+                                                Content="Save Moment"
+                                                Click="OnSaveMarkMomentClick"
+                                                Style="{StaticResource AccentButtonStyle}"
+                                                HorizontalAlignment="Stretch"
+                                                CornerRadius="4" />
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
                         </Button>
 
                         <Button x:Name="MomentsFlyoutButton"
@@ -319,8 +731,8 @@
                                 <TextBlock Text="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" FontSize="12" Foreground="White" />
                             </StackPanel>
                             <Button.Flyout>
-                                <Flyout x:Name="MomentsFlyout" Placement="Top" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
-                                    <Grid MinWidth="300" MaxWidth="360" Padding="8,6" RowSpacing="10">
+                                <Flyout x:Name="MomentsFlyout" Placement="Top" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
+                                    <Grid MinWidth="300" MaxWidth="360" Padding="14,12" RowSpacing="10">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="*" />
@@ -388,7 +800,7 @@
                                                                     Tag="{x:Bind}"
                                                                     Padding="6,4"
                                                                     CornerRadius="4"
-                                                                    ToolTipService.ToolTip="Jump to this moment"
+                                                                    ToolTipService.ToolTip="{x:Bind JumpTooltip, Mode=OneWay}"
                                                                     Style="{ThemeResource SubtleButtonStyle}">
                                                                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                                                     <FontIcon Glyph="&#xE768;" FontSize="10" Foreground="#FFD700" VerticalAlignment="Center" />
@@ -411,7 +823,7 @@
                                                             <Button Grid.Column="2" 
                                                                     Click="OnEditBookmarkItemClick"
                                                                     Tag="{x:Bind}"
-                                                                    ToolTipService.ToolTip="Rename Moment"
+                                                                    ToolTipService.ToolTip="{x:Bind RenameTooltip, Mode=OneWay}"
                                                                     Width="28" Height="28"
                                                                     Padding="0" MinWidth="0" MinHeight="0"
                                                                     CornerRadius="4"
@@ -424,7 +836,7 @@
                                                             <Button Grid.Column="3" 
                                                                     Click="OnRemoveBookmarkItemClick"
                                                                     Tag="{x:Bind}"
-                                                                    ToolTipService.ToolTip="Remove Moment"
+                                                                    ToolTipService.ToolTip="{x:Bind RemoveTooltip, Mode=OneWay}"
                                                                     Width="28" Height="28"
                                                                     Padding="0" MinWidth="0" MinHeight="0"
                                                                     CornerRadius="4"
@@ -467,20 +879,11 @@
                             <TextBlock Text="{x:Bind ViewModel.FormattedPlaybackRate, Mode=OneWay}" 
                                        FontSize="12" Foreground="White" />
                             <DropDownButton.Flyout>
-                                <Flyout x:Name="PlaybackSpeedFlyout" Placement="Top" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
-                                    <StackPanel Spacing="10" MinWidth="250" MaxWidth="300" Padding="8,6">
-                                        <!-- Header & Current Value -->
+                                <Flyout x:Name="PlaybackSpeedFlyout" Placement="Top" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
+                                    <StackPanel Spacing="10" MinWidth="250" MaxWidth="300" Padding="14,12">
+                                        <!-- Header -->
                                         <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
                                             <TextBlock x:Name="SpeedFlyoutHeaderTitle" Text="Playback Speed" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
-                                            <TextBlock Grid.Column="1" 
-                                                       Text="{x:Bind ViewModel.FormattedPlaybackRate, Mode=OneWay}" 
-                                                       FontSize="12" 
-                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                                       VerticalAlignment="Center" />
                                         </Grid>
 
                                         <!-- Speed Presets Grid (2 rows of 3 matching Settings) -->
@@ -538,7 +941,8 @@
                             </DropDownButton.Flyout>
                         </DropDownButton>
 
-                    </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
 
                     <!-- Right: Audio Track Selector, Subtitles Selector, Mute Button, Volume Slider, Percentage Text, Separator, Fullscreen Button (Far Right) -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
@@ -554,8 +958,8 @@
                                         Style="{StaticResource PlayerIconButtonStyle}">
                             <FontIcon Glyph="&#xE8D4;" FontSize="13" Foreground="White" />
                             <DropDownButton.Flyout>
-                                <Flyout x:Name="AudioTracksFlyout" Placement="Top" Opening="OnAudioTracksFlyoutOpening" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
-                                    <Grid MinWidth="260" MaxWidth="320" Padding="8,6" RowSpacing="8">
+                                <Flyout x:Name="AudioTracksFlyout" Placement="Top" Opening="OnAudioTracksFlyoutOpening" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
+                                     <Grid MinWidth="240" MaxWidth="300" Padding="14,12" RowSpacing="8">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="*" />
@@ -594,8 +998,8 @@
                                         Style="{StaticResource PlayerIconButtonStyle}">
                             <FontIcon Glyph="&#xE134;" FontSize="13" Foreground="White" />
                             <DropDownButton.Flyout>
-                                <Flyout x:Name="SubtitlesFlyout" Placement="Top" Opening="OnSubtitlesFlyoutOpening" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed">
-                                    <Grid MinWidth="280" MaxWidth="340" Padding="8,6" RowSpacing="8">
+                                <Flyout x:Name="SubtitlesFlyout" Placement="Top" Opening="OnSubtitlesFlyoutOpening" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
+                                    <Grid MinWidth="280" MaxWidth="340" Padding="14,12" RowSpacing="8">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="*" />
@@ -644,27 +1048,41 @@
                                 VerticalContentAlignment="Center"
                                 IsTabStop="False"
                                 Style="{StaticResource PlayerIconButtonStyle}">
-                            <FontIcon Glyph="{x:Bind ViewModel.VolumeGlyph, Mode=OneWay}" 
-                                      FontSize="14" Foreground="White" />
+                            <FontIcon x:Name="MuteButtonIcon"
+                                      Glyph="{x:Bind ViewModel.VolumeGlyph, Mode=OneWay}" 
+                                      FontSize="14" Foreground="White"
+                                      RenderTransformOrigin="0.5,0.5">
+                                <FontIcon.RenderTransform>
+                                    <ScaleTransform x:Name="MuteButtonScale" ScaleX="1" ScaleY="1" />
+                                </FontIcon.RenderTransform>
+                            </FontIcon>
                         </Button>
 
-                        <Slider x:Name="VolumeSlider" 
-                                Minimum="0" Maximum="100" 
-                                Value="{x:Bind ViewModel.Volume, Mode=TwoWay}" 
-                                ValueChanged="OnVolumeSliderValueChanged"
-                                PointerWheelChanged="OnPlayerPointerWheelChanged"
-                                IsTabStop="False"
-                                Width="90" 
-                                VerticalAlignment="Center"
-                                Margin="0" />
+                        <StackPanel x:Name="VolumeControlGroup" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                            <Slider x:Name="VolumeSlider" 
+                                    Minimum="0" Maximum="100" 
+                                    StepFrequency="5"
+                                    SmallChange="5"
+                                    LargeChange="5"
+                                    SnapsTo="StepValues"
+                                    Value="{x:Bind ViewModel.Volume, Mode=TwoWay}" 
+                                    ValueChanged="OnVolumeSliderValueChanged"
+                                    PointerWheelChanged="OnPlayerPointerWheelChanged"
+                                    IsTabStop="False"
+                                    Width="90" 
+                                    VerticalAlignment="Center"
+                                    Margin="0" />
 
-                        <TextBlock Text="{x:Bind ViewModel.Volume, Mode=OneWay}" 
-                                   FontSize="12" 
-                                   Foreground="#C0C0C0" 
-                                   VerticalAlignment="Center" 
-                                   MinWidth="24" 
-                                   TextAlignment="Right" />
-                        <TextBlock Text="%" FontSize="11" Foreground="#808080" VerticalAlignment="Center" Margin="-4,0,0,0" />
+                            <TextBlock Text="{x:Bind ViewModel.Volume, Mode=OneWay}" 
+                                       FontSize="12" 
+                                       Foreground="#C0C0C0" 
+                                       VerticalAlignment="Center" 
+                                       MinWidth="24" 
+                                       TextAlignment="Right" />
+                            <TextBlock Text="%" FontSize="11" Foreground="#808080" VerticalAlignment="Center" Margin="-4,0,0,0" />
+                        </StackPanel>
+
+
 
                         <AppBarSeparator Height="20" Margin="4,0" />
 
@@ -684,17 +1102,19 @@
                     </StackPanel>
                 </Grid>
             </Grid>
-        </Border>
+            <Border x:Name="BottomControlBarQueueSpacer" Grid.Column="1" Width="0" />
+        </Grid>
+    </Border>
 
         <!-- Moments Jump Suggestion Popup (Bottom-Left) -->
         <Border x:Name="MomentsJumpPopup"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Bottom"
-                Margin="16,0,0,92"
+                Margin="20,0,0,116"
                 Width="320"
                 MaxHeight="260"
-                Background="#1C1C1C"
-                BorderBrush="#2A2A2A"
+                Background="{StaticResource PlayerFlyoutBackdropBrush}"
+                BorderBrush="#303030"
                 BorderThickness="1"
                 CornerRadius="8"
                 Padding="8,10"
@@ -703,7 +1123,7 @@
                 PointerEntered="OnMomentsPopupPointerEntered"
                 PointerExited="OnMomentsPopupPointerExited">
             <Border.RenderTransform>
-                <TranslateTransform x:Name="MomentsPopupTranslation" Y="24" />
+                <TranslateTransform x:Name="MomentsPopupTranslation" X="-30" />
             </Border.RenderTransform>
             <Grid RowSpacing="8">
                 <Grid.RowDefinitions>
@@ -828,12 +1248,23 @@
                     </Button>
                 </Grid>
 
-                <ListView Grid.Row="1" 
+                <ListView x:Name="PlaylistQueueListView"
+                          Grid.Row="1" 
                           ItemsSource="{x:Bind ViewModel.Playlist, Mode=OneWay}"
                           SelectedItem="{x:Bind ViewModel.CurrentClip, Mode=OneWay}"
                           SelectionChanged="OnPlaylistSelectionChanged"
                           ContainerContentChanging="OnPlaylistContainerContentChanging"
                           SelectionMode="Single">
+                    <ListView.Resources>
+                        <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#28FFFFFF" />
+                        <SolidColorBrush x:Key="ListViewItemBackgroundSelectedUnfocused" Color="#20FFFFFF" />
+                        <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#32FFFFFF" />
+                        <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#38FFFFFF" />
+                        <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="#15FFFFFF" />
+                        <SolidColorBrush x:Key="ListViewItemSelectionIndicatorFill" Color="{ThemeResource SystemAccentColor}" />
+                        <SolidColorBrush x:Key="ListViewItemSelectionIndicatorPointerOverFill" Color="{ThemeResource SystemAccentColor}" />
+                        <SolidColorBrush x:Key="ListViewItemSelectionIndicatorPressedFill" Color="{ThemeResource SystemAccentColor}" />
+                    </ListView.Resources>
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="models:GameClip">
                             <Grid Margin="0,4" ColumnSpacing="10">
@@ -847,6 +1278,17 @@
                                     <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="UniformToFill" />
                                     <Border HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="#B3000000" CornerRadius="3" Padding="3,1" Margin="0,0,2,2">
                                         <TextBlock Text="{x:Bind FormattedDuration, Mode=OneWay}" FontSize="9" Foreground="White" />
+                                    </Border>
+                                    <!-- Active Clip Indicator Border and Badge -->
+                                    <Border BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                                            BorderThickness="1.5"
+                                            CornerRadius="4"
+                                            Visibility="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                    <Border HorizontalAlignment="Left" VerticalAlignment="Top"
+                                            Visibility="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                            CornerRadius="3,0,3,0" Padding="3,2">
+                                        <FontIcon Glyph="&#xE768;" FontSize="8" Foreground="White" />
                                     </Border>
                                 </Grid>
 

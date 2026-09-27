@@ -624,9 +624,10 @@
                                     <Slider x:Name="DefaultVolumeSlider"
                                             Minimum="0"
                                             Maximum="100"
-                                            SmallChange="1"
+                                            SmallChange="5"
                                             LargeChange="5"
-                                            StepFrequency="1"
+                                            StepFrequency="5"
+                                            SnapsTo="StepValues"
                                             Value="{x:Bind ViewModel.Volume, Mode=OneWay}"
                                             ValueChanged="OnDefaultVolumeSliderValueChanged"
                                             Width="130"
@@ -734,6 +735,38 @@
                             </Grid>
                         </Border>
 
+                        <!-- Card 6b: Auto-Hide Mouse Cursor -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE8B0;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="AutoHideCursorTitleText" Text="Auto-hide mouse cursor" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="AutoHideCursorSubtitleText" Text="Hide mouse cursor when player controls are inactive" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2" 
+                                              IsOn="{x:Bind ViewModel.AutoHideCursor, Mode=TwoWay}" 
+                                              OnContent="" 
+                                              OffContent="" 
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
                         <!-- Card 7: On-Screen Display (OSD) -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
@@ -833,6 +866,38 @@
 
                                 <ToggleSwitch Grid.Column="2" 
                                               IsOn="{x:Bind ViewModel.ShowMomentsBadges, Mode=TwoWay}" 
+                                              OnContent="" 
+                                              OffContent="" 
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 3: Enable Backdrop Blur -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE790;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="BackdropBlurTitleText" Text="Backdrop blur" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="BackdropBlurSubtitleText" Text="Enable acrylic blur on player controls and flyouts" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2" 
+                                              IsOn="{x:Bind ViewModel.EnableBackdropBlur, Mode=TwoWay}" 
                                               OnContent="" 
                                               OffContent="" 
                                               MinWidth="0"

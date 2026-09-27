@@ -25,8 +25,15 @@ public class AppSettings
     public string Language { get; set; } = "System";
     public bool AutoCheckUpdates { get; set; } = true;
     public int AutoHideControlsSeconds { get; set; } = 2;
+    public bool AutoHideCursor { get; set; } = true;
     public bool EnableOsdNotifications { get; set; } = true;
     public bool ShowMomentsBadges { get; set; } = true;
+    public bool EnableBackdropBlur { get; set; } = true;
+    public Dictionary<string, string> CustomClipTitles { get; set; } = new();
+    public DateGroupingMode DateGrouping { get; set; } = DateGroupingMode.None;
+    public ViewDensityMode ViewDensity { get; set; } = ViewDensityMode.Comfortable;
+    public bool MetadataHoverOnly { get; set; } = false;
+    public int SortIndex { get; set; } = 0;
 }
 
 public enum RepeatMode
@@ -34,4 +41,19 @@ public enum RepeatMode
     Off = 0,
     All = 1,
     One = 2
+}
+
+public enum DateGroupingMode
+{
+    None = 0,
+    Day = 1,
+    Month = 2,
+    Year = 3
+}
+
+public enum ViewDensityMode
+{
+    Comfortable = 0,
+    Compact = 1,
+    Large = 2
 }

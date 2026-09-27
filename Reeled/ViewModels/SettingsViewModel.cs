@@ -66,6 +66,9 @@ public partial class SettingsViewModel : ObservableObject
     private int _selectedAutoHideIndex = 0;
 
     [ObservableProperty]
+    private bool _autoHideCursor = true;
+
+    [ObservableProperty]
     private bool _enableOsdNotifications = true;
 
     [ObservableProperty]
@@ -73,6 +76,9 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _showMomentsBadges = true;
+
+    [ObservableProperty]
+    private bool _enableBackdropBlur = true;
 
     [ObservableProperty]
     private int _selectedThemeIndex = 0;
@@ -190,9 +196,11 @@ public partial class SettingsViewModel : ObservableObject
             0 => 3,
             _ => 0
         };
+        AutoHideCursor = _storageService.CurrentSettings.AutoHideCursor;
         EnableOsdNotifications = _storageService.CurrentSettings.EnableOsdNotifications;
         EnableClipCache = _storageService.CurrentSettings.EnableClipCache;
         ShowMomentsBadges = _storageService.CurrentSettings.ShowMomentsBadges;
+        EnableBackdropBlur = _storageService.CurrentSettings.EnableBackdropBlur;
         SelectedThemeIndex = _storageService.CurrentSettings.AppTheme switch
         {
             "Dark" => 1,
@@ -376,6 +384,26 @@ public partial class SettingsViewModel : ObservableObject
             settings.ShowMomentsBadges = value;
             _ = _storageService.SaveSettingsAsync(settings);
             _homeViewModel.ShowMomentsBadges = value;
+        }
+    }
+
+    partial void OnEnableBackdropBlurChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.EnableBackdropBlur != value)
+        {
+            settings.EnableBackdropBlur = value;
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    partial void OnAutoHideCursorChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.AutoHideCursor != value)
+        {
+            settings.AutoHideCursor = value;
+            _ = _storageService.SaveSettingsAsync(settings);
         }
     }
 

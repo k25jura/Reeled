@@ -38,6 +38,7 @@ public sealed partial class MainWindow : Window
     public Microsoft.UI.Xaml.Controls.Frame NavigationFrame => RootFrame;
 
     private bool _isCursorHidden;
+    private bool _isSidebarOpen;
     private bool _areCaptionControlsVisible = true;
     private bool _hasSubclassedChildWindows;
     private string? _cachedIconPath;
@@ -642,6 +643,53 @@ public sealed partial class MainWindow : Window
         AppTitleBar.Opacity = 1.0;
     }
 
+    public void SetSidebarOpen(bool isOpen)
+    {
+        _isSidebarOpen = isOpen;
+    }
+
+    public void EnsureWidthForSidebar(double sidebarWidth)
+    {
+        if (AppWindow == null) return;
+        if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
+        {
+            if (presenter.State == Microsoft.UI.Windowing.OverlappedPresenterState.Maximized ||
+                AppWindow.Presenter.Kind == Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen)
+            {
+                return;
+            }
+        }
+
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        uint dpi = GetDpiForWindow(hwnd);
+        double scale = (dpi > 0 ? dpi : 96) / 96.0;
+
+        double currentWidthDip = AppWindow.Size.Width / scale;
+        double targetMinDip = MinWindowWidth + sidebarWidth;
+
+        if (currentWidthDip < targetMinDip)
+        {
+            int targetWidthPx = (int)Math.Round(targetMinDip * scale);
+
+            // Check display work area to prevent expanding off-screen
+            var displayArea = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(AppWindow.Id, Microsoft.UI.Windowing.DisplayAreaFallback.Nearest);
+            if (displayArea != null)
+            {
+                int currentX = AppWindow.Position.X;
+                int currentY = AppWindow.Position.Y;
+                int workRight = displayArea.WorkArea.X + displayArea.WorkArea.Width;
+
+                if (currentX + targetWidthPx > workRight)
+                {
+                    int newX = Math.Max(displayArea.WorkArea.X, workRight - targetWidthPx);
+                    AppWindow.Move(new Windows.Graphics.PointInt32(newX, currentY));
+                }
+            }
+
+            AppWindow.Resize(new Windows.Graphics.SizeInt32(targetWidthPx, AppWindow.Size.Height));
+        }
+    }
+
     private IntPtr WindowSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, nuint uIdSubclass, nuint dwRefData)
     {
         if (uMsg == WM_SETCURSOR && _isCursorHidden)
@@ -661,7 +709,8 @@ public sealed partial class MainWindow : Window
             uint dpi = GetDpiForWindow(hWnd);
             double scale = (dpi > 0 ? dpi : 96) / 96.0;
 
-            mmi.ptMinTrackSize.x = (int)(MinWindowWidth * scale);
+            int effectiveMinWidth = _isSidebarOpen ? (MinWindowWidth + 260) : MinWindowWidth;
+            mmi.ptMinTrackSize.x = (int)(effectiveMinWidth * scale);
             mmi.ptMinTrackSize.y = (int)(MinWindowHeight * scale);
 
             Marshal.StructureToPtr(mmi, lParam, true);

@@ -242,6 +242,7 @@
   "Dialog_ClipInfo_None": "None",
   "Dialog_ClipInfo_DateModified": "Date Modified",
   "Dialog_ClipInfo_Location": "Location",
+  "Dialog_ClipInfo_OpenProperties": "Properties",
   "Dialog_ClipInfo_Close": "Close",
 
   "Dialog_Rename_Title": "Rename Clip",

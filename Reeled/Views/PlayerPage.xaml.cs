@@ -38,7 +38,7 @@ public sealed partial class PlayerPage : Page
     private enum TimelinePickTarget { None, Point, RangeStart, RangeEnd }
     private TimelinePickTarget _activePickTarget = TimelinePickTarget.None;
     private ClipBookmark? _editingBookmark;
-    private DispatcherTimer? _smoothTimelineTimer;
+    private bool _isRenderingTimeline;
 
     private bool AreFlyoutsOrPopupsOpen =>
         _openFlyoutsCount > 0 ||
@@ -455,29 +455,44 @@ public sealed partial class PlayerPage : Page
         DispatcherQueue.TryEnqueue(RenderTimelineMarkers);
         UpdateBackdropBlur();
 
-        if (_smoothTimelineTimer == null)
+        StartTimelineRendering();
+    }
+
+    private void StartTimelineRendering()
+    {
+        if (!_isRenderingTimeline)
         {
-            _smoothTimelineTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(20) };
-            _smoothTimelineTimer.Tick += (s, e) =>
-            {
-                if (ViewModel.IsPlaying && !_isUserDraggingSlider && ViewModel.TotalTime > TimeSpan.Zero && ViewModel.LastPositionTimeTicks > 0)
-                {
-                    double elapsed = (System.Diagnostics.Stopwatch.GetTimestamp() - ViewModel.LastPositionTimeTicks) / (double)System.Diagnostics.Stopwatch.Frequency;
-                    if (elapsed >= 0 && elapsed < 0.6)
-                    {
-                        double currentSec = ViewModel.AnchorSeconds + (elapsed * ViewModel.PlaybackRate);
-                        double pct = (currentSec / ViewModel.TotalTime.TotalSeconds) * 100.0;
-                        TimelineSlider.Value = Math.Clamp(pct, 0.0, 100.0);
-                    }
-                }
-            };
+            _isRenderingTimeline = true;
+            CompositionTarget.Rendering += OnTimelineRendering;
         }
-        _smoothTimelineTimer.Start();
+    }
+
+    private void StopTimelineRendering()
+    {
+        if (_isRenderingTimeline)
+        {
+            _isRenderingTimeline = false;
+            CompositionTarget.Rendering -= OnTimelineRendering;
+        }
+    }
+
+    private void OnTimelineRendering(object? sender, object e)
+    {
+        if (ViewModel.IsPlaying && !_isUserDraggingSlider && ViewModel.TotalTime > TimeSpan.Zero && ViewModel.LastPositionTimeTicks > 0)
+        {
+            double elapsed = (System.Diagnostics.Stopwatch.GetTimestamp() - ViewModel.LastPositionTimeTicks) / (double)System.Diagnostics.Stopwatch.Frequency;
+            if (elapsed >= 0 && elapsed < 0.6)
+            {
+                double currentSec = ViewModel.AnchorSeconds + (elapsed * ViewModel.PlaybackRate);
+                double pct = (currentSec / ViewModel.TotalTime.TotalSeconds) * 100.0;
+                TimelineSlider.Value = Math.Clamp(pct, 0.0, 100.0);
+            }
+        }
     }
 
     public void Deactivate()
     {
-        _smoothTimelineTimer?.Stop();
+        StopTimelineRendering();
         _inactivityTimer.Stop();
         _osdHideTimer?.Stop();
         _osdStoryboard?.Stop();

@@ -402,8 +402,6 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
                 "--no-osd",
                 "--no-video-title-show",
                 "--no-mouse-events",
-                "--drop-late-frames",
-                "--skip-frames",
                 "--file-caching=300",
                 "--live-caching=300",
                 "--disc-caching=300",

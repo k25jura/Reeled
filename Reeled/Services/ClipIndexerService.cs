@@ -57,22 +57,57 @@ public class ClipIndexerService : IClipIndexerService
                     files = topFiles.OrderByDescending(f => File.GetLastWriteTimeUtc(f)).ToList();
                 }
 
+                var uncachedClips = new List<GameClip>();
                 foreach (var file in files)
                 {
-                    var clip = new GameClip
+                    try
                     {
-                        FilePath = file,
-                        FileName = Path.GetFileName(file),
-                        DirectoryPath = Path.GetDirectoryName(file) ?? string.Empty,
-                        ModifiedDate = File.GetLastWriteTimeUtc(file),
-                        CreatedDate = File.GetCreationTimeUtc(file)
-                    };
+                        var fileInfo = new FileInfo(file);
+                        var clip = new GameClip
+                        {
+                            FilePath = file,
+                            FileName = fileInfo.Name,
+                            DirectoryPath = fileInfo.DirectoryName ?? string.Empty,
+                            ModifiedDate = fileInfo.LastWriteTimeUtc,
+                            CreatedDate = fileInfo.CreationTimeUtc,
+                            FileSizeBytes = fileInfo.Length
+                        };
 
-                    await _metadataService.PopulateMetadataAsync(clip);
-                    clips.Add(clip);
+                        if (_cacheService.TryGet(clip.FilePath, fileInfo.Length, fileInfo.LastWriteTimeUtc.Ticks, out var cached) && cached != null)
+                        {
+                            clip.Duration = TimeSpan.FromTicks(cached.DurationTicks);
+                            clip.VideoWidth = cached.VideoWidth;
+                            clip.VideoHeight = cached.VideoHeight;
+                        }
+                        else
+                        {
+                            uncachedClips.Add(clip);
+                        }
+
+                        clips.Add(clip);
+                    }
+                    catch { }
                 }
 
-                _ = _cacheService.SaveAsync();
+                if (uncachedClips.Count > 0)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        foreach (var uncached in uncachedClips)
+                        {
+                            try
+                            {
+                                await _metadataService.PopulateMetadataAsync(uncached);
+                            }
+                            catch { }
+                        }
+                        _ = _cacheService.SaveAsync();
+                    });
+                }
+                else
+                {
+                    _ = _cacheService.SaveAsync();
+                }
             }
             catch (Exception)
             {

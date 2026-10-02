@@ -7,6 +7,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="using:Reeled.Models"
     xmlns:viewmodels="using:Reeled.ViewModels"
+    xmlns:controls="using:Reeled.Controls"
     mc:Ignorable="d"
     NavigationCacheMode="Required">
 
@@ -445,8 +446,8 @@
                                     <TextBlock x:Name="HomeNavText" Grid.Column="1" Text="Home" FontSize="13" VerticalAlignment="Center" />
 
                                     <!-- Counter (Clean text, brightened) -->
-                                    <TextBlock Grid.Column="2" 
-                                               Text="{x:Bind ViewModel.AllClipsCount, Mode=OneWay}" 
+                                    <controls:RollingCounter Grid.Column="2" 
+                                               Value="{x:Bind ViewModel.AllClipsCount, Mode=OneWay}" 
                                                FontSize="12" 
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                VerticalAlignment="Center"
@@ -480,8 +481,8 @@
                                     <TextBlock x:Name="FavoritesNavText" Grid.Column="1" Text="Favorites" FontSize="13" VerticalAlignment="Center" />
 
                                     <!-- Counter (Clean text, brightened) -->
-                                    <TextBlock Grid.Column="2" 
-                                               Text="{x:Bind ViewModel.FavoritesCount, Mode=OneWay}" 
+                                    <controls:RollingCounter Grid.Column="2" 
+                                               Value="{x:Bind ViewModel.FavoritesCount, Mode=OneWay}" 
                                                FontSize="12" 
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                VerticalAlignment="Center"
@@ -515,8 +516,8 @@
                                     <TextBlock x:Name="SavedMomentsNavText" Grid.Column="1" Text="Saved Moments" FontSize="13" VerticalAlignment="Center" />
 
                                     <!-- Counter (Clean text, brightened) -->
-                                    <TextBlock Grid.Column="2" 
-                                               Text="{x:Bind ViewModel.SavedMomentsCount, Mode=OneWay}" 
+                                    <controls:RollingCounter Grid.Column="2" 
+                                               Value="{x:Bind ViewModel.SavedMomentsCount, Mode=OneWay}" 
                                                FontSize="12" 
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                VerticalAlignment="Center"
@@ -604,8 +605,8 @@
                                                    VerticalAlignment="Center" 
                                                    ToolTipService.ToolTip="{x:Bind FullPath}" />
 
-                                        <TextBlock Grid.Column="2" 
-                                                   Text="{x:Bind ClipCount, Mode=OneWay}" 
+                                        <controls:RollingCounter Grid.Column="2" 
+                                                   Value="{x:Bind ClipCount, Mode=OneWay}" 
                                                    FontSize="12" 
                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" 
                                                    VerticalAlignment="Center" 
@@ -734,7 +735,7 @@
                 <Grid ColumnSpacing="16" RowSpacing="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" MinWidth="180" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
@@ -766,9 +767,16 @@
                                    TextTrimming="CharacterEllipsis" />
                         
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <TextBlock Text="{x:Bind ViewModel.ClipsCountSummary, Mode=OneWay}" 
-                                       Style="{ThemeResource CaptionTextBlockStyle}" 
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                <controls:RollingCounter Value="{x:Bind ViewModel.TotalClipsCount, Mode=OneWay}" 
+                                                         FontSize="12" 
+                                                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                                         VerticalAlignment="Center" />
+                                <TextBlock Text="{x:Bind ViewModel.ClipsUnitLabel, Mode=OneWay}" 
+                                           Style="{ThemeResource CaptionTextBlockStyle}" 
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
                             <TextBlock Text="•" 
                                        Style="{ThemeResource CaptionTextBlockStyle}" 
                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
@@ -807,7 +815,8 @@
                     <!-- Search Box -->
                     <AutoSuggestBox x:Name="ClipsSearchBox"
                                     Grid.Column="2" 
-                                    Width="220" 
+                                    MinWidth="130" 
+                                    MaxWidth="220" 
                                     PlaceholderText="Search clips..." 
                                     QueryIcon="Find"
                                     Text="{x:Bind ViewModel.SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
@@ -910,6 +919,11 @@
                         <GroupStyle>
                             <GroupStyle.HeaderContainerStyle>
                                 <Style TargetType="GridViewHeaderItem">
+                                    <Setter Property="Transitions">
+                                        <Setter.Value>
+                                            <TransitionCollection />
+                                        </Setter.Value>
+                                    </Setter>
                                     <Setter Property="HorizontalAlignment" Value="Stretch" />
                                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                                     <Setter Property="MinHeight" Value="0" />
@@ -919,13 +933,7 @@
                             </GroupStyle.HeaderContainerStyle>
                             <GroupStyle.HeaderTemplate>
                                 <DataTemplate x:DataType="models:ClipGroup">
-                                    <StackPanel Margin="0,12,0,4">
-                                        <!-- Subtle Divider Line between Groups (shown for 2nd group onward) -->
-                                        <Border Height="1" 
-                                                Background="{ThemeResource DividerStrokeColorDefaultBrush}" 
-                                                Margin="0,0,0,14" 
-                                                Visibility="{x:Bind ShowGroupDivider, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
-
+                                    <StackPanel Margin="0,16,0,6">
                                         <!-- Date Title and Stats Row -->
                                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                             <FontIcon Glyph="&#xE787;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
@@ -960,6 +968,13 @@
 
                     <GridView.ItemContainerStyle>
                         <Style TargetType="GridViewItem">
+                            <Setter Property="Transitions">
+                                <Setter.Value>
+                                    <TransitionCollection>
+                                        <RepositionThemeTransition IsStaggeringEnabled="False" />
+                                    </TransitionCollection>
+                                </Setter.Value>
+                            </Setter>
                             <Setter Property="Margin" Value="6" />
                             <Setter Property="Padding" Value="0" />
                             <Setter Property="BorderThickness" Value="0" />

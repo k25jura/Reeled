@@ -25,9 +25,11 @@ public partial class GameClip : ObservableObject
     private string _directoryPath = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FormattedDuration))]
     private TimeSpan _duration = TimeSpan.Zero;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FormattedFileSize))]
     private long _fileSizeBytes;
 
     [ObservableProperty]

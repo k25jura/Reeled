@@ -8,6 +8,7 @@
     xmlns:vlc="using:LibVLCSharp.Platforms.Windows"
     xmlns:models="using:Reeled.Models"
     xmlns:viewmodels="using:Reeled.ViewModels"
+    xmlns:controls="using:Reeled.Controls"
     mc:Ignorable="d"
     Background="#101010"
     KeyDown="OnPageKeyDown"
@@ -728,7 +729,7 @@
                                 Style="{ThemeResource SubtleButtonStyle}">
                             <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                                 <FontIcon Glyph="&#xE8A4;" FontSize="13" Foreground="#FFD700" />
-                                <TextBlock Text="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" FontSize="12" Foreground="White" />
+                                <controls:RollingCounter Value="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" FontSize="12" Foreground="White" />
                             </StackPanel>
                             <Button.Flyout>
                                 <Flyout x:Name="MomentsFlyout" Placement="Top" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
@@ -747,7 +748,7 @@
                                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                                 <FontIcon Glyph="&#xE8A4;" FontSize="14" Foreground="#FFD700" />
                                                 <TextBlock x:Name="MomentsFlyoutHeaderTitle" Text="Moments" FontWeight="SemiBold" FontSize="14" Foreground="White" />
-                                                <TextBlock Text="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" 
+                                                <controls:RollingCounter Value="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" 
                                                            FontSize="12" 
                                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
                                                            VerticalAlignment="Center" />
@@ -1230,7 +1231,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <FontIcon Glyph="&#xE90B;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                         <TextBlock x:Name="ClipQueueHeaderTitle" Text="Clip Queue" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" FontWeight="SemiBold" Foreground="White" />
-                        <TextBlock Text="{x:Bind ViewModel.Playlist.Count, Mode=OneWay}" FontSize="12" Foreground="#808080" VerticalAlignment="Center" />
+                        <controls:RollingCounter Value="{x:Bind ViewModel.Playlist.Count, Mode=OneWay}" FontSize="12" Foreground="#808080" VerticalAlignment="Center" />
                     </StackPanel>
 
                     <Button x:Name="CloseQueueButton"

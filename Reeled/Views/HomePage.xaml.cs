@@ -22,6 +22,8 @@ public sealed partial class HomePage : Page
         _thumbnailService = App.GetService<Services.IThumbnailService>();
         InitializeComponent();
 
+        Helpers.CursorHelper.SetElementCursor(SidebarResizeHandle, Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast));
+
         UpdateGridItemsSource();
 
         _sidebarWidth = ViewModel.SidebarWidth >= 200 ? ViewModel.SidebarWidth : 316.0;
@@ -43,6 +45,10 @@ public sealed partial class HomePage : Page
             UpdateCardsMetadataVisibility();
             UpdateGridItemsSource();
             UpdateGridResponsiveLayout();
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                UpdateGridResponsiveLayout();
+            });
 
             if (ClipsGridView != null)
             {
@@ -53,6 +59,17 @@ public sealed partial class HomePage : Page
                 ClipsGridView.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler(OnClipsGridPointerWheelChanged), handledEventsToo: true);
             }
             this.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnPageKeyDown), handledEventsToo: true);
+
+            if (ClipsGridView != null)
+            {
+                _clipsScrollViewer ??= FindVisualChild<ScrollViewer>(ClipsGridView);
+            }
+
+            _resizeThrottleTimer.Tick += (s2, e2) =>
+            {
+                _resizeThrottleTimer.Stop();
+                UpdateGridResponsiveLayout(isThrottled: true);
+            };
 
             if (ClipsSearchBox != null)
             {
@@ -104,6 +121,12 @@ public sealed partial class HomePage : Page
                 {
                     SidebarContainer.Width = _sidebarWidth;
                     SidebarContentBorder.Width = _sidebarWidth;
+                    _lastCalculatedWidth = -1;
+                    _lastColumnCount = -1;
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
+                    {
+                        UpdateGridResponsiveLayout();
+                    });
                 }
             }
             else if (e.PropertyName == nameof(HomeViewModel.SortIndex))
@@ -121,6 +144,13 @@ public sealed partial class HomePage : Page
             {
                 UpdateGridItemsSource();
                 UpdateViewOptionsMenuUI();
+                _activeGroupWrapGrids.Clear();
+                _lastCalculatedWidth = -1;
+                _lastColumnCount = -1;
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
+                {
+                    UpdateGridResponsiveLayout();
+                });
             }
             else if (e.PropertyName == nameof(HomeViewModel.MetadataHoverOnly))
             {
@@ -1074,6 +1104,7 @@ public sealed partial class HomePage : Page
             {
                 _wasAutoCollapsed = true;
                 ViewModel.IsSidebarCollapsed = true;
+                (App.Window as MainWindow)?.SetSidebarOpen(false);
                 AnimateSidebar(isOpen: false, animate: false);
             }
         }
@@ -1083,6 +1114,7 @@ public sealed partial class HomePage : Page
             {
                 _wasAutoCollapsed = false;
                 ViewModel.IsSidebarCollapsed = false;
+                (App.Window as MainWindow)?.SetSidebarOpen(true);
                 AnimateSidebar(isOpen: true, animate: false);
             }
         }
@@ -1118,6 +1150,9 @@ public sealed partial class HomePage : Page
             return;
         }
 
+        _sidebarStoryboard?.Stop();
+        _sidebarStoryboard = null;
+
         // Determine starting values before launching storyboard
         double startWidth;
         double startTranslateX;
@@ -1128,8 +1163,47 @@ public sealed partial class HomePage : Page
 
         if (isOpen)
         {
+            if (App.Window is MainWindow mw)
+            {
+                mw.EnsureWidthForSidebar(_sidebarWidth);
+                mw.SetSidebarOpen(true);
+            }
+
             SidebarContainer.Visibility = Visibility.Visible;
+            SidebarContainer.MaxWidth = 500.0;
             SidebarContentBorder.Width = _sidebarWidth;
+
+            // Pre-align target columns to prevent intermediate double wrapping when sidebar expands
+            double availableWidth = GetClipsAvailableWidth();
+            double targetAvailableWidth = availableWidth - (_sidebarWidth - (SidebarContainer.ActualWidth > 0 ? SidebarContainer.ActualWidth : 0.0));
+            if (targetAvailableWidth > 50)
+            {
+                int targetCols = CalculateResponsiveColumns(targetAvailableWidth, _lastColumnCount);
+                double calcW = Math.Floor((targetAvailableWidth - 2.0) / targetCols);
+                double calcH = Math.Round(calcW * 9.0 / 16.0);
+
+                _currentCardWidth = calcW;
+                _currentCardHeight = calcH;
+                _lastCalculatedWidth = calcW;
+                _lastColumnCount = targetCols;
+
+                if (ViewModel.DateGrouping == DateGroupingMode.None)
+                {
+                    if (ClipsGridView?.ItemsPanelRoot is ItemsWrapGrid fg)
+                    {
+                        fg.ItemWidth = calcW;
+                        fg.ItemHeight = calcH;
+                        fg.MaximumRowsOrColumns = -1;
+                    }
+                }
+                if (SkeletonItemsControl?.ItemsPanelRoot is ItemsWrapGrid sg)
+                {
+                    sg.ItemWidth = calcW;
+                    sg.ItemHeight = calcH;
+                    sg.MaximumRowsOrColumns = -1;
+                }
+                UpdateGroupWrapGrids(calcW, calcH, -1);
+            }
 
             startWidth = (SidebarContainer.ActualWidth > 0 && SidebarContainer.ActualWidth < _sidebarWidth)
                 ? SidebarContainer.ActualWidth
@@ -1152,6 +1226,11 @@ public sealed partial class HomePage : Page
         }
         else
         {
+            if (App.Window is MainWindow mw)
+            {
+                mw.SetSidebarOpen(false);
+            }
+
             startWidth = SidebarContainer.ActualWidth > 0 ? SidebarContainer.ActualWidth : _sidebarWidth;
             startTranslateX = SidebarTranslate.X;
             startOpacity = SidebarContentBorder.Opacity;
@@ -1259,6 +1338,7 @@ public sealed partial class HomePage : Page
 
         sb.Completed += (s, e) =>
         {
+            if (!ReferenceEquals(_sidebarStoryboard, sb)) return;
             _sidebarStoryboard = null;
             SidebarContainer.Width = targetWidth;
             SidebarTranslate.X = targetTranslateX;
@@ -1296,7 +1376,6 @@ public sealed partial class HomePage : Page
 
     private void OnSidebarResizeHandlePointerEntered(object sender, PointerRoutedEventArgs e)
     {
-        this.ProtectedCursor = Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast);
         if (ResizeHighlightLine != null)
         {
             ResizeHighlightLine.Opacity = 0.6;
@@ -1321,6 +1400,7 @@ public sealed partial class HomePage : Page
         {
             el.CapturePointer(e.Pointer);
             _isResizingSidebar = true;
+            this.ProtectedCursor = Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast);
             _resizeStartPointerX = e.GetCurrentPoint(this).Position.X;
             _resizeStartWidth = _sidebarWidth;
             if (ResizeHighlightLine != null)
@@ -1362,6 +1442,9 @@ public sealed partial class HomePage : Page
                 ResizeHighlightLine.Opacity = 0.0;
             }
             ViewModel.SaveSidebarWidth(_sidebarWidth);
+            _lastCalculatedWidth = -1;
+            _lastColumnCount = -1;
+            UpdateGridResponsiveLayout();
             e.Handled = true;
         }
     }
@@ -1377,7 +1460,7 @@ public sealed partial class HomePage : Page
     private int _lastColumnCount = -1;
     private readonly System.Collections.Generic.HashSet<FrameworkElement> _activeCardGrids = new();
     private readonly System.Collections.Generic.HashSet<ItemsWrapGrid> _activeGroupWrapGrids = new();
-    private DispatcherTimer? _resizeDebounceTimer;
+    private readonly DispatcherTimer _resizeThrottleTimer = new() { Interval = TimeSpan.FromMilliseconds(16) };
 
     private bool _isAutoscrolling;
     private Windows.Foundation.Point _autoscrollOrigin;
@@ -1498,11 +1581,15 @@ public sealed partial class HomePage : Page
 
             if (FindParent<ItemsWrapGrid>(card) is ItemsWrapGrid wrapGrid)
             {
-                _activeGroupWrapGrids.Add(wrapGrid);
+                if (wrapGrid != ClipsGridView?.ItemsPanelRoot && wrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
+                {
+                    _activeGroupWrapGrids.Add(wrapGrid);
+                }
                 if (_currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
                 {
                     wrapGrid.ItemWidth = _currentCardWidth;
                     wrapGrid.ItemHeight = _currentCardHeight;
+                    wrapGrid.MaximumRowsOrColumns = -1;
                 }
                 else if (_currentCardWidth <= 0)
                 {
@@ -1598,7 +1685,7 @@ public sealed partial class HomePage : Page
         for (int i = 0; i < count; i++)
         {
             var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is ItemsWrapGrid wg && wg != SkeletonItemsControl?.ItemsPanelRoot)
+            if (child is ItemsWrapGrid wg && wg != SkeletonItemsControl?.ItemsPanelRoot && wg != ClipsGridView?.ItemsPanelRoot)
             {
                 _activeGroupWrapGrids.Add(wg);
             }
@@ -1609,70 +1696,143 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private void UpdateGridResponsiveLayout(bool isDebounced = false)
+    private double GetClipsAvailableWidth()
+    {
+        if (ClipsGridView == null) return 0;
+        _clipsScrollViewer ??= FindVisualChild<ScrollViewer>(ClipsGridView);
+        double containerWidth = 0;
+        if (_clipsScrollViewer != null && _clipsScrollViewer.ViewportWidth > 0)
+        {
+            containerWidth = _clipsScrollViewer.ViewportWidth;
+            // If the scroll viewer hasn't shown the vertical scrollbar yet, but there will be scrolling items,
+            // reserve the standard 16 DIP scrollbar width so scrollbar appearance won't trigger premature wrapping!
+            if (_clipsScrollViewer.ComputedVerticalScrollBarVisibility != Visibility.Visible &&
+                (ViewModel.FilteredClips.Count > 6 || ViewModel.GroupedClips.Count > 1))
+            {
+                containerWidth -= 16.0;
+            }
+        }
+        else if (ClipsGridView.ActualWidth > 0)
+        {
+            // Fallback when ViewportWidth hasn't measured yet: subtract standard vertical scrollbar (16 DIPs)
+            containerWidth = ClipsGridView.ActualWidth - 16.0;
+        }
+
+        if (containerWidth <= 0 && ClipsGridView.ActualWidth > 0)
+        {
+            containerWidth = ClipsGridView.ActualWidth;
+        }
+
+        containerWidth -= (ClipsGridView.Padding.Left + ClipsGridView.Padding.Right);
+        return Math.Max(0, containerWidth);
+    }
+
+    private (double targetWidth, double minWidth, double maxWidth) GetDensityBounds()
+    {
+        return ViewModel.ViewDensity switch
+        {
+            ViewDensityMode.Compact => (210.0, 168.0, 260.0),
+            ViewDensityMode.Large => (360.0, 288.0, 450.0),
+            _ => (280.0, 224.0, 350.0)
+        };
+    }
+
+    private int CalculateResponsiveColumns(double availableWidth, int currentColumns)
+    {
+        if (availableWidth <= 50) return 1;
+        var (targetWidth, minWidth, maxWidth) = GetDensityBounds();
+
+        int columns = currentColumns > 0
+            ? currentColumns
+            : (int)Math.Max(1, Math.Round(availableWidth / targetWidth, MidpointRounding.AwayFromZero));
+
+        // 1. Shrink Priority: Only wrap down when cards reach the minimum shrink cap
+        while (columns > 1 && ((availableWidth - 2.0) / columns) < minWidth)
+        {
+            columns--;
+        }
+
+        // 2. Expand: Only expand when adding a column still leaves each card at or above targetWidth,
+        // or when current cards have stretched past the maximum stretch cap
+        while (((availableWidth - 2.0) / (columns + 1)) >= targetWidth || ((availableWidth - 2.0) / columns) > maxWidth)
+        {
+            columns++;
+        }
+
+        return Math.Max(1, columns);
+    }
+
+    private void UpdateGridResponsiveLayout(bool isThrottled = false)
     {
         if (ClipsGridView == null) return;
-        double availableWidth = ClipsGridView.ActualWidth - ClipsGridView.Padding.Left - ClipsGridView.Padding.Right;
-        if (availableWidth <= 50) return;
-
-        double targetWidth = ViewModel.ViewDensity switch
+        if (_sidebarStoryboard != null)
         {
-            ViewDensityMode.Compact => 210,
-            ViewDensityMode.Large => 360,
-            _ => 280
-        };
-
-        int columns = (int)Math.Max(1, Math.Round(availableWidth / targetWidth));
-        double calculatedWidth = Math.Floor(availableWidth / columns);
-        double calculatedHeight = Math.Round(calculatedWidth * 9.0 / 16.0);
-
-        bool columnChanged = columns != _lastColumnCount;
-        bool widthDeltaSignificant = Math.Abs(calculatedWidth - _lastCalculatedWidth) >= 3.0;
-
-        FindAndRegisterGroupWrapGrids(ClipsGridView);
-
-        bool wrapGridsNeedSync = (ClipsGridView.ItemsPanelRoot is ItemsWrapGrid fg && Math.Abs(fg.ItemWidth - calculatedWidth) > 0.5) ||
-                                 _activeGroupWrapGrids.Any(wg => Math.Abs(wg.ItemWidth - calculatedWidth) > 0.5);
-
-        if (!columnChanged && !widthDeltaSignificant && !wrapGridsNeedSync && !isDebounced)
-        {
-            _resizeDebounceTimer?.Stop();
-            _resizeDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(35) };
-            _resizeDebounceTimer.Tick += (s, e) =>
-            {
-                _resizeDebounceTimer?.Stop();
-                _resizeDebounceTimer = null;
-                UpdateGridResponsiveLayout(isDebounced: true);
-            };
-            _resizeDebounceTimer.Start();
+            // Do not churn grid calculations while the sidebar storyboard is actively animating.
             return;
         }
 
-        _resizeDebounceTimer?.Stop();
-        _resizeDebounceTimer = null;
+        double availableWidth = GetClipsAvailableWidth();
+        if (availableWidth <= 50) return;
+
+        int columns = CalculateResponsiveColumns(availableWidth, _lastColumnCount);
+        // Subtract 2.0 DIPs before division to ensure (columns * calculatedWidth) is strictly <= availableWidth
+        // so subpixel rounding in DirectComposition / layout engine NEVER causes early wrap!
+        double calculatedWidth = Math.Floor((availableWidth - 2.0) / columns);
+        double calculatedHeight = Math.Round(calculatedWidth * 9.0 / 16.0);
+
+        bool columnChanged = columns != _lastColumnCount;
+
+        // When columns change, apply immediately so items wrap/unwrap without hesitation and RepositionThemeTransition glides them!
+        // When columns stay identical during window resizing, throttle width updates to 60fps (16ms).
+        // This ensures the window border and top header never suffer input delay, while cards continuously resize in real-time!
+        if (!columnChanged && !isThrottled && _lastColumnCount > 0)
+        {
+            bool widthChanged = Math.Abs(calculatedWidth - _lastCalculatedWidth) > 0.5;
+            if (widthChanged)
+            {
+                if (!_resizeThrottleTimer.IsEnabled)
+                {
+                    _resizeThrottleTimer.Start();
+                }
+                return;
+            }
+        }
+
+        _resizeThrottleTimer.Stop();
 
         _lastColumnCount = columns;
         _lastCalculatedWidth = calculatedWidth;
         _currentCardWidth = calculatedWidth;
         _currentCardHeight = calculatedHeight;
 
-        bool appliedToAny = false;
-        if (ClipsGridView.ItemsPanelRoot is ItemsWrapGrid flatWrapGrid)
+        // Only search the visual tree if our cache of active group wrap grids is empty
+        if (_activeGroupWrapGrids.Count == 0)
         {
-            flatWrapGrid.ItemWidth = calculatedWidth;
-            flatWrapGrid.ItemHeight = calculatedHeight;
-            appliedToAny = true;
+            FindAndRegisterGroupWrapGrids(ClipsGridView);
+        }
+
+        bool appliedToAny = false;
+        if (ViewModel.DateGrouping == DateGroupingMode.None)
+        {
+            if (ClipsGridView.ItemsPanelRoot is ItemsWrapGrid flatWrapGrid)
+            {
+                flatWrapGrid.ItemWidth = calculatedWidth;
+                flatWrapGrid.ItemHeight = calculatedHeight;
+                flatWrapGrid.MaximumRowsOrColumns = -1;
+                appliedToAny = true;
+            }
         }
 
         if (SkeletonItemsControl?.ItemsPanelRoot is ItemsWrapGrid skeletonWrapGrid)
         {
             skeletonWrapGrid.ItemWidth = calculatedWidth;
             skeletonWrapGrid.ItemHeight = calculatedHeight;
+            skeletonWrapGrid.MaximumRowsOrColumns = -1;
         }
 
         if (_activeGroupWrapGrids.Count > 0)
         {
-            UpdateGroupWrapGrids(calculatedWidth, calculatedHeight);
+            UpdateGroupWrapGrids(calculatedWidth, calculatedHeight, -1);
             appliedToAny = true;
         }
 
@@ -1687,13 +1847,17 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private void UpdateGroupWrapGrids(double width, double height)
+    private void UpdateGroupWrapGrids(double width, double height, int columns = -1)
     {
         _activeGroupWrapGrids.RemoveWhere(wg => wg.XamlRoot == null);
         foreach (var wrapGrid in _activeGroupWrapGrids)
         {
             wrapGrid.ItemWidth = width;
             wrapGrid.ItemHeight = height;
+            if (wrapGrid.MaximumRowsOrColumns != -1)
+            {
+                wrapGrid.MaximumRowsOrColumns = -1;
+            }
         }
     }
 
@@ -1713,11 +1877,18 @@ public sealed partial class HomePage : Page
 
             if (FindParent<ItemsWrapGrid>(gvi) is ItemsWrapGrid wrapGrid)
             {
-                _activeGroupWrapGrids.Add(wrapGrid);
+                if (wrapGrid != ClipsGridView?.ItemsPanelRoot && wrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
+                {
+                    _activeGroupWrapGrids.Add(wrapGrid);
+                }
                 if (_currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
                 {
                     wrapGrid.ItemWidth = _currentCardWidth;
                     wrapGrid.ItemHeight = _currentCardHeight;
+                    if (wrapGrid.MaximumRowsOrColumns != -1)
+                    {
+                        wrapGrid.MaximumRowsOrColumns = -1;
+                    }
                 }
             }
         }
@@ -1763,6 +1934,10 @@ public sealed partial class HomePage : Page
 
     private void OnClipCardPointerEntered(object sender, PointerRoutedEventArgs e)
     {
+        if (this.ProtectedCursor != null)
+        {
+            this.ProtectedCursor = null;
+        }
         if (sender is FrameworkElement card)
         {
             AnimateCardHover(card, isHovered: true);
@@ -1782,7 +1957,7 @@ public sealed partial class HomePage : Page
         var easeOut = new CubicEase { EasingMode = EasingMode.EaseOut };
         var easeInOut = new CubicEase { EasingMode = EasingMode.EaseInOut };
         var activeEase = isHovered ? (EasingFunctionBase)easeOut : easeInOut;
-        var duration = TimeSpan.FromMilliseconds(isHovered ? 300 : 250);
+        var duration = TimeSpan.FromMilliseconds(isHovered ? 260 : 220);
 
         // 1. Elevate Z-Index so hovered card rests above neighbor cards
         if (FindParent<GridViewItem>(card) is GridViewItem hoveredGvi)
@@ -1790,12 +1965,44 @@ public sealed partial class HomePage : Page
             Canvas.SetZIndex(hoveredGvi, isHovered ? 10 : 0);
         }
 
-        // 2. Accent Border
-        if (card.FindName("HoverHighlightBorder") is UIElement highlightBorder)
+        // Capture current in-flight property values before stopping previous storyboard
+        var titleTransform = card.FindName("TitleTransform") as TranslateTransform;
+        double currentTitleY = titleTransform?.Y ?? (isHovered ? 18.0 : 0.0);
+
+        var metaTransform = card.FindName("MetadataTransform") as TranslateTransform;
+        double currentMetaY = metaTransform?.Y ?? (isHovered ? 18.0 : 0.0);
+
+        var metadataRow = card.FindName("MetadataRow") as UIElement;
+        double currentMetaOpacity = metadataRow?.Opacity ?? (isHovered ? 0.0 : 0.85);
+
+        var highlightBorder = card.FindName("HoverHighlightBorder") as UIElement;
+        double currentBorderOpacity = highlightBorder?.Opacity ?? (isHovered ? 0.0 : 1.0);
+
+        var scale = card.FindName("CardScale") as ScaleTransform;
+        double currentScaleX = scale?.ScaleX ?? (isHovered ? 1.0 : 1.02);
+        double currentScaleY = scale?.ScaleY ?? (isHovered ? 1.0 : 1.02);
+
+        var playOverlay = card.FindName("PlayOverlay") as UIElement;
+        double currentPlayOpacity = playOverlay?.Opacity ?? (isHovered ? 0.0 : 1.0);
+
+        var playOverlayScale = card.FindName("PlayOverlayScale") as ScaleTransform;
+        double currentPlayScaleX = playOverlayScale?.ScaleX ?? (isHovered ? 0.8 : 1.0);
+        double currentPlayScaleY = playOverlayScale?.ScaleY ?? (isHovered ? 0.8 : 1.0);
+
+        if (card.Tag is Storyboard oldSb)
         {
-            var sb = new Storyboard();
+            oldSb.Stop();
+            card.Tag = null;
+        }
+
+        var sb = new Storyboard();
+
+        // 2. Accent Border
+        if (highlightBorder != null)
+        {
             var animBorder = new DoubleAnimation
             {
+                From = currentBorderOpacity,
                 To = isHovered ? 1.0 : 0.0,
                 Duration = duration,
                 EasingFunction = activeEase
@@ -1803,21 +2010,21 @@ public sealed partial class HomePage : Page
             sb.Children.Add(animBorder);
             Storyboard.SetTarget(animBorder, highlightBorder);
             Storyboard.SetTargetProperty(animBorder, "Opacity");
-            sb.Begin();
         }
 
         // 3. Card Gentle Scale from Center
-        if (card.FindName("CardScale") is ScaleTransform scale)
+        if (scale != null)
         {
-            var sb = new Storyboard();
             var animScaleX = new DoubleAnimation
             {
+                From = currentScaleX,
                 To = isHovered ? 1.02 : 1.0,
                 Duration = duration,
                 EasingFunction = activeEase
             };
             var animScaleY = new DoubleAnimation
             {
+                From = currentScaleY,
                 To = isHovered ? 1.02 : 1.0,
                 Duration = duration,
                 EasingFunction = activeEase
@@ -1828,15 +2035,14 @@ public sealed partial class HomePage : Page
             Storyboard.SetTargetProperty(animScaleX, "ScaleX");
             Storyboard.SetTarget(animScaleY, scale);
             Storyboard.SetTargetProperty(animScaleY, "ScaleY");
-            sb.Begin();
         }
 
         // 4. Play Button Overlay Animation (Compositor-friendly fade & scale)
-        if (card.FindName("PlayOverlay") is UIElement playOverlay)
+        if (playOverlay != null)
         {
-            var sb = new Storyboard();
             var animOpacity = new DoubleAnimation
             {
+                From = currentPlayOpacity,
                 To = isHovered ? 1.0 : 0.0,
                 Duration = duration,
                 EasingFunction = activeEase
@@ -1845,80 +2051,89 @@ public sealed partial class HomePage : Page
             Storyboard.SetTarget(animOpacity, playOverlay);
             Storyboard.SetTargetProperty(animOpacity, "Opacity");
 
-            if (card.FindName("PlayOverlayScale") is ScaleTransform scaleTransform)
+            if (playOverlayScale != null)
             {
                 var animScaleX = new DoubleAnimation
                 {
+                    From = currentPlayScaleX,
                     To = isHovered ? 1.0 : 0.8,
                     Duration = duration,
                     EasingFunction = activeEase
                 };
                 var animScaleY = new DoubleAnimation
                 {
+                    From = currentPlayScaleY,
                     To = isHovered ? 1.0 : 0.8,
                     Duration = duration,
                     EasingFunction = activeEase
                 };
                 sb.Children.Add(animScaleX);
                 sb.Children.Add(animScaleY);
-                Storyboard.SetTarget(animScaleX, scaleTransform);
+                Storyboard.SetTarget(animScaleX, playOverlayScale);
                 Storyboard.SetTargetProperty(animScaleX, "ScaleX");
-                Storyboard.SetTarget(animScaleY, scaleTransform);
+                Storyboard.SetTarget(animScaleY, playOverlayScale);
                 Storyboard.SetTargetProperty(animScaleY, "ScaleY");
             }
-
-            sb.Begin();
         }
 
         // 5. Title & Metadata Slide Animation
         bool hoverOnly = ViewModel.MetadataHoverOnly;
-        var slideSb = new Storyboard();
-
-        if (card.FindName("TitleTransform") is TranslateTransform titleTransform)
+        if (titleTransform != null)
         {
             double targetTitleY = (hoverOnly && !isHovered) ? 18.0 : 0.0;
             var animTitleY = new DoubleAnimation
             {
+                From = currentTitleY,
                 To = targetTitleY,
                 Duration = duration,
                 EasingFunction = activeEase
             };
-            slideSb.Children.Add(animTitleY);
+            sb.Children.Add(animTitleY);
             Storyboard.SetTarget(animTitleY, titleTransform);
             Storyboard.SetTargetProperty(animTitleY, "Y");
         }
 
-        if (card.FindName("MetadataTransform") is TranslateTransform metaTransform)
+        if (metaTransform != null)
         {
             double targetMetaY = (hoverOnly && !isHovered) ? 18.0 : 0.0;
             var animMetaY = new DoubleAnimation
             {
+                From = currentMetaY,
                 To = targetMetaY,
                 Duration = duration,
                 EasingFunction = activeEase
             };
-            slideSb.Children.Add(animMetaY);
+            sb.Children.Add(animMetaY);
             Storyboard.SetTarget(animMetaY, metaTransform);
             Storyboard.SetTargetProperty(animMetaY, "Y");
         }
 
-        if (card.FindName("MetadataRow") is UIElement metadataRow)
+        if (metadataRow != null)
         {
             double targetOpacity = isHovered ? 1.0 : (hoverOnly ? 0.0 : 0.85);
             var animMetaOpacity = new DoubleAnimation
             {
+                From = currentMetaOpacity,
                 To = targetOpacity,
                 Duration = duration,
                 EasingFunction = activeEase
             };
-            slideSb.Children.Add(animMetaOpacity);
+            sb.Children.Add(animMetaOpacity);
             Storyboard.SetTarget(animMetaOpacity, metadataRow);
             Storyboard.SetTargetProperty(animMetaOpacity, "Opacity");
         }
 
-        if (slideSb.Children.Count > 0)
+        if (sb.Children.Count > 0)
         {
-            slideSb.Begin();
+            card.Tag = sb;
+            sb.Completed += (s, e) =>
+            {
+                if (ReferenceEquals(card.Tag, sb))
+                {
+                    card.Tag = null;
+                }
+            };
+            sb.Begin();
         }
     }
 
@@ -2858,7 +3073,7 @@ public sealed partial class HomePage : Page
         var sineEase = new SineEase { EasingMode = EasingMode.EaseInOut };
 
         // 1. Button Pop Bounce Scale: soft compression, gentle rise, smooth settle
-        if (btn.FindName("FavoriteScale") is ScaleTransform scale)
+        if ((btn.RenderTransform as ScaleTransform ?? btn.FindName("FavoriteScale") as ScaleTransform) is ScaleTransform scale)
         {
             var kfScaleX = new DoubleAnimationUsingKeyFrames();
             var kfScaleY = new DoubleAnimationUsingKeyFrames();
@@ -2950,6 +3165,11 @@ public sealed partial class HomePage : Page
 
     private void OnClipCardRightTapped(object sender, RightTappedRoutedEventArgs e)
     {
+        if (this.ProtectedCursor != null)
+        {
+            this.ProtectedCursor = null;
+        }
+
         if (sender is FrameworkElement element && element.DataContext is GameClip clip)
         {
             var loc = App.GetService<Services.ILocalizationService>();
@@ -2982,7 +3202,16 @@ public sealed partial class HomePage : Page
                 Text = favText,
                 Icon = new FontIcon { Glyph = clip.IsFavorite ? "\uEB51" : "\uEB52" }
             };
-            favItem.Click += (s, args) => _ = ViewModel.ToggleFavoriteAsync(clip);
+            var favBtn = (element.FindName("FavoriteButton") as Button) ?? FindVisualChildByName<Button>(element, "FavoriteButton");
+            favItem.Click += (s, args) =>
+            {
+                bool willBeFavorite = !clip.IsFavorite;
+                _ = ViewModel.ToggleFavoriteAsync(clip);
+                if (favBtn != null)
+                {
+                    AnimateFavoriteClick(favBtn, willBeFavorite);
+                }
+            };
             flyout.Items.Add(favItem);
 
             // Rename in App (Non-destructive)
@@ -3077,11 +3306,36 @@ public sealed partial class HomePage : Page
         grid2.Children.Add(momentBlock);
         panel.Children.Add(grid2);
 
-        // Date modified
+        // Grid for 2-column info (Date Modified on left, File Properties action button on right)
+        var grid3 = new Grid { ColumnSpacing = 16 };
+        grid3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
         var dateBlock = new StackPanel { Spacing = 2 };
         dateBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_DateModified"] ?? "Date Modified", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
         dateBlock.Children.Add(new TextBlock { Text = clip.FormattedDate, FontSize = 13 });
-        panel.Children.Add(dateBlock);
+        Grid.SetColumn(dateBlock, 0);
+        grid3.Children.Add(dateBlock);
+
+        var openPropsBtn = new Button
+        {
+            Content = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 6,
+                Children =
+                {
+                    new FontIcon { Glyph = "\uE946", FontSize = 12 },
+                    new TextBlock { Text = loc?["Dialog_ClipInfo_OpenProperties"] ?? "Properties", FontSize = 12 }
+                }
+            },
+            VerticalAlignment = VerticalAlignment.Bottom,
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+        openPropsBtn.Click += (s, args) => ViewModel.OpenFileProperties(clip);
+        Grid.SetColumn(openPropsBtn, 1);
+        grid3.Children.Add(openPropsBtn);
+        panel.Children.Add(grid3);
 
         // File path
         var pathBlock = new StackPanel { Spacing = 2 };

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Runtime.InteropServices;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage.Pickers;
 using Microsoft.UI.Dispatching;
@@ -195,12 +196,16 @@ public partial class HomeViewModel : ObservableObject
         OnPropertyChanged(nameof(CurrentDirectoryPath));
         OnPropertyChanged(nameof(CanOpenDirectoryInExplorer));
         OnPropertyChanged(nameof(ClipsCountSummary));
+        OnPropertyChanged(nameof(ClipsUnitLabel));
     }
 
     public int TotalClipsCount => Clips.Count;
 
+    public string ClipsUnitLabel =>
+        _localizationService.FormatPlural("Plural_Clip", TotalClipsCount);
+
     public string ClipsCountSummary =>
-        $"{TotalClipsCount} {_localizationService.FormatPlural("Plural_Clip", TotalClipsCount)}";
+        $"{TotalClipsCount} {ClipsUnitLabel}";
 
     public void RefreshSavedMoments()
     {
@@ -218,6 +223,7 @@ public partial class HomeViewModel : ObservableObject
         OnPropertyChanged(nameof(EmptyStateTitle));
         OnPropertyChanged(nameof(EmptyStateSubtitle));
         OnPropertyChanged(nameof(ClipsCountSummary));
+        OnPropertyChanged(nameof(ClipsUnitLabel));
         OnPropertyChanged(nameof(SavedMomentsCount));
         OnPropertyChanged(nameof(TotalStorageUsedFormatted));
         foreach (var clip in AllClips)
@@ -417,6 +423,11 @@ public partial class HomeViewModel : ObservableObject
     {
         var settings = await _storageService.LoadSettingsAsync();
         EnableSkeletonLoading = settings.EnableSkeletonLoading;
+        ShowMomentsBadges = settings.ShowMomentsBadges;
+        DateGrouping = settings.DateGrouping;
+        ViewDensity = settings.ViewDensity;
+        MetadataHoverOnly = settings.MetadataHoverOnly;
+        SortIndex = settings.SortIndex;
         if (settings.SidebarWidth >= 200 && settings.SidebarWidth <= 600)
         {
             SidebarWidth = settings.SidebarWidth;
@@ -620,6 +631,7 @@ public partial class HomeViewModel : ObservableObject
         OnPropertyChanged(nameof(SavedMomentsCount));
         OnPropertyChanged(nameof(TotalClipsCount));
         OnPropertyChanged(nameof(ClipsCountSummary));
+        OnPropertyChanged(nameof(ClipsUnitLabel));
         OnPropertyChanged(nameof(TotalStorageUsedFormatted));
         OnPropertyChanged(nameof(CurrentDirectoryPath));
         OnPropertyChanged(nameof(HasClips));
@@ -749,6 +761,61 @@ public partial class HomeViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusMessage = $"Error opening Explorer: {ex.Message}";
+        }
+    }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern bool ShellExecuteEx(ref SHELLEXECUTEINFO lpExecInfo);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    private struct SHELLEXECUTEINFO
+    {
+        public int cbSize;
+        public uint fMask;
+        public IntPtr hwnd;
+        [MarshalAs(UnmanagedType.LPTStr)]
+        public string lpVerb;
+        [MarshalAs(UnmanagedType.LPTStr)]
+        public string lpFile;
+        [MarshalAs(UnmanagedType.LPTStr)]
+        public string? lpParameters;
+        [MarshalAs(UnmanagedType.LPTStr)]
+        public string? lpDirectory;
+        public int nShow;
+        public IntPtr hInstApp;
+        public IntPtr lpIDList;
+        [MarshalAs(UnmanagedType.LPTStr)]
+        public string? lpClass;
+        public IntPtr hkeyClass;
+        public uint dwHotKey;
+        public IntPtr hIcon;
+        public IntPtr hProcess;
+    }
+
+    private const uint SEE_MASK_INVOKEIDLIST = 0x0000000C;
+    private const int SW_SHOW = 5;
+
+    [RelayCommand]
+    public void OpenFileProperties(GameClip? clip)
+    {
+        if (clip == null || !File.Exists(clip.FilePath)) return;
+
+        try
+        {
+            var sei = new SHELLEXECUTEINFO
+            {
+                cbSize = Marshal.SizeOf<SHELLEXECUTEINFO>(),
+                lpVerb = "properties",
+                lpFile = clip.FilePath,
+                nShow = SW_SHOW,
+                fMask = SEE_MASK_INVOKEIDLIST,
+                hwnd = App.WindowHandle
+            };
+            ShellExecuteEx(ref sei);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error opening file properties: {ex.Message}";
         }
     }
 

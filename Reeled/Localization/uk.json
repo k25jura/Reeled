@@ -242,6 +242,7 @@
   "Dialog_ClipInfo_None": "Немає",
   "Dialog_ClipInfo_DateModified": "Дата змінення",
   "Dialog_ClipInfo_Location": "Розташування",
+  "Dialog_ClipInfo_OpenProperties": "Властивості",
   "Dialog_ClipInfo_Close": "Закрити",
 
   "Dialog_Rename_Title": "Перейменувати кліп",

@@ -161,9 +161,11 @@ public sealed partial class HomePage : Page
             {
                 if (!ViewModel.ShowSkeletonLoading)
                 {
+                    _clipsScrollViewer = null;
+                    _activeGroupWrapGrids.Clear();
                     _lastCalculatedWidth = -1;
                     _lastColumnCount = -1;
-                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
                     {
                         UpdateGridResponsiveLayout();
                     });
@@ -453,8 +455,14 @@ public sealed partial class HomePage : Page
     }
     private ActiveSectionKind _currentActiveSection = ActiveSectionKind.TopNav;
 
+    private bool IsReduceMotionEnabled()
+    {
+        return App.GetService<Services.ILocalStorageService>()?.CurrentSettings.ReduceMotion == true;
+    }
+
     private void UpdateActiveIndicator(bool animate = true)
     {
+        if (IsReduceMotionEnabled()) animate = false;
         if (ActiveIndicatorPill == null || IndicatorTranslation == null || IndicatorScale == null)
             return;
 
@@ -1122,6 +1130,7 @@ public sealed partial class HomePage : Page
 
     private void AnimateSidebar(bool isOpen, bool animate = true)
     {
+        if (IsReduceMotionEnabled()) animate = false;
         _sidebarStoryboard?.Stop();
         _sidebarStoryboard = null;
 
@@ -1717,6 +1726,12 @@ public sealed partial class HomePage : Page
             // Fallback when ViewportWidth hasn't measured yet: subtract standard vertical scrollbar (16 DIPs)
             containerWidth = ClipsGridView.ActualWidth - 16.0;
         }
+        else if (ActualWidth > 0)
+        {
+            // First launch fallback before ClipsGridView layout pass:
+            double sbWidth = ViewModel.IsSidebarOpen ? (_sidebarWidth > 0 ? _sidebarWidth : 316.0) : 0.0;
+            containerWidth = ActualWidth - sbWidth - 16.0;
+        }
 
         if (containerWidth <= 0 && ClipsGridView.ActualWidth > 0)
         {
@@ -1957,7 +1972,7 @@ public sealed partial class HomePage : Page
         var easeOut = new CubicEase { EasingMode = EasingMode.EaseOut };
         var easeInOut = new CubicEase { EasingMode = EasingMode.EaseInOut };
         var activeEase = isHovered ? (EasingFunctionBase)easeOut : easeInOut;
-        var duration = TimeSpan.FromMilliseconds(isHovered ? 260 : 220);
+        var duration = IsReduceMotionEnabled() ? TimeSpan.FromMilliseconds(1) : TimeSpan.FromMilliseconds(isHovered ? 260 : 220);
 
         // 1. Elevate Z-Index so hovered card rests above neighbor cards
         if (FindParent<GridViewItem>(card) is GridViewItem hoveredGvi)

@@ -64,6 +64,7 @@ public partial class App : Application
         services.AddSingleton<ILibVlcPlaybackService, LibVlcPlaybackService>();
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
+        services.AddSingleton<IUpdateService, UpdateService>();
 
         // ViewModels
         services.AddSingleton<HomeViewModel>();

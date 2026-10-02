@@ -1,17 +1,20 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
+using Microsoft.UI.Composition;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
+using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Animation;
 using Windows.Foundation;
+using Reeled.Services;
 
 namespace Reeled.Controls;
 
 /// <summary>
-/// A lightweight animated numeric counter that rolls digits vertically with fade transitions
-/// and accordion expansion/contraction in a slot-machine / game-currency counter style.
+/// A high-performance animated numeric counter that rolls digits vertically with fade transitions
+/// powered by DirectComposition (DWM) running smoothly at native monitor refresh rates (120Hz/240Hz).
 /// </summary>
 public sealed class RollingCounter : UserControl
 {
@@ -27,7 +30,7 @@ public sealed class RollingCounter : UserControl
             nameof(DurationMs),
             typeof(int),
             typeof(RollingCounter),
-            new PropertyMetadata(320));
+            new PropertyMetadata(280));
 
     public int Value
     {
@@ -61,6 +64,18 @@ public sealed class RollingCounter : UserControl
         this.RegisterPropertyChangedCallback(FontSizeProperty, OnTextStyleChanged);
         this.RegisterPropertyChangedCallback(FontWeightProperty, OnTextStyleChanged);
         this.RegisterPropertyChangedCallback(ForegroundProperty, OnTextStyleChanged);
+    }
+
+    private static bool IsReduceMotionEnabled()
+    {
+        try
+        {
+            return App.GetService<ILocalStorageService>()?.CurrentSettings.ReduceMotion == true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -121,6 +136,13 @@ public sealed class RollingCounter : UserControl
             return;
         }
 
+        if (IsReduceMotionEnabled())
+        {
+            _displayedValue = newVal;
+            RenderStaticValue(newVal);
+            return;
+        }
+
         int fromVal = _displayedValue;
         _displayedValue = newVal;
 
@@ -165,12 +187,12 @@ public sealed class RollingCounter : UserControl
         string paddedTo = toStr.PadLeft(maxLen, ' ');
 
         double digitWidth = MeasureDigitWidth();
-        double duration = Math.Max(150, DurationMs);
+        double duration = Math.Max(120, DurationMs);
 
-        // Pre-insert any newly required leading columns with initial width = 0 for smooth accordion expansion
+        // Pre-insert any newly required leading columns with initial width
         while (_columns.Count < maxLen)
         {
-            var newCol = new DigitColumn(' ', this.FontSize, this.FontWeight, this.Foreground, this.FontFamily, digitWidth, initialWidth: 0.0);
+            var newCol = new DigitColumn(' ', this.FontSize, this.FontWeight, this.Foreground, this.FontFamily, digitWidth);
             _columns.Insert(0, newCol);
             _rootStackPanel.Children.Insert(0, newCol.Container);
         }
@@ -187,7 +209,6 @@ public sealed class RollingCounter : UserControl
             {
                 if (newChar == ' ')
                 {
-                    // Empty spacer that is no longer needed: remove immediately
                     col.StopAnimation();
                     _columns.RemoveAt(i);
                     _rootStackPanel.Children.Remove(col.Container);
@@ -201,12 +222,12 @@ public sealed class RollingCounter : UserControl
             }
             else if (oldChar == ' ' && newChar != ' ')
             {
-                // Expanding new digit: animate width from 0 to digitWidth and roll in
-                col.ExpandAndRoll(newChar, duration, isIncreasing, digitWidth);
+                // Expanding new digit: roll in with fade
+                col.RollTo(' ', newChar, isIncreasing, duration);
             }
             else if (oldChar != ' ' && newChar == ' ')
             {
-                // Contracting retiring digit: roll out and collapse width to 0, then remove
+                // Contracting retiring digit: roll out and fade, then remove
                 col.ContractAndRemove(oldChar, duration, isIncreasing, () =>
                 {
                     _columns.Remove(col);
@@ -228,33 +249,30 @@ public sealed class RollingCounter : UserControl
 
         private readonly TextBlock _prevBlock;
         private readonly TextBlock _currBlock;
-        private readonly TranslateTransform _prevTranslate;
-        private readonly TranslateTransform _currTranslate;
+        private readonly Visual _prevVisual;
+        private readonly Visual _currVisual;
+        private readonly Compositor _compositor;
+        private readonly CompositionEasingFunction _easeOut;
         private readonly RectangleGeometry _clipGeometry;
-        private Storyboard? _storyboard;
+        private CompositionScopedBatch? _scopedBatch;
         private double _targetWidth;
 
-        public DigitColumn(char initialChar, double fontSize, Windows.UI.Text.FontWeight fontWeight, Brush foreground, FontFamily fontFamily, double digitWidth, double? initialWidth = null)
+        public DigitColumn(char initialChar, double fontSize, Windows.UI.Text.FontWeight fontWeight, Brush foreground, FontFamily fontFamily, double digitWidth)
         {
             _targetWidth = digitWidth;
-            double actualInitialWidth = initialWidth ?? digitWidth;
 
             Container = new Grid
             {
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Width = actualInitialWidth
+                Width = digitWidth
             };
 
             _clipGeometry = new RectangleGeometry();
             Container.Clip = _clipGeometry;
 
-            _prevTranslate = new TranslateTransform();
-            _currTranslate = new TranslateTransform();
-
             _prevBlock = new TextBlock
             {
-                RenderTransform = _prevTranslate,
                 TextAlignment = Microsoft.UI.Xaml.TextAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -264,7 +282,6 @@ public sealed class RollingCounter : UserControl
 
             _currBlock = new TextBlock
             {
-                RenderTransform = _currTranslate,
                 TextAlignment = Microsoft.UI.Xaml.TextAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -276,13 +293,18 @@ public sealed class RollingCounter : UserControl
             Container.Children.Add(_prevBlock);
             Container.Children.Add(_currBlock);
 
+            _prevVisual = ElementCompositionPreview.GetElementVisual(_prevBlock);
+            _currVisual = ElementCompositionPreview.GetElementVisual(_currBlock);
+            _compositor = _currVisual.Compositor;
+            _easeOut = _compositor.CreateCubicBezierEasingFunction(new Vector2(0.1f, 0.9f), new Vector2(0.2f, 1.0f));
+
             UpdateStyle(fontSize, fontWeight, foreground, fontFamily, digitWidth);
         }
 
         public void UpdateStyle(double fontSize, Windows.UI.Text.FontWeight fontWeight, Brush foreground, FontFamily fontFamily, double digitWidth)
         {
             _targetWidth = digitWidth;
-            if (!IsRetiring && Container.Width > 0)
+            if (!IsRetiring)
             {
                 Container.Width = digitWidth;
             }
@@ -291,13 +313,11 @@ public sealed class RollingCounter : UserControl
             _prevBlock.FontWeight = fontWeight;
             _prevBlock.Foreground = foreground;
             _prevBlock.FontFamily = fontFamily;
-            _prevBlock.Width = digitWidth;
 
             _currBlock.FontSize = fontSize;
             _currBlock.FontWeight = fontWeight;
             _currBlock.Foreground = foreground;
             _currBlock.FontFamily = fontFamily;
-            _currBlock.Width = digitWidth;
 
             double slotHeight = Math.Ceiling(fontSize * 1.35);
             Container.Height = slotHeight;
@@ -312,91 +332,24 @@ public sealed class RollingCounter : UserControl
             _clipGeometry.Rect = new Rect(0, 0, _targetWidth, Container.Height);
 
             _prevBlock.Text = "";
-            _prevBlock.Opacity = 0;
-            _prevTranslate.Y = 0;
+            _prevVisual.Opacity = 0.0f;
+            _prevVisual.Offset = Vector3.Zero;
 
             _currBlock.Text = c == ' ' ? "" : c.ToString();
-            _currBlock.Opacity = c == ' ' ? 0.0 : 1.0;
-            _currTranslate.Y = 0;
+            _currVisual.Opacity = c == ' ' ? 0.0f : 1.0f;
+            _currVisual.Offset = Vector3.Zero;
         }
 
         public void StopAnimation()
         {
-            if (_storyboard != null)
+            if (_scopedBatch != null)
             {
-                _storyboard.Stop();
-                _storyboard = null;
+                _prevVisual.StopAnimation("Offset.Y");
+                _prevVisual.StopAnimation("Opacity");
+                _currVisual.StopAnimation("Offset.Y");
+                _currVisual.StopAnimation("Opacity");
+                _scopedBatch = null;
             }
-        }
-
-        public void ExpandAndRoll(char newChar, double durationMs, bool isIncreasing, double targetWidth)
-        {
-            StopAnimation();
-            IsRetiring = false;
-
-            _prevBlock.Text = "";
-            _prevBlock.Opacity = 0.0;
-
-            _currBlock.Text = newChar.ToString();
-            double slotHeight = Container.Height > 0 ? Container.Height : 18.0;
-
-            double currStartY = isIncreasing ? slotHeight : -slotHeight;
-            _currTranslate.Y = currStartY;
-            _currBlock.Opacity = 0.0;
-            Container.Width = 0.0;
-            _clipGeometry.Rect = new Rect(0, 0, targetWidth, slotHeight);
-
-            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-            var duration = TimeSpan.FromMilliseconds(durationMs);
-            var sb = new Storyboard();
-
-            // 1. Expand width accordion
-            var animWidth = new DoubleAnimation
-            {
-                From = 0.0,
-                To = targetWidth,
-                Duration = duration,
-                EasingFunction = ease,
-                EnableDependentAnimation = true
-            };
-            Storyboard.SetTarget(animWidth, Container);
-            Storyboard.SetTargetProperty(animWidth, "Width");
-            sb.Children.Add(animWidth);
-
-            // 2. Slide Y into position
-            var animCurrY = new DoubleAnimation
-            {
-                From = currStartY,
-                To = 0.0,
-                Duration = duration,
-                EasingFunction = ease
-            };
-            Storyboard.SetTarget(animCurrY, _currTranslate);
-            Storyboard.SetTargetProperty(animCurrY, "Y");
-            sb.Children.Add(animCurrY);
-
-            // 3. Fade in opacity
-            var animCurrOp = new DoubleAnimation
-            {
-                From = 0.0,
-                To = 1.0,
-                Duration = duration,
-                EasingFunction = ease
-            };
-            Storyboard.SetTarget(animCurrOp, _currBlock);
-            Storyboard.SetTargetProperty(animCurrOp, "Opacity");
-            sb.Children.Add(animCurrOp);
-
-            sb.Completed += (s, e) =>
-            {
-                Container.Width = targetWidth;
-                _currTranslate.Y = 0.0;
-                _currBlock.Opacity = 1.0;
-                _storyboard = null;
-            };
-
-            _storyboard = sb;
-            sb.Begin();
         }
 
         public void ContractAndRemove(char oldChar, double durationMs, bool isIncreasing, Action onCompleted)
@@ -405,64 +358,37 @@ public sealed class RollingCounter : UserControl
             IsRetiring = true;
 
             _prevBlock.Text = oldChar.ToString();
-            _prevBlock.Opacity = 1.0;
-            _prevTranslate.Y = 0.0;
+            _prevVisual.Offset = Vector3.Zero;
+            _prevVisual.Opacity = 1.0f;
 
             _currBlock.Text = "";
-            _currBlock.Opacity = 0.0;
+            _currVisual.Opacity = 0.0f;
 
-            double slotHeight = Container.Height > 0 ? Container.Height : 18.0;
-            double targetY = isIncreasing ? -slotHeight : slotHeight;
-
-            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+            float slotHeight = (float)(Container.Height > 0 ? Container.Height : 18.0);
+            float targetY = isIncreasing ? -slotHeight : slotHeight;
             var duration = TimeSpan.FromMilliseconds(durationMs);
-            var sb = new Storyboard();
 
-            // 1. Collapse width accordion
-            var animWidth = new DoubleAnimation
-            {
-                From = Container.Width,
-                To = 0.0,
-                Duration = duration,
-                EasingFunction = ease,
-                EnableDependentAnimation = true
-            };
-            Storyboard.SetTarget(animWidth, Container);
-            Storyboard.SetTargetProperty(animWidth, "Width");
-            sb.Children.Add(animWidth);
+            var prevYAnim = _compositor.CreateScalarKeyFrameAnimation();
+            prevYAnim.InsertKeyFrame(0.0f, 0.0f);
+            prevYAnim.InsertKeyFrame(1.0f, targetY, _easeOut);
+            prevYAnim.Duration = duration;
 
-            // 2. Slide Y out
-            var animPrevY = new DoubleAnimation
-            {
-                From = 0.0,
-                To = targetY,
-                Duration = duration,
-                EasingFunction = ease
-            };
-            Storyboard.SetTarget(animPrevY, _prevTranslate);
-            Storyboard.SetTargetProperty(animPrevY, "Y");
-            sb.Children.Add(animPrevY);
+            var prevOpAnim = _compositor.CreateScalarKeyFrameAnimation();
+            prevOpAnim.InsertKeyFrame(0.0f, 1.0f);
+            prevOpAnim.InsertKeyFrame(1.0f, 0.0f, _easeOut);
+            prevOpAnim.Duration = duration;
 
-            // 3. Fade out opacity
-            var animPrevOp = new DoubleAnimation
+            _scopedBatch = _compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
+            _scopedBatch.Completed += (s, e) =>
             {
-                From = 1.0,
-                To = 0.0,
-                Duration = duration,
-                EasingFunction = ease
-            };
-            Storyboard.SetTarget(animPrevOp, _prevBlock);
-            Storyboard.SetTargetProperty(animPrevOp, "Opacity");
-            sb.Children.Add(animPrevOp);
-
-            sb.Completed += (s, e) =>
-            {
-                _storyboard = null;
+                _scopedBatch = null;
                 onCompleted();
             };
 
-            _storyboard = sb;
-            sb.Begin();
+            _prevVisual.StartAnimation("Offset.Y", prevYAnim);
+            _prevVisual.StartAnimation("Opacity", prevOpAnim);
+
+            _scopedBatch.End();
         }
 
         public void RollTo(char oldChar, char newChar, bool isIncreasing, double durationMs)
@@ -471,78 +397,64 @@ public sealed class RollingCounter : UserControl
             IsRetiring = false;
             Container.Width = _targetWidth;
 
-            _prevBlock.Text = oldChar.ToString();
-            _currBlock.Text = newChar.ToString();
+            _prevBlock.Text = oldChar == ' ' ? "" : oldChar.ToString();
+            _currBlock.Text = newChar == ' ' ? "" : newChar.ToString();
 
-            double slotHeight = Container.Height > 0 ? Container.Height : 18.0;
-            double prevTargetY = isIncreasing ? -slotHeight : slotHeight;
-            double currStartY = isIncreasing ? slotHeight : -slotHeight;
+            float slotHeight = (float)(Container.Height > 0 ? Container.Height : 18.0);
+            float prevTargetY = isIncreasing ? -slotHeight : slotHeight;
+            float currStartY = isIncreasing ? slotHeight : -slotHeight;
 
-            _prevTranslate.Y = 0.0;
-            _prevBlock.Opacity = 1.0;
+            _prevVisual.Offset = Vector3.Zero;
+            _prevVisual.Opacity = oldChar == ' ' ? 0.0f : 1.0f;
 
-            _currTranslate.Y = currStartY;
-            _currBlock.Opacity = 0.0;
+            _currVisual.Offset = new Vector3(0, currStartY, 0);
+            _currVisual.Opacity = 0.0f;
 
-            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
             var duration = TimeSpan.FromMilliseconds(durationMs);
-            var sb = new Storyboard();
 
-            var animPrevY = new DoubleAnimation
+            var currYAnim = _compositor.CreateScalarKeyFrameAnimation();
+            currYAnim.InsertKeyFrame(0.0f, currStartY);
+            currYAnim.InsertKeyFrame(1.0f, 0.0f, _easeOut);
+            currYAnim.Duration = duration;
+
+            var currOpAnim = _compositor.CreateScalarKeyFrameAnimation();
+            currOpAnim.InsertKeyFrame(0.0f, 0.0f);
+            currOpAnim.InsertKeyFrame(1.0f, 1.0f, _easeOut);
+            currOpAnim.Duration = duration;
+
+            _scopedBatch = _compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
+
+            if (oldChar != ' ')
             {
-                From = 0.0,
-                To = prevTargetY,
-                Duration = duration,
-                EasingFunction = ease
-            };
-            Storyboard.SetTarget(animPrevY, _prevTranslate);
-            Storyboard.SetTargetProperty(animPrevY, "Y");
-            sb.Children.Add(animPrevY);
+                var prevYAnim = _compositor.CreateScalarKeyFrameAnimation();
+                prevYAnim.InsertKeyFrame(0.0f, 0.0f);
+                prevYAnim.InsertKeyFrame(1.0f, prevTargetY, _easeOut);
+                prevYAnim.Duration = duration;
 
-            var animPrevOp = new DoubleAnimation
-            {
-                From = 1.0,
-                To = 0.0,
-                Duration = duration,
-                EasingFunction = ease
-            };
-            Storyboard.SetTarget(animPrevOp, _prevBlock);
-            Storyboard.SetTargetProperty(animPrevOp, "Opacity");
-            sb.Children.Add(animPrevOp);
+                var prevOpAnim = _compositor.CreateScalarKeyFrameAnimation();
+                prevOpAnim.InsertKeyFrame(0.0f, 1.0f);
+                prevOpAnim.InsertKeyFrame(1.0f, 0.0f, _easeOut);
+                prevOpAnim.Duration = duration;
 
-            var animCurrY = new DoubleAnimation
-            {
-                From = currStartY,
-                To = 0.0,
-                Duration = duration,
-                EasingFunction = ease
-            };
-            Storyboard.SetTarget(animCurrY, _currTranslate);
-            Storyboard.SetTargetProperty(animCurrY, "Y");
-            sb.Children.Add(animCurrY);
+                _prevVisual.StartAnimation("Offset.Y", prevYAnim);
+                _prevVisual.StartAnimation("Opacity", prevOpAnim);
+            }
 
-            var animCurrOp = new DoubleAnimation
-            {
-                From = 0.0,
-                To = 1.0,
-                Duration = duration,
-                EasingFunction = ease
-            };
-            Storyboard.SetTarget(animCurrOp, _currBlock);
-            Storyboard.SetTargetProperty(animCurrOp, "Opacity");
-            sb.Children.Add(animCurrOp);
+            _currVisual.StartAnimation("Offset.Y", currYAnim);
+            _currVisual.StartAnimation("Opacity", currOpAnim);
 
-            sb.Completed += (s, e) =>
+            _scopedBatch.Completed += (s, e) =>
             {
                 _prevBlock.Text = "";
-                _prevBlock.Opacity = 0.0;
-                _currTranslate.Y = 0.0;
-                _currBlock.Opacity = 1.0;
-                _storyboard = null;
+                _prevVisual.Opacity = 0.0f;
+                _prevVisual.Offset = Vector3.Zero;
+
+                _currVisual.Offset = Vector3.Zero;
+                _currVisual.Opacity = 1.0f;
+                _scopedBatch = null;
             };
 
-            _storyboard = sb;
-            sb.Begin();
+            _scopedBatch.End();
         }
     }
 }

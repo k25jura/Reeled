@@ -105,6 +105,8 @@
   "Appearance_MomentsBadgesSubtitle": "Відображати лічильник моментів на картках відео у бібліотеці",
   "Appearance_BackdropBlurTitle": "Розмиття фону",
   "Appearance_BackdropBlurSubtitle": "Увімкнути акрилове розмиття на панелях керування та спливаючих меню",
+  "Appearance_ReduceMotionTitle": "Зменшити рух",
+  "Appearance_ReduceMotionSubtitle": "Вимкнути анімації лічильників, масштабування карток та плавні переходи для спрощеного інтерфейсу",
 
   "Language_SectionTitle": "Мова та регіон",
   "Language_SectionSubtitle": "Налаштуйте мову інтерфейсу, автовизначення та форматування дати",
@@ -160,6 +162,13 @@
   "Updates_Status_Installed": "Оновлення успішно застосовано!",
   "Updates_Progress_Format": "{0} МБ / {1} МБ ({2}%) • {3} МБ/с",
   "Updates_PatchNotes": "Список змін",
+  "Updates_NoUpdates": "Reeled оновлено до останньої версії (v{0})",
+  "Updates_ErrorCheck": "Не вдалося перевірити оновлення: {0}",
+  "Updates_GitHubTokenTitle": "Токен GitHub (Опціонально)",
+  "Updates_GitHubTokenSubtitle": "Використовуйте personal access token для релізів з приватного репозиторію або уникнення лімітів",
+  "Updates_GitHubTokenPlaceholder": "ghp_xxxxxxxxxxxxxxxxxxxx",
+  "Updates_SetupGuideTitle": "Налаштування релізів GitHub",
+  "Updates_SetupGuideDesc": "Для публікації оновлення: створіть git-тег (наприклад v1.0.1), створіть Release на GitHub у репозиторії k25jura/Reeled і прикріпіть zip-архів чи інсталятор.",
 
   "About_HeroTitle": "Reeled",
   "About_Tagline": "Сучасний переглядач та плеєр ігрових кліпів для Windows",

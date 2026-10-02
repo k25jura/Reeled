@@ -352,7 +352,7 @@
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
                           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                           ViewChanged="OnSettingsScrollViewerViewChanged">
-                <StackPanel x:Name="SettingsContentRoot" HorizontalAlignment="Stretch" Margin="0">
+                <StackPanel x:Name="SettingsContentRoot" HorizontalAlignment="Stretch" Margin="0" Padding="0,0,0,320">
                     <StackPanel x:Name="SettingsContentStack" MaxWidth="760" HorizontalAlignment="Center" Spacing="22">
 
                     <!-- ========================================== -->
@@ -905,6 +905,38 @@
                                               VerticalAlignment="Center" />
                             </Grid>
                         </Border>
+
+                        <!-- Card 4: Reduce Motion -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE7C9;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="ReduceMotionTitleText" Text="Reduce motion" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="ReduceMotionSubtitleText" Text="Disable rolling counters, card scaling, and smooth animations for simpler UI" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2" 
+                                              IsOn="{x:Bind ViewModel.ReduceMotion, Mode=TwoWay}" 
+                                              OnContent="" 
+                                              OffContent="" 
+                                              MinWidth="0" 
+                                              HorizontalAlignment="Right" 
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
                     </StackPanel>
 
                     <!-- ========================================== -->
@@ -1280,7 +1312,7 @@
                                                 <SvgImageSource x:Name="UpdateLogoSvg" UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="78" />
                                             </Image.Source>
                                         </Image>
-                                        <TextBlock Text="1.1.0" 
+                                        <TextBlock Text="{x:Bind ViewModel.UpdateAvailableVersion, Mode=OneWay}" 
                                                    FontSize="15" 
                                                    FontWeight="SemiBold" 
                                                    VerticalAlignment="Center" 
@@ -1309,9 +1341,9 @@
 
                                 <!-- Release Notes / Summary -->
                                 <TextBlock x:Name="UpdateAvailableNotes"
-                                           Text="Includes Ukrainian localization, redesigned settings categories, and performance optimizations." 
+                                           Text="{x:Bind ViewModel.UpdateAvailableNotes, Mode=OneWay}" 
                                            Style="{ThemeResource CaptionTextBlockStyle}" 
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
                                            TextWrapping="Wrap" />
 
                                 <!-- Action / Progress Transition Host -->
@@ -1406,6 +1438,61 @@
                                               MinWidth="0"
                                               HorizontalAlignment="Right"
                                               VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 4: GitHub Token (Optional for private repos or rate limit avoidance) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE72D;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="GitHubTokenTitleText" Text="GitHub Token (Optional)" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="GitHubTokenSubtitleText" Text="Use a personal access token for private repository releases or higher rate limits" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <PasswordBox Grid.Column="2" 
+                                             Password="{x:Bind ViewModel.GitHubToken, Mode=TwoWay}" 
+                                             PlaceholderText="ghp_xxxxxxxxxxxxxxxxxxxx" 
+                                             MinWidth="220" 
+                                             VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 5: GitHub Setup Guide Card -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE946;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Top" HorizontalAlignment="Center" Width="24" Height="24" Margin="0,2,0,0" />
+
+                                <StackPanel Grid.Column="1" Spacing="4">
+                                    <TextBlock x:Name="SetupGuideTitleText" Text="GitHub Releases Setup" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="SetupGuideDescText" 
+                                               Text="To push an update: push a git tag (e.g. v1.0.1), create a Release on GitHub at k25jura/Reeled, and attach the packaged zip or installer asset." 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
                             </Grid>
                         </Border>
 

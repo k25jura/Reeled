@@ -664,30 +664,41 @@ public sealed partial class SettingsPage : Page
             double scrollY = SettingsScrollViewer.VerticalOffset;
             double maxScroll = SettingsScrollViewer.ScrollableHeight;
 
-            // When reached or close to the bottom of scrollable content (within 32px), select AboutSection
-            if (maxScroll > 0 && (maxScroll - scrollY) <= 32)
+            // When scrolled to the very bottom (within 16px), select AboutSection
+            if (maxScroll > 0 && (maxScroll - scrollY) <= 16)
             {
                 SetActiveCategory("AboutSection", animate: true);
                 return;
             }
 
-            // Check sections from bottom to top
-            const double threshold = 160;
+            // Find section that encompasses the focus line (Y = 120 DIPs below scroll viewer top)
+            var sections = new (FrameworkElement? Section, string Tag)[]
+            {
+                (FoldersSection, "FoldersSection"),
+                (PlaybackSection, "PlaybackSection"),
+                (AppearanceSection, "AppearanceSection"),
+                (LocalizationSection, "LocalizationSection"),
+                (StorageSection, "StorageSection"),
+                (UpdateSection, "UpdateSection"),
+                (AboutSection, "AboutSection")
+            };
 
-            if (IsSectionAtOrAbove(AboutSection, threshold))
-                SetActiveCategory("AboutSection", animate: true);
-            else if (IsSectionAtOrAbove(UpdateSection, threshold))
-                SetActiveCategory("UpdateSection", animate: true);
-            else if (IsSectionAtOrAbove(StorageSection, threshold))
-                SetActiveCategory("StorageSection", animate: true);
-            else if (IsSectionAtOrAbove(LocalizationSection, threshold))
-                SetActiveCategory("LocalizationSection", animate: true);
-            else if (IsSectionAtOrAbove(AppearanceSection, threshold))
-                SetActiveCategory("AppearanceSection", animate: true);
-            else if (IsSectionAtOrAbove(PlaybackSection, threshold))
-                SetActiveCategory("PlaybackSection", animate: true);
-            else
-                SetActiveCategory("FoldersSection", animate: true);
+            const double focusY = 120.0;
+            string bestTag = "FoldersSection";
+
+            foreach (var (section, tag) in sections)
+            {
+                if (section == null) continue;
+                var transform = section.TransformToVisual(SettingsScrollViewer);
+                var pt = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
+
+                if (pt.Y <= focusY)
+                {
+                    bestTag = tag;
+                }
+            }
+
+            SetActiveCategory(bestTag, animate: true);
         }
         catch
         {
@@ -984,6 +995,8 @@ public sealed partial class SettingsPage : Page
         if (MomentsBadgesSubtitleText != null) MomentsBadgesSubtitleText.Text = loc["Appearance_MomentsBadgesSubtitle"];
         if (BackdropBlurTitleText != null) BackdropBlurTitleText.Text = loc["Appearance_BackdropBlurTitle"];
         if (BackdropBlurSubtitleText != null) BackdropBlurSubtitleText.Text = loc["Appearance_BackdropBlurSubtitle"];
+        if (ReduceMotionTitleText != null) ReduceMotionTitleText.Text = loc["Appearance_ReduceMotionTitle"];
+        if (ReduceMotionSubtitleText != null) ReduceMotionSubtitleText.Text = loc["Appearance_ReduceMotionSubtitle"];
 
         // 4. Language & Region Section
         if (LocalizationSectionTitle != null) LocalizationSectionTitle.Text = loc["Language_SectionTitle"];
@@ -1074,7 +1087,11 @@ public sealed partial class SettingsPage : Page
         if (CheckUpdatesButtonText != null) CheckUpdatesButtonText.Text = loc["Updates_CheckButton"];
         if (AutoCheckUpdatesTitleText != null) AutoCheckUpdatesTitleText.Text = loc["Updates_AutoCheckTitle"];
         if (AutoCheckUpdatesSubtitleText != null) AutoCheckUpdatesSubtitleText.Text = loc["Updates_AutoCheckSubtitle"];
-        if (UpdateAvailableNotes != null) UpdateAvailableNotes.Text = loc["Updates_AvailableNotes"];
+        if (GitHubTokenTitleText != null) GitHubTokenTitleText.Text = loc["Updates_GitHubTokenTitle"];
+        if (GitHubTokenSubtitleText != null) GitHubTokenSubtitleText.Text = loc["Updates_GitHubTokenSubtitle"];
+        if (SetupGuideTitleText != null) SetupGuideTitleText.Text = loc["Updates_SetupGuideTitle"];
+        if (SetupGuideDescText != null) SetupGuideDescText.Text = loc["Updates_SetupGuideDesc"];
+        if (UpdateAvailableNotes != null && string.IsNullOrEmpty(ViewModel.UpdateAvailableNotes)) UpdateAvailableNotes.Text = loc["Updates_AvailableNotes"];
         if (PatchNotesText != null) PatchNotesText.Text = loc["Updates_PatchNotes"];
         if (DownloadUpdateButton != null) DownloadUpdateButton.Content = loc["Updates_DownloadButton"];
         if (InstallUpdateButton != null) InstallUpdateButton.Content = loc["Updates_InstallButton"];

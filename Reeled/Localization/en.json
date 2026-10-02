@@ -105,6 +105,8 @@
   "Appearance_MomentsBadgesSubtitle": "Display bookmark counter pill on video thumbnail cards in the library",
   "Appearance_BackdropBlurTitle": "Backdrop blur",
   "Appearance_BackdropBlurSubtitle": "Enable acrylic blur on player controls and flyouts",
+  "Appearance_ReduceMotionTitle": "Reduce motion",
+  "Appearance_ReduceMotionSubtitle": "Disable rolling counters, card scaling, and smooth animations for simpler UI",
 
   "Language_SectionTitle": "Language & Region",
   "Language_SectionSubtitle": "Configure interface language, auto-detection, and regional date formatting",
@@ -160,6 +162,13 @@
   "Updates_Status_Installed": "Update applied successfully!",
   "Updates_Progress_Format": "{0} MB / {1} MB ({2}%) • {3} MB/s",
   "Updates_PatchNotes": "Release notes",
+  "Updates_NoUpdates": "Reeled is up to date (v{0})",
+  "Updates_ErrorCheck": "Could not check updates: {0}",
+  "Updates_GitHubTokenTitle": "GitHub Token (Optional)",
+  "Updates_GitHubTokenSubtitle": "Use a personal access token for private repository releases or higher rate limits",
+  "Updates_GitHubTokenPlaceholder": "ghp_xxxxxxxxxxxxxxxxxxxx",
+  "Updates_SetupGuideTitle": "GitHub Releases Setup",
+  "Updates_SetupGuideDesc": "To push an update: push a git tag (e.g. v1.0.1), create a Release on GitHub at k25jura/Reeled, and attach the packaged zip or installer asset.",
 
   "About_HeroTitle": "Reeled",
   "About_Tagline": "Modern game clips viewer & player for Windows",

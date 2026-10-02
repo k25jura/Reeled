@@ -19,6 +19,7 @@ public partial class SettingsViewModel : ObservableObject
     private readonly IThumbnailService _thumbnailService;
     private readonly ILocalizationService _localizationService;
     private readonly HomeViewModel _homeViewModel;
+    private readonly IUpdateService _updateService;
 
     public ILocalizationService Loc => _localizationService;
     public ObservableCollection<string> WatchFolders { get; } = new();
@@ -146,6 +147,29 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _autoCheckUpdates = true;
 
+    [ObservableProperty]
+    private bool _reduceMotion;
+
+    [ObservableProperty]
+    private string _gitHubToken = string.Empty;
+
+    [ObservableProperty]
+    private string _updateAvailableVersion = string.Empty;
+
+    [ObservableProperty]
+    private string _updateAvailableNotes = string.Empty;
+
+    [ObservableProperty]
+    private string _updateReleaseUrl = string.Empty;
+
+    [ObservableProperty]
+    private string _updateAssetSizeFormatted = string.Empty;
+
+    [ObservableProperty]
+    private string _downloadedFilePath = string.Empty;
+
+    private UpdateInfo? _currentUpdateInfo;
+
     public SettingsViewModel(
         ILocalStorageService storageService,
         IClipIndexerService indexerService,
@@ -153,7 +177,8 @@ public partial class SettingsViewModel : ObservableObject
         IClipMetadataCacheService clipMetadataCacheService,
         IThumbnailService thumbnailService,
         ILocalizationService localizationService,
-        HomeViewModel homeViewModel)
+        HomeViewModel homeViewModel,
+        IUpdateService updateService)
     {
         _storageService = storageService;
         _indexerService = indexerService;
@@ -162,6 +187,7 @@ public partial class SettingsViewModel : ObservableObject
         _thumbnailService = thumbnailService;
         _localizationService = localizationService;
         _homeViewModel = homeViewModel;
+        _updateService = updateService;
 
         _localizationService.LanguageChanged += (s, e) =>
         {
@@ -214,6 +240,8 @@ public partial class SettingsViewModel : ObservableObject
             _ => 0
         };
         AutoCheckUpdates = _storageService.CurrentSettings.AutoCheckUpdates;
+        ReduceMotion = _storageService.CurrentSettings.ReduceMotion;
+        GitHubToken = _storageService.CurrentSettings.GitHubToken ?? string.Empty;
         UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
         LastCheckedFormatted = string.Format(_localizationService["Updates_LastChecked"], _localizationService["Date_Today"]);
 
@@ -627,59 +655,138 @@ public partial class SettingsViewModel : ObservableObject
         if (IsCheckingForUpdates || IsDownloadingUpdate) return;
 
         IsCheckingForUpdates = true;
+        UpdateStatusFormatted = _localizationService["Updates_StatusChecking"];
         IsUpdateAvailable = false;
         IsDownloadingUpdate = false;
         IsUpdateReadyToInstall = false;
-        UpdateStatusFormatted = _localizationService["Updates_StatusChecking"];
 
-        // Simulate Windows Update search latency (1.5s)
-        await Task.Delay(1500);
+        try
+        {
+            var info = await _updateService.CheckForUpdatesAsync(GitHubToken);
+            _currentUpdateInfo = info;
 
-        IsCheckingForUpdates = false;
-        IsUpdateAvailable = false;
-        UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
-        LastCheckedFormatted = string.Format(_localizationService["Updates_LastChecked"], DateTime.Now.ToString("t", _localizationService.CurrentCulture));
+            if (info.IsUpdateAvailable)
+            {
+                IsUpdateAvailable = true;
+                UpdateAvailableVersion = !string.IsNullOrEmpty(info.LatestVersionTag) ? info.LatestVersionTag : $"v{info.LatestVersion}";
+                UpdateAvailableNotes = !string.IsNullOrWhiteSpace(info.ReleaseNotes)
+                    ? info.ReleaseNotes
+                    : (!string.IsNullOrWhiteSpace(info.ReleaseName) ? info.ReleaseName : _localizationService["Updates_AvailableNotes"]);
+                UpdateReleaseUrl = info.ReleaseHtmlUrl;
+                UpdateAssetSizeFormatted = info.AssetSizeFormatted;
+                UpdateStatusFormatted = _localizationService["Updates_StatusAvailable"];
+                UpdatesStatusMessage = string.Format(_localizationService["Updates_StatusAvailable"]);
+            }
+            else
+            {
+                IsUpdateAvailable = false;
+                if (!string.IsNullOrEmpty(info.ErrorMessage))
+                {
+                    UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
+                    UpdatesStatusMessage = string.Format(_localizationService["Updates_ErrorCheck"], info.ErrorMessage);
+                }
+                else
+                {
+                    UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
+                    UpdatesStatusMessage = string.Format(_localizationService["Updates_NoUpdates"], info.CurrentVersion);
+                }
+            }
+
+            LastCheckedFormatted = string.Format(_localizationService["Updates_LastChecked"], DateTime.Now.ToString("t", _localizationService.CurrentCulture));
+        }
+        catch (Exception ex)
+        {
+            IsUpdateAvailable = false;
+            UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
+            UpdatesStatusMessage = string.Format(_localizationService["Updates_ErrorCheck"], ex.Message);
+        }
+        finally
+        {
+            IsCheckingForUpdates = false;
+        }
     }
 
     [RelayCommand]
     public async Task DownloadUpdateAsync()
     {
-        if (IsDownloadingUpdate) return;
+        if (IsDownloadingUpdate || _currentUpdateInfo == null) return;
+
+        if (string.IsNullOrWhiteSpace(_currentUpdateInfo.AssetDownloadUrl))
+        {
+            if (!string.IsNullOrWhiteSpace(_currentUpdateInfo.ReleaseHtmlUrl))
+            {
+                await Windows.System.Launcher.LaunchUriAsync(new Uri(_currentUpdateInfo.ReleaseHtmlUrl));
+            }
+            return;
+        }
 
         IsDownloadingUpdate = true;
         DownloadProgress = 0;
         DownloadProgressFormatted = $"{_localizationService["Updates_StatusDownloading"]} 0%";
-        DownloadProgressDetailed = string.Format(_localizationService["Updates_Progress_Format"], "0.0", "38.4", 0, "4.8");
 
-        for (int p = 0; p <= 100; p += 2)
+        var progress = new Progress<DownloadProgressReport>(report =>
         {
-            await Task.Delay(35);
-            DownloadProgress = p;
-            double downloadedMb = (p / 100.0) * 38.4;
-            double speed = 4.8 + (p % 4) * 0.25;
-            DownloadProgressFormatted = $"{_localizationService["Updates_StatusDownloading"]} {p}%";
-            DownloadProgressDetailed = string.Format(_localizationService["Updates_Progress_Format"], $"{downloadedMb:F1}", "38.4", p, $"{speed:F1}");
-        }
+            DownloadProgress = report.Percent;
+            DownloadProgressFormatted = $"{_localizationService["Updates_StatusDownloading"]} {(int)report.Percent}%";
+            DownloadProgressDetailed = string.Format(_localizationService["Updates_Progress_Format"], report.DownloadedMbFormatted, report.TotalMbFormatted, (int)report.Percent, report.SpeedFormatted);
+        });
 
-        IsDownloadingUpdate = false;
-        IsUpdateReadyToInstall = true;
-        UpdateStatusFormatted = _localizationService["Updates_StatusReady"];
+        try
+        {
+            DownloadedFilePath = await _updateService.DownloadUpdateAssetAsync(_currentUpdateInfo, progress);
+            IsDownloadingUpdate = false;
+            IsUpdateReadyToInstall = true;
+            UpdateStatusFormatted = _localizationService["Updates_StatusReady"];
+        }
+        catch (Exception ex)
+        {
+            IsDownloadingUpdate = false;
+            UpdatesStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
+            UpdateStatusFormatted = _localizationService["Updates_StatusAvailable"];
+        }
     }
 
     [RelayCommand]
-    public void InstallUpdate()
+    public async Task InstallUpdateAsync()
     {
-        IsUpdateReadyToInstall = false;
-        IsUpdateAvailable = false;
-        UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
-        UpdatesStatusMessage = _localizationService["Updates_Status_Installed"];
-        StatusMessage = UpdatesStatusMessage;
+        if (string.IsNullOrEmpty(DownloadedFilePath) || !File.Exists(DownloadedFilePath))
+        {
+            if (!string.IsNullOrEmpty(_currentUpdateInfo?.ReleaseHtmlUrl))
+            {
+                await Windows.System.Launcher.LaunchUriAsync(new Uri(_currentUpdateInfo.ReleaseHtmlUrl));
+            }
+            return;
+        }
+
+        try
+        {
+            await _updateService.LaunchInstallerAsync(DownloadedFilePath);
+            UpdatesStatusMessage = _localizationService["Updates_Status_Installed"];
+        }
+        catch (Exception ex)
+        {
+            UpdatesStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
+        }
     }
 
     partial void OnAutoCheckUpdatesChanged(bool value)
     {
         var settings = _storageService.CurrentSettings;
         settings.AutoCheckUpdates = value;
+        _ = _storageService.SaveSettingsAsync(settings);
+    }
+
+    partial void OnReduceMotionChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        settings.ReduceMotion = value;
+        _ = _storageService.SaveSettingsAsync(settings);
+    }
+
+    partial void OnGitHubTokenChanged(string value)
+    {
+        var settings = _storageService.CurrentSettings;
+        settings.GitHubToken = value;
         _ = _storageService.SaveSettingsAsync(settings);
     }
 

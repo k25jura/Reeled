@@ -34,6 +34,8 @@ public class AppSettings
     public ViewDensityMode ViewDensity { get; set; } = ViewDensityMode.Comfortable;
     public bool MetadataHoverOnly { get; set; } = false;
     public int SortIndex { get; set; } = 0;
+    public bool ReduceMotion { get; set; } = false;
+    public string? GitHubToken { get; set; }
 }
 
 public enum RepeatMode

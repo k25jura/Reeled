@@ -40,32 +40,21 @@ public class ClipIndexerService : IClipIndexerService
         {
             try
             {
-                var topFiles = Directory.EnumerateFiles(directoryPath, "*.*", SearchOption.TopDirectoryOnly)
-                    .Where(f => VideoExtensions.Contains(Path.GetExtension(f)))
+                var dirInfo = new DirectoryInfo(directoryPath);
+                var searchOption = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+                var fileInfos = dirInfo.EnumerateFiles("*.*", searchOption)
+                    .Where(fi => VideoExtensions.Contains(fi.Extension))
+                    .OrderByDescending(fi => fi.LastWriteTimeUtc)
                     .ToList();
 
-                List<string> files;
-                if (recursive)
-                {
-                    files = Directory.EnumerateFiles(directoryPath, "*.*", SearchOption.AllDirectories)
-                        .Where(f => VideoExtensions.Contains(Path.GetExtension(f)))
-                        .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
-                        .ToList();
-                }
-                else
-                {
-                    files = topFiles.OrderByDescending(f => File.GetLastWriteTimeUtc(f)).ToList();
-                }
-
                 var uncachedClips = new List<GameClip>();
-                foreach (var file in files)
+                foreach (var fileInfo in fileInfos)
                 {
                     try
                     {
-                        var fileInfo = new FileInfo(file);
                         var clip = new GameClip
                         {
-                            FilePath = file,
+                            FilePath = fileInfo.FullName,
                             FileName = fileInfo.Name,
                             DirectoryPath = fileInfo.DirectoryName ?? string.Empty,
                             ModifiedDate = fileInfo.LastWriteTimeUtc,
@@ -157,17 +146,18 @@ public class ClipIndexerService : IClipIndexerService
         try
         {
             int directClips = 0;
-            foreach (var file in Directory.EnumerateFiles(path, "*.*", SearchOption.TopDirectoryOnly))
+            var dirInfo = new DirectoryInfo(path);
+            foreach (var fi in dirInfo.EnumerateFiles("*.*", SearchOption.TopDirectoryOnly))
             {
-                if (VideoExtensions.Contains(Path.GetExtension(file)))
+                if (VideoExtensions.Contains(fi.Extension))
                     directClips++;
             }
 
-            foreach (var dir in Directory.EnumerateDirectories(path))
+            foreach (var subDir in dirInfo.EnumerateDirectories())
             {
                 try
                 {
-                    var subNode = CreateDirectoryNode(dir, isWatchRoot: false);
+                    var subNode = CreateDirectoryNode(subDir.FullName, isWatchRoot: false);
                     if (subNode.ClipCount > 0 || subNode.SubDirectories.Count > 0)
                     {
                         node.SubDirectories.Add(subNode);

@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage.Pickers;
 using Microsoft.UI.Dispatching;
+using Reeled.Helpers;
 using Reeled.Models;
 using Reeled.Services;
 
@@ -32,11 +33,11 @@ public partial class HomeViewModel : ObservableObject
     private readonly ILocalizationService _localizationService;
     private readonly DispatcherQueue _dispatcherQueue;
 
-    public ObservableCollection<DirectoryNode> Directories { get; } = new();
-    public ObservableCollection<GameClip> AllClips { get; } = new();
-    public ObservableCollection<GameClip> Clips { get; } = new();
-    public ObservableCollection<GameClip> FilteredClips { get; } = new();
-    public ObservableCollection<ClipGroup> GroupedClips { get; } = new();
+    public ObservableRangeCollection<DirectoryNode> Directories { get; } = new();
+    public ObservableRangeCollection<GameClip> AllClips { get; } = new();
+    public ObservableRangeCollection<GameClip> Clips { get; } = new();
+    public ObservableRangeCollection<GameClip> FilteredClips { get; } = new();
+    public ObservableRangeCollection<ClipGroup> GroupedClips { get; } = new();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsHomeSelected))]
@@ -481,61 +482,63 @@ public partial class HomeViewModel : ObservableObject
             }
         }
 
-        AllClips.Clear();
-        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var clip in allClipsList)
+        var (processedClips, processedTrees) = await Task.Run(() =>
         {
-            if (!seenPaths.Add(clip.FilePath)) continue;
-
-            if (settings.Favorites.Contains(clip.FilePath))
+            var list = new List<GameClip>();
+            var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var clip in allClipsList)
             {
-                clip.IsFavorite = true;
+                if (!seenPaths.Add(clip.FilePath)) continue;
+
+                if (settings.Favorites.Contains(clip.FilePath))
+                {
+                    clip.IsFavorite = true;
+                }
+
+                if (settings.Bookmarks.TryGetValue(clip.FilePath, out var bms))
+                {
+                    foreach (var bm in bms)
+                    {
+                        clip.Bookmarks.Add(bm);
+                    }
+                }
+
+                if (settings.CustomClipTitles.TryGetValue(clip.FilePath, out var customTitle) && !string.IsNullOrWhiteSpace(customTitle))
+                {
+                    clip.CustomTitle = customTitle;
+                }
+
+                list.Add(clip);
             }
 
-            if (settings.Bookmarks.TryGetValue(clip.FilePath, out var bms))
+            void UpdateNodeClipCounts(DirectoryNode node)
             {
-                foreach (var bm in bms)
+                foreach (var sub in node.SubDirectories)
                 {
-                    clip.Bookmarks.Add(bm);
+                    UpdateNodeClipCounts(sub);
+                }
+
+                if (node.IsWatchRoot)
+                {
+                    node.ClipCount = list.Count(c => c.FilePath.StartsWith(node.FullPath, StringComparison.OrdinalIgnoreCase));
+                }
+                else
+                {
+                    node.ClipCount = list.Count(c => string.Equals(c.DirectoryPath, node.FullPath, StringComparison.OrdinalIgnoreCase)
+                                                  || c.FilePath.StartsWith(node.FullPath + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
                 }
             }
 
-            if (settings.CustomClipTitles.TryGetValue(clip.FilePath, out var customTitle) && !string.IsNullOrWhiteSpace(customTitle))
+            foreach (var tree in trees)
             {
-                clip.CustomTitle = customTitle;
+                UpdateNodeClipCounts(tree);
             }
 
-            AllClips.Add(clip);
-        }
+            return (list, trees);
+        });
 
-        void UpdateNodeClipCounts(DirectoryNode node)
-        {
-            foreach (var sub in node.SubDirectories)
-            {
-                UpdateNodeClipCounts(sub);
-            }
-
-            if (node.IsWatchRoot)
-            {
-                node.ClipCount = AllClips.Count(c => c.FilePath.StartsWith(node.FullPath, StringComparison.OrdinalIgnoreCase));
-            }
-            else
-            {
-                node.ClipCount = AllClips.Count(c => string.Equals(c.DirectoryPath, node.FullPath, StringComparison.OrdinalIgnoreCase)
-                                                  || c.FilePath.StartsWith(node.FullPath + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
-            }
-        }
-
-        foreach (var tree in trees)
-        {
-            UpdateNodeClipCounts(tree);
-        }
-
-        Directories.Clear();
-        foreach (var tree in trees)
-        {
-            Directories.Add(tree);
-        }
+        AllClips.ReplaceRange(processedClips);
+        Directories.ReplaceRange(processedTrees);
         OnPropertyChanged(nameof(HasDirectories));
 
         _loadedWatchDirectories.Clear();
@@ -576,50 +579,47 @@ public partial class HomeViewModel : ObservableObject
 
     private void RefreshCurrentViewClips()
     {
-        Clips.Clear();
+        List<GameClip> targetClips;
         switch (CurrentSection)
         {
             case NavigationSection.Home:
-                foreach (var clip in AllClips)
-                {
-                    Clips.Add(clip);
-                }
-                StatusMessage = Clips.Count > 0 ? $"{Clips.Count} clips loaded" : "No clips in library";
+                targetClips = AllClips.ToList();
+                StatusMessage = targetClips.Count > 0 ? $"{targetClips.Count} clips loaded" : "No clips in library";
                 break;
 
             case NavigationSection.Favorites:
-                foreach (var clip in AllClips.Where(c => c.IsFavorite))
-                {
-                    Clips.Add(clip);
-                }
-                StatusMessage = Clips.Count > 0 ? $"{Clips.Count} favorite clips" : "No favorites yet";
+                targetClips = AllClips.Where(c => c.IsFavorite).ToList();
+                StatusMessage = targetClips.Count > 0 ? $"{targetClips.Count} favorite clips" : "No favorites yet";
                 break;
 
             case NavigationSection.SavedMoments:
-                foreach (var clip in AllClips.Where(c => c.Bookmarks.Count > 0))
-                {
-                    Clips.Add(clip);
-                }
-                StatusMessage = Clips.Count > 0 ? $"{Clips.Count} clips with moments" : "No saved moments yet";
+                targetClips = AllClips.Where(c => c.Bookmarks.Count > 0).ToList();
+                StatusMessage = targetClips.Count > 0 ? $"{targetClips.Count} clips with moments" : "No saved moments yet";
                 break;
 
             case NavigationSection.Folder:
                 if (SelectedDirectory != null)
                 {
-                    var folderClips = SelectedDirectory.IsWatchRoot
+                    targetClips = (SelectedDirectory.IsWatchRoot
                         ? AllClips.Where(c => c.FilePath.StartsWith(SelectedDirectory.FullPath, StringComparison.OrdinalIgnoreCase))
-                        : AllClips.Where(c => string.Equals(c.DirectoryPath, SelectedDirectory.FullPath, StringComparison.OrdinalIgnoreCase));
+                        : AllClips.Where(c => string.Equals(c.DirectoryPath, SelectedDirectory.FullPath, StringComparison.OrdinalIgnoreCase)))
+                        .ToList();
 
-                    foreach (var clip in folderClips)
-                    {
-                        Clips.Add(clip);
-                    }
-                    SelectedDirectory.ClipCount = Clips.Count;
-                    StatusMessage = Clips.Count > 0 ? $"{Clips.Count} clips loaded" : "No clips in this folder";
+                    SelectedDirectory.ClipCount = targetClips.Count;
+                    StatusMessage = targetClips.Count > 0 ? $"{targetClips.Count} clips loaded" : "No clips in this folder";
                 }
+                else
+                {
+                    targetClips = new List<GameClip>();
+                }
+                break;
+
+            default:
+                targetClips = new List<GameClip>();
                 break;
         }
 
+        Clips.ReplaceRange(targetClips);
         ApplyFilterAndSort();
         UpdateCounts();
     }
@@ -916,11 +916,8 @@ public partial class HomeViewModel : ObservableObject
             _ => query
         };
 
-        FilteredClips.Clear();
-        foreach (var c in query)
-        {
-            FilteredClips.Add(c);
-        }
+        var filteredList = query.ToList();
+        FilteredClips.ReplaceRange(filteredList);
 
         RegroupClips();
         OnPropertyChanged(nameof(HasClips));
@@ -929,16 +926,16 @@ public partial class HomeViewModel : ObservableObject
 
     public void RegroupClips()
     {
-        GroupedClips.Clear();
         if (FilteredClips.Count == 0)
         {
+            GroupedClips.Clear();
             return;
         }
 
         if (DateGrouping == DateGroupingMode.None)
         {
             var flatGroup = new ClipGroup("all", string.Empty, string.Empty, FilteredClips, isHeaderVisible: false);
-            GroupedClips.Add(flatGroup);
+            GroupedClips.ReplaceRange(new[] { flatGroup });
             return;
         }
 
@@ -956,6 +953,7 @@ public partial class HomeViewModel : ObservableObject
             _ => FilteredClips.GroupBy(c => "all")
         };
 
+        var newGroups = new List<ClipGroup>();
         bool isFirst = true;
         foreach (var group in groups)
         {
@@ -999,8 +997,10 @@ public partial class HomeViewModel : ObservableObject
                 ShowGroupDivider = !isFirst
             };
             isFirst = false;
-            GroupedClips.Add(clipGroup);
+            newGroups.Add(clipGroup);
         }
+
+        GroupedClips.ReplaceRange(newGroups);
     }
 
     private static string FormatGroupDate(DateTime dt, System.Globalization.CultureInfo culture, bool includeDayOfWeek)

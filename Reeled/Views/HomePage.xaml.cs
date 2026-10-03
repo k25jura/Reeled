@@ -165,7 +165,7 @@ public sealed partial class HomePage : Page
                     _activeGroupWrapGrids.Clear();
                     _lastCalculatedWidth = -1;
                     _lastColumnCount = -1;
-                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                    DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
                     {
                         UpdateGridResponsiveLayout();
                     });
@@ -1590,7 +1590,7 @@ public sealed partial class HomePage : Page
 
             if (FindParent<ItemsWrapGrid>(card) is ItemsWrapGrid wrapGrid)
             {
-                if (wrapGrid != ClipsGridView?.ItemsPanelRoot && wrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
+                if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
                 {
                     _activeGroupWrapGrids.Add(wrapGrid);
                 }
@@ -1694,7 +1694,7 @@ public sealed partial class HomePage : Page
         for (int i = 0; i < count; i++)
         {
             var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is ItemsWrapGrid wg && wg != SkeletonItemsControl?.ItemsPanelRoot && wg != ClipsGridView?.ItemsPanelRoot)
+            if (child is ItemsWrapGrid wg && wg != SkeletonItemsControl?.ItemsPanelRoot)
             {
                 _activeGroupWrapGrids.Add(wg);
             }
@@ -1820,6 +1820,11 @@ public sealed partial class HomePage : Page
         _currentCardWidth = calculatedWidth;
         _currentCardHeight = calculatedHeight;
 
+        if (ClipsGridView.ItemsPanelRoot is ItemsWrapGrid rootWrapGrid && rootWrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
+        {
+            _activeGroupWrapGrids.Add(rootWrapGrid);
+        }
+
         // Only search the visual tree if our cache of active group wrap grids is empty
         if (_activeGroupWrapGrids.Count == 0)
         {
@@ -1892,7 +1897,7 @@ public sealed partial class HomePage : Page
 
             if (FindParent<ItemsWrapGrid>(gvi) is ItemsWrapGrid wrapGrid)
             {
-                if (wrapGrid != ClipsGridView?.ItemsPanelRoot && wrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
+                if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
                 {
                     _activeGroupWrapGrids.Add(wrapGrid);
                 }
@@ -2479,6 +2484,26 @@ public sealed partial class HomePage : Page
             else
             {
                 _collapsingNodes.Remove(node);
+
+                // Pre-hide any already materialized child containers so they never flash or blink on screen
+                var visibleDescendants = new System.Collections.Generic.List<DirectoryNode>();
+                CollectVisibleDescendants(node, visibleDescendants);
+                foreach (var childNode in visibleDescendants)
+                {
+                    if (DirectoriesTreeView?.ContainerFromItem(childNode) is TreeViewItem container)
+                    {
+                        StopFolderStoryboard(container);
+                        container.Opacity = 0.0;
+                        container.Height = 0.0;
+                    }
+                }
+
+                // Register animation token before flipping IsExpanded so OnTreeViewItemLoading immediately knows this branch is expanding
+                if (!_folderAnimationTokens.ContainsKey(node))
+                {
+                    _folderAnimationTokens[node] = new System.Threading.CancellationTokenSource();
+                }
+
                 node.IsExpanded = true;
             }
         }

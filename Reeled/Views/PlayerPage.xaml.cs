@@ -45,6 +45,18 @@ public sealed partial class PlayerPage : Page
         (MomentsJumpPopup != null && MomentsJumpPopup.Visibility == Visibility.Visible) ||
         (MarkMomentFlyout != null && MarkMomentFlyout.IsOpen);
 
+    private static bool IsReduceMotionEnabled()
+    {
+        try
+        {
+            return App.GetService<Services.ILocalStorageService>()?.CurrentSettings.ReduceMotion == true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public PlayerPage()
     {
         ViewModel = App.GetService<PlayerViewModel>();
@@ -314,7 +326,8 @@ public sealed partial class PlayerPage : Page
         }
 
         var sb = new Storyboard();
-        var duration = TimeSpan.FromMilliseconds(260);
+        bool reduceMotion = IsReduceMotionEnabled();
+        var duration = TimeSpan.FromMilliseconds(reduceMotion ? 140 : 260);
 
         if (open)
         {
@@ -327,15 +340,23 @@ public sealed partial class PlayerPage : Page
 
             var easeOut = new QuarticEase { EasingMode = EasingMode.EaseOut };
 
-            var transAnim = new DoubleAnimation
+            if (!reduceMotion)
             {
-                From = SidebarTranslation.X,
-                To = 0,
-                Duration = duration,
-                EasingFunction = easeOut
-            };
-            Storyboard.SetTarget(transAnim, SidebarTranslation);
-            Storyboard.SetTargetProperty(transAnim, "X");
+                var transAnim = new DoubleAnimation
+                {
+                    From = SidebarTranslation.X,
+                    To = 0,
+                    Duration = duration,
+                    EasingFunction = easeOut
+                };
+                Storyboard.SetTarget(transAnim, SidebarTranslation);
+                Storyboard.SetTargetProperty(transAnim, "X");
+                sb.Children.Add(transAnim);
+            }
+            else
+            {
+                SidebarTranslation.X = 0;
+            }
 
             var opAnim = new DoubleAnimation
             {
@@ -358,7 +379,6 @@ public sealed partial class PlayerPage : Page
             Storyboard.SetTarget(spacerAnim, BottomControlBarQueueSpacer);
             Storyboard.SetTargetProperty(spacerAnim, "Width");
 
-            sb.Children.Add(transAnim);
             sb.Children.Add(opAnim);
             sb.Children.Add(spacerAnim);
 
@@ -374,15 +394,19 @@ public sealed partial class PlayerPage : Page
         {
             var easeIn = new QuarticEase { EasingMode = EasingMode.EaseIn };
 
-            var transAnim = new DoubleAnimation
+            if (!reduceMotion)
             {
-                From = SidebarTranslation.X,
-                To = 320,
-                Duration = duration,
-                EasingFunction = easeIn
-            };
-            Storyboard.SetTarget(transAnim, SidebarTranslation);
-            Storyboard.SetTargetProperty(transAnim, "X");
+                var transAnim = new DoubleAnimation
+                {
+                    From = SidebarTranslation.X,
+                    To = 320,
+                    Duration = duration,
+                    EasingFunction = easeIn
+                };
+                Storyboard.SetTarget(transAnim, SidebarTranslation);
+                Storyboard.SetTargetProperty(transAnim, "X");
+                sb.Children.Add(transAnim);
+            }
 
             var opAnim = new DoubleAnimation
             {
@@ -405,7 +429,6 @@ public sealed partial class PlayerPage : Page
             Storyboard.SetTarget(spacerAnim, BottomControlBarQueueSpacer);
             Storyboard.SetTargetProperty(spacerAnim, "Width");
 
-            sb.Children.Add(transAnim);
             sb.Children.Add(opAnim);
             sb.Children.Add(spacerAnim);
 
@@ -1297,6 +1320,8 @@ public sealed partial class PlayerPage : Page
         }
 
         var sb = new Storyboard();
+        bool reduceMotion = IsReduceMotionEnabled();
+        var duration = TimeSpan.FromMilliseconds(visible ? (reduceMotion ? 120 : 200) : (reduceMotion ? 120 : 180));
 
         if (visible)
         {
@@ -1304,7 +1329,6 @@ public sealed partial class PlayerPage : Page
             BottomControlBar.Visibility = Visibility.Visible;
 
             var easeOut = new CubicEase { EasingMode = EasingMode.EaseOut };
-            var duration = TimeSpan.FromMilliseconds(200);
 
             var topOp = new DoubleAnimation { From = TopHeaderBar.Opacity, To = 1.0, Duration = duration, EasingFunction = easeOut };
             Storyboard.SetTarget(topOp, TopHeaderBar);
@@ -1317,7 +1341,7 @@ public sealed partial class PlayerPage : Page
             sb.Children.Add(topOp);
             sb.Children.Add(botOp);
 
-            if (ActiveMomentBadgeTranslation != null)
+            if (ActiveMomentBadgeTranslation != null && !reduceMotion)
             {
                 var badgeAnim = new DoubleAnimation
                 {
@@ -1344,7 +1368,6 @@ public sealed partial class PlayerPage : Page
         else
         {
             var easeIn = new CubicEase { EasingMode = EasingMode.EaseIn };
-            var duration = TimeSpan.FromMilliseconds(180);
 
             var topOp = new DoubleAnimation { From = TopHeaderBar.Opacity, To = 0.0, Duration = duration, EasingFunction = easeIn };
             Storyboard.SetTarget(topOp, TopHeaderBar);
@@ -1357,7 +1380,7 @@ public sealed partial class PlayerPage : Page
             sb.Children.Add(topOp);
             sb.Children.Add(botOp);
 
-            if (ActiveMomentBadgeTranslation != null)
+            if (ActiveMomentBadgeTranslation != null && !reduceMotion)
             {
                 var badgeAnim = new DoubleAnimation
                 {
@@ -2111,23 +2134,32 @@ public sealed partial class PlayerPage : Page
 
         var sb = new Storyboard();
         var easeOut = new QuarticEase { EasingMode = EasingMode.EaseOut };
+        bool reduceMotion = IsReduceMotionEnabled();
+        var duration = TimeSpan.FromMilliseconds(reduceMotion ? 140 : 240);
 
-        var animX = new DoubleAnimation
+        if (!reduceMotion)
         {
-            From = -30,
-            To = 0,
-            Duration = TimeSpan.FromMilliseconds(240),
-            EasingFunction = easeOut
-        };
-        Storyboard.SetTarget(animX, MomentsPopupTranslation);
-        Storyboard.SetTargetProperty(animX, "X");
-        sb.Children.Add(animX);
+            var animX = new DoubleAnimation
+            {
+                From = -30,
+                To = 0,
+                Duration = duration,
+                EasingFunction = easeOut
+            };
+            Storyboard.SetTarget(animX, MomentsPopupTranslation);
+            Storyboard.SetTargetProperty(animX, "X");
+            sb.Children.Add(animX);
+        }
+        else
+        {
+            MomentsPopupTranslation.X = 0;
+        }
 
         var animOp = new DoubleAnimation
         {
             From = 0.0,
             To = 1.0,
-            Duration = TimeSpan.FromMilliseconds(240),
+            Duration = duration,
             EasingFunction = easeOut
         };
         Storyboard.SetTarget(animOp, MomentsJumpPopup);
@@ -2177,23 +2209,28 @@ public sealed partial class PlayerPage : Page
 
         var sb = new Storyboard();
         var easeIn = new QuarticEase { EasingMode = EasingMode.EaseIn };
+        bool reduceMotion = IsReduceMotionEnabled();
+        var duration = TimeSpan.FromMilliseconds(reduceMotion ? 140 : 180);
 
-        var animX = new DoubleAnimation
+        if (!reduceMotion)
         {
-            From = MomentsPopupTranslation.X,
-            To = -30,
-            Duration = TimeSpan.FromMilliseconds(180),
-            EasingFunction = easeIn
-        };
-        Storyboard.SetTarget(animX, MomentsPopupTranslation);
-        Storyboard.SetTargetProperty(animX, "X");
-        sb.Children.Add(animX);
+            var animX = new DoubleAnimation
+            {
+                From = MomentsPopupTranslation.X,
+                To = -30,
+                Duration = duration,
+                EasingFunction = easeIn
+            };
+            Storyboard.SetTarget(animX, MomentsPopupTranslation);
+            Storyboard.SetTargetProperty(animX, "X");
+            sb.Children.Add(animX);
+        }
 
         var animOp = new DoubleAnimation
         {
             From = MomentsJumpPopup.Opacity,
             To = 0.0,
-            Duration = TimeSpan.FromMilliseconds(180),
+            Duration = duration,
             EasingFunction = easeIn
         };
         Storyboard.SetTarget(animOp, MomentsJumpPopup);

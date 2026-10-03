@@ -167,8 +167,6 @@
   "Updates_GitHubTokenTitle": "GitHub Token (Optional)",
   "Updates_GitHubTokenSubtitle": "Use a personal access token for private repository releases or higher rate limits",
   "Updates_GitHubTokenPlaceholder": "ghp_xxxxxxxxxxxxxxxxxxxx",
-  "Updates_SetupGuideTitle": "GitHub Releases Setup",
-  "Updates_SetupGuideDesc": "To push an update: push a git tag (e.g. v1.0.1), create a Release on GitHub at k25jura/Reeled, and attach the packaged zip or installer asset.",
 
   "About_HeroTitle": "Reeled",
   "About_Tagline": "Modern game clips viewer & player for Windows",

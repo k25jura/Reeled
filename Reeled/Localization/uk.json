@@ -167,8 +167,6 @@
   "Updates_GitHubTokenTitle": "Токен GitHub (Опціонально)",
   "Updates_GitHubTokenSubtitle": "Використовуйте personal access token для релізів з приватного репозиторію або уникнення лімітів",
   "Updates_GitHubTokenPlaceholder": "ghp_xxxxxxxxxxxxxxxxxxxx",
-  "Updates_SetupGuideTitle": "Налаштування релізів GitHub",
-  "Updates_SetupGuideDesc": "Для публікації оновлення: створіть git-тег (наприклад v1.0.1), створіть Release на GitHub у репозиторії k25jura/Reeled і прикріпіть zip-архів чи інсталятор.",
 
   "About_HeroTitle": "Reeled",
   "About_Tagline": "Сучасний переглядач та плеєр ігрових кліпів для Windows",

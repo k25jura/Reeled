@@ -404,7 +404,11 @@ public sealed partial class MainWindow : Window
 
             if (RootFrame.Content is not HomePage)
             {
-                RootFrame.Navigate(typeof(HomePage), null, new SlideNavigationTransitionInfo { Effect = SlideNavigationTransitionEffect.FromLeft });
+                var storage = App.GetService<ILocalStorageService>();
+                NavigationTransitionInfo trans = (storage?.CurrentSettings.ReduceMotion == true)
+                    ? new EntranceNavigationTransitionInfo()
+                    : new SlideNavigationTransitionInfo { Effect = SlideNavigationTransitionEffect.FromLeft };
+                RootFrame.Navigate(typeof(HomePage), null, trans);
             }
             else
             {
@@ -435,7 +439,11 @@ public sealed partial class MainWindow : Window
         // Restore title bar buttons to the current app theme
         UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
 
-        RootFrame.Navigate(typeof(SettingsPage), null, new SlideNavigationTransitionInfo { Effect = SlideNavigationTransitionEffect.FromRight });
+        var storage = App.GetService<ILocalStorageService>();
+        NavigationTransitionInfo trans = (storage?.CurrentSettings.ReduceMotion == true)
+            ? new EntranceNavigationTransitionInfo()
+            : new SlideNavigationTransitionInfo { Effect = SlideNavigationTransitionEffect.FromRight };
+        RootFrame.Navigate(typeof(SettingsPage), null, trans);
     }
 
     public void ToggleFullscreen()

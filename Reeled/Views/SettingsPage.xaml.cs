@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using Windows.Foundation;
+using Reeled.Services;
 using Reeled.ViewModels;
 
 namespace Reeled.Views;
@@ -438,8 +439,34 @@ public sealed partial class SettingsPage : Page
                 if (IndicatorScale != null) IndicatorScale.ScaleY = 1.0;
             }
 
-            if (!animate)
+            var storage = App.GetService<ILocalStorageService>();
+            bool reduceMotion = storage?.CurrentSettings.ReduceMotion == true;
+
+            if (!animate || reduceMotion)
             {
+                if (reduceMotion && animate)
+                {
+                    _currentIndicatorY = targetY;
+                    var fadeOut = new DoubleAnimation { To = 0.0, Duration = TimeSpan.FromMilliseconds(60) };
+                    var fadeIn = new DoubleAnimation { To = 1.0, Duration = TimeSpan.FromMilliseconds(100) };
+                    var sb = new Storyboard();
+                    sb.Children.Add(fadeOut);
+                    Storyboard.SetTarget(fadeOut, ActiveIndicatorPill);
+                    Storyboard.SetTargetProperty(fadeOut, "Opacity");
+                    sb.Completed += (s, e) =>
+                    {
+                        IndicatorTranslation.Y = targetY;
+                        if (IndicatorScale != null) IndicatorScale.ScaleY = 1.0;
+                        var sbIn = new Storyboard();
+                        sbIn.Children.Add(fadeIn);
+                        Storyboard.SetTarget(fadeIn, ActiveIndicatorPill);
+                        Storyboard.SetTargetProperty(fadeIn, "Opacity");
+                        sbIn.Begin();
+                    };
+                    sb.Begin();
+                    return;
+                }
+
                 _currentIndicatorY = targetY;
                 IndicatorTranslation.Y = targetY;
                 if (IndicatorScale != null) IndicatorScale.ScaleY = 1.0;
@@ -664,13 +691,6 @@ public sealed partial class SettingsPage : Page
             double scrollY = SettingsScrollViewer.VerticalOffset;
             double maxScroll = SettingsScrollViewer.ScrollableHeight;
 
-            // When scrolled to the very bottom (within 16px), select AboutSection
-            if (maxScroll > 0 && (maxScroll - scrollY) <= 16)
-            {
-                SetActiveCategory("AboutSection", animate: true);
-                return;
-            }
-
             // Find section that encompasses the focus line (Y = 120 DIPs below scroll viewer top)
             var sections = new (FrameworkElement? Section, string Tag)[]
             {
@@ -695,6 +715,17 @@ public sealed partial class SettingsPage : Page
                 if (pt.Y <= focusY)
                 {
                     bestTag = tag;
+                }
+            }
+
+            // When scrolled near the very bottom, check if AboutSection occupies at least half of the viewport
+            if (maxScroll > 0 && (maxScroll - scrollY) <= 16 && AboutSection != null)
+            {
+                var aboutTransform = AboutSection.TransformToVisual(SettingsScrollViewer);
+                var aboutPt = aboutTransform.TransformPoint(new Windows.Foundation.Point(0, 0));
+                if (aboutPt.Y <= SettingsScrollViewer.ViewportHeight / 2.0)
+                {
+                    bestTag = "AboutSection";
                 }
             }
 
@@ -1089,8 +1120,6 @@ public sealed partial class SettingsPage : Page
         if (AutoCheckUpdatesSubtitleText != null) AutoCheckUpdatesSubtitleText.Text = loc["Updates_AutoCheckSubtitle"];
         if (GitHubTokenTitleText != null) GitHubTokenTitleText.Text = loc["Updates_GitHubTokenTitle"];
         if (GitHubTokenSubtitleText != null) GitHubTokenSubtitleText.Text = loc["Updates_GitHubTokenSubtitle"];
-        if (SetupGuideTitleText != null) SetupGuideTitleText.Text = loc["Updates_SetupGuideTitle"];
-        if (SetupGuideDescText != null) SetupGuideDescText.Text = loc["Updates_SetupGuideDesc"];
         if (UpdateAvailableNotes != null && string.IsNullOrEmpty(ViewModel.UpdateAvailableNotes)) UpdateAvailableNotes.Text = loc["Updates_AvailableNotes"];
         if (PatchNotesText != null) PatchNotesText.Text = loc["Updates_PatchNotes"];
         if (DownloadUpdateButton != null) DownloadUpdateButton.Content = loc["Updates_DownloadButton"];

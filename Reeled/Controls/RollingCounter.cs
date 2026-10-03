@@ -189,10 +189,11 @@ public sealed class RollingCounter : UserControl
         double digitWidth = MeasureDigitWidth();
         double duration = Math.Max(120, DurationMs);
 
-        // Pre-insert any newly required leading columns with initial width
+        // Pre-insert any newly required leading columns with initial zero width so existing digits do not jump
         while (_columns.Count < maxLen)
         {
             var newCol = new DigitColumn(' ', this.FontSize, this.FontWeight, this.Foreground, this.FontFamily, digitWidth);
+            newCol.Container.Width = 0.0;
             _columns.Insert(0, newCol);
             _rootStackPanel.Children.Insert(0, newCol.Container);
         }
@@ -222,12 +223,12 @@ public sealed class RollingCounter : UserControl
             }
             else if (oldChar == ' ' && newChar != ' ')
             {
-                // Expanding new digit: roll in with fade
-                col.RollTo(' ', newChar, isIncreasing, duration);
+                // Expanding new digit: roll in with fade while smoothly animating width from 0 to digitWidth
+                col.ExpandAndRollTo(newChar, isIncreasing, duration);
             }
             else if (oldChar != ' ' && newChar == ' ')
             {
-                // Contracting retiring digit: roll out and fade, then remove
+                // Contracting retiring digit: roll out and fade while smoothly shrinking width to 0, then remove
                 col.ContractAndRemove(oldChar, duration, isIncreasing, () =>
                 {
                     _columns.Remove(col);
@@ -255,6 +256,7 @@ public sealed class RollingCounter : UserControl
         private readonly CompositionEasingFunction _easeOut;
         private readonly RectangleGeometry _clipGeometry;
         private CompositionScopedBatch? _scopedBatch;
+        private Microsoft.UI.Xaml.Media.Animation.Storyboard? _widthStoryboard;
         private double _targetWidth;
 
         public DigitColumn(char initialChar, double fontSize, Windows.UI.Text.FontWeight fontWeight, Brush foreground, FontFamily fontFamily, double digitWidth)
@@ -304,7 +306,7 @@ public sealed class RollingCounter : UserControl
         public void UpdateStyle(double fontSize, Windows.UI.Text.FontWeight fontWeight, Brush foreground, FontFamily fontFamily, double digitWidth)
         {
             _targetWidth = digitWidth;
-            if (!IsRetiring)
+            if (!IsRetiring && _widthStoryboard == null)
             {
                 Container.Width = digitWidth;
             }
@@ -342,6 +344,12 @@ public sealed class RollingCounter : UserControl
 
         public void StopAnimation()
         {
+            if (_widthStoryboard != null)
+            {
+                _widthStoryboard.Stop();
+                _widthStoryboard = null;
+            }
+
             if (_scopedBatch != null)
             {
                 _prevVisual.StopAnimation("Offset.Y");
@@ -378,15 +386,99 @@ public sealed class RollingCounter : UserControl
             prevOpAnim.InsertKeyFrame(1.0f, 0.0f, _easeOut);
             prevOpAnim.Duration = duration;
 
+            var widthAnim = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+            {
+                From = Container.Width > 0 ? Container.Width : _targetWidth,
+                To = 0.0,
+                Duration = duration,
+                EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut },
+                EnableDependentAnimation = true
+            };
+            var widthSb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(widthAnim, Container);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(widthAnim, "Width");
+            widthSb.Children.Add(widthAnim);
+            _widthStoryboard = widthSb;
+            widthSb.Begin();
+
             _scopedBatch = _compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
             _scopedBatch.Completed += (s, e) =>
             {
                 _scopedBatch = null;
+                _widthStoryboard?.Stop();
+                _widthStoryboard = null;
+                Container.Width = 0.0;
                 onCompleted();
             };
 
             _prevVisual.StartAnimation("Offset.Y", prevYAnim);
             _prevVisual.StartAnimation("Opacity", prevOpAnim);
+
+            _scopedBatch.End();
+        }
+
+        public void ExpandAndRollTo(char newChar, bool isIncreasing, double durationMs)
+        {
+            StopAnimation();
+            IsRetiring = false;
+
+            _prevBlock.Text = "";
+            _currBlock.Text = newChar.ToString();
+
+            float slotHeight = (float)(Container.Height > 0 ? Container.Height : 18.0);
+            float currStartY = isIncreasing ? slotHeight : -slotHeight;
+
+            _prevVisual.Offset = Vector3.Zero;
+            _prevVisual.Opacity = 0.0f;
+
+            _currVisual.Offset = new Vector3(0, currStartY, 0);
+            _currVisual.Opacity = 0.0f;
+
+            var duration = TimeSpan.FromMilliseconds(durationMs);
+
+            var currYAnim = _compositor.CreateScalarKeyFrameAnimation();
+            currYAnim.InsertKeyFrame(0.0f, currStartY);
+            currYAnim.InsertKeyFrame(1.0f, 0.0f, _easeOut);
+            currYAnim.Duration = duration;
+
+            var currOpAnim = _compositor.CreateScalarKeyFrameAnimation();
+            currOpAnim.InsertKeyFrame(0.0f, 0.0f);
+            currOpAnim.InsertKeyFrame(1.0f, 1.0f, _easeOut);
+            currOpAnim.Duration = duration;
+
+            var widthAnim = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
+            {
+                From = Container.Width,
+                To = _targetWidth,
+                Duration = duration,
+                EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut },
+                EnableDependentAnimation = true
+            };
+            var widthSb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(widthAnim, Container);
+            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(widthAnim, "Width");
+            widthSb.Children.Add(widthAnim);
+            _widthStoryboard = widthSb;
+            widthSb.Begin();
+
+            _scopedBatch = _compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
+            _currVisual.StartAnimation("Offset.Y", currYAnim);
+            _currVisual.StartAnimation("Opacity", currOpAnim);
+
+            _scopedBatch.Completed += (s, e) =>
+            {
+                _prevBlock.Text = "";
+                _prevVisual.Opacity = 0.0f;
+                _prevVisual.Offset = Vector3.Zero;
+
+                _currVisual.Offset = Vector3.Zero;
+                _currVisual.Opacity = 1.0f;
+                _scopedBatch = null;
+
+                _widthStoryboard?.Stop();
+                _widthStoryboard = null;
+                Container.Width = _targetWidth;
+            };
 
             _scopedBatch.End();
         }

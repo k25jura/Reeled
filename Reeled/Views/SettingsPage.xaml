@@ -352,7 +352,7 @@
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
                           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                           ViewChanged="OnSettingsScrollViewerViewChanged">
-                <StackPanel x:Name="SettingsContentRoot" HorizontalAlignment="Stretch" Margin="0" Padding="0,0,0,320">
+                <StackPanel x:Name="SettingsContentRoot" HorizontalAlignment="Stretch" Margin="0" Padding="0,0,0,36">
                     <StackPanel x:Name="SettingsContentStack" MaxWidth="760" HorizontalAlignment="Center" Spacing="22">
 
                     <!-- ========================================== -->
@@ -1468,31 +1468,6 @@
                                              PlaceholderText="ghp_xxxxxxxxxxxxxxxxxxxx" 
                                              MinWidth="220" 
                                              VerticalAlignment="Center" />
-                            </Grid>
-                        </Border>
-
-                        <!-- Card 5: GitHub Setup Guide Card -->
-                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
-                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                                BorderThickness="1" 
-                                CornerRadius="8" 
-                                Padding="16,14">
-                            <Grid ColumnSpacing="16">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-
-                                <FontIcon Grid.Column="0" Glyph="&#xE946;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Top" HorizontalAlignment="Center" Width="24" Height="24" Margin="0,2,0,0" />
-
-                                <StackPanel Grid.Column="1" Spacing="4">
-                                    <TextBlock x:Name="SetupGuideTitleText" Text="GitHub Releases Setup" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
-                                    <TextBlock x:Name="SetupGuideDescText" 
-                                               Text="To push an update: push a git tag (e.g. v1.0.1), create a Release on GitHub at k25jura/Reeled, and attach the packaged zip or installer asset." 
-                                               Style="{ThemeResource CaptionTextBlockStyle}" 
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
                             </Grid>
                         </Border>
 

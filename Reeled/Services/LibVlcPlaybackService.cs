@@ -434,8 +434,16 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
     {
         _dispatcherQueue ??= App.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
 
-        if (_libVLC == null)
+        if (_libVLC == null || _currentSwapChainOptions == null)
         {
+            if (_libVLC != null)
+            {
+                try { _mediaPlayer?.Dispose(); } catch { }
+                try { _libVLC?.Dispose(); } catch { }
+                _libVLC = null;
+                _mediaPlayer = null;
+            }
+
             _currentSwapChainOptions = (string[])swapChainOptions.Clone();
             InitializeEngine(swapChainOptions);
         }

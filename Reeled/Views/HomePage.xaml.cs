@@ -275,93 +275,6 @@ public sealed partial class HomePage : Page
             var cubicEaseInOut = new CubicEase { EasingMode = EasingMode.EaseInOut };
             var cubicEaseIn = new CubicEase { EasingMode = EasingMode.EaseIn };
 
-            // 3. Create dummy elements inside the invisible warmup canvas to pre-tick Storyboards
-            if (AnimationWarmupCanvas != null)
-            {
-                var dummyTarget = new Border
-                {
-                    Width = 36,
-                    Height = 36,
-                    Opacity = 0.0,
-                    RenderTransform = new TransformGroup
-                    {
-                        Children =
-                        {
-                            new TranslateTransform(),
-                            new ScaleTransform(),
-                            new RotateTransform()
-                        }
-                    }
-                };
-                AnimationWarmupCanvas.Children.Add(dummyTarget);
-
-                var dummyTvi = new TreeViewItem
-                {
-                    Style = (Style)Resources["CustomTreeViewItemStyle"],
-                    Opacity = 0.0,
-                    Height = 0.0
-                };
-                AnimationWarmupCanvas.Children.Add(dummyTvi);
-                dummyTvi.ApplyTemplate();
-
-                // Warm up VisualStateManager transitions
-                VisualStateManager.GoToState(dummyTvi, "PointerOver", true);
-                VisualStateManager.GoToState(dummyTvi, "Selected", true);
-                VisualStateManager.GoToState(dummyTvi, "Normal", true);
-                VisualStateManager.GoToState(dummyTvi, "Expanded", true);
-                VisualStateManager.GoToState(dummyTvi, "Collapsed", true);
-
-                // Warm up micro-storyboards for transform, opacity, height, and keyframes
-                var warmupSb = new Storyboard();
-                var dur = TimeSpan.FromMilliseconds(1);
-
-                // Height dependent animation warmup
-                var animH = new DoubleAnimation { From = 0, To = 36, Duration = dur, EasingFunction = easeOut, EnableDependentAnimation = true };
-                Storyboard.SetTarget(animH, dummyTarget);
-                Storyboard.SetTargetProperty(animH, "Height");
-                warmupSb.Children.Add(animH);
-
-                // Translate Y keyframe animation warmup
-                var trans = ((TransformGroup)dummyTarget.RenderTransform).Children[0] as TranslateTransform;
-                var animY = new DoubleAnimationUsingKeyFrames();
-                animY.KeyFrames.Add(new DiscreteDoubleKeyFrame { Value = -10, KeyTime = KeyTime.FromTimeSpan(TimeSpan.Zero) });
-                animY.KeyFrames.Add(new EasingDoubleKeyFrame { Value = 0, KeyTime = KeyTime.FromTimeSpan(dur), EasingFunction = easeOut });
-                Storyboard.SetTarget(animY, trans);
-                Storyboard.SetTargetProperty(animY, "Y");
-                warmupSb.Children.Add(animY);
-
-                // Opacity keyframe animation warmup
-                var animOp = new DoubleAnimationUsingKeyFrames();
-                animOp.KeyFrames.Add(new DiscreteDoubleKeyFrame { Value = 0, KeyTime = KeyTime.FromTimeSpan(TimeSpan.Zero) });
-                animOp.KeyFrames.Add(new EasingDoubleKeyFrame { Value = 0.01, KeyTime = KeyTime.FromTimeSpan(dur), EasingFunction = easeOut });
-                Storyboard.SetTarget(animOp, dummyTarget);
-                Storyboard.SetTargetProperty(animOp, "Opacity");
-                warmupSb.Children.Add(animOp);
-
-                // Scale pulse keyframe animation warmup
-                var scale = ((TransformGroup)dummyTarget.RenderTransform).Children[1] as ScaleTransform;
-                var animScale = new DoubleAnimationUsingKeyFrames();
-                animScale.KeyFrames.Add(new LinearDoubleKeyFrame { Value = 1.0, KeyTime = KeyTime.FromTimeSpan(TimeSpan.Zero) });
-                animScale.KeyFrames.Add(new EasingDoubleKeyFrame { Value = 0.98, KeyTime = KeyTime.FromTimeSpan(dur), EasingFunction = cubicEaseOut });
-                Storyboard.SetTarget(animScale, scale);
-                Storyboard.SetTargetProperty(animScale, "ScaleX");
-                warmupSb.Children.Add(animScale);
-
-                // Rotate chevron animation warmup
-                var rotate = ((TransformGroup)dummyTarget.RenderTransform).Children[2] as RotateTransform;
-                var animRot = new DoubleAnimation { From = 0, To = 90, Duration = dur, EasingFunction = cubicEaseOut };
-                Storyboard.SetTarget(animRot, rotate);
-                Storyboard.SetTargetProperty(animRot, "Angle");
-                warmupSb.Children.Add(animRot);
-
-                warmupSb.Completed += (s, e) =>
-                {
-                    warmupSb.Stop();
-                    AnimationWarmupCanvas.Children.Clear();
-                };
-
-                warmupSb.Begin();
-            }
         }
         catch { }
     }
@@ -2332,20 +2245,22 @@ public sealed partial class HomePage : Page
         _collapsingNodes.Remove(dirNode);
         dirNode.IsExpanded = true;
 
-        if (_folderAnimationTokens.TryGetValue(dirNode, out var existingCts))
-        {
-            existingCts.Cancel();
-            _folderAnimationTokens.Remove(dirNode);
-        }
-
         if (_activeSpaceStoryboards.TryGetValue(dirNode, out var runningSpaceSb))
         {
             runningSpaceSb.Stop();
             _activeSpaceStoryboards.Remove(dirNode);
         }
 
-        var cts = new System.Threading.CancellationTokenSource();
-        _folderAnimationTokens[dirNode] = cts;
+        CancellationTokenSource cts;
+        if (_folderAnimationTokens.TryGetValue(dirNode, out var existingCts) && !existingCts.IsCancellationRequested)
+        {
+            cts = existingCts;
+        }
+        else
+        {
+            cts = new System.Threading.CancellationTokenSource();
+            _folderAnimationTokens[dirNode] = cts;
+        }
         var token = cts.Token;
 
         var itemsToAnimate = new System.Collections.Generic.List<DirectoryNode>();
@@ -2471,6 +2386,32 @@ public sealed partial class HomePage : Page
         UpdateActiveIndicator(animate: true);
     }
 
+    private void ExpandDirectoryWithAnimation(DirectoryNode node)
+    {
+        _collapsingNodes.Remove(node);
+
+        // Pre-hide any already materialized child containers so they never flash or blink on screen
+        var visibleDescendants = new System.Collections.Generic.List<DirectoryNode>();
+        CollectVisibleDescendants(node, visibleDescendants);
+        foreach (var childNode in visibleDescendants)
+        {
+            if (DirectoriesTreeView?.ContainerFromItem(childNode) is TreeViewItem container)
+            {
+                StopFolderStoryboard(container);
+                container.Opacity = 0.0;
+                container.Height = 0.0;
+            }
+        }
+
+        // Register animation token before flipping IsExpanded so OnTreeViewItemLoading immediately knows this branch is expanding
+        if (!_folderAnimationTokens.ContainsKey(node))
+        {
+            _folderAnimationTokens[node] = new System.Threading.CancellationTokenSource();
+        }
+
+        node.IsExpanded = true;
+    }
+
     private void OnChevronPointerPressed(object sender, PointerRoutedEventArgs e)
     {
         e.Handled = true;
@@ -2483,28 +2424,7 @@ public sealed partial class HomePage : Page
             }
             else
             {
-                _collapsingNodes.Remove(node);
-
-                // Pre-hide any already materialized child containers so they never flash or blink on screen
-                var visibleDescendants = new System.Collections.Generic.List<DirectoryNode>();
-                CollectVisibleDescendants(node, visibleDescendants);
-                foreach (var childNode in visibleDescendants)
-                {
-                    if (DirectoriesTreeView?.ContainerFromItem(childNode) is TreeViewItem container)
-                    {
-                        StopFolderStoryboard(container);
-                        container.Opacity = 0.0;
-                        container.Height = 0.0;
-                    }
-                }
-
-                // Register animation token before flipping IsExpanded so OnTreeViewItemLoading immediately knows this branch is expanding
-                if (!_folderAnimationTokens.ContainsKey(node))
-                {
-                    _folderAnimationTokens[node] = new System.Threading.CancellationTokenSource();
-                }
-
-                node.IsExpanded = true;
+                ExpandDirectoryWithAnimation(node);
             }
         }
     }
@@ -3026,21 +2946,33 @@ public sealed partial class HomePage : Page
 
         if (targetNode != null)
         {
+            sender.SelectedItem = targetNode;
+            bool isAlreadySelected = (ViewModel.CurrentSection == NavigationSection.Folder && ViewModel.SelectedDirectory == targetNode);
+
             if (targetNode.HasSubDirectories)
             {
                 bool isExpanded = targetNode.IsExpanded && !_collapsingNodes.Contains(targetNode);
-                if (isExpanded)
+                if (isAlreadySelected)
                 {
-                    _ = CollapseDirectoryWithAnimationAsync(targetNode);
+                    if (isExpanded)
+                    {
+                        _ = CollapseDirectoryWithAnimationAsync(targetNode);
+                    }
+                    else
+                    {
+                        ExpandDirectoryWithAnimation(targetNode);
+                    }
                 }
                 else
                 {
-                    _collapsingNodes.Remove(targetNode);
-                    targetNode.IsExpanded = true;
+                    if (!isExpanded)
+                    {
+                        ExpandDirectoryWithAnimation(targetNode);
+                    }
                 }
             }
-            sender.SelectedItem = targetNode;
-            if (ViewModel.SelectedDirectory != targetNode || ViewModel.CurrentSection != NavigationSection.Folder)
+
+            if (!isAlreadySelected)
             {
                 await ViewModel.SelectDirectoryAsync(targetNode);
             }

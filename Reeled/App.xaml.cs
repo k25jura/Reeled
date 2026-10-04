@@ -83,16 +83,6 @@ public partial class App : Application
         loc.SetLanguage(storage.CurrentSettings.Language ?? "System");
         ApplyTheme(storage.CurrentSettings.AppTheme);
         Window.Activate();
-
-        System.Threading.Tasks.Task.Run(() =>
-        {
-            try
-            {
-                var vlc = GetService<ILibVlcPlaybackService>();
-                vlc.InitializeEngine();
-            }
-            catch { }
-        });
     }
 
     public static bool IsWindowsInLightTheme()

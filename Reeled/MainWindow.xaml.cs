@@ -151,16 +151,6 @@ public sealed partial class MainWindow : Window
             }
         };
 
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-        {
-            // Pre-warm the player overlay surface so DirectX SwapChain & LibVLC initialize before first clip
-            if (PlayerOverlayContainer != null)
-            {
-                PlayerOverlayContainer.Opacity = 0.0;
-                PlayerOverlayContainer.IsHitTestVisible = false;
-                PlayerOverlayContainer.Visibility = Visibility.Visible;
-            }
-        });
 
         Activated += (s, e) =>
         {
@@ -404,11 +394,7 @@ public sealed partial class MainWindow : Window
 
             if (RootFrame.Content is not HomePage)
             {
-                var storage = App.GetService<ILocalStorageService>();
-                NavigationTransitionInfo trans = (storage?.CurrentSettings.ReduceMotion == true)
-                    ? new EntranceNavigationTransitionInfo()
-                    : new SlideNavigationTransitionInfo { Effect = SlideNavigationTransitionEffect.FromLeft };
-                RootFrame.Navigate(typeof(HomePage), null, trans);
+                RootFrame.Navigate(typeof(HomePage), null, new EntranceNavigationTransitionInfo());
             }
             else
             {
@@ -439,11 +425,7 @@ public sealed partial class MainWindow : Window
         // Restore title bar buttons to the current app theme
         UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
 
-        var storage = App.GetService<ILocalStorageService>();
-        NavigationTransitionInfo trans = (storage?.CurrentSettings.ReduceMotion == true)
-            ? new EntranceNavigationTransitionInfo()
-            : new SlideNavigationTransitionInfo { Effect = SlideNavigationTransitionEffect.FromRight };
-        RootFrame.Navigate(typeof(SettingsPage), null, trans);
+        RootFrame.Navigate(typeof(SettingsPage), null, new EntranceNavigationTransitionInfo());
     }
 
     public void ToggleFullscreen()

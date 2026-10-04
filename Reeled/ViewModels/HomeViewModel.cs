@@ -456,34 +456,32 @@ public partial class HomeViewModel : ObservableObject
         }
         CollectExpanded(Directories);
 
-        var trees = await _indexerService.BuildDirectoryTreesAsync(settings.WatchDirectories);
-        void RestoreExpanded(IEnumerable<DirectoryNode> nodes)
+        var (processedClips, processedTrees) = await Task.Run(async () =>
         {
-            foreach (var node in nodes)
+            var trees = await _indexerService.BuildDirectoryTreesAsync(settings.WatchDirectories);
+            void RestoreExpanded(IEnumerable<DirectoryNode> nodes)
             {
-                if (expandedPaths.Contains(node.FullPath))
+                foreach (var node in nodes)
                 {
-                    node.IsExpanded = true;
+                    if (expandedPaths.Contains(node.FullPath))
+                    {
+                        node.IsExpanded = true;
+                    }
+                    RestoreExpanded(node.SubDirectories);
                 }
-                RestoreExpanded(node.SubDirectories);
             }
-        }
-        RestoreExpanded(trees);
+            RestoreExpanded(trees);
 
-        _indexerService.UpdateWatchers(settings.WatchDirectories);
-
-        var allClipsList = new List<GameClip>();
-        foreach (var dir in settings.WatchDirectories)
-        {
-            if (Directory.Exists(dir))
+            var allClipsList = new List<GameClip>();
+            foreach (var dir in settings.WatchDirectories)
             {
-                var dirClips = await _indexerService.ScanDirectoryClipsAsync(dir, recursive: true);
-                allClipsList.AddRange(dirClips);
+                if (Directory.Exists(dir))
+                {
+                    var dirClips = await _indexerService.ScanDirectoryClipsAsync(dir, recursive: true);
+                    allClipsList.AddRange(dirClips);
+                }
             }
-        }
 
-        var (processedClips, processedTrees) = await Task.Run(() =>
-        {
             var list = new List<GameClip>();
             var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var clip in allClipsList)
@@ -536,6 +534,8 @@ public partial class HomeViewModel : ObservableObject
 
             return (list, trees);
         });
+
+        _indexerService.UpdateWatchers(settings.WatchDirectories);
 
         AllClips.ReplaceRange(processedClips);
         Directories.ReplaceRange(processedTrees);

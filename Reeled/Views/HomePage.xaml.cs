@@ -733,37 +733,26 @@ public sealed partial class HomePage : Page
 
     private void OnTreeViewItemLoading(FrameworkElement sender, object args)
     {
-        if (sender is TreeViewItem tvi && tvi.DataContext is DirectoryNode node)
+        var tvi = sender as TreeViewItem;
+        var node = (tvi?.DataContext as DirectoryNode) ?? (tvi?.Content as DirectoryNode);
+        if (node != null && tvi != null)
         {
             if (!node.IsWatchRoot)
             {
-                bool isAnimating = false;
-                foreach (var kv in _folderAnimationTokens)
+                tvi.Opacity = 0.0;
+                tvi.Height = 0.0;
+                if (tvi.RenderTransform is not Microsoft.UI.Xaml.Media.TranslateTransform)
                 {
-                    if (node.FullPath.StartsWith(kv.Key.FullPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        isAnimating = true;
-                        break;
-                    }
+                    tvi.RenderTransform = new Microsoft.UI.Xaml.Media.TranslateTransform { Y = -10.0 };
                 }
-
-                if (isAnimating)
+            }
+            else
+            {
+                tvi.Opacity = 1.0;
+                tvi.Height = double.NaN;
+                if (tvi.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
                 {
-                    tvi.Opacity = 0.0;
-                    tvi.Height = 0.0;
-                    if (tvi.RenderTransform is not Microsoft.UI.Xaml.Media.TranslateTransform)
-                    {
-                        tvi.RenderTransform = new Microsoft.UI.Xaml.Media.TranslateTransform { Y = -10.0 };
-                    }
-                }
-                else
-                {
-                    tvi.Opacity = 1.0;
-                    tvi.Height = double.NaN;
-                    if (tvi.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
-                    {
-                        tt.Y = 0.0;
-                    }
+                    tt.Y = 0.0;
                 }
             }
         }
@@ -2315,6 +2304,25 @@ public sealed partial class HomePage : Page
         if (token.IsCancellationRequested || currentGen != _expandingGeneration || !dirNode.IsExpanded) return;
         if (targetContainers.Count == 0) return;
 
+        if (IsReduceMotionEnabled())
+        {
+            foreach (var (container, _) in targetContainers)
+            {
+                StopFolderStoryboard(container);
+                container.Height = double.NaN;
+                container.Opacity = 1.0;
+                if (container.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+                {
+                    tt.Y = 0.0;
+                }
+                var innerGrid = FindVisualChild<Grid>(container);
+                if (innerGrid != null) innerGrid.Opacity = 1.0;
+            }
+            _folderAnimationTokens.Remove(dirNode);
+            UpdateActiveIndicator(animate: false);
+            return;
+        }
+
         // Phase 1: Accordion Space Extension (invisible space extends downwards using Apple QuarticEase)
         var spaceSb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
         var easeOut = new Microsoft.UI.Xaml.Media.Animation.QuarticEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
@@ -2554,7 +2562,7 @@ public sealed partial class HomePage : Page
         {
             StopFolderStoryboard(container);
             container.Opacity = 0.0;
-            container.Height = double.NaN;
+            container.Height = 0.0;
             if (container.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
             {
                 tt.Y = -10.0;
@@ -2568,6 +2576,31 @@ public sealed partial class HomePage : Page
     {
         if (sender is FrameworkElement grid)
         {
+            var node = (grid.DataContext as DirectoryNode) ?? (FindParent<TreeViewItem>(grid)?.DataContext as DirectoryNode);
+            if (node != null && !node.IsWatchRoot)
+            {
+                bool isAnimating = false;
+                foreach (var kv in _folderAnimationTokens)
+                {
+                    if (node != kv.Key && node.FullPath.StartsWith(kv.Key.FullPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        isAnimating = true;
+                        break;
+                    }
+                }
+
+                if (isAnimating)
+                {
+                    grid.Opacity = 0.0;
+                    if (FindParent<TreeViewItem>(grid) is TreeViewItem outerTvi)
+                    {
+                        outerTvi.Opacity = 0.0;
+                        outerTvi.Height = 0.0;
+                    }
+                    return;
+                }
+            }
+
             grid.Opacity = 1.0;
             if (grid.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
             {
@@ -2589,6 +2622,19 @@ public sealed partial class HomePage : Page
         {
             trans = new Microsoft.UI.Xaml.Media.TranslateTransform();
             element.RenderTransform = trans;
+        }
+
+        if (IsReduceMotionEnabled())
+        {
+            trans.Y = 0.0;
+            element.Opacity = 1.0;
+            element.Height = double.NaN;
+            if (element is TreeViewItem tvi)
+            {
+                var innerGrid = FindVisualChild<Grid>(tvi);
+                if (innerGrid != null) innerGrid.Opacity = 1.0;
+            }
+            return;
         }
 
         double slideDistance = -(10.0 + Math.Min(index * 0.8, 6.0));
@@ -2662,6 +2708,12 @@ public sealed partial class HomePage : Page
                 sb.Stop();
                 element.Opacity = 1.0;
                 trans.Y = 0.0;
+                element.Height = double.NaN;
+                if (element is TreeViewItem tvi)
+                {
+                    var innerGrid = FindVisualChild<Grid>(tvi);
+                    if (innerGrid != null) innerGrid.Opacity = 1.0;
+                }
             }
         };
 

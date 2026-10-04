@@ -278,7 +278,7 @@ public sealed class RollingCounter : UserControl
                 TextAlignment = Microsoft.UI.Xaml.TextAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Opacity = 0.0
+                Opacity = 1.0
             };
             Typography.SetNumeralAlignment(_prevBlock, FontNumeralAlignment.Tabular);
 
@@ -288,7 +288,7 @@ public sealed class RollingCounter : UserControl
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Text = initialChar == ' ' ? "" : initialChar.ToString(),
-                Opacity = initialChar == ' ' ? 0.0 : 1.0
+                Opacity = 1.0
             };
             Typography.SetNumeralAlignment(_currBlock, FontNumeralAlignment.Tabular);
 
@@ -297,8 +297,15 @@ public sealed class RollingCounter : UserControl
 
             _prevVisual = ElementCompositionPreview.GetElementVisual(_prevBlock);
             _currVisual = ElementCompositionPreview.GetElementVisual(_currBlock);
+            _prevVisual.Opacity = 0.0f;
+            _currVisual.Opacity = initialChar == ' ' ? 0.0f : 1.0f;
             _compositor = _currVisual.Compositor;
             _easeOut = _compositor.CreateCubicBezierEasingFunction(new Vector2(0.1f, 0.9f), new Vector2(0.2f, 1.0f));
+
+            Container.SizeChanged += (s, e) =>
+            {
+                _clipGeometry.Rect = new Rect(0, 0, e.NewSize.Width, e.NewSize.Height > 0 ? e.NewSize.Height : Container.Height);
+            };
 
             UpdateStyle(fontSize, fontWeight, foreground, fontFamily, digitWidth);
         }
@@ -306,7 +313,7 @@ public sealed class RollingCounter : UserControl
         public void UpdateStyle(double fontSize, Windows.UI.Text.FontWeight fontWeight, Brush foreground, FontFamily fontFamily, double digitWidth)
         {
             _targetWidth = digitWidth;
-            if (!IsRetiring && _widthStoryboard == null)
+            if (!IsRetiring && _widthStoryboard == null && Container.Width > 0)
             {
                 Container.Width = digitWidth;
             }
@@ -323,7 +330,7 @@ public sealed class RollingCounter : UserControl
 
             double slotHeight = Math.Ceiling(fontSize * 1.35);
             Container.Height = slotHeight;
-            _clipGeometry.Rect = new Rect(0, 0, digitWidth, slotHeight);
+            _clipGeometry.Rect = new Rect(0, 0, Container.Width > 0 ? Container.Width : digitWidth, slotHeight);
         }
 
         public void SetStaticChar(char c)
@@ -348,6 +355,10 @@ public sealed class RollingCounter : UserControl
             {
                 _widthStoryboard.Stop();
                 _widthStoryboard = null;
+                if (!IsRetiring)
+                {
+                    Container.Width = _targetWidth;
+                }
             }
 
             if (_scopedBatch != null)
@@ -446,9 +457,11 @@ public sealed class RollingCounter : UserControl
             currOpAnim.InsertKeyFrame(1.0f, 1.0f, _easeOut);
             currOpAnim.Duration = duration;
 
+            Container.Width = 0.0;
+
             var widthAnim = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
             {
-                From = Container.Width,
+                From = 0.0,
                 To = _targetWidth,
                 Duration = duration,
                 EasingFunction = new Microsoft.UI.Xaml.Media.Animation.CubicEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut },

@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+using Windows.ApplicationModel.DataTransfer;
+using Windows.Storage;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Animation;
@@ -43,6 +46,9 @@ public sealed partial class MainWindow : Window
     private bool _hasSubclassedChildWindows;
     private string? _cachedIconPath;
     private Storyboard? _transitionStoryboard;
+    private int _dragDepth;
+    private Storyboard? _dropOverlayStoryboard;
+    private bool _isDropOverlayVisible;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT
@@ -224,6 +230,13 @@ public sealed partial class MainWindow : Window
             UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
         };
         UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
+
+        UpdateDropOverlayLocalization();
+        var locService = App.GetService<ILocalizationService>();
+        if (locService != null)
+        {
+            locService.LanguageChanged += (s, e) => DispatcherQueue.TryEnqueue(UpdateDropOverlayLocalization);
+        }
 
         // Startup on HomePage
         RootFrame.Navigate(typeof(HomePage), null, new SuppressNavigationTransitionInfo());
@@ -708,5 +721,213 @@ public sealed partial class MainWindow : Window
         }
 
         return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+    }
+
+    private void UpdateDropOverlayLocalization()
+    {
+        var loc = App.GetService<ILocalizationService>();
+        if (loc == null) return;
+        if (DropOverlayTitleText != null) DropOverlayTitleText.Text = loc["DropOverlay_Title"];
+        if (DropOverlaySubtitleText != null) DropOverlaySubtitleText.Text = loc["DropOverlay_Subtitle"];
+    }
+
+    private void OnRootWindowDragEnter(object sender, DragEventArgs e)
+    {
+        _dragDepth++;
+        if (e.DataView.Contains(StandardDataFormats.StorageItems))
+        {
+            e.AcceptedOperation = DataPackageOperation.Copy;
+            e.DragUIOverride.IsCaptionVisible = false;
+            e.DragUIOverride.IsGlyphVisible = false;
+            ShowDropOverlay(true);
+        }
+    }
+
+    private void OnRootWindowDragOver(object sender, DragEventArgs e)
+    {
+        if (e.DataView.Contains(StandardDataFormats.StorageItems))
+        {
+            e.AcceptedOperation = DataPackageOperation.Copy;
+            e.DragUIOverride.IsCaptionVisible = false;
+            e.DragUIOverride.IsGlyphVisible = false;
+            if (!_isDropOverlayVisible)
+            {
+                ShowDropOverlay(true);
+            }
+        }
+        else
+        {
+            e.AcceptedOperation = DataPackageOperation.None;
+        }
+    }
+
+    private void OnRootWindowDragLeave(object sender, DragEventArgs e)
+    {
+        _dragDepth--;
+        if (_dragDepth <= 0)
+        {
+            _dragDepth = 0;
+            ShowDropOverlay(false);
+        }
+    }
+
+    private async void OnRootWindowDrop(object sender, DragEventArgs e)
+    {
+        _dragDepth = 0;
+        ShowDropOverlay(false);
+
+        if (e.DataView.Contains(StandardDataFormats.StorageItems))
+        {
+            var deferral = e.GetDeferral();
+            try
+            {
+                var items = await e.DataView.GetStorageItemsAsync();
+                await ProcessDroppedStorageItemsAsync(items);
+            }
+            catch { }
+            finally
+            {
+                deferral.Complete();
+            }
+        }
+    }
+
+    private void ShowDropOverlay(bool show)
+    {
+        if (_isDropOverlayVisible == show) return;
+        _isDropOverlayVisible = show;
+
+        _dropOverlayStoryboard?.Stop();
+        _dropOverlayStoryboard = null;
+
+        if (IsReduceMotionEnabled())
+        {
+            if (show)
+            {
+                DropOverlayContainer.Opacity = 1.0;
+                DropContentScale.ScaleX = 1.0;
+                DropContentScale.ScaleY = 1.0;
+                DropOverlayContainer.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                DropOverlayContainer.Opacity = 0.0;
+                DropOverlayContainer.Visibility = Visibility.Collapsed;
+            }
+            return;
+        }
+
+        var sb = new Storyboard();
+        var ease = new QuarticEase { EasingMode = show ? EasingMode.EaseOut : EasingMode.EaseIn };
+        var duration = TimeSpan.FromMilliseconds(show ? 190 : 140);
+
+        var fade = new DoubleAnimation
+        {
+            From = DropOverlayContainer.Opacity,
+            To = show ? 1.0 : 0.0,
+            Duration = duration,
+            EasingFunction = ease
+        };
+        Storyboard.SetTarget(fade, DropOverlayContainer);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+        sb.Children.Add(fade);
+
+        var scaleX = new DoubleAnimation
+        {
+            From = DropContentScale.ScaleX,
+            To = show ? 1.0 : 0.94,
+            Duration = duration,
+            EasingFunction = ease
+        };
+        Storyboard.SetTarget(scaleX, DropContentScale);
+        Storyboard.SetTargetProperty(scaleX, "ScaleX");
+        sb.Children.Add(scaleX);
+
+        var scaleY = new DoubleAnimation
+        {
+            From = DropContentScale.ScaleY,
+            To = show ? 1.0 : 0.94,
+            Duration = duration,
+            EasingFunction = ease
+        };
+        Storyboard.SetTarget(scaleY, DropContentScale);
+        Storyboard.SetTargetProperty(scaleY, "ScaleY");
+        sb.Children.Add(scaleY);
+
+        if (show)
+        {
+            DropOverlayContainer.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            sb.Completed += (s, e) =>
+            {
+                if (!_isDropOverlayVisible)
+                {
+                    DropOverlayContainer.Visibility = Visibility.Collapsed;
+                    DropOverlayContainer.Opacity = 0.0;
+                }
+            };
+        }
+
+        _dropOverlayStoryboard = sb;
+        sb.Begin();
+    }
+
+    private async Task ProcessDroppedStorageItemsAsync(IReadOnlyList<IStorageItem> items)
+    {
+        if (items == null || items.Count == 0) return;
+
+        var videoFilePaths = new List<string>();
+        var folderPaths = new List<string>();
+
+        foreach (var item in items)
+        {
+            if (item is StorageFile file)
+            {
+                if (NavigationService.IsVideoFilePath(file.Path))
+                {
+                    videoFilePaths.Add(file.Path);
+                }
+            }
+            else if (item is StorageFolder folder)
+            {
+                folderPaths.Add(folder.Path);
+            }
+            else if (!string.IsNullOrEmpty(item.Path))
+            {
+                if (System.IO.Directory.Exists(item.Path))
+                {
+                    folderPaths.Add(item.Path);
+                }
+                else if (System.IO.File.Exists(item.Path) && NavigationService.IsVideoFilePath(item.Path))
+                {
+                    videoFilePaths.Add(item.Path);
+                }
+            }
+        }
+
+        if (folderPaths.Count > 0)
+        {
+            var homeVM = App.GetService<HomeViewModel>();
+            if (homeVM != null)
+            {
+                foreach (var folder in folderPaths)
+                {
+                    await homeVM.AddDirectoryPathAsync(folder);
+                }
+            }
+        }
+
+        if (videoFilePaths.Count > 0)
+        {
+            await _navigationService.OpenVideoFilesAsync(videoFilePaths);
+        }
+    }
+
+    private static bool IsReduceMotionEnabled()
+    {
+        var storage = App.GetService<ILocalStorageService>();
+        return storage?.CurrentSettings?.ReduceMotion == true;
     }
 }

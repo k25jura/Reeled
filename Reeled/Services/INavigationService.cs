@@ -13,4 +13,5 @@ public interface INavigationService
     void NavigateToPlayer(GameClip clip, IEnumerable<GameClip> playlist);
     void NavigateToHome();
     void NavigateToSettings();
+    System.Threading.Tasks.Task OpenVideoFilesAsync(IEnumerable<string> filePaths);
 }

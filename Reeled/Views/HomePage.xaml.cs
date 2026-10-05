@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Navigation;
 using Reeled.Models;
+using Reeled.Services;
 using Reeled.ViewModels;
 
 namespace Reeled.Views;
@@ -184,6 +185,7 @@ public sealed partial class HomePage : Page
             if (HomeNavText != null) HomeNavText.Text = loc["Nav_Home"];
             if (FavoritesNavText != null) FavoritesNavText.Text = loc["Nav_Favorites"];
             if (SavedMomentsNavText != null) SavedMomentsNavText.Text = loc["Nav_SavedMoments"];
+            if (OpenFileNavText != null) OpenFileNavText.Text = loc["Nav_OpenFile"];
             if (FoldersHeaderNavText != null) FoldersHeaderNavText.Text = loc["Nav_Folders"];
             if (FoldersAddNavText != null) FoldersAddNavText.Text = loc["Nav_AddFolder"];
             if (SettingsNavText != null) SettingsNavText.Text = loc["Nav_Settings"];
@@ -192,6 +194,7 @@ public sealed partial class HomePage : Page
             if (CollapseSidebarButton != null) ToolTipService.SetToolTip(CollapseSidebarButton, loc["Tooltip_CollapseSidebar"]);
             if (ShowSidebarButton != null) ToolTipService.SetToolTip(ShowSidebarButton, loc["Tooltip_ShowSidebar"]);
             if (AddWatchFolderButton != null) ToolTipService.SetToolTip(AddWatchFolderButton, loc["Tooltip_AddWatchFolder"]);
+            if (OpenFileNavButton != null) ToolTipService.SetToolTip(OpenFileNavButton, loc["Tooltip_OpenFile"]);
             if (RefreshClipsButton != null) ToolTipService.SetToolTip(RefreshClipsButton, loc["Tooltip_RefreshClips"]);
             if (ExplorerHyperlinkButton != null) ToolTipService.SetToolTip(ExplorerHyperlinkButton, loc["Tooltip_OpenInExplorer"]);
 
@@ -237,6 +240,7 @@ public sealed partial class HomePage : Page
             if (FoldersFallbackTitleText != null) FoldersFallbackTitleText.Text = loc["Folders_FallbackTitle"];
             if (FoldersFallbackSubtitleText != null) FoldersFallbackSubtitleText.Text = loc["Folders_FallbackSubtitle"];
             if (FoldersFallbackButton != null) FoldersFallbackButton.Content = loc["Folders_ChooseFolder"];
+            if (EmptyStateOpenFileText != null) EmptyStateOpenFileText.Text = loc["Empty_OpenFileButton"];
         }
         catch { }
     }
@@ -3035,6 +3039,42 @@ public sealed partial class HomePage : Page
     private async void OnAddFolderClick(object sender, RoutedEventArgs e)
     {
         await ViewModel.AddDirectoryAsync(App.WindowHandle);
+    }
+
+    private async void OnOpenVideoFileClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+            picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.VideosLibrary;
+            picker.ViewMode = Windows.Storage.Pickers.PickerViewMode.Thumbnail;
+
+            foreach (var ext in NavigationService.SupportedVideoExtensions)
+            {
+                picker.FileTypeFilter.Add(ext);
+            }
+
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, App.WindowHandle);
+
+            var files = await picker.PickMultipleFilesAsync();
+            if (files != null && files.Count > 0)
+            {
+                var filePaths = new List<string>();
+                foreach (var file in files)
+                {
+                    filePaths.Add(file.Path);
+                }
+                var nav = App.GetService<INavigationService>();
+                if (nav != null)
+                {
+                    await nav.OpenVideoFilesAsync(filePaths);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HomePage] Error opening video files: {ex.Message}");
+        }
     }
 
     private void OnClipItemClick(object sender, ItemClickEventArgs e)

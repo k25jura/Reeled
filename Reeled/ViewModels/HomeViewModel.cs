@@ -673,6 +673,31 @@ public partial class HomeViewModel : ObservableObject
         }
     }
 
+    public async Task AddDirectoryPathAsync(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path)) return;
+        try
+        {
+            var settings = _storageService.CurrentSettings;
+            if (!settings.WatchDirectories.Contains(path, StringComparer.OrdinalIgnoreCase))
+            {
+                settings.WatchDirectories.Add(path);
+                await _storageService.SaveSettingsAsync(settings);
+                await SyncDirectoriesAsync();
+
+                var newNode = FindNodeByPath(Directories, path);
+                if (newNode != null)
+                {
+                    await SelectDirectoryAsync(newNode);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error adding folder: {ex.Message}";
+        }
+    }
+
     [RelayCommand]
     public async Task RemoveDirectoryAsync(DirectoryNode node)
     {

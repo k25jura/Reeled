@@ -136,10 +136,23 @@ public partial class HomeViewModel : ObservableObject
         }
     }
 
+    public void UpdateBookmarkCounts()
+    {
+        _dispatcherQueue?.TryEnqueue(() =>
+        {
+            UpdateCounts();
+            RefreshMomentsBadgeVisibility();
+            if (CurrentSection == NavigationSection.SavedMoments)
+            {
+                ApplyFilterAndSort();
+            }
+        });
+    }
+
     public bool ShowSkeletonLoading => IsLoading && EnableSkeletonLoading;
     public bool ShowProgressRingLoading => IsLoading && !EnableSkeletonLoading;
 
-    public int[] SkeletonPlaceholders { get; } = new int[16];
+    public int[] SkeletonPlaceholders { get; } = new int[36];
     private readonly HashSet<string> _loadedWatchDirectories = new(StringComparer.OrdinalIgnoreCase);
 
     [ObservableProperty]
@@ -979,6 +992,12 @@ public partial class HomeViewModel : ObservableObject
             DateGroupingMode.Month => FilteredClips.GroupBy(c => c.EffectiveDate.ToString("yyyy-MM")),
             DateGroupingMode.Year => FilteredClips.GroupBy(c => c.EffectiveDate.ToString("yyyy")),
             _ => FilteredClips.GroupBy(c => "all")
+        };
+
+        groups = SortIndex switch
+        {
+            1 => groups.OrderBy(g => g.Min(c => c.EffectiveDate)),
+            _ => groups.OrderByDescending(g => g.Max(c => c.EffectiveDate))
         };
 
         var newGroups = new List<ClipGroup>();

@@ -123,6 +123,24 @@ public class FavoriteOpacityConverter : IValueConverter
     }
 }
 
+public class FavoriteForegroundConverter : IValueConverter
+{
+    private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush ActiveBrush =
+        new(Windows.UI.Color.FromArgb(255, 255, 229, 127)); // #FFE57F gold
+    private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush InactiveBrush =
+        new(Microsoft.UI.Colors.White); // White outline
+
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        return value is bool isFav && isFav ? ActiveBrush : InactiveBrush;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+    {
+        throw new NotImplementedException();
+    }
+}
+
 public class SectionActiveBackgroundConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)

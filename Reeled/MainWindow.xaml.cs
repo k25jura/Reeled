@@ -24,6 +24,10 @@ public sealed partial class MainWindow : Window
     private const int WM_GETMINMAXINFO = 0x0024;
     private const int WM_SIZING = 0x0214;
     private const int WM_SETCURSOR = 0x0020;
+    private const int WM_ACTIVATE = 0x0006;
+    private const int WM_KILLFOCUS = 0x0008;
+    private const int WM_NCACTIVATE = 0x0086;
+    private const int WA_INACTIVE = 0;
     private const int IDC_ARROW = 32512;
 
     private const int WMSZ_LEFT = 1;
@@ -338,6 +342,11 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        // Deactivate and collapse DirectX video surface immediately to prevent ghost boxes during transition
+        PlayerViewControl.Deactivate();
+        SetCursorHidden(false);
+        SetCaptionControlsVisible(true);
+
         var sb = new Storyboard();
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
         var duration = TimeSpan.FromMilliseconds(180);
@@ -397,10 +406,8 @@ public sealed partial class MainWindow : Window
             RootFrame.Opacity = 1.0;
             AppTitleBar.Opacity = 1.0;
 
-            PlayerViewControl.Deactivate();
-            SetCursorHidden(false);
-            SetCaptionControlsVisible(true);
             EnsureWindowIcon();
+            App.GetService<ViewModels.HomeViewModel>()?.UpdateBookmarkCounts();
 
             // Restore title bar buttons to the current app theme
             UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
@@ -408,10 +415,6 @@ public sealed partial class MainWindow : Window
             if (RootFrame.Content is not HomePage)
             {
                 RootFrame.Navigate(typeof(HomePage), null, new EntranceNavigationTransitionInfo());
-            }
-            else
-            {
-                RootFrame.Focus(FocusState.Programmatic);
             }
         };
 
@@ -695,6 +698,16 @@ public sealed partial class MainWindow : Window
 
     private IntPtr WindowSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, nuint uIdSubclass, nuint dwRefData)
     {
+        if ((uMsg == WM_ACTIVATE && (wParam.ToInt64() & 0xFFFF) == WA_INACTIVE) ||
+            uMsg == WM_KILLFOCUS ||
+            (uMsg == WM_NCACTIVATE && wParam == IntPtr.Zero))
+        {
+            if (_isCursorHidden)
+            {
+                SetCursorHidden(false);
+            }
+        }
+
         if (uMsg == WM_SETCURSOR && _isCursorHidden)
         {
             IntPtr blank = Helpers.CursorHelper.GetBlankHCursor();

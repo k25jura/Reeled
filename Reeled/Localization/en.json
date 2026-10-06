@@ -61,7 +61,7 @@
   "Folders_SectionSubtitle": "Manage the local directories which Reeled searches for clips",
   "Folders_AddCardTitle": "Add Media Folders",
   "Folders_AddCardSubtitle": "Directories scanned for MP4, MKV, and AVI gameplay clips",
-  "Folders_ConfiguredTitle": "Choosen Library Directories",
+  "Folders_ConfiguredTitle": "Selected Library Directories",
   "Folders_ConfiguredSubtitle": "Reeled indexes videos from these folders and watches for new captures",
   "Folders_AddButton": "Add Folder",
   "Folders_EmptyTitle": "No folders added",
@@ -265,6 +265,8 @@
   "Dialog_ClipInfo_Location": "Location",
   "Dialog_ClipInfo_OpenProperties": "Properties",
   "Dialog_ClipInfo_Close": "Close",
+
+  "Common_Cancel": "Cancel",
 
   "Dialog_Rename_Title": "Rename Clip",
   "Dialog_Rename_Confirm": "Rename",

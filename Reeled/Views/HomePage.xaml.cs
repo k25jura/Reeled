@@ -783,6 +783,11 @@ public sealed partial class HomePage : Page
                     }
                 }
             }
+
+            if (node.HasSubDirectories)
+            {
+                VisualStateManager.GoToState(tvi, node.IsExpanded ? "Expanded" : "Collapsed", false);
+            }
         }
     }
 
@@ -1457,6 +1462,51 @@ public sealed partial class HomePage : Page
         }
     }
 
+    private void OnFlyoutOpening(object? sender, object e)
+    {
+        if (sender is MenuFlyout menuFlyout)
+        {
+            if (this.XamlRoot != null)
+            {
+                menuFlyout.XamlRoot = this.XamlRoot;
+            }
+
+            var currentTheme = this.ActualTheme;
+            foreach (var item in menuFlyout.Items)
+            {
+                if (item is FrameworkElement fe)
+                {
+                    fe.RequestedTheme = currentTheme;
+                }
+            }
+        }
+    }
+
+    private void OnFlyoutOpened(object? sender, object e)
+    {
+        if (sender is MenuFlyout menuFlyout)
+        {
+            var currentTheme = this.ActualTheme;
+            foreach (var item in menuFlyout.Items)
+            {
+                if (item is FrameworkElement fe)
+                {
+                    fe.RequestedTheme = currentTheme;
+                    var parent = VisualTreeHelper.GetParent(fe);
+                    while (parent != null)
+                    {
+                        if (parent is MenuFlyoutPresenter presenter)
+                        {
+                            presenter.RequestedTheme = currentTheme;
+                            break;
+                        }
+                        parent = VisualTreeHelper.GetParent(parent);
+                    }
+                }
+            }
+        }
+    }
+
     private void UpdateViewOptionsMenuUI()
     {
         if (ViewDensityComfortableItem != null)
@@ -1522,13 +1572,11 @@ public sealed partial class HomePage : Page
             {
                 if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
                 {
-                    _activeGroupWrapGrids.Add(wrapGrid);
-                }
-                if (_currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
-                {
-                    wrapGrid.ItemWidth = _currentCardWidth;
-                    wrapGrid.ItemHeight = _currentCardHeight;
-                    wrapGrid.MaximumRowsOrColumns = -1;
+                    bool wasAdded = _activeGroupWrapGrids.Add(wrapGrid);
+                    if (wasAdded && _currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
+                    {
+                        UpdateGroupWrapGrids(_currentCardWidth, _currentCardHeight, -1);
+                    }
                 }
                 else if (_currentCardWidth <= 0)
                 {
@@ -1829,15 +1877,10 @@ public sealed partial class HomePage : Page
             {
                 if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
                 {
-                    _activeGroupWrapGrids.Add(wrapGrid);
-                }
-                if (_currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
-                {
-                    wrapGrid.ItemWidth = _currentCardWidth;
-                    wrapGrid.ItemHeight = _currentCardHeight;
-                    if (wrapGrid.MaximumRowsOrColumns != -1)
+                    bool wasAdded = _activeGroupWrapGrids.Add(wrapGrid);
+                    if (wasAdded && _currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
                     {
-                        wrapGrid.MaximumRowsOrColumns = -1;
+                        UpdateGroupWrapGrids(_currentCardWidth, _currentCardHeight, -1);
                     }
                 }
             }
@@ -2206,28 +2249,11 @@ public sealed partial class HomePage : Page
         _clipsScrollViewer ??= FindVisualChild<ScrollViewer>(ClipsGridView);
         _clipsScrollViewer?.ChangeView(null, 0.0, null, disableAnimation: true);
 
-        if (ClipsGridView != null && ClipsGridView.Items.Count > 0)
-        {
-            try
-            {
-                ClipsGridView.ScrollIntoView(ClipsGridView.Items[0]);
-            }
-            catch { }
-        }
-
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             if (ClipsGridView == null) return;
             _clipsScrollViewer ??= FindVisualChild<ScrollViewer>(ClipsGridView);
             _clipsScrollViewer?.ChangeView(null, 0.0, null, disableAnimation: true);
-            if (ClipsGridView.Items.Count > 0)
-            {
-                try
-                {
-                    ClipsGridView.ScrollIntoView(ClipsGridView.Items[0]);
-                }
-                catch { }
-            }
         });
     }
 
@@ -2295,6 +2321,11 @@ public sealed partial class HomePage : Page
         if (dirNode == null) return;
         _collapsingNodes.Remove(dirNode);
         dirNode.IsExpanded = true;
+
+        if (sender.ContainerFromItem(dirNode) is TreeViewItem expandingParentTvi)
+        {
+            VisualStateManager.GoToState(expandingParentTvi, "Expanded", !IsReduceMotionEnabled());
+        }
 
         if (_activeSpaceStoryboards.TryGetValue(dirNode, out var runningSpaceSb))
         {
@@ -2511,6 +2542,10 @@ public sealed partial class HomePage : Page
         }
 
         node.IsExpanded = true;
+        if (DirectoriesTreeView?.ContainerFromItem(node) is TreeViewItem pTvi)
+        {
+            VisualStateManager.GoToState(pTvi, "Expanded", true);
+        }
     }
 
     private void OnChevronPointerPressed(object sender, PointerRoutedEventArgs e)
@@ -3221,6 +3256,11 @@ public sealed partial class HomePage : Page
 
     private void AnimateFavoriteClick(Button btn, bool isFavorited)
     {
+        if (IsReduceMotionEnabled())
+        {
+            return;
+        }
+
         var sb = new Storyboard();
         var gentleEase = new CubicEase { EasingMode = EasingMode.EaseOut };
         var sineEase = new SineEase { EasingMode = EasingMode.EaseInOut };
@@ -3330,6 +3370,8 @@ public sealed partial class HomePage : Page
             AnimateCardHover(element, isHovered: true);
 
             var flyout = new MenuFlyout();
+            flyout.Opening += OnFlyoutOpening;
+            flyout.Opened += OnFlyoutOpened;
             flyout.Closed += (s, args) =>
             {
                 AnimateCardHover(element, isHovered: false);

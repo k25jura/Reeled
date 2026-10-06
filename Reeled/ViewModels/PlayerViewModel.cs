@@ -587,6 +587,7 @@ public partial class PlayerViewModel : ObservableObject
         await _storageService.SaveSettingsAsync(settings);
 
         SortBookmarks();
+        App.GetService<HomeViewModel>()?.UpdateBookmarkCounts();
 
         ShowToast(string.Format(_localizationService["Player_Toast_SavedMarker"], bookmark.FormattedTimestamp));
     }
@@ -616,6 +617,7 @@ public partial class PlayerViewModel : ObservableObject
             list.RemoveAll(b => b.Id == bookmark.Id);
             await _storageService.SaveSettingsAsync(settings);
         }
+        App.GetService<HomeViewModel>()?.UpdateBookmarkCounts();
         ShowToast(_localizationService["Player_Toast_RemovedMoment"]);
     }
 
@@ -678,6 +680,7 @@ public partial class PlayerViewModel : ObservableObject
         }
 
         SortBookmarks();
+        App.GetService<HomeViewModel>()?.UpdateBookmarkCounts();
 
         ShowToast(string.Format(_localizationService["Player_Toast_ChangedMoment"], bookmark.Label));
     }

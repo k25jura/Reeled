@@ -274,6 +274,22 @@ public sealed partial class SettingsPage : Page
         }
     }
 
+    private void OnDirectoryAnchorLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn)
+        {
+            ToolTipService.SetToolTip(btn, ViewModel.Loc["Folders_OpenTip"]);
+        }
+    }
+
+    private void OnRemoveFolderLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn)
+        {
+            ToolTipService.SetToolTip(btn, ViewModel.Loc["Folders_RemoveTip"]);
+        }
+    }
+
     private void OnCategoryButtonClick(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string sectionName)

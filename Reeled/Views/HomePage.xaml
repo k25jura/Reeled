@@ -870,7 +870,7 @@
                                 <TextBlock x:Name="CurrentSortText" Text="Newest Date" FontSize="12.5" />
                             </StackPanel>
                             <DropDownButton.Flyout>
-                                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                <MenuFlyout x:Name="SortMenuFlyout" Placement="BottomEdgeAlignedRight" Opening="OnFlyoutOpening" Opened="OnFlyoutOpened">
                                     <MenuFlyoutItem x:Name="SortNewestItem" Click="OnSortMenuItemClick" Tag="0">
                                         <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE787;" FontSize="14" /></MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
@@ -903,7 +903,7 @@
                                 <TextBlock x:Name="ViewOptionsText" Text="View" FontSize="12.5" />
                             </StackPanel>
                             <DropDownButton.Flyout>
-                                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                <MenuFlyout x:Name="ViewMenuFlyout" Placement="BottomEdgeAlignedRight" Opening="OnFlyoutOpening" Opened="OnFlyoutOpened">
                                     <MenuFlyoutItem x:Name="ViewDensityHeader" Text="Card Size" IsEnabled="False" />
                                     <ToggleMenuFlyoutItem x:Name="ViewDensityComfortableItem" Click="OnViewDensityItemClick" Tag="0">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE790;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
@@ -951,7 +951,15 @@
                           Padding="24,14,24,24"
                           SizeChanged="OnClipsGridViewSizeChanged"
                           ScrollViewer.VerticalScrollBarVisibility="Auto"
-                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          UseSystemFocusVisuals="False"
+                          IsTabStop="False">
+
+                    <GridView.ItemContainerTransitions>
+                        <TransitionCollection>
+                            <RepositionThemeTransition IsStaggeringEnabled="False" />
+                        </TransitionCollection>
+                    </GridView.ItemContainerTransitions>
 
                     <GridView.GroupStyle>
                         <GroupStyle>
@@ -1006,6 +1014,12 @@
 
                     <GridView.ItemContainerStyle>
                         <Style TargetType="GridViewItem">
+                            <Setter Property="UseSystemFocusVisuals" Value="False" />
+                            <Setter Property="IsTabStop" Value="False" />
+                            <Setter Property="FocusVisualPrimaryBrush" Value="Transparent" />
+                            <Setter Property="FocusVisualSecondaryBrush" Value="Transparent" />
+                            <Setter Property="FocusVisualPrimaryThickness" Value="0" />
+                            <Setter Property="FocusVisualSecondaryThickness" Value="0" />
                             <Setter Property="Transitions">
                                 <Setter.Value>
                                     <TransitionCollection>
@@ -1105,7 +1119,7 @@
                                     </Border>
 
                                     <!-- Right: Glassmorphic Favorite Button with Pulse Ring & Sparkles -->
-                                    <Grid Grid.Column="1" Width="28" Height="28" HorizontalAlignment="Right">
+                                    <Grid Grid.Column="1" Width="28" Height="28" HorizontalAlignment="Right" RequestedTheme="Dark">
                                         <!-- Pulse Expansion Ring on Favorite -->
                                         <Border x:Name="FavoritePulseRing"
                                                 Width="28" Height="28" CornerRadius="14"
@@ -1145,7 +1159,7 @@
                                             <FontIcon x:Name="FavoriteIcon"
                                                       Glyph="{x:Bind IsFavorite, Mode=OneWay, Converter={StaticResource FavoriteGlyphConverter}}" 
                                                       FontSize="12" 
-                                                      Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                                      Foreground="{x:Bind IsFavorite, Mode=OneWay, Converter={StaticResource FavoriteForegroundConverter}}"
                                                       Opacity="{x:Bind IsFavorite, Mode=OneWay, Converter={StaticResource FavoriteOpacityConverter}}" />
                                         </Button>
                                     </Grid>

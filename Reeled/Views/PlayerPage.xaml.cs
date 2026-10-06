@@ -487,6 +487,7 @@ public sealed partial class PlayerPage : Page
 
     public void Activate()
     {
+        PlayerVideoView.Visibility = Visibility.Visible;
         this.Focus(FocusState.Programmatic);
         ViewModel.IsControlsVisible = true;
         _areControlsShowing = false;
@@ -501,6 +502,11 @@ public sealed partial class PlayerPage : Page
         UpdateBackdropBlur();
 
         StartTimelineRendering();
+    }
+
+    public void SetVideoSurfaceVisibility(Visibility visibility)
+    {
+        PlayerVideoView.Visibility = visibility;
     }
 
     private void StartTimelineRendering()
@@ -537,6 +543,7 @@ public sealed partial class PlayerPage : Page
 
     public void Deactivate()
     {
+        PlayerVideoView.Visibility = Visibility.Collapsed;
         StopTimelineRendering();
         _inactivityTimer.Stop();
         _osdHideTimer?.Stop();

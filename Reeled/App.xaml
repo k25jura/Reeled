@@ -242,6 +242,7 @@
             <converters:VolumeGlyphConverter x:Key="VolumeGlyphConverter" />
             <converters:FavoriteGlyphConverter x:Key="FavoriteGlyphConverter" />
             <converters:FavoriteOpacityConverter x:Key="FavoriteOpacityConverter" />
+            <converters:FavoriteForegroundConverter x:Key="FavoriteForegroundConverter" />
             <converters:SectionActiveBackgroundConverter x:Key="SectionActiveBackgroundConverter" />
             <converters:SectionActiveForegroundConverter x:Key="SectionActiveForegroundConverter" />
             <converters:SectionActiveFontWeightConverter x:Key="SectionActiveFontWeightConverter" />

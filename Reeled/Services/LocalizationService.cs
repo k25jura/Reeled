@@ -238,7 +238,8 @@ public class LocalizationService : ILocalizationService
         ["Plural_Moment_Many"] = "moments",
         ["Updates_StatusTitle"] = "Reeled is up to date",
         ["Updates_StatusAvailable"] = "Update available",
-        ["Updates_StatusReady"] = "Ready to install"
+        ["Updates_StatusReady"] = "Ready to install",
+        ["Common_Cancel"] = "Cancel"
     };
 
     private static readonly Dictionary<string, string> UkrainianFallback = new(StringComparer.OrdinalIgnoreCase)
@@ -260,6 +261,7 @@ public class LocalizationService : ILocalizationService
         ["Plural_Moment_Many"] = "моментів",
         ["Updates_StatusTitle"] = "Reeled оновлено до останньої версії",
         ["Updates_StatusAvailable"] = "Доступне оновлення",
-        ["Updates_StatusReady"] = "Готово до встановлення"
+        ["Updates_StatusReady"] = "Готово до встановлення",
+        ["Common_Cancel"] = "Скасувати"
     };
 }

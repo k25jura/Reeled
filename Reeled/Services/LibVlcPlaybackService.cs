@@ -608,18 +608,18 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         {
             try
             {
+                _mediaPlayer.Stop();
+
                 var oldMedia = _currentMedia;
+                _currentMedia = null;
+                if (oldMedia != null)
+                {
+                    try { oldMedia.Dispose(); } catch { }
+                }
+
                 var newMedia = new Media(_libVLC, filePath, FromType.FromPath);
                 _currentMedia = newMedia;
                 _mediaPlayer.Play(newMedia);
-
-                if (oldMedia != null)
-                {
-                    Task.Delay(500).ContinueWith(_ =>
-                    {
-                        try { oldMedia.Dispose(); } catch { }
-                    });
-                }
             }
             catch (Exception ex)
             {

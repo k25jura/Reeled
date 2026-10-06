@@ -190,6 +190,17 @@ public sealed partial class SettingsPage : Page
         }
     }
 
+    private void OnMaxVolumeSliderValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+        int newVol = (int)Math.Round(e.NewValue / 10.0) * 10;
+        newVol = Math.Clamp(newVol, 100, 300);
+        if (ViewModel.MaxVolume != newVol)
+        {
+            ViewModel.SetMaxVolume(newVol);
+        }
+    }
+
     private void OnDefaultRepeatSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_isInitializing) return;
@@ -1007,6 +1018,8 @@ public sealed partial class SettingsPage : Page
         if (RememberSpeedSubtitleText != null) RememberSpeedSubtitleText.Text = loc["Playback_RememberSpeedSubtitle"];
         if (DefaultVolumeTitleText != null) DefaultVolumeTitleText.Text = loc["Playback_VolumeTitle"];
         if (DefaultVolumeSubtitleText != null) DefaultVolumeSubtitleText.Text = loc["Playback_VolumeSubtitle"];
+        if (MaxVolumeTitleText != null) MaxVolumeTitleText.Text = loc["Playback_MaxVolumeTitle"];
+        if (MaxVolumeSubtitleText != null) MaxVolumeSubtitleText.Text = loc["Playback_MaxVolumeSubtitle"];
         if (StartMutedTitleText != null) StartMutedTitleText.Text = loc["Playback_StartMutedTitle"];
         if (StartMutedSubtitleText != null) StartMutedSubtitleText.Text = loc["Playback_StartMutedSubtitle"];
         if (DefaultRepeatTitleText != null) DefaultRepeatTitleText.Text = loc["Playback_RepeatModeTitle"];

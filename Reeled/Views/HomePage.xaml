@@ -526,26 +526,40 @@
                             </Grid>
                         </Button>
 
-                        <!-- Open File Button -->
+                        <!-- Subtle Divider between Navigation Tabs and Utility Actions -->
+                        <MenuFlyoutSeparator Margin="14,3,14,3" />
+
+                        <!-- Open File Button (Secondary Utility Action) -->
                         <Button x:Name="OpenFileNavButton"
                                 Click="OnOpenVideoFileClick"
                                 Style="{StaticResource NavTabButtonStyle}"
                                 ToolTipService.ToolTip="Open video file"
+                                Opacity="0.85"
                                 PointerPressed="OnItemPointerPressed"
                                 PointerReleased="OnItemPointerReleased"
                                 PointerCanceled="OnItemPointerCanceled">
-                            <Grid Height="38">
+                            <Grid Height="34">
                                 <Grid Padding="14,0,12,0" VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- Icon -->
-                                    <FontIcon x:Name="OpenFileNavIcon" Grid.Column="0" Glyph="&#xE8E5;" FontSize="16" Margin="0,0,12,0" />
+                                    <!-- Icon (Toned-down Secondary Foreground) -->
+                                    <FontIcon x:Name="OpenFileNavIcon" 
+                                              Grid.Column="0" 
+                                              Glyph="&#xE8E5;" 
+                                              FontSize="15" 
+                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                              Margin="0,0,12,0" />
 
-                                    <!-- Label -->
-                                    <TextBlock x:Name="OpenFileNavText" Grid.Column="1" Text="Open File" FontSize="13" VerticalAlignment="Center" />
+                                    <!-- Label (Toned-down Secondary Foreground) -->
+                                    <TextBlock x:Name="OpenFileNavText" 
+                                               Grid.Column="1" 
+                                               Text="Open File" 
+                                               FontSize="12.5" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                               VerticalAlignment="Center" />
                                 </Grid>
                             </Grid>
                         </Button>

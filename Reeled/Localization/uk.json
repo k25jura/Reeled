@@ -79,6 +79,8 @@
   "Playback_RememberSpeedSubtitle": "Зберігати останню використану швидкість між сеансами",
   "Playback_VolumeTitle": "Гучність за замовчуванням",
   "Playback_VolumeSubtitle": "Початковий рівень гучності аудіо при відкритті відеокліпів",
+  "Playback_MaxVolumeTitle": "Максимальна гучність аудіо",
+  "Playback_MaxVolumeSubtitle": "Дозволити підсилення гучності понад 100% (до 300%)",
   "Playback_StartMutedTitle": "Без звуку при запуску",
   "Playback_StartMutedSubtitle": "Автоматично вимикати звук на початку відтворення кліпів",
   "Playback_RepeatModeTitle": "Режим повтору за замовчуванням",

@@ -741,22 +741,44 @@ public sealed partial class HomePage : Page
         var node = (tvi?.DataContext as DirectoryNode) ?? (tvi?.Content as DirectoryNode);
         if (node != null && tvi != null)
         {
-            if (!node.IsWatchRoot)
-            {
-                tvi.Opacity = 0.0;
-                tvi.Height = 0.0;
-                if (tvi.RenderTransform is not Microsoft.UI.Xaml.Media.TranslateTransform)
-                {
-                    tvi.RenderTransform = new Microsoft.UI.Xaml.Media.TranslateTransform { Y = -10.0 };
-                }
-            }
-            else
+            if (IsReduceMotionEnabled() || node.IsWatchRoot)
             {
                 tvi.Opacity = 1.0;
                 tvi.Height = double.NaN;
                 if (tvi.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
                 {
                     tt.Y = 0.0;
+                }
+            }
+            else
+            {
+                bool isExpanding = false;
+                foreach (var kv in _folderAnimationTokens)
+                {
+                    if (node != kv.Key && node.FullPath.StartsWith(kv.Key.FullPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        isExpanding = true;
+                        break;
+                    }
+                }
+
+                if (isExpanding)
+                {
+                    tvi.Opacity = 0.0;
+                    tvi.Height = 0.0;
+                    if (tvi.RenderTransform is not Microsoft.UI.Xaml.Media.TranslateTransform)
+                    {
+                        tvi.RenderTransform = new Microsoft.UI.Xaml.Media.TranslateTransform { Y = -10.0 };
+                    }
+                }
+                else
+                {
+                    tvi.Opacity = 1.0;
+                    tvi.Height = double.NaN;
+                    if (tvi.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+                    {
+                        tt.Y = 0.0;
+                    }
                 }
             }
         }
@@ -2261,6 +2283,26 @@ public sealed partial class HomePage : Page
 
         if (itemsToAnimate.Count == 0) return;
 
+        if (IsReduceMotionEnabled())
+        {
+            _folderAnimationTokens.Remove(dirNode);
+            foreach (var node in itemsToAnimate)
+            {
+                if (sender.ContainerFromItem(node) is TreeViewItem container)
+                {
+                    StopFolderStoryboard(container);
+                    container.Opacity = 1.0;
+                    container.Height = double.NaN;
+                    if (container.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+                    {
+                        tt.Y = 0.0;
+                    }
+                }
+            }
+            UpdateActiveIndicator(animate: false);
+            return;
+        }
+
         // Zero out opacity and height on any already-materialized containers
         foreach (var node in itemsToAnimate)
         {
@@ -2402,6 +2444,17 @@ public sealed partial class HomePage : Page
     {
         _collapsingNodes.Remove(node);
 
+        if (IsReduceMotionEnabled())
+        {
+            node.IsExpanded = true;
+            if (DirectoriesTreeView?.ContainerFromItem(node) is TreeViewItem parentTvi)
+            {
+                VisualStateManager.GoToState(parentTvi, "Expanded", false);
+            }
+            UpdateActiveIndicator(animate: false);
+            return;
+        }
+
         // Pre-hide any already materialized child containers so they never flash or blink on screen
         var visibleDescendants = new System.Collections.Generic.List<DirectoryNode>();
         CollectVisibleDescendants(node, visibleDescendants);
@@ -2478,13 +2531,33 @@ public sealed partial class HomePage : Page
         // Immediately rotate parent chevron to collapsed state
         if (DirectoriesTreeView?.ContainerFromItem(dirNode) is TreeViewItem parentTvi)
         {
-            VisualStateManager.GoToState(parentTvi, "Collapsed", true);
+            VisualStateManager.GoToState(parentTvi, "Collapsed", !IsReduceMotionEnabled());
         }
 
         // If selected item is inside this collapsing branch, hide indicator immediately
         if (ViewModel.SelectedDirectory != null && itemsToAnimate.Contains(ViewModel.SelectedDirectory))
         {
-            AnimateIndicatorVisibility(false, animate: true);
+            AnimateIndicatorVisibility(false, animate: !IsReduceMotionEnabled());
+        }
+
+        if (IsReduceMotionEnabled())
+        {
+            dirNode.IsExpanded = false;
+            _collapsingNodes.Remove(dirNode);
+            _folderAnimationTokens.Remove(dirNode);
+
+            foreach (var container in targetContainers)
+            {
+                StopFolderStoryboard(container);
+                container.Opacity = 0.0;
+                container.Height = 0.0;
+                if (container.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+                {
+                    tt.Y = 0.0;
+                }
+            }
+            UpdateActiveIndicator(animate: false);
+            return;
         }
 
         if (targetContainers.Count > 0 && DirectoriesTreeView != null)
@@ -2580,31 +2653,6 @@ public sealed partial class HomePage : Page
     {
         if (sender is FrameworkElement grid)
         {
-            var node = (grid.DataContext as DirectoryNode) ?? (FindParent<TreeViewItem>(grid)?.DataContext as DirectoryNode);
-            if (node != null && !node.IsWatchRoot)
-            {
-                bool isAnimating = false;
-                foreach (var kv in _folderAnimationTokens)
-                {
-                    if (node != kv.Key && node.FullPath.StartsWith(kv.Key.FullPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        isAnimating = true;
-                        break;
-                    }
-                }
-
-                if (isAnimating)
-                {
-                    grid.Opacity = 0.0;
-                    if (FindParent<TreeViewItem>(grid) is TreeViewItem outerTvi)
-                    {
-                        outerTvi.Opacity = 0.0;
-                        outerTvi.Height = 0.0;
-                    }
-                    return;
-                }
-            }
-
             grid.Opacity = 1.0;
             if (grid.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
             {

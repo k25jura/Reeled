@@ -9,6 +9,7 @@ public class AppSettings
     public string? LastActiveDirectory { get; set; }
     public int Volume { get; set; } = 100;
     public int DefaultVolume { get; set; } = 100;
+    public int MaxVolume { get; set; } = 200;
     public bool IsMuted { get; set; } = false;
     public bool StartMuted { get; set; } = false;
     public double PlaybackSpeed { get; set; } = 1.0;

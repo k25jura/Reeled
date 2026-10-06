@@ -652,6 +652,10 @@ public sealed partial class PlayerPage : Page
     {
         int newVol = (int)Math.Round(e.NewValue / 5.0) * 5;
         newVol = Math.Clamp(newVol, 0, 100);
+        if (ViewModel.Volume > 100 && newVol == 100)
+        {
+            return;
+        }
         if (ViewModel.Volume != newVol)
         {
             ViewModel.SetVolume(newVol);

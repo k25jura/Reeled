@@ -115,6 +115,20 @@ public partial class PlayerViewModel : ObservableObject
 
     public string FullscreenGlyph => IsFullscreen ? "\uE73F" : "\uE740";
 
+    public int MaxVolume => _storageService.CurrentSettings.MaxVolume > 0 ? _storageService.CurrentSettings.MaxVolume : 200;
+
+    public bool IsVolumeBoosted => Volume > 100;
+
+    public int SliderVolume => Math.Clamp(Volume, 0, 100);
+
+    public Microsoft.UI.Xaml.Media.Brush VolumeSliderBrush => IsVolumeBoosted
+        ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 160, 0))
+        : new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255));
+
+    public Microsoft.UI.Xaml.Media.Brush VolumeTextBrush => IsVolumeBoosted
+        ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 160, 0))
+        : new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 192, 192, 192));
+
     public string VolumeGlyph
     {
         get
@@ -157,7 +171,14 @@ public partial class PlayerViewModel : ObservableObject
         OnPropertyChanged(nameof(FormattedPlaybackRate));
     }
     partial void OnIsFullscreenChanged(bool value) => OnPropertyChanged(nameof(FullscreenGlyph));
-    partial void OnVolumeChanged(int value) => OnPropertyChanged(nameof(VolumeGlyph));
+    partial void OnVolumeChanged(int value)
+    {
+        OnPropertyChanged(nameof(VolumeGlyph));
+        OnPropertyChanged(nameof(IsVolumeBoosted));
+        OnPropertyChanged(nameof(SliderVolume));
+        OnPropertyChanged(nameof(VolumeSliderBrush));
+        OnPropertyChanged(nameof(VolumeTextBrush));
+    }
     partial void OnIsMutedChanged(bool value) => OnPropertyChanged(nameof(VolumeGlyph));
 
     public bool HasPreviousClip =>
@@ -192,7 +213,7 @@ public partial class PlayerViewModel : ObservableObject
         _playbackService.AudioTracksChanged += RefreshAudioTracks;
         _playbackService.SubtitlesChanged += RefreshSubtitleTracks;
 
-        Volume = Math.Clamp(_storageService.CurrentSettings.DefaultVolume, 0, 100);
+        Volume = Math.Clamp(_storageService.CurrentSettings.DefaultVolume, 0, MaxVolume);
         IsMuted = _storageService.CurrentSettings.StartMuted;
         double initialSpeed = _storageService.CurrentSettings.RememberPlaybackSpeed
             ? _storageService.CurrentSettings.PlaybackSpeed
@@ -243,7 +264,7 @@ public partial class PlayerViewModel : ObservableObject
         IsMuted = _storageService.CurrentSettings.StartMuted;
         _playbackService.SetMute(IsMuted);
 
-        Volume = Math.Clamp(_storageService.CurrentSettings.DefaultVolume, 0, 100);
+        Volume = Math.Clamp(_storageService.CurrentSettings.DefaultVolume, 0, MaxVolume);
         _playbackService.SetVolume(Volume);
         OnPropertyChanged(nameof(VolumeGlyph));
 
@@ -701,7 +722,7 @@ public partial class PlayerViewModel : ObservableObject
     [RelayCommand]
     public void SetVolume(int newVolume)
     {
-        Volume = Math.Clamp(newVolume, 0, 100);
+        Volume = Math.Clamp(newVolume, 0, MaxVolume);
         if (Volume > 0 && IsMuted)
         {
             IsMuted = false;
@@ -709,7 +730,17 @@ public partial class PlayerViewModel : ObservableObject
         }
         _playbackService.SetVolume(Volume);
         OnPropertyChanged(nameof(VolumeGlyph));
-        ShowToast(IsMuted ? _localizationService["Player_Toast_Muted"] : string.Format(_localizationService["Player_Toast_Volume"], Volume));
+        OnPropertyChanged(nameof(IsVolumeBoosted));
+        OnPropertyChanged(nameof(SliderVolume));
+        OnPropertyChanged(nameof(VolumeSliderBrush));
+        OnPropertyChanged(nameof(VolumeTextBrush));
+
+        string toast = IsMuted 
+            ? _localizationService["Player_Toast_Muted"] 
+            : (Volume > 100 
+                ? $"{string.Format(_localizationService["Player_Toast_Volume"], Volume)} (BOOST)"
+                : string.Format(_localizationService["Player_Toast_Volume"], Volume));
+        ShowToast(toast);
 
         var settings = _storageService.CurrentSettings;
         settings.Volume = Volume;

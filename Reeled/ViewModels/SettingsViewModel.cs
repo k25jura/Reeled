@@ -58,6 +58,12 @@ public partial class SettingsViewModel : ObservableObject
     public string VolumeFormatted => $"{Volume}%";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MaxVolumeFormatted))]
+    private int _maxVolume = 200;
+
+    public string MaxVolumeFormatted => $"{MaxVolume}%";
+
+    [ObservableProperty]
     private bool _startMuted;
 
     [ObservableProperty]
@@ -208,6 +214,7 @@ public partial class SettingsViewModel : ObservableObject
         DefaultPlaybackSpeed = _storageService.CurrentSettings.DefaultPlaybackSpeed;
         RememberPlaybackSpeed = _storageService.CurrentSettings.RememberPlaybackSpeed;
         Volume = _storageService.CurrentSettings.DefaultVolume;
+        MaxVolume = _storageService.CurrentSettings.MaxVolume;
         StartMuted = _storageService.CurrentSettings.StartMuted;
         SelectedRepeatModeIndex = _storageService.CurrentSettings.DefaultRepeatMode switch
         {
@@ -335,6 +342,25 @@ public partial class SettingsViewModel : ObservableObject
         if (settings.DefaultVolume != value)
         {
             settings.DefaultVolume = value;
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    public void SetMaxVolume(int volume)
+    {
+        int clamped = Math.Clamp(volume, 100, 300);
+        if (MaxVolume != clamped)
+        {
+            MaxVolume = clamped;
+        }
+    }
+
+    partial void OnMaxVolumeChanged(int value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.MaxVolume != value)
+        {
+            settings.MaxVolume = value;
             _ = _storageService.SaveSettingsAsync(settings);
         }
     }

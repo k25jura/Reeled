@@ -79,6 +79,8 @@
   "Playback_RememberSpeedSubtitle": "Preserve the last used playback speed across sessions",
   "Playback_VolumeTitle": "Default playback volume",
   "Playback_VolumeSubtitle": "Initial audio volume level applied when opening video clips",
+  "Playback_MaxVolumeTitle": "Maximum audio volume",
+  "Playback_MaxVolumeSubtitle": "Allow audio amplification beyond 100% (up to 300%)",
   "Playback_StartMutedTitle": "Start muted",
   "Playback_StartMutedSubtitle": "Automatically mute audio when opening new video clips",
   "Playback_RepeatModeTitle": "Default repeat mode",

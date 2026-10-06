@@ -643,6 +643,51 @@
                             </Grid>
                         </Border>
 
+                        <!-- Card 3b: Maximum Audio Volume -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE995;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="MaxVolumeTitleText" Text="Maximum audio volume" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="MaxVolumeSubtitleText" Text="Allow audio amplification beyond 100% (up to 300%)" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                    <Slider x:Name="MaxVolumeSlider"
+                                            Minimum="100"
+                                            Maximum="300"
+                                            SmallChange="10"
+                                            LargeChange="25"
+                                            StepFrequency="10"
+                                            SnapsTo="StepValues"
+                                            Value="{x:Bind ViewModel.MaxVolume, Mode=OneWay}"
+                                            ValueChanged="OnMaxVolumeSliderValueChanged"
+                                            Width="130"
+                                            VerticalAlignment="Center" />
+                                    <TextBlock Text="{x:Bind ViewModel.MaxVolumeFormatted, Mode=OneWay}"
+                                               FontSize="12.5"
+                                               FontWeight="SemiBold"
+                                               Width="40"
+                                               TextAlignment="Right"
+                                               VerticalAlignment="Center"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
                         <!-- Card 4: Start Muted -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 

@@ -756,7 +756,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
 
     public void SetVolume(int volume)
     {
-        _storedVolume = Math.Clamp(volume, 0, 150);
+        _storedVolume = Math.Clamp(volume, 0, 300);
         ApplyAllVolumes();
     }
 

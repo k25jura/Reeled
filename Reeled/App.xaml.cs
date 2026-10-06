@@ -76,6 +76,7 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        Helpers.CursorHelper.RestoreGlobalCursor();
         Window = new MainWindow();
         DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         var storage = GetService<ILocalStorageService>();
@@ -108,6 +109,8 @@ public partial class App : Application
         return false;
     }
 
+    public static ElementTheme CurrentTheme { get; private set; } = ElementTheme.Dark;
+
     public static void ApplyTheme(string themeSetting)
     {
         if (Window?.Content is FrameworkElement root)
@@ -119,6 +122,7 @@ public partial class App : Application
                 _ => IsWindowsInLightTheme() ? ElementTheme.Light : ElementTheme.Dark
             };
 
+            CurrentTheme = targetTheme;
             root.RequestedTheme = targetTheme;
 
             if (Window is MainWindow mainWindow)
@@ -127,13 +131,13 @@ public partial class App : Application
                 if (mainWindow.NavigationFrame.Content is FrameworkElement page)
                 {
                     page.RequestedTheme = targetTheme;
-                    if (page is Views.SettingsPage settingsPage && settingsPage.FindName("SettingsScrollViewer") is FrameworkElement sv)
+                    if (page is Views.SettingsPage settingsPage)
                     {
-                        sv.RequestedTheme = targetTheme;
+                        settingsPage.ApplyThemeVisuals(targetTheme);
                     }
-                    if (page is Views.HomePage homePage && homePage.FindName("ClipsGridView") is FrameworkElement gv)
+                    if (page is Views.HomePage homePage)
                     {
-                        gv.RequestedTheme = targetTheme;
+                        homePage.ApplyThemeVisuals(targetTheme);
                     }
                 }
 

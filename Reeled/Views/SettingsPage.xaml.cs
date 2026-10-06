@@ -73,15 +73,29 @@ public sealed partial class SettingsPage : Page
             {
                 _isInitializing = false;
                 SetActiveCategory("FoldersSection", animate: false);
+                UpdateTitleBarDragArea();
             });
         };
+
+        if (ResetDefaultsHeaderButton != null)
+        {
+            ResetDefaultsHeaderButton.Loaded += (s, e) => UpdateTitleBarDragArea();
+            ResetDefaultsHeaderButton.SizeChanged += (s, e) => UpdateTitleBarDragArea();
+        }
+
+        this.SizeChanged += (s, e) => UpdateTitleBarDragArea();
 
         ViewModel.Loc.LanguageChanged += (s, e) =>
         {
             ApplyLocalization(ViewModel.Loc);
+            UpdateTitleBarDragArea();
         };
 
-        ActualThemeChanged += (s, e) => UpdateThemeVisuals(ActualTheme);
+        ActualThemeChanged += (s, e) =>
+        {
+            UpdateThemeVisuals(ActualTheme);
+            UpdateTitleBarDragArea();
+        };
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -92,6 +106,7 @@ public sealed partial class SettingsPage : Page
 
         ApplyLocalization(ViewModel.Loc);
         UpdateThemeVisuals(ActualTheme);
+        UpdateTitleBarDragArea();
 
         SyncControlsToViewModel();
     }
@@ -127,6 +142,7 @@ public sealed partial class SettingsPage : Page
         var dialog = new ContentDialog
         {
             XamlRoot = this.XamlRoot,
+            RequestedTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme,
             Title = loc["About_ResetDialog_Title"],
             Content = loc["About_ResetDialog_Content"],
             PrimaryButtonText = loc["About_ResetDialog_Confirm"],
@@ -157,7 +173,7 @@ public sealed partial class SettingsPage : Page
         if (ThemeComboBox.SelectedIndex >= 0 && ThemeComboBox.SelectedIndex != ViewModel.SelectedThemeIndex)
         {
             ViewModel.SetAppTheme(ThemeComboBox.SelectedIndex);
-            UpdateThemeVisuals(ActualTheme);
+            UpdateThemeVisuals(App.CurrentTheme);
         }
     }
 
@@ -169,6 +185,29 @@ public sealed partial class SettingsPage : Page
             ViewModel.SetLanguage(LanguageComboBox.SelectedIndex);
             ApplyLocalization(ViewModel.Loc);
             UpdateCategoryButtonColors(ActualTheme);
+        }
+    }
+
+    public void ApplyThemeVisuals(ElementTheme theme)
+    {
+        this.RequestedTheme = theme;
+        UpdateThemeVisuals(theme);
+        UpdateTitleBarDragArea();
+    }
+
+    private void UpdateTitleBarDragArea()
+    {
+        if (ResetDefaultsHeaderButton == null || this.XamlRoot == null) return;
+        try
+        {
+            var transform = ResetDefaultsHeaderButton.TransformToVisual(this);
+            var bounds = transform.TransformBounds(new Windows.Foundation.Rect(0, 0, ResetDefaultsHeaderButton.ActualWidth, ResetDefaultsHeaderButton.ActualHeight));
+            double leftOffset = Math.Max(bounds.Right + 32, 540);
+            (App.Window as MainWindow)?.UpdateSettingsTitleBarMargin(leftOffset);
+        }
+        catch
+        {
+            (App.Window as MainWindow)?.UpdateSettingsTitleBarMargin(540);
         }
     }
 

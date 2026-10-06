@@ -934,6 +934,7 @@ public partial class HomeViewModel : ObservableObject
         settings.SortIndex = value;
         _ = _storageService.SaveSettingsAsync(settings);
         ApplyFilterAndSort();
+        RequestScrollToTop?.Invoke();
     }
 
     private void ApplyFilterAndSort()
@@ -997,6 +998,10 @@ public partial class HomeViewModel : ObservableObject
         groups = SortIndex switch
         {
             1 => groups.OrderBy(g => g.Min(c => c.EffectiveDate)),
+            2 => groups.OrderBy(g => g.Min(c => c.DisplayName), StringComparer.OrdinalIgnoreCase),
+            3 => groups.OrderByDescending(g => g.Max(c => c.DisplayName), StringComparer.OrdinalIgnoreCase),
+            4 => groups.OrderByDescending(g => g.Max(c => c.Duration)),
+            5 => groups.OrderByDescending(g => g.Max(c => c.FileSizeBytes)),
             _ => groups.OrderByDescending(g => g.Max(c => c.EffectiveDate))
         };
 

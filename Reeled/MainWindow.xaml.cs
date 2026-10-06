@@ -29,6 +29,7 @@ public sealed partial class MainWindow : Window
     private const int WM_NCACTIVATE = 0x0086;
     private const int WA_INACTIVE = 0;
     private const int IDC_ARROW = 32512;
+    private const int HTCLIENT = 1;
 
     private const int WMSZ_LEFT = 1;
     private const int WMSZ_RIGHT = 2;
@@ -209,19 +210,19 @@ public sealed partial class MainWindow : Window
             if (RootFrame.Content is FrameworkElement p)
             {
                 p.RequestedTheme = RootWindowGrid.RequestedTheme;
-                if (p is Views.HomePage hp && hp.FindName("ClipsGridView") is FrameworkElement gv)
+                if (p is Views.HomePage hp)
                 {
-                    gv.RequestedTheme = RootWindowGrid.RequestedTheme;
+                    hp.ApplyThemeVisuals(RootWindowGrid.RequestedTheme);
                 }
-                if (p is Views.SettingsPage sp && sp.FindName("SettingsScrollViewer") is FrameworkElement sv)
+                if (p is Views.SettingsPage sp)
                 {
-                    sv.RequestedTheme = RootWindowGrid.RequestedTheme;
+                    sp.ApplyThemeVisuals(RootWindowGrid.RequestedTheme);
                 }
             }
 
             if (RootFrame.Content is Views.SettingsPage)
             {
-                AppTitleBar.Margin = new Thickness(96, 0, 140, 0);
+                AppTitleBar.Margin = new Thickness(540, 0, 140, 0);
             }
             else
             {
@@ -343,6 +344,12 @@ public sealed partial class MainWindow : Window
         }
 
         // Deactivate and collapse DirectX video surface immediately to prevent ghost boxes during transition
+        var playerVM = App.GetService<PlayerViewModel>();
+        if (playerVM?.IsFullscreen == true)
+        {
+            SetFullscreen(false);
+        }
+
         PlayerViewControl.Deactivate();
         SetCursorHidden(false);
         SetCaptionControlsVisible(true);
@@ -415,6 +422,10 @@ public sealed partial class MainWindow : Window
             if (RootFrame.Content is not HomePage)
             {
                 RootFrame.Navigate(typeof(HomePage), null, new EntranceNavigationTransitionInfo());
+            }
+            else if (RootFrame.Content is HomePage homePage)
+            {
+                homePage.OnReturnedFromViewer();
             }
         };
 
@@ -513,13 +524,12 @@ public sealed partial class MainWindow : Window
             Helpers.CursorHelper.HideGlobalCursor();
 
             var blank = Helpers.CursorHelper.GetBlankInputCursor();
-            Helpers.CursorHelper.SetElementCursor(RootWindowGrid, blank);
             Helpers.CursorHelper.SetElementCursor(PlayerOverlayContainer, blank);
 
             EnsureChildWindowsSubclassed();
 
             IntPtr blankH = Helpers.CursorHelper.GetBlankHCursor();
-            if (blankH != IntPtr.Zero)
+            if (blankH != IntPtr.Zero && IsPlayerVisible)
             {
                 SetCursor(blankH);
             }
@@ -649,6 +659,14 @@ public sealed partial class MainWindow : Window
         AppTitleBar.Opacity = 1.0;
     }
 
+    public void UpdateSettingsTitleBarMargin(double leftOffset)
+    {
+        if (RootFrame.Content is Views.SettingsPage)
+        {
+            AppTitleBar.Margin = new Thickness(Math.Max(leftOffset, 540), 0, 140, 0);
+        }
+    }
+
     public void SetSidebarOpen(bool isOpen)
     {
         _isSidebarOpen = isOpen;
@@ -710,12 +728,16 @@ public sealed partial class MainWindow : Window
 
         if (uMsg == WM_SETCURSOR && _isCursorHidden)
         {
-            IntPtr blank = Helpers.CursorHelper.GetBlankHCursor();
-            if (blank != IntPtr.Zero)
+            if (IsPlayerVisible && (lParam.ToInt64() & 0xFFFF) == HTCLIENT)
             {
-                SetCursor(blank);
+                IntPtr blank = Helpers.CursorHelper.GetBlankHCursor();
+                if (blank != IntPtr.Zero)
+                {
+                    SetCursor(blank);
+                }
+                return (IntPtr)1;
             }
-            return (IntPtr)1;
+            return DefSubclassProc(hWnd, uMsg, wParam, lParam);
         }
 
         if (uMsg == WM_GETMINMAXINFO)

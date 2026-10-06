@@ -94,12 +94,7 @@ public sealed partial class HomePage : Page
 
         ActualThemeChanged += (s, e) =>
         {
-            UpdateLogo(ActualTheme);
-            UpdateNavTabVisuals();
-            if (ClipsGridView != null)
-            {
-                ClipsGridView.RequestedTheme = ActualTheme;
-            }
+            ApplyThemeVisuals(ActualTheme);
         };
 
         ViewModel.PropertyChanged += (s, e) =>
@@ -134,6 +129,7 @@ public sealed partial class HomePage : Page
             else if (e.PropertyName == nameof(HomeViewModel.SortIndex))
             {
                 UpdateSortButtonUI();
+                ScrollClipsToTop();
             }
             else if (e.PropertyName == nameof(HomeViewModel.ViewDensity))
             {
@@ -175,6 +171,75 @@ public sealed partial class HomePage : Page
                 }
             }
         };
+    }
+
+    public void ApplyThemeVisuals(ElementTheme theme)
+    {
+        this.RequestedTheme = theme;
+        UpdateLogo(theme);
+        UpdateNavTabVisuals();
+        if (ClipsGridView != null)
+        {
+            ClipsGridView.RequestedTheme = theme;
+        }
+    }
+
+    public void OnReturnedFromViewer()
+    {
+        if (ClipsGridView != null)
+        {
+            ClipsGridView.ItemContainerTransitions = new TransitionCollection
+            {
+                new RepositionThemeTransition { IsStaggeringEnabled = false }
+            };
+
+            // Re-apply RepositionThemeTransition to all realized items
+            // because existing realized containers in WinUI 3 retain stale compositor peers
+            // after the parent frame opacity was set to 0.0 during media playback.
+            if (ViewModel.DateGrouping == DateGroupingMode.None)
+            {
+                foreach (var item in ViewModel.FilteredClips)
+                {
+                    if (ClipsGridView.ContainerFromItem(item) is GridViewItem gvi)
+                    {
+                        gvi.Transitions = new TransitionCollection
+                        {
+                            new RepositionThemeTransition { IsStaggeringEnabled = false }
+                        };
+                    }
+                }
+            }
+            else
+            {
+                foreach (var group in ViewModel.GroupedClips)
+                {
+                    foreach (var item in group)
+                    {
+                        if (ClipsGridView.ContainerFromItem(item) is GridViewItem gvi)
+                        {
+                            gvi.Transitions = new TransitionCollection
+                            {
+                                new RepositionThemeTransition { IsStaggeringEnabled = false }
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
+        _activeGroupWrapGrids.RemoveWhere(wg => wg.XamlRoot == null);
+        FindAndRegisterGroupWrapGrids(ClipsGridView);
+
+        _lastCalculatedWidth = -1;
+        _lastColumnCount = -1;
+        UpdateGridResponsiveLayout();
+
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            if (ClipsGridView == null) return;
+            FindAndRegisterGroupWrapGrids(ClipsGridView);
+            UpdateGridResponsiveLayout();
+        });
     }
 
     private void ApplyLocalization()
@@ -1367,6 +1432,7 @@ public sealed partial class HomePage : Page
             SidebarContainer.Width = newWidth;
             SidebarContentBorder.Width = newWidth;
             ViewModel.SidebarWidth = newWidth;
+
             e.Handled = true;
         }
     }
@@ -1386,9 +1452,6 @@ public sealed partial class HomePage : Page
                 ResizeHighlightLine.Opacity = 0.0;
             }
             ViewModel.SaveSidebarWidth(_sidebarWidth);
-            _lastCalculatedWidth = -1;
-            _lastColumnCount = -1;
-            UpdateGridResponsiveLayout();
             e.Handled = true;
         }
     }
@@ -1459,6 +1522,7 @@ public sealed partial class HomePage : Page
         {
             ViewModel.SortIndex = sortIndex;
             UpdateSortButtonUI();
+            ScrollClipsToTop();
         }
     }
 
@@ -1471,7 +1535,26 @@ public sealed partial class HomePage : Page
                 menuFlyout.XamlRoot = this.XamlRoot;
             }
 
-            var currentTheme = this.ActualTheme;
+            var currentTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme;
+
+            Style? baseStyle = null;
+            if (Application.Current.Resources.TryGetValue("DefaultMenuFlyoutPresenterStyle", out var ds1) && ds1 is Style s1)
+            {
+                baseStyle = s1;
+            }
+            else if (Application.Current.Resources.TryGetValue(typeof(MenuFlyoutPresenter), out var ds2) && ds2 is Style s2)
+            {
+                baseStyle = s2;
+            }
+
+            var presenterStyle = new Style(typeof(MenuFlyoutPresenter));
+            if (baseStyle != null)
+            {
+                presenterStyle.BasedOn = baseStyle;
+            }
+            presenterStyle.Setters.Add(new Setter(FrameworkElement.RequestedThemeProperty, currentTheme));
+            menuFlyout.MenuFlyoutPresenterStyle = presenterStyle;
+
             foreach (var item in menuFlyout.Items)
             {
                 if (item is FrameworkElement fe)
@@ -1486,7 +1569,7 @@ public sealed partial class HomePage : Page
     {
         if (sender is MenuFlyout menuFlyout)
         {
-            var currentTheme = this.ActualTheme;
+            var currentTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme;
             foreach (var item in menuFlyout.Items)
             {
                 if (item is FrameworkElement fe)
@@ -1495,10 +1578,9 @@ public sealed partial class HomePage : Page
                     var parent = VisualTreeHelper.GetParent(fe);
                     while (parent != null)
                     {
-                        if (parent is MenuFlyoutPresenter presenter)
+                        if (parent is FrameworkElement feParent)
                         {
-                            presenter.RequestedTheme = currentTheme;
-                            break;
+                            feParent.RequestedTheme = currentTheme;
                         }
                         parent = VisualTreeHelper.GetParent(parent);
                     }
@@ -1572,10 +1654,12 @@ public sealed partial class HomePage : Page
             {
                 if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
                 {
-                    bool wasAdded = _activeGroupWrapGrids.Add(wrapGrid);
-                    if (wasAdded && _currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
+                    _activeGroupWrapGrids.Add(wrapGrid);
+                    if (_currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
                     {
-                        UpdateGroupWrapGrids(_currentCardWidth, _currentCardHeight, -1);
+                        wrapGrid.ItemWidth = _currentCardWidth;
+                        wrapGrid.ItemHeight = _currentCardHeight;
+                        wrapGrid.MaximumRowsOrColumns = -1;
                     }
                 }
                 else if (_currentCardWidth <= 0)
@@ -1662,7 +1746,7 @@ public sealed partial class HomePage : Page
 
     private void OnClipsGridViewSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        UpdateGridResponsiveLayout();
+        UpdateGridResponsiveLayout(forcedGridWidth: e.NewSize.Width);
     }
 
     private void FindAndRegisterGroupWrapGrids(DependencyObject? parent)
@@ -1683,37 +1767,44 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private double GetClipsAvailableWidth()
+    private double GetClipsAvailableWidth(double forcedGridWidth = -1)
     {
         if (ClipsGridView == null) return 0;
-        _clipsScrollViewer ??= FindVisualChild<ScrollViewer>(ClipsGridView);
         double containerWidth = 0;
-        if (_clipsScrollViewer != null && _clipsScrollViewer.ViewportWidth > 0)
+        if (forcedGridWidth > 0)
         {
-            containerWidth = _clipsScrollViewer.ViewportWidth;
-            // If the scroll viewer hasn't shown the vertical scrollbar yet, but there will be scrolling items,
-            // reserve the standard 16 DIP scrollbar width so scrollbar appearance won't trigger premature wrapping!
-            if (_clipsScrollViewer.ComputedVerticalScrollBarVisibility != Visibility.Visible &&
-                (ViewModel.FilteredClips.Count > 6 || ViewModel.GroupedClips.Count > 1))
+            containerWidth = forcedGridWidth - 16.0;
+        }
+        else
+        {
+            _clipsScrollViewer ??= FindVisualChild<ScrollViewer>(ClipsGridView);
+            if (_clipsScrollViewer != null && _clipsScrollViewer.ViewportWidth > 0)
             {
-                containerWidth -= 16.0;
+                containerWidth = _clipsScrollViewer.ViewportWidth;
+                // If the scroll viewer hasn't shown the vertical scrollbar yet, but there will be scrolling items,
+                // reserve the standard 16 DIP scrollbar width so scrollbar appearance won't trigger premature wrapping!
+                if (_clipsScrollViewer.ComputedVerticalScrollBarVisibility != Visibility.Visible &&
+                    (ViewModel.FilteredClips.Count > 6 || ViewModel.GroupedClips.Count > 1))
+                {
+                    containerWidth -= 16.0;
+                }
             }
-        }
-        else if (ClipsGridView.ActualWidth > 0)
-        {
-            // Fallback when ViewportWidth hasn't measured yet: subtract standard vertical scrollbar (16 DIPs)
-            containerWidth = ClipsGridView.ActualWidth - 16.0;
-        }
-        else if (ActualWidth > 0)
-        {
-            // First launch fallback before ClipsGridView layout pass:
-            double sbWidth = ViewModel.IsSidebarOpen ? (_sidebarWidth > 0 ? _sidebarWidth : 316.0) : 0.0;
-            containerWidth = ActualWidth - sbWidth - 16.0;
-        }
+            else if (ClipsGridView.ActualWidth > 0)
+            {
+                // Fallback when ViewportWidth hasn't measured yet: subtract standard vertical scrollbar (16 DIPs)
+                containerWidth = ClipsGridView.ActualWidth - 16.0;
+            }
+            else if (ActualWidth > 0)
+            {
+                // First launch fallback before ClipsGridView layout pass:
+                double sbWidth = ViewModel.IsSidebarOpen ? (_sidebarWidth > 0 ? _sidebarWidth : 316.0) : 0.0;
+                containerWidth = ActualWidth - sbWidth - 16.0;
+            }
 
-        if (containerWidth <= 0 && ClipsGridView.ActualWidth > 0)
-        {
-            containerWidth = ClipsGridView.ActualWidth;
+            if (containerWidth <= 0 && ClipsGridView.ActualWidth > 0)
+            {
+                containerWidth = ClipsGridView.ActualWidth;
+            }
         }
 
         containerWidth -= (ClipsGridView.Padding.Left + ClipsGridView.Padding.Right);
@@ -1747,7 +1838,8 @@ public sealed partial class HomePage : Page
 
         // 2. Expand: Only expand when adding a column still leaves each card at or above targetWidth,
         // or when current cards have stretched past the maximum stretch cap
-        while (((availableWidth - 2.0) / (columns + 1)) >= targetWidth || ((availableWidth - 2.0) / columns) > maxWidth)
+        while ((((availableWidth - 2.0) / (columns + 1)) >= targetWidth || ((availableWidth - 2.0) / columns) > maxWidth)
+               && ((availableWidth - 2.0) / (columns + 1)) >= minWidth)
         {
             columns++;
         }
@@ -1755,7 +1847,7 @@ public sealed partial class HomePage : Page
         return Math.Max(1, columns);
     }
 
-    private void UpdateGridResponsiveLayout(bool isThrottled = false)
+    private void UpdateGridResponsiveLayout(bool isThrottled = false, double forcedGridWidth = -1)
     {
         if (ClipsGridView == null) return;
         if (_sidebarStoryboard != null)
@@ -1764,7 +1856,7 @@ public sealed partial class HomePage : Page
             return;
         }
 
-        double availableWidth = GetClipsAvailableWidth();
+        double availableWidth = GetClipsAvailableWidth(forcedGridWidth);
         if (availableWidth <= 50) return;
 
         int columns = CalculateResponsiveColumns(availableWidth, _lastColumnCount);
@@ -1778,7 +1870,7 @@ public sealed partial class HomePage : Page
         // When columns change, apply immediately so items wrap/unwrap without hesitation and RepositionThemeTransition glides them!
         // When columns stay identical during window resizing, throttle width updates to 60fps (16ms).
         // This ensures the window border and top header never suffer input delay, while cards continuously resize in real-time!
-        if (!columnChanged && !isThrottled && _lastColumnCount > 0)
+        if (!columnChanged && !isThrottled && !_isResizingSidebar && _lastColumnCount > 0)
         {
             bool widthChanged = Math.Abs(calculatedWidth - _lastCalculatedWidth) > 0.5;
             if (widthChanged)
@@ -1816,7 +1908,7 @@ public sealed partial class HomePage : Page
             {
                 flatWrapGrid.ItemWidth = calculatedWidth;
                 flatWrapGrid.ItemHeight = calculatedHeight;
-                flatWrapGrid.MaximumRowsOrColumns = -1;
+                flatWrapGrid.MaximumRowsOrColumns = columns;
                 appliedToAny = true;
             }
         }
@@ -1825,12 +1917,12 @@ public sealed partial class HomePage : Page
         {
             skeletonWrapGrid.ItemWidth = calculatedWidth;
             skeletonWrapGrid.ItemHeight = calculatedHeight;
-            skeletonWrapGrid.MaximumRowsOrColumns = -1;
+            skeletonWrapGrid.MaximumRowsOrColumns = columns;
         }
 
         if (_activeGroupWrapGrids.Count > 0)
         {
-            UpdateGroupWrapGrids(calculatedWidth, calculatedHeight, -1);
+            UpdateGroupWrapGrids(calculatedWidth, calculatedHeight, columns);
             appliedToAny = true;
         }
 
@@ -1852,9 +1944,9 @@ public sealed partial class HomePage : Page
         {
             wrapGrid.ItemWidth = width;
             wrapGrid.ItemHeight = height;
-            if (wrapGrid.MaximumRowsOrColumns != -1)
+            if (columns > 0)
             {
-                wrapGrid.MaximumRowsOrColumns = -1;
+                wrapGrid.MaximumRowsOrColumns = columns;
             }
         }
     }
@@ -1873,14 +1965,27 @@ public sealed partial class HomePage : Page
                 gvi.RequestedTheme = ActualTheme;
             }
 
+            if (gvi.Transitions == null || gvi.Transitions.Count == 0)
+            {
+                gvi.Transitions = new TransitionCollection
+                {
+                    new RepositionThemeTransition { IsStaggeringEnabled = false }
+                };
+            }
+
             if (FindParent<ItemsWrapGrid>(gvi) is ItemsWrapGrid wrapGrid)
             {
                 if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
                 {
-                    bool wasAdded = _activeGroupWrapGrids.Add(wrapGrid);
-                    if (wasAdded && _currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
+                    _activeGroupWrapGrids.Add(wrapGrid);
+                    if (_currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
                     {
-                        UpdateGroupWrapGrids(_currentCardWidth, _currentCardHeight, -1);
+                        wrapGrid.ItemWidth = _currentCardWidth;
+                        wrapGrid.ItemHeight = _currentCardHeight;
+                        if (_lastColumnCount > 0)
+                        {
+                            wrapGrid.MaximumRowsOrColumns = _lastColumnCount;
+                        }
                     }
                 }
             }
@@ -2133,6 +2238,7 @@ public sealed partial class HomePage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        ApplyThemeVisuals(ActualTheme);
         if (ViewModel.Directories.Count == 0 && ViewModel.AllClips.Count == 0)
         {
             await ViewModel.SyncDirectoriesAsync();
@@ -2249,11 +2355,28 @@ public sealed partial class HomePage : Page
         _clipsScrollViewer ??= FindVisualChild<ScrollViewer>(ClipsGridView);
         _clipsScrollViewer?.ChangeView(null, 0.0, null, disableAnimation: true);
 
+        if (ClipsGridView.Items.Count > 0)
+        {
+            try
+            {
+                ClipsGridView.ScrollIntoView(ClipsGridView.Items[0], ScrollIntoViewAlignment.Leading);
+            }
+            catch { }
+        }
+
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             if (ClipsGridView == null) return;
             _clipsScrollViewer ??= FindVisualChild<ScrollViewer>(ClipsGridView);
             _clipsScrollViewer?.ChangeView(null, 0.0, null, disableAnimation: true);
+            if (ClipsGridView.Items.Count > 0)
+            {
+                try
+                {
+                    ClipsGridView.ScrollIntoView(ClipsGridView.Items[0], ScrollIntoViewAlignment.Leading);
+                }
+                catch { }
+            }
         });
     }
 
@@ -3450,14 +3573,35 @@ public sealed partial class HomePage : Page
         }
     }
 
+    private Brush GetThemeResourceBrush(string resourceKey)
+    {
+        var activeTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme;
+        string themeKey = activeTheme == ElementTheme.Light ? "Light" : "Dark";
+        foreach (var md in Application.Current.Resources.MergedDictionaries)
+        {
+            if (md.ThemeDictionaries.TryGetValue(themeKey, out var dict) && dict is ResourceDictionary rd && rd.TryGetValue(resourceKey, out var val) && val is Brush b)
+            {
+                return b;
+            }
+        }
+
+        if (Application.Current.Resources.TryGetValue(resourceKey, out var fallback) && fallback is Brush fallbackBrush)
+        {
+            return fallbackBrush;
+        }
+
+        return new SolidColorBrush(Microsoft.UI.Colors.Gray);
+    }
+
     private async System.Threading.Tasks.Task ShowClipInfoDialogAsync(GameClip clip)
     {
         var loc = App.GetService<Services.ILocalizationService>();
-        var panel = new StackPanel { Spacing = 12, MinWidth = 340, MaxWidth = 440 };
+        var currentTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme;
+        var panel = new StackPanel { Spacing = 12, MinWidth = 340, MaxWidth = 440, RequestedTheme = currentTheme };
 
         // File name
         var nameBlock = new StackPanel { Spacing = 2 };
-        nameBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_FileName"] ?? "File Name", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        nameBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_FileName"] ?? "File Name", FontSize = 11, Foreground = GetThemeResourceBrush("TextFillColorSecondaryBrush") });
         nameBlock.Children.Add(new TextBlock { Text = clip.FileName, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
         panel.Children.Add(nameBlock);
 
@@ -3467,13 +3611,13 @@ public sealed partial class HomePage : Page
         grid1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         var durBlock = new StackPanel { Spacing = 2 };
-        durBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_Duration"] ?? "Duration", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        durBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_Duration"] ?? "Duration", FontSize = 11, Foreground = GetThemeResourceBrush("TextFillColorSecondaryBrush") });
         durBlock.Children.Add(new TextBlock { Text = clip.FormattedDuration, FontSize = 13 });
         Grid.SetColumn(durBlock, 0);
         grid1.Children.Add(durBlock);
 
         var sizeBlock = new StackPanel { Spacing = 2 };
-        sizeBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_FileSize"] ?? "File Size", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        sizeBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_FileSize"] ?? "File Size", FontSize = 11, Foreground = GetThemeResourceBrush("TextFillColorSecondaryBrush") });
         sizeBlock.Children.Add(new TextBlock { Text = clip.FormattedFileSize, FontSize = 13 });
         Grid.SetColumn(sizeBlock, 1);
         grid1.Children.Add(sizeBlock);
@@ -3485,14 +3629,14 @@ public sealed partial class HomePage : Page
         grid2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         var resBlock = new StackPanel { Spacing = 2 };
-        resBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_Resolution"] ?? "Resolution", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        resBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_Resolution"] ?? "Resolution", FontSize = 11, Foreground = GetThemeResourceBrush("TextFillColorSecondaryBrush") });
         string resText = clip.VideoWidth > 0 ? $"{clip.VideoWidth} x {clip.VideoHeight}" + (clip.Framerate > 0 ? $" ({clip.Framerate:F0} fps)" : "") : (loc?["Dialog_ClipInfo_Unknown"] ?? "Unknown");
         resBlock.Children.Add(new TextBlock { Text = resText, FontSize = 13 });
         Grid.SetColumn(resBlock, 0);
         grid2.Children.Add(resBlock);
 
         var momentBlock = new StackPanel { Spacing = 2 };
-        momentBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_Moments"] ?? "Saved Moments", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        momentBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_Moments"] ?? "Saved Moments", FontSize = 11, Foreground = GetThemeResourceBrush("TextFillColorSecondaryBrush") });
         string momentsText = clip.Bookmarks.Count > 0 
             ? string.Format(loc?["Dialog_ClipInfo_MomentsMarked"] ?? "{0} marked", clip.Bookmarks.Count)
             : (loc?["Dialog_ClipInfo_None"] ?? "None");
@@ -3507,7 +3651,7 @@ public sealed partial class HomePage : Page
         grid3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         var dateBlock = new StackPanel { Spacing = 2 };
-        dateBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_DateModified"] ?? "Date Modified", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
+        dateBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_DateModified"] ?? "Date Modified", FontSize = 11, Foreground = GetThemeResourceBrush("TextFillColorSecondaryBrush") });
         dateBlock.Children.Add(new TextBlock { Text = clip.FormattedDate, FontSize = 13 });
         Grid.SetColumn(dateBlock, 0);
         grid3.Children.Add(dateBlock);
@@ -3534,17 +3678,18 @@ public sealed partial class HomePage : Page
 
         // File path
         var pathBlock = new StackPanel { Spacing = 2 };
-        pathBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_Location"] ?? "Location", FontSize = 11, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] });
-        pathBlock.Children.Add(new TextBlock { Text = clip.FilePath, FontSize = 12, Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorTertiaryBrush"], TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true });
+        pathBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_Location"] ?? "Location", FontSize = 11, Foreground = GetThemeResourceBrush("TextFillColorSecondaryBrush") });
+        pathBlock.Children.Add(new TextBlock { Text = clip.FilePath, FontSize = 12, Foreground = GetThemeResourceBrush("TextFillColorTertiaryBrush"), TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true });
         panel.Children.Add(pathBlock);
 
         var dialog = new ContentDialog
         {
+            XamlRoot = this.XamlRoot,
+            RequestedTheme = currentTheme,
             Title = loc?["Dialog_ClipInfo_Title"] ?? "Clip Information",
             Content = panel,
             CloseButtonText = loc?["Dialog_ClipInfo_Close"] ?? "Close",
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = this.XamlRoot
+            DefaultButton = ContentDialogButton.Close
         };
 
         await dialog.ShowAsync();
@@ -3553,14 +3698,15 @@ public sealed partial class HomePage : Page
     private async System.Threading.Tasks.Task ShowLocalRenameDialogAsync(GameClip clip)
     {
         var loc = App.GetService<Services.ILocalizationService>();
+        var currentTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme;
 
-        var panel = new StackPanel { Spacing = 12, MinWidth = 360, MaxWidth = 440 };
+        var panel = new StackPanel { Spacing = 12, MinWidth = 360, MaxWidth = 440, RequestedTheme = currentTheme };
 
         var descBlock = new TextBlock
         {
             Text = loc?["Dialog_RenameInApp_Desc"] ?? "Set a custom display title for this clip in Reeled. The original file on disk remains untouched.",
             FontSize = 12,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            Foreground = GetThemeResourceBrush("TextFillColorSecondaryBrush"),
             TextWrapping = TextWrapping.Wrap
         };
         panel.Children.Add(descBlock);
@@ -3570,13 +3716,13 @@ public sealed partial class HomePage : Page
         {
             Text = loc?["Dialog_RenameInApp_OriginalFile"] ?? "File on disk:",
             FontSize = 11,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
+            Foreground = GetThemeResourceBrush("TextFillColorSecondaryBrush")
         });
         origBlock.Children.Add(new TextBlock
         {
             Text = clip.FileName,
             FontSize = 12,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorTertiaryBrush"],
+            Foreground = GetThemeResourceBrush("TextFillColorTertiaryBrush"),
             TextTrimming = TextTrimming.CharacterEllipsis
         });
         panel.Children.Add(origBlock);
@@ -3584,20 +3730,22 @@ public sealed partial class HomePage : Page
         var textBox = new TextBox
         {
             Text = !string.IsNullOrWhiteSpace(clip.CustomTitle) ? clip.CustomTitle : System.IO.Path.GetFileNameWithoutExtension(clip.FileName),
-            PlaceholderText = loc?["Dialog_RenameInApp_Placeholder"] ?? "Enter custom clip title..."
+            PlaceholderText = loc?["Dialog_RenameInApp_Placeholder"] ?? "Enter custom clip title...",
+            RequestedTheme = currentTheme
         };
         textBox.Loaded += (s, e) => textBox.SelectAll();
         panel.Children.Add(textBox);
 
         var dialog = new ContentDialog
         {
+            XamlRoot = this.XamlRoot,
+            RequestedTheme = currentTheme,
             Title = loc?["Dialog_RenameInApp_Title"] ?? "Rename Clip (In-App)",
             Content = panel,
             PrimaryButtonText = loc?["Dialog_RenameInApp_Save"] ?? "Save",
             SecondaryButtonText = !string.IsNullOrWhiteSpace(clip.CustomTitle) ? (loc?["Dialog_RenameInApp_Reset"] ?? "Reset to Original") : null,
             CloseButtonText = loc?["Dialog_RenameInApp_Cancel"] ?? "Cancel",
-            DefaultButton = ContentDialogButton.Primary,
-            XamlRoot = this.XamlRoot
+            DefaultButton = ContentDialogButton.Primary
         };
 
         var result = await dialog.ShowAsync();
@@ -3615,20 +3763,23 @@ public sealed partial class HomePage : Page
     private async System.Threading.Tasks.Task ShowRenameDialogAsync(GameClip clip)
     {
         var loc = App.GetService<Services.ILocalizationService>();
+        var currentTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme;
         var textBox = new TextBox
         {
-            Text = System.IO.Path.GetFileNameWithoutExtension(clip.FileName)
+            Text = System.IO.Path.GetFileNameWithoutExtension(clip.FileName),
+            RequestedTheme = currentTheme
         };
         textBox.Loaded += (s, e) => textBox.SelectAll();
 
         var dialog = new ContentDialog
         {
+            XamlRoot = this.XamlRoot,
+            RequestedTheme = currentTheme,
             Title = loc?["Dialog_Rename_Title"] ?? "Rename Clip",
             Content = textBox,
             PrimaryButtonText = loc?["Dialog_Rename_Confirm"] ?? "Rename",
             CloseButtonText = loc?["Dialog_Rename_Cancel"] ?? "Cancel",
-            DefaultButton = ContentDialogButton.Primary,
-            XamlRoot = this.XamlRoot
+            DefaultButton = ContentDialogButton.Primary
         };
 
         var result = await dialog.ShowAsync();
@@ -3641,15 +3792,17 @@ public sealed partial class HomePage : Page
     private async System.Threading.Tasks.Task ShowDeleteConfirmDialogAsync(GameClip clip)
     {
         var loc = App.GetService<Services.ILocalizationService>();
+        var currentTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme;
         string message = string.Format(loc?["Dialog_Delete_Message"] ?? "Are you sure you want to move '{0}' to the Windows Recycle Bin?", clip.FileName);
         var dialog = new ContentDialog
         {
+            XamlRoot = this.XamlRoot,
+            RequestedTheme = currentTheme,
             Title = loc?["Dialog_Delete_Title"] ?? "Delete to Recycle Bin?",
             Content = message,
             PrimaryButtonText = loc?["Dialog_Delete_Confirm"] ?? "Delete",
             CloseButtonText = loc?["Dialog_Delete_Cancel"] ?? "Cancel",
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = this.XamlRoot
+            DefaultButton = ContentDialogButton.Close
         };
 
         var result = await dialog.ShowAsync();

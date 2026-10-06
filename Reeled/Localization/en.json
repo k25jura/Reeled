@@ -195,6 +195,13 @@
   "About_Releases": "Release Notes",
   "About_Issues": "Report an Issue",
   "About_License": "GPL-3.0 Public License • Open Source",
+  "About_ResetDefaults_Title": "Restore default options",
+  "About_ResetDefaults_Subtitle": "Reset playback, appearance, and application preferences to default values",
+  "About_ResetDefaults_Button": "Restore Defaults",
+  "About_ResetDialog_Title": "Restore default settings?",
+  "About_ResetDialog_Content": "This will reset playback, appearance, and application options to their default values. Your watch folders, favorites, and moments will remain untouched.",
+  "About_ResetDialog_Confirm": "Restore Defaults",
+  "About_Reset_Success": "Settings successfully restored to default values",
 
   "Breadcrumb_AllWatchFolders": "All watch folders",
   "Breadcrumb_FavoriteClips": "{0} favorite clips",

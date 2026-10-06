@@ -22,6 +22,7 @@ public sealed partial class HomePage : Page
         ViewModel = App.GetService<HomeViewModel>();
         _thumbnailService = App.GetService<Services.IThumbnailService>();
         InitializeComponent();
+        ViewModel.RequestScrollToTop += ScrollClipsToTop;
 
         Helpers.CursorHelper.SetElementCursor(SidebarResizeHandle, Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast));
 
@@ -169,6 +170,7 @@ public sealed partial class HomePage : Page
                     DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
                     {
                         UpdateGridResponsiveLayout();
+                        ScrollClipsToTop();
                     });
                 }
             }
@@ -2198,10 +2200,42 @@ public sealed partial class HomePage : Page
         _clipsScrollViewer.ChangeView(null, targetOffset, null, disableAnimation: true);
     }
 
+    private void ScrollClipsToTop()
+    {
+        if (ClipsGridView == null) return;
+        _clipsScrollViewer ??= FindVisualChild<ScrollViewer>(ClipsGridView);
+        _clipsScrollViewer?.ChangeView(null, 0.0, null, disableAnimation: true);
+
+        if (ClipsGridView != null && ClipsGridView.Items.Count > 0)
+        {
+            try
+            {
+                ClipsGridView.ScrollIntoView(ClipsGridView.Items[0]);
+            }
+            catch { }
+        }
+
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            if (ClipsGridView == null) return;
+            _clipsScrollViewer ??= FindVisualChild<ScrollViewer>(ClipsGridView);
+            _clipsScrollViewer?.ChangeView(null, 0.0, null, disableAnimation: true);
+            if (ClipsGridView.Items.Count > 0)
+            {
+                try
+                {
+                    ClipsGridView.ScrollIntoView(ClipsGridView.Items[0]);
+                }
+                catch { }
+            }
+        });
+    }
+
     private async void OnHomeTabClick(object sender, RoutedEventArgs e)
     {
         DirectoriesTreeView.SelectedItem = null;
         await ViewModel.SelectHomeAsync();
+        ScrollClipsToTop();
         UpdateActiveIndicator(animate: true);
     }
 
@@ -2209,6 +2243,7 @@ public sealed partial class HomePage : Page
     {
         DirectoriesTreeView.SelectedItem = null;
         await ViewModel.SelectFavoritesAsync();
+        ScrollClipsToTop();
         UpdateActiveIndicator(animate: true);
     }
 
@@ -2216,6 +2251,7 @@ public sealed partial class HomePage : Page
     {
         DirectoriesTreeView.SelectedItem = null;
         await ViewModel.SelectSavedMomentsAsync();
+        ScrollClipsToTop();
         UpdateActiveIndicator(animate: true);
     }
 
@@ -3079,6 +3115,11 @@ public sealed partial class HomePage : Page
             if (!isAlreadySelected)
             {
                 await ViewModel.SelectDirectoryAsync(targetNode);
+                ScrollClipsToTop();
+            }
+            else
+            {
+                ScrollClipsToTop();
             }
             UpdateActiveIndicator(animate: true);
         }

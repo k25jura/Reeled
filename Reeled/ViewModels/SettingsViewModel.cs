@@ -918,4 +918,45 @@ public partial class SettingsViewModel : ObservableObject
             ClipCacheSizeFormatted = string.Format(_localizationService["Storage_ClipCacheStats"], 0, _localizationService.FormatPlural("Plural_Clip", 0), zeroKb);
         }
     }
+
+    public async Task ResetOptionsToDefaultAsync()
+    {
+        var settings = _storageService.CurrentSettings;
+
+        settings.DefaultVolume = 100;
+        settings.Volume = 100;
+        settings.MaxVolume = 200;
+        settings.StartMuted = false;
+        settings.IsMuted = false;
+        settings.DefaultPlaybackSpeed = 1.0;
+        settings.PlaybackSpeed = 1.0;
+        settings.RememberPlaybackSpeed = true;
+        settings.DefaultRepeatMode = RepeatMode.Off;
+        settings.RepeatMode = RepeatMode.Off;
+        settings.AutoHideControlsSeconds = 2;
+        settings.AutoHideCursor = true;
+        settings.EnableOsdNotifications = true;
+
+        settings.AppTheme = "Default";
+        settings.ShowMomentsBadges = true;
+        settings.EnableBackdropBlur = true;
+        settings.ViewDensity = ViewDensityMode.Comfortable;
+        settings.DateGrouping = DateGroupingMode.None;
+        settings.MetadataHoverOnly = false;
+        settings.SortIndex = 0;
+        settings.ReduceMotion = false;
+
+        settings.EnableSkeletonLoading = true;
+        settings.EnableClipCache = true;
+        settings.AutoCheckUpdates = true;
+
+        settings.Language = "System";
+
+        await _storageService.SaveSettingsAsync(settings);
+
+        App.ApplyTheme("Default");
+        _localizationService.SetLanguage("System");
+        Initialize();
+        UpdateFormattedStrings();
+    }
 }

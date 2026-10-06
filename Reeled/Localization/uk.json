@@ -195,6 +195,13 @@
   "About_Releases": "Список змін",
   "About_Issues": "Повідомити про проблему",
   "About_License": "Публічна ліцензія GPL-3.0 • Відкритий код програми",
+  "About_ResetDefaults_Title": "Відновити параметри за замовчуванням",
+  "About_ResetDefaults_Subtitle": "Скинути налаштування відтворення, вигляду та застосунку до значень за замовчуванням",
+  "About_ResetDefaults_Button": "Відновити типові",
+  "About_ResetDialog_Title": "Відновити налаштування за замовчуванням?",
+  "About_ResetDialog_Content": "Це скине налаштування відтворення, вигляду та застосунку до їхніх початкових значень. Ваші папки, збережені моменти та обрані кліпи не зміняться.",
+  "About_ResetDialog_Confirm": "Відновити типові",
+  "About_Reset_Success": "Параметри успішно відновлено до типових значень",
 
   "Breadcrumb_AllWatchFolders": "Усі папки медіатеки",
   "Breadcrumb_FavoriteClips": "{0} улюблених кліпів",

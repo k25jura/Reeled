@@ -61,6 +61,8 @@ public partial class HomeViewModel : ObservableObject
     public int FavoritesCount => AllClips.Count(c => c.IsFavorite);
     public int SavedMomentsCount => AllClips.Count(c => c.Bookmarks.Count > 0);
 
+    public event Action? RequestScrollToTop;
+
     public bool CanOpenDirectoryInExplorer =>
         CurrentSection == NavigationSection.Folder && !string.IsNullOrEmpty(SelectedDirectory?.FullPath);
 
@@ -622,6 +624,7 @@ public partial class HomeViewModel : ObservableObject
         Clips.ReplaceRange(targetClips);
         ApplyFilterAndSort();
         UpdateCounts();
+        RequestScrollToTop?.Invoke();
     }
 
     private void UpdateCounts()

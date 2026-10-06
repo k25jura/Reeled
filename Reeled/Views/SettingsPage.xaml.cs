@@ -93,6 +93,12 @@ public sealed partial class SettingsPage : Page
         ApplyLocalization(ViewModel.Loc);
         UpdateThemeVisuals(ActualTheme);
 
+        SyncControlsToViewModel();
+    }
+
+    private void SyncControlsToViewModel()
+    {
+        _isInitializing = true;
         double speed = ViewModel.DefaultPlaybackSpeed;
         foreach (ComboBoxItem item in DefaultSpeedComboBox.Items)
         {
@@ -107,8 +113,36 @@ public sealed partial class SettingsPage : Page
         }
 
         if (DefaultVolumeSlider != null) DefaultVolumeSlider.Value = ViewModel.Volume;
+        if (MaxVolumeSlider != null) MaxVolumeSlider.Value = ViewModel.MaxVolume;
         if (DefaultRepeatComboBox != null) DefaultRepeatComboBox.SelectedIndex = ViewModel.SelectedRepeatModeIndex;
         if (AutoHideTimeoutComboBox != null) AutoHideTimeoutComboBox.SelectedIndex = ViewModel.SelectedAutoHideIndex;
+        if (ThemeComboBox != null) ThemeComboBox.SelectedIndex = ViewModel.SelectedThemeIndex;
+        if (LanguageComboBox != null) LanguageComboBox.SelectedIndex = ViewModel.SelectedLanguageIndex;
+        _isInitializing = false;
+    }
+
+    private async void OnResetSettingsClick(object sender, RoutedEventArgs e)
+    {
+        var loc = ViewModel.Loc;
+        var dialog = new ContentDialog
+        {
+            XamlRoot = this.XamlRoot,
+            Title = loc["About_ResetDialog_Title"],
+            Content = loc["About_ResetDialog_Content"],
+            PrimaryButtonText = loc["About_ResetDialog_Confirm"],
+            CloseButtonText = loc["Common_Cancel"] ?? "Cancel",
+            DefaultButton = ContentDialogButton.Close
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            await ViewModel.ResetOptionsToDefaultAsync();
+            SyncControlsToViewModel();
+            ApplyLocalization(loc);
+            UpdateThemeVisuals(ActualTheme);
+            ViewModel.AboutStatusMessage = loc["About_Reset_Success"];
+        }
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -1159,6 +1193,10 @@ public sealed partial class SettingsPage : Page
         if (AboutReleasesButton != null) ToolTipService.SetToolTip(AboutReleasesButton, loc["About_Releases"]);
         if (AboutIssuesButton != null) ToolTipService.SetToolTip(AboutIssuesButton, loc["About_Issues"]);
         if (AboutLicenseText != null) AboutLicenseText.Text = loc["About_License"];
+        if (ResetDefaultsHeaderText != null) ResetDefaultsHeaderText.Text = loc["About_ResetDefaults_Button"];
+        if (ResetDefaultsCardTitle != null) ResetDefaultsCardTitle.Text = loc["About_ResetDefaults_Title"];
+        if (ResetDefaultsCardSubtitle != null) ResetDefaultsCardSubtitle.Text = loc["About_ResetDefaults_Subtitle"];
+        if (ResetDefaultsCardButton != null) ResetDefaultsCardButton.Content = loc["About_ResetDefaults_Button"];
     }
 
     private bool IsSectionAtOrAbove(FrameworkElement? section, double threshold)

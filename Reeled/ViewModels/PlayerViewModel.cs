@@ -737,9 +737,7 @@ public partial class PlayerViewModel : ObservableObject
 
         string toast = IsMuted 
             ? _localizationService["Player_Toast_Muted"] 
-            : (Volume > 100 
-                ? $"{string.Format(_localizationService["Player_Toast_Volume"], Volume)} (BOOST)"
-                : string.Format(_localizationService["Player_Toast_Volume"], Volume));
+            : string.Format(_localizationService["Player_Toast_Volume"], Volume);
         ShowToast(toast);
 
         var settings = _storageService.CurrentSettings;

@@ -40,6 +40,13 @@ public sealed partial class PlayerPage : Page
     private ClipBookmark? _editingBookmark;
     private bool _isRenderingTimeline;
 
+    private readonly SolidColorBrush _volumeDynamicBrush = new(Windows.UI.Color.FromArgb(255, 255, 255, 255));
+    private DispatcherTimer? _volumeColorTransitionTimer;
+    private DateTime _volumeColorTransitionStart;
+    private Windows.UI.Color _volumeColorFrom;
+    private Windows.UI.Color _volumeColorTo;
+    private const double VolumeColorTransitionDurationMs = 220.0;
+
     private bool AreFlyoutsOrPopupsOpen =>
         _openFlyoutsCount > 0 ||
         (MomentsJumpPopup != null && MomentsJumpPopup.Visibility == Visibility.Visible) ||
@@ -61,6 +68,17 @@ public sealed partial class PlayerPage : Page
     {
         ViewModel = App.GetService<PlayerViewModel>();
         InitializeComponent();
+
+        VolumeSlider.Resources["SliderTrackValueFill"] = _volumeDynamicBrush;
+        VolumeSlider.Resources["SliderTrackValueFillPointerOver"] = _volumeDynamicBrush;
+        VolumeSlider.Resources["SliderTrackValueFillPressed"] = _volumeDynamicBrush;
+        VolumeSlider.Resources["SliderThumbBackground"] = _volumeDynamicBrush;
+        VolumeSlider.Resources["SliderThumbBackgroundPointerOver"] = _volumeDynamicBrush;
+        VolumeSlider.Resources["SliderThumbBackgroundPressed"] = _volumeDynamicBrush;
+        VolumeSlider.Foreground = _volumeDynamicBrush;
+        if (VolumeValueText != null) VolumeValueText.Foreground = _volumeDynamicBrush;
+        if (VolumePercentText != null) VolumePercentText.Foreground = _volumeDynamicBrush;
+        AnimateVolumeColor(ViewModel.IsVolumeBoosted, immediate: true);
 
         int initialTimeout = 2;
         try
@@ -136,6 +154,10 @@ public sealed partial class PlayerPage : Page
                      e.PropertyName == nameof(PlayerViewModel.VolumeGlyph))
             {
                 AnimateVolumeIconPop();
+            }
+            else if (e.PropertyName == nameof(PlayerViewModel.IsVolumeBoosted))
+            {
+                AnimateVolumeColor(ViewModel.IsVolumeBoosted);
             }
         };
 
@@ -660,6 +682,83 @@ public sealed partial class PlayerPage : Page
         {
             ViewModel.SetVolume(newVol);
         }
+    }
+
+    private void OnVolumeSliderLoaded(object sender, RoutedEventArgs e)
+    {
+        var thumb = FindVisualChild<Microsoft.UI.Xaml.Controls.Primitives.Thumb>(VolumeSlider);
+        if (thumb != null)
+        {
+            thumb.Background = _volumeDynamicBrush;
+        }
+    }
+
+    private void AnimateVolumeColor(bool isBoosted, bool immediate = false)
+    {
+        var targetColor = isBoosted
+            ? Windows.UI.Color.FromArgb(255, 255, 160, 0)
+            : Windows.UI.Color.FromArgb(255, 255, 255, 255);
+
+        if (_volumeDynamicBrush.Color == targetColor && _volumeColorTransitionTimer == null)
+        {
+            return;
+        }
+
+        if (immediate || IsReduceMotionEnabled())
+        {
+            _volumeColorTransitionTimer?.Stop();
+            _volumeColorTransitionTimer = null;
+            _volumeDynamicBrush.Color = targetColor;
+            return;
+        }
+
+        _volumeColorFrom = _volumeDynamicBrush.Color;
+        _volumeColorTo = targetColor;
+        _volumeColorTransitionStart = DateTime.UtcNow;
+
+        if (_volumeColorTransitionTimer == null)
+        {
+            _volumeColorTransitionTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(16)
+            };
+            _volumeColorTransitionTimer.Tick += OnVolumeColorTransitionTick;
+        }
+        _volumeColorTransitionTimer.Start();
+    }
+
+    private void OnVolumeColorTransitionTick(object? sender, object e)
+    {
+        double elapsed = (DateTime.UtcNow - _volumeColorTransitionStart).TotalMilliseconds;
+        double progress = Math.Clamp(elapsed / VolumeColorTransitionDurationMs, 0.0, 1.0);
+
+        double ease = 1.0 - Math.Pow(1.0 - progress, 3.0);
+
+        byte a = (byte)(_volumeColorFrom.A + (_volumeColorTo.A - _volumeColorFrom.A) * ease);
+        byte r = (byte)(_volumeColorFrom.R + (_volumeColorTo.R - _volumeColorFrom.R) * ease);
+        byte g = (byte)(_volumeColorFrom.G + (_volumeColorTo.G - _volumeColorFrom.G) * ease);
+        byte b = (byte)(_volumeColorFrom.B + (_volumeColorTo.B - _volumeColorFrom.B) * ease);
+
+        _volumeDynamicBrush.Color = Windows.UI.Color.FromArgb(a, r, g, b);
+
+        if (progress >= 1.0)
+        {
+            _volumeColorTransitionTimer?.Stop();
+            _volumeDynamicBrush.Color = _volumeColorTo;
+        }
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        int count = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T typedChild) return typedChild;
+            var desc = FindVisualChild<T>(child);
+            if (desc != null) return desc;
+        }
+        return null;
     }
 
     private void OnSpeedItemClick(object sender, RoutedEventArgs e)

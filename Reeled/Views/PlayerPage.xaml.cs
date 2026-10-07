@@ -563,7 +563,7 @@ public sealed partial class PlayerPage : Page
             if (App.Window is MainWindow mainWindow)
             {
                 mainWindow.SetCursorHidden(false);
-                mainWindow.SetCaptionControlsVisible(true);
+                mainWindow.SetCaptionControlsVisible(true, force: true);
             }
         }
         catch { }
@@ -1639,6 +1639,11 @@ public sealed partial class PlayerPage : Page
         RefreshVideoLayout();
     }
 
+    public void SyncControlsVisibility()
+    {
+        UpdateControlsVisibility(ViewModel.IsControlsVisible, animate: false);
+    }
+
     private void ToggleFullscreen()
     {
         if (App.Window is MainWindow mainWindow)
@@ -2546,6 +2551,22 @@ public sealed partial class PlayerPage : Page
             case VirtualKey.F11:
                 ToggleFullscreen();
                 AnimateElementClickPulse(FullscreenButton, 0.92);
+                e.Handled = true;
+                break;
+
+            case VirtualKey.Enter:
+                var menuState = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu);
+                if (menuState.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))
+                {
+                    ToggleFullscreen();
+                    AnimateElementClickPulse(FullscreenButton, 0.92);
+                    e.Handled = true;
+                }
+                break;
+
+            case VirtualKey.Back:
+                AnimateElementClickPulse(BackToLibraryButton, 0.92);
+                ViewModel.BackToHome();
                 e.Handled = true;
                 break;
 

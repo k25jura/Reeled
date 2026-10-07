@@ -58,7 +58,27 @@ public sealed partial class MainWindow : Window
             try
             {
                 var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-                return _isWindowActive && (GetForegroundWindow() == hwnd);
+                if (IsIconic(hwnd))
+                {
+                    _isWindowActive = false;
+                    return false;
+                }
+
+                var fg = GetForegroundWindow();
+                if (fg == IntPtr.Zero)
+                {
+                    return _isWindowActive;
+                }
+
+                bool isFg = (fg == hwnd || IsChild(hwnd, fg));
+                if (isFg)
+                {
+                    _isWindowActive = true;
+                    return true;
+                }
+
+                _isWindowActive = false;
+                return false;
             }
             catch
             {
@@ -68,7 +88,8 @@ public sealed partial class MainWindow : Window
     }
     private bool _isSidebarOpen;
     private bool _areCaptionControlsVisible = true;
-    private bool _hasSubclassedChildWindows;
+    private bool _desiredCaptionControlsVisible = true;
+    private readonly SUBCLASSPROC _childSubclassProc;
     private string? _cachedIconPath;
     private Storyboard? _transitionStoryboard;
     private int _dragDepth;
@@ -131,6 +152,14 @@ public sealed partial class MainWindow : Window
     private static extern bool SetCursorPos(int x, int y);
 
     [DllImport("User32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("User32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsChild(IntPtr hWndParent, IntPtr hWnd);
+
+    [DllImport("User32.dll")]
     private static extern IntPtr GetForegroundWindow();
 
     [DllImport("User32.dll", CharSet = CharSet.Auto)]
@@ -157,6 +186,7 @@ public sealed partial class MainWindow : Window
 
         // Subclass window to enforce minimum window dimensions at the OS level
         _subclassProc = WindowSubclassProc;
+        _childSubclassProc = ChildWindowSubclassProc;
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         SetWindowSubclass(hwnd, _subclassProc, 1, 0);
 
@@ -176,6 +206,29 @@ public sealed partial class MainWindow : Window
 
         AppWindow.Changed += (s, e) =>
         {
+            if (e.DidPresenterChange)
+            {
+                if (AppWindow.Presenter.Kind == Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen)
+                {
+                    if (AppTitleBar != null)
+                    {
+                        AppTitleBar.Visibility = Visibility.Collapsed;
+                    }
+                    SetTitleBar(null);
+                }
+                else if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter)
+                {
+                    bool shouldShowCaption = true;
+                    if (IsPlayerVisible)
+                    {
+                        var playerVM = App.GetService<PlayerViewModel>();
+                        shouldShowCaption = playerVM?.IsControlsVisible ?? true;
+                    }
+                    SetCaptionControlsVisible(shouldShowCaption, force: true);
+                    UpdateTitleBarTheme(IsPlayerVisible ? ElementTheme.Dark : RootWindowGrid.ActualTheme);
+                }
+            }
+
             if (e.DidSizeChange)
             {
                 if (IsPlayerVisible)
@@ -296,6 +349,7 @@ public sealed partial class MainWindow : Window
         PlayerViewControl.Activate();
 
         // Ensure caption buttons are white while media player is active
+        SetCaptionControlsVisible(true, force: true);
         UpdateTitleBarTheme(ElementTheme.Dark);
 
         var sb = new Storyboard();
@@ -362,6 +416,7 @@ public sealed partial class MainWindow : Window
             {
                 RootFrame.Navigate(typeof(HomePage), null, new SuppressNavigationTransitionInfo());
             }
+            SetCaptionControlsVisible(true, force: true);
             UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
             EnsureWindowIcon();
             return;
@@ -376,7 +431,7 @@ public sealed partial class MainWindow : Window
 
         PlayerViewControl.Deactivate();
         SetCursorHidden(false);
-        SetCaptionControlsVisible(true);
+        SetCaptionControlsVisible(true, force: true);
 
         var sb = new Storyboard();
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
@@ -441,6 +496,7 @@ public sealed partial class MainWindow : Window
             App.GetService<ViewModels.HomeViewModel>()?.UpdateBookmarkCounts();
 
             // Restore title bar buttons to the current app theme
+            SetCaptionControlsVisible(true, force: true);
             UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
 
             if (RootFrame.Content is not HomePage)
@@ -461,9 +517,15 @@ public sealed partial class MainWindow : Window
     {
         _transitionStoryboard?.Stop();
 
+        var playerVM = App.GetService<PlayerViewModel>();
+        if (playerVM?.IsFullscreen == true)
+        {
+            SetFullscreen(false);
+        }
+
         PlayerViewControl.Deactivate();
         SetCursorHidden(false);
-        SetCaptionControlsVisible(true);
+        SetCaptionControlsVisible(true, force: true);
         EnsureWindowIcon();
         PlayerOverlayContainer.Opacity = 0.0;
         PlayerOverlayContainer.IsHitTestVisible = false;
@@ -502,30 +564,39 @@ public sealed partial class MainWindow : Window
         {
             AppWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen);
             AppTitleBar.Visibility = Visibility.Collapsed;
+            SetTitleBar(null);
             PlayerViewControl.SetFullscreenLayout(true);
         }
         else
         {
             AppWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.Default);
-            _areCaptionControlsVisible = true;
-            AppTitleBar.Visibility = Visibility.Visible;
             PlayerViewControl.SetFullscreenLayout(false);
+
+            bool shouldShowCaption = true;
+            if (IsPlayerVisible)
+            {
+                shouldShowCaption = playerVM.IsControlsVisible;
+            }
+
+            SetCaptionControlsVisible(shouldShowCaption, force: true);
             EnsureWindowIcon();
-            UpdateTitleBarTheme(ElementTheme.Dark);
+            UpdateTitleBarTheme(IsPlayerVisible ? ElementTheme.Dark : RootWindowGrid.ActualTheme);
+        }
+
+        if (IsPlayerVisible)
+        {
+            PlayerViewControl.SyncControlsVisibility();
         }
     }
 
     private void EnsureChildWindowsSubclassed()
     {
-        if (_hasSubclassedChildWindows) return;
-        _hasSubclassedChildWindows = true;
-
         try
         {
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             EnumChildWindows(hwnd, (childHwnd, lParam) =>
             {
-                SetWindowSubclass(childHwnd, _subclassProc, 1, 0);
+                SetWindowSubclass(childHwnd, _childSubclassProc, 2, 0);
                 return true;
             }, IntPtr.Zero);
         }
@@ -600,12 +671,9 @@ public sealed partial class MainWindow : Window
         catch { }
     }
 
-    public void SetCaptionControlsVisible(bool visible)
+    public void SetCaptionControlsVisible(bool visible, bool force = false)
     {
-        if (_areCaptionControlsVisible == visible)
-        {
-            return;
-        }
+        _desiredCaptionControlsVisible = visible;
 
         if (AppWindow?.Presenter == null)
         {
@@ -614,21 +682,37 @@ public sealed partial class MainWindow : Window
 
         if (AppWindow.Presenter.Kind == Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen)
         {
-            return; // In fullscreen, OS already hides caption chrome
+            if (AppTitleBar != null)
+            {
+                AppTitleBar.Visibility = Visibility.Collapsed;
+            }
+            SetTitleBar(null);
+            return; // In fullscreen, OS already hides caption chrome; record desired state
         }
 
         if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
         {
-            _areCaptionControlsVisible = visible;
-            try
+            if (force || _areCaptionControlsVisible != visible || presenter.HasTitleBar != visible)
             {
-                presenter.SetBorderAndTitleBar(true, visible);
-            }
-            catch { }
+                _areCaptionControlsVisible = visible;
+                try
+                {
+                    presenter.SetBorderAndTitleBar(true, visible);
+                }
+                catch { }
 
-            if (AppTitleBar != null)
-            {
-                AppTitleBar.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                if (AppTitleBar != null)
+                {
+                    AppTitleBar.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    SetTitleBar(visible ? AppTitleBar : null);
+                }
+
+                if (visible)
+                {
+                    ExtendsContentIntoTitleBar = true;
+                    UpdateTitleBarTheme(IsPlayerVisible ? ElementTheme.Dark : RootWindowGrid.ActualTheme);
+                    EnsureWindowIcon();
+                }
             }
         }
     }
@@ -744,22 +828,57 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private IntPtr ChildWindowSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, nuint uIdSubclass, nuint dwRefData)
+    {
+        if (uMsg == WM_SETCURSOR && _isCursorHidden)
+        {
+            if (IsPlayerVisible && IsWindowActive && (lParam.ToInt64() & 0xFFFF) == HTCLIENT)
+            {
+                IntPtr blank = Helpers.CursorHelper.GetBlankHCursor();
+                if (blank != IntPtr.Zero)
+                {
+                    SetCursor(blank);
+                    return (IntPtr)1;
+                }
+            }
+        }
+
+        return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+    }
+
     private IntPtr WindowSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, nuint uIdSubclass, nuint dwRefData)
     {
-        if ((uMsg == WM_ACTIVATE && (wParam.ToInt64() & 0xFFFF) == WA_INACTIVE) ||
-            (uMsg == WM_ACTIVATEAPP && wParam == IntPtr.Zero) ||
-            uMsg == WM_KILLFOCUS ||
-            (uMsg == WM_NCACTIVATE && wParam == IntPtr.Zero) ||
-            (uMsg == WM_SIZE && wParam.ToInt64() == SIZE_MINIMIZED) ||
-            uMsg == WM_DESTROY)
+        var mainHwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        if (hWnd == mainHwnd)
         {
-            _isWindowActive = false;
-            SetCursorHidden(false);
-        }
-        else if ((uMsg == WM_ACTIVATE && (wParam.ToInt64() & 0xFFFF) != WA_INACTIVE) ||
-                 (uMsg == WM_ACTIVATEAPP && wParam != IntPtr.Zero))
-        {
-            _isWindowActive = true;
+            if (uMsg == WM_ACTIVATE)
+            {
+                bool inactive = (wParam.ToInt64() & 0xFFFF) == WA_INACTIVE;
+                _isWindowActive = !inactive;
+                if (inactive)
+                {
+                    SetCursorHidden(false);
+                }
+            }
+            else if (uMsg == WM_ACTIVATEAPP)
+            {
+                bool active = (wParam != IntPtr.Zero);
+                _isWindowActive = active;
+                if (!active)
+                {
+                    SetCursorHidden(false);
+                }
+            }
+            else if (uMsg == WM_SIZE && wParam.ToInt64() == SIZE_MINIMIZED)
+            {
+                _isWindowActive = false;
+                SetCursorHidden(false);
+            }
+            else if (uMsg == WM_DESTROY)
+            {
+                _isWindowActive = false;
+                SetCursorHidden(false);
+            }
         }
 
         if (uMsg == WM_SETCURSOR && _isCursorHidden)
@@ -770,8 +889,8 @@ public sealed partial class MainWindow : Window
                 if (blank != IntPtr.Zero)
                 {
                     SetCursor(blank);
+                    return (IntPtr)1;
                 }
-                return (IntPtr)1;
             }
             return DefSubclassProc(hWnd, uMsg, wParam, lParam);
         }

@@ -64,7 +64,7 @@ public sealed partial class HomePage : Page
 
             if (ClipsGridView != null)
             {
-                _clipsScrollViewer ??= FindVisualChild<ScrollViewer>(ClipsGridView);
+                EnsureScrollViewerHooked();
             }
 
             _resizeThrottleTimer.Tick += (s2, e2) =>
@@ -227,7 +227,7 @@ public sealed partial class HomePage : Page
             }
         }
 
-        _activeGroupWrapGrids.RemoveWhere(wg => wg.XamlRoot == null);
+        _activeGroupWrapGrids.RemoveWhere(wg => wg.XamlRoot == null || (ViewModel.DateGrouping != DateGroupingMode.None && wg == ClipsGridView?.ItemsPanelRoot));
         FindAndRegisterGroupWrapGrids(ClipsGridView);
 
         _lastCalculatedWidth = -1;
@@ -1097,6 +1097,12 @@ public sealed partial class HomePage : Page
 
     private void OnPageSizeChanged(object sender, SizeChangedEventArgs e)
     {
+        EnsureScrollViewerHooked();
+        if (_clipsScrollViewer != null && _clipsScrollViewer.VerticalOffset <= 4.0)
+        {
+            _shouldStayAtTop = true;
+        }
+
         double scale = XamlRoot?.RasterizationScale ?? 1.0;
         if (scale <= 0) scale = 1.0;
 
@@ -1130,6 +1136,12 @@ public sealed partial class HomePage : Page
 
     private void AnimateSidebar(bool isOpen, bool animate = true)
     {
+        EnsureScrollViewerHooked();
+        if (_clipsScrollViewer != null && _clipsScrollViewer.VerticalOffset <= 4.0)
+        {
+            _shouldStayAtTop = true;
+        }
+
         if (IsReduceMotionEnabled()) animate = false;
         _sidebarStoryboard?.Stop();
         _sidebarStoryboard = null;
@@ -1202,7 +1214,16 @@ public sealed partial class HomePage : Page
                     {
                         fg.ItemWidth = calcW;
                         fg.ItemHeight = calcH;
-                        fg.MaximumRowsOrColumns = -1;
+                        fg.MaximumRowsOrColumns = targetCols;
+                    }
+                }
+                else
+                {
+                    if (ClipsGridView?.ItemsPanelRoot is ItemsWrapGrid fg)
+                    {
+                        fg.ItemWidth = double.NaN;
+                        fg.ItemHeight = double.NaN;
+                        fg.MaximumRowsOrColumns = 1;
                     }
                 }
                 if (SkeletonItemsControl?.ItemsPanelRoot is ItemsWrapGrid sg)
@@ -1368,6 +1389,10 @@ public sealed partial class HomePage : Page
             _lastCalculatedWidth = -1;
             _lastColumnCount = -1;
             UpdateGridResponsiveLayout();
+            if (_shouldStayAtTop && _clipsScrollViewer != null)
+            {
+                _clipsScrollViewer.ChangeView(null, 0.0, null, disableAnimation: true);
+            }
         };
 
         _sidebarStoryboard = sb;
@@ -1473,6 +1498,36 @@ public sealed partial class HomePage : Page
     private Windows.Foundation.Point _autoscrollOrigin;
     private double _autoscrollDeltaY;
     private ScrollViewer? _clipsScrollViewer;
+    private bool _shouldStayAtTop;
+
+    private void EnsureScrollViewerHooked()
+    {
+        if (_clipsScrollViewer == null && ClipsGridView != null)
+        {
+            _clipsScrollViewer = FindVisualChild<ScrollViewer>(ClipsGridView);
+            if (_clipsScrollViewer != null)
+            {
+                _clipsScrollViewer.VerticalAnchorRatio = 0.0;
+                _clipsScrollViewer.ViewChanged += OnClipsScrollViewerViewChanged;
+            }
+        }
+    }
+
+    private void OnClipsScrollViewerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
+    {
+        if (_clipsScrollViewer == null) return;
+        if (!e.IsIntermediate)
+        {
+            if (_shouldStayAtTop || (_clipsScrollViewer.VerticalOffset > 0.0 && _clipsScrollViewer.VerticalOffset < 6.0))
+            {
+                _clipsScrollViewer.ChangeView(null, 0.0, null, disableAnimation: true);
+            }
+            if (_clipsScrollViewer.VerticalOffset >= 6.0)
+            {
+                _shouldStayAtTop = false;
+            }
+        }
+    }
 
     private void UpdateSortButtonUI()
     {
@@ -1652,14 +1707,17 @@ public sealed partial class HomePage : Page
 
             if (FindParent<ItemsWrapGrid>(card) is ItemsWrapGrid wrapGrid)
             {
-                if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
+                if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot && wrapGrid != ClipsGridView?.ItemsPanelRoot)
                 {
                     _activeGroupWrapGrids.Add(wrapGrid);
                     if (_currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
                     {
                         wrapGrid.ItemWidth = _currentCardWidth;
                         wrapGrid.ItemHeight = _currentCardHeight;
-                        wrapGrid.MaximumRowsOrColumns = -1;
+                        if (_lastColumnCount > 0)
+                        {
+                            wrapGrid.MaximumRowsOrColumns = _lastColumnCount;
+                        }
                     }
                 }
                 else if (_currentCardWidth <= 0)
@@ -1738,6 +1796,13 @@ public sealed partial class HomePage : Page
                 ClipsGroupedSource.Source = ViewModel.GroupedClips;
                 ClipsGridView.ItemsSource = ClipsGroupedSource.View;
             }
+            if (ClipsGridView.ItemsPanelRoot is ItemsWrapGrid rootWrapGrid)
+            {
+                _activeGroupWrapGrids.Remove(rootWrapGrid);
+                rootWrapGrid.ItemWidth = double.NaN;
+                rootWrapGrid.ItemHeight = double.NaN;
+                rootWrapGrid.MaximumRowsOrColumns = 1;
+            }
         }
         _lastCalculatedWidth = -1;
         _lastColumnCount = -1;
@@ -1746,6 +1811,11 @@ public sealed partial class HomePage : Page
 
     private void OnClipsGridViewSizeChanged(object sender, SizeChangedEventArgs e)
     {
+        EnsureScrollViewerHooked();
+        if (_clipsScrollViewer != null && _clipsScrollViewer.VerticalOffset <= 4.0)
+        {
+            _shouldStayAtTop = true;
+        }
         UpdateGridResponsiveLayout(forcedGridWidth: e.NewSize.Width);
     }
 
@@ -1756,14 +1826,11 @@ public sealed partial class HomePage : Page
         for (int i = 0; i < count; i++)
         {
             var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is ItemsWrapGrid wg && wg != SkeletonItemsControl?.ItemsPanelRoot)
+            if (child is ItemsWrapGrid wg && wg != SkeletonItemsControl?.ItemsPanelRoot && wg != ClipsGridView?.ItemsPanelRoot)
             {
                 _activeGroupWrapGrids.Add(wg);
             }
-            else
-            {
-                FindAndRegisterGroupWrapGrids(child);
-            }
+            FindAndRegisterGroupWrapGrids(child);
         }
     }
 
@@ -1856,6 +1923,13 @@ public sealed partial class HomePage : Page
             return;
         }
 
+        EnsureScrollViewerHooked();
+        bool wasAtTop = _shouldStayAtTop || _clipsScrollViewer == null || _clipsScrollViewer.VerticalOffset <= 4.0;
+        if (wasAtTop)
+        {
+            _shouldStayAtTop = true;
+        }
+
         double availableWidth = GetClipsAvailableWidth(forcedGridWidth);
         if (availableWidth <= 50) return;
 
@@ -1890,9 +1964,15 @@ public sealed partial class HomePage : Page
         _currentCardWidth = calculatedWidth;
         _currentCardHeight = calculatedHeight;
 
-        if (ClipsGridView.ItemsPanelRoot is ItemsWrapGrid rootWrapGrid && rootWrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
+        if (ViewModel.DateGrouping != DateGroupingMode.None)
         {
-            _activeGroupWrapGrids.Add(rootWrapGrid);
+            if (ClipsGridView.ItemsPanelRoot is ItemsWrapGrid rootWrapGrid)
+            {
+                _activeGroupWrapGrids.Remove(rootWrapGrid);
+                rootWrapGrid.ItemWidth = double.NaN;
+                rootWrapGrid.ItemHeight = double.NaN;
+                rootWrapGrid.MaximumRowsOrColumns = 1;
+            }
         }
 
         // Only search the visual tree if our cache of active group wrap grids is empty
@@ -1926,6 +2006,11 @@ public sealed partial class HomePage : Page
             appliedToAny = true;
         }
 
+        if (wasAtTop && _clipsScrollViewer != null)
+        {
+            _clipsScrollViewer.ChangeView(null, 0.0, null, disableAnimation: true);
+        }
+
         if (!appliedToAny)
         {
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
@@ -1935,11 +2020,21 @@ public sealed partial class HomePage : Page
                 UpdateGridResponsiveLayout();
             });
         }
+        else if (wasAtTop)
+        {
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            {
+                if (wasAtTop && _clipsScrollViewer != null && _clipsScrollViewer.VerticalOffset > 0.0 && _clipsScrollViewer.VerticalOffset <= 80.0)
+                {
+                    _clipsScrollViewer.ChangeView(null, 0.0, null, disableAnimation: true);
+                }
+            });
+        }
     }
 
     private void UpdateGroupWrapGrids(double width, double height, int columns = -1)
     {
-        _activeGroupWrapGrids.RemoveWhere(wg => wg.XamlRoot == null);
+        _activeGroupWrapGrids.RemoveWhere(wg => wg.XamlRoot == null || (ViewModel.DateGrouping != DateGroupingMode.None && wg == ClipsGridView?.ItemsPanelRoot));
         foreach (var wrapGrid in _activeGroupWrapGrids)
         {
             wrapGrid.ItemWidth = width;
@@ -1975,7 +2070,7 @@ public sealed partial class HomePage : Page
 
             if (FindParent<ItemsWrapGrid>(gvi) is ItemsWrapGrid wrapGrid)
             {
-                if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
+                if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot && wrapGrid != ClipsGridView?.ItemsPanelRoot)
                 {
                     _activeGroupWrapGrids.Add(wrapGrid);
                     if (_currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
@@ -2253,6 +2348,7 @@ public sealed partial class HomePage : Page
 
     private void OnClipsGridPointerPressed(object sender, PointerRoutedEventArgs e)
     {
+        _shouldStayAtTop = false;
         var pt = e.GetCurrentPoint(this);
         if (pt.Properties.IsMiddleButtonPressed)
         {
@@ -2321,6 +2417,7 @@ public sealed partial class HomePage : Page
 
     private void OnClipsGridPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
+        _shouldStayAtTop = false;
         if (_isAutoscrolling)
         {
             StopAutoscroll();
@@ -2352,31 +2449,15 @@ public sealed partial class HomePage : Page
     private void ScrollClipsToTop()
     {
         if (ClipsGridView == null) return;
-        _clipsScrollViewer ??= FindVisualChild<ScrollViewer>(ClipsGridView);
+        _shouldStayAtTop = true;
+        EnsureScrollViewerHooked();
         _clipsScrollViewer?.ChangeView(null, 0.0, null, disableAnimation: true);
-
-        if (ClipsGridView.Items.Count > 0)
-        {
-            try
-            {
-                ClipsGridView.ScrollIntoView(ClipsGridView.Items[0], ScrollIntoViewAlignment.Leading);
-            }
-            catch { }
-        }
 
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             if (ClipsGridView == null) return;
-            _clipsScrollViewer ??= FindVisualChild<ScrollViewer>(ClipsGridView);
+            EnsureScrollViewerHooked();
             _clipsScrollViewer?.ChangeView(null, 0.0, null, disableAnimation: true);
-            if (ClipsGridView.Items.Count > 0)
-            {
-                try
-                {
-                    ClipsGridView.ScrollIntoView(ClipsGridView.Items[0], ScrollIntoViewAlignment.Leading);
-                }
-                catch { }
-            }
         });
     }
 

@@ -51,6 +51,7 @@ public sealed partial class MainWindow : Window
 
     private bool _isCursorHidden;
     private bool _isWindowActive = true;
+    private bool _isPlayerClosing;
     public bool IsWindowActive
     {
         get
@@ -70,8 +71,14 @@ public sealed partial class MainWindow : Window
                     return _isWindowActive;
                 }
 
-                bool isFg = (fg == hwnd || IsChild(hwnd, fg));
-                if (isFg)
+                if (fg == hwnd || IsChild(hwnd, fg) || GetAncestor(fg, GA_ROOTOWNER) == hwnd)
+                {
+                    _isWindowActive = true;
+                    return true;
+                }
+
+                GetWindowThreadProcessId(fg, out uint pid);
+                if (pid != 0 && pid == Environment.ProcessId)
                 {
                     _isWindowActive = true;
                     return true;
@@ -161,6 +168,13 @@ public sealed partial class MainWindow : Window
 
     [DllImport("User32.dll")]
     private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("User32.dll")]
+    private static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
+    private const uint GA_ROOTOWNER = 3;
+
+    [DllImport("User32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
     [DllImport("User32.dll", CharSet = CharSet.Auto)]
     private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
@@ -333,10 +347,11 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    public bool IsPlayerVisible => PlayerOverlayContainer?.Visibility == Visibility.Visible && PlayerOverlayContainer.IsHitTestVisible;
+    public bool IsPlayerVisible => !_isPlayerClosing && PlayerOverlayContainer?.Visibility == Visibility.Visible && PlayerOverlayContainer.IsHitTestVisible;
 
     private void OnNavigatedToPlayer(Models.GameClip clip, System.Collections.Generic.List<Models.GameClip> playlist)
     {
+        _isPlayerClosing = false;
         var playerVM = App.GetService<PlayerViewModel>();
         playerVM.LoadClip(clip, playlist);
 
@@ -403,10 +418,11 @@ public sealed partial class MainWindow : Window
 
     private void OnNavigatedToHome()
     {
+        _isPlayerClosing = true;
         _transitionStoryboard?.Stop();
 
         // If player is not open (e.g. returning from Settings), return to Home instantly without delay
-        if (!IsPlayerVisible)
+        if (PlayerOverlayContainer?.Visibility != Visibility.Visible)
         {
             if (RootFrame.CanGoBack)
             {
@@ -416,6 +432,7 @@ public sealed partial class MainWindow : Window
             {
                 RootFrame.Navigate(typeof(HomePage), null, new SuppressNavigationTransitionInfo());
             }
+            _isPlayerClosing = false;
             SetCaptionControlsVisible(true, force: true);
             UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
             EnsureWindowIcon();
@@ -429,9 +446,12 @@ public sealed partial class MainWindow : Window
             SetFullscreen(false);
         }
 
+        PlayerOverlayContainer.IsHitTestVisible = false;
         PlayerViewControl.Deactivate();
         SetCursorHidden(false);
         SetCaptionControlsVisible(true, force: true);
+        UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
+        EnsureWindowIcon();
 
         var sb = new Storyboard();
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
@@ -484,6 +504,7 @@ public sealed partial class MainWindow : Window
 
         sb.Completed += (s, e) =>
         {
+            _isPlayerClosing = false;
             PlayerOverlayContainer.Opacity = 0.0;
             PlayerOverlayContainer.IsHitTestVisible = false;
             PlayerOverlayContainer.Visibility = Visibility.Collapsed;
@@ -515,6 +536,7 @@ public sealed partial class MainWindow : Window
 
     private void OnNavigatedToSettings()
     {
+        _isPlayerClosing = true;
         _transitionStoryboard?.Stop();
 
         var playerVM = App.GetService<PlayerViewModel>();
@@ -523,15 +545,16 @@ public sealed partial class MainWindow : Window
             SetFullscreen(false);
         }
 
-        PlayerViewControl.Deactivate();
-        SetCursorHidden(false);
-        SetCaptionControlsVisible(true, force: true);
-        EnsureWindowIcon();
         PlayerOverlayContainer.Opacity = 0.0;
         PlayerOverlayContainer.IsHitTestVisible = false;
         PlayerOverlayContainer.Visibility = Visibility.Collapsed;
         PlayerBackdropLayer.Visibility = Visibility.Collapsed;
         PlayerBackdropLayer.Opacity = 0.0;
+        PlayerViewControl.Deactivate();
+        SetCursorHidden(false);
+        _isPlayerClosing = false;
+        SetCaptionControlsVisible(true, force: true);
+        EnsureWindowIcon();
         RootFrame.Opacity = 1.0;
         AppTitleBar.Opacity = 1.0;
 
@@ -550,7 +573,10 @@ public sealed partial class MainWindow : Window
     public void SetFullscreen(bool isFullscreen)
     {
         var playerVM = App.GetService<PlayerViewModel>();
-        playerVM.IsFullscreen = isFullscreen;
+        if (playerVM != null)
+        {
+            playerVM.IsFullscreen = isFullscreen;
+        }
 
         try
         {
@@ -573,7 +599,7 @@ public sealed partial class MainWindow : Window
             PlayerViewControl.SetFullscreenLayout(false);
 
             bool shouldShowCaption = true;
-            if (IsPlayerVisible)
+            if (IsPlayerVisible && playerVM != null)
             {
                 shouldShowCaption = playerVM.IsControlsVisible;
             }
@@ -585,7 +611,7 @@ public sealed partial class MainWindow : Window
 
         if (IsPlayerVisible)
         {
-            PlayerViewControl.SyncControlsVisibility();
+            PlayerViewControl.SyncControlsVisibility(forceCursor: true);
         }
     }
 
@@ -603,7 +629,7 @@ public sealed partial class MainWindow : Window
         catch { }
     }
 
-    public void SetCursorHidden(bool hide)
+    public void SetCursorHidden(bool hide, bool force = false)
     {
         if (!hide)
         {
@@ -630,7 +656,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        if (_isCursorHidden) return;
+        if (_isCursorHidden && !force) return;
 
         var settingsService = App.GetService<Services.ILocalStorageService>();
         if (settingsService?.CurrentSettings?.AutoHideCursor == false)
@@ -644,7 +670,7 @@ public sealed partial class MainWindow : Window
         }
 
         _isCursorHidden = true;
-        Helpers.CursorHelper.HideGlobalCursor();
+        Helpers.CursorHelper.HideGlobalCursor(force);
 
         var blank = Helpers.CursorHelper.GetBlankInputCursor();
         Helpers.CursorHelper.SetElementCursor(PlayerOverlayContainer, blank);
@@ -673,6 +699,12 @@ public sealed partial class MainWindow : Window
 
     public void SetCaptionControlsVisible(bool visible, bool force = false)
     {
+        if (!visible && !IsPlayerVisible)
+        {
+            // Outside of active player overlay, caption controls MUST NEVER be hidden
+            visible = true;
+        }
+
         _desiredCaptionControlsVisible = visible;
 
         if (AppWindow?.Presenter == null)
@@ -692,7 +724,12 @@ public sealed partial class MainWindow : Window
 
         if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
         {
-            if (force || _areCaptionControlsVisible != visible || presenter.HasTitleBar != visible)
+            bool needUpdate = force ||
+                              _areCaptionControlsVisible != visible ||
+                              presenter.HasTitleBar != visible ||
+                              (visible && (AppTitleBar?.Visibility != Visibility.Visible || AppTitleBar?.Opacity < 1.0));
+
+            if (needUpdate)
             {
                 _areCaptionControlsVisible = visible;
                 try
@@ -704,6 +741,10 @@ public sealed partial class MainWindow : Window
                 if (AppTitleBar != null)
                 {
                     AppTitleBar.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+                    if (visible)
+                    {
+                        AppTitleBar.Opacity = 1.0;
+                    }
                     SetTitleBar(visible ? AppTitleBar : null);
                 }
 

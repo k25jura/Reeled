@@ -558,6 +558,14 @@ public sealed partial class PlayerPage : Page
         MomentsJumpPopup.Opacity = 0.0;
         UpdateCursorHiddenState(false);
 
+        // Reset control bar states so subsequent sessions begin healthy and visible
+        ViewModel.IsControlsVisible = true;
+        _areControlsShowing = true;
+        TopHeaderBar.Visibility = Visibility.Visible;
+        TopHeaderBar.Opacity = 1.0;
+        BottomControlBar.Visibility = Visibility.Visible;
+        BottomControlBar.Opacity = 1.0;
+
         try
         {
             if (App.Window is MainWindow mainWindow)
@@ -1401,7 +1409,7 @@ public sealed partial class PlayerPage : Page
         sb.Begin();
     }
 
-    private void UpdateControlsVisibility(bool visible, bool animate = true)
+    private void UpdateControlsVisibility(bool visible, bool animate = true, bool forceCursor = false)
     {
         if (!visible && AreFlyoutsOrPopupsOpen)
         {
@@ -1416,21 +1424,15 @@ public sealed partial class PlayerPage : Page
             if (visible)
             {
                 UpdateCursorHiddenState(false);
-                mainWindow.SetCursorHidden(false);
+                mainWindow.SetCursorHidden(false, force: forceCursor);
                 mainWindow.SetCaptionControlsVisible(true);
-            }
-            else if (ViewModel.IsPlaying)
-            {
-                bool shouldHideCursor = mainWindow.IsWindowActive;
-                UpdateCursorHiddenState(shouldHideCursor);
-                mainWindow.SetCursorHidden(shouldHideCursor);
-                mainWindow.SetCaptionControlsVisible(false);
             }
             else
             {
-                UpdateCursorHiddenState(false);
-                mainWindow.SetCursorHidden(false);
-                mainWindow.SetCaptionControlsVisible(true);
+                bool shouldHideCursor = ViewModel.IsPlaying && mainWindow.IsWindowActive;
+                UpdateCursorHiddenState(shouldHideCursor);
+                mainWindow.SetCursorHidden(shouldHideCursor, force: forceCursor);
+                mainWindow.SetCaptionControlsVisible(false);
             }
         }
         else
@@ -1639,9 +1641,9 @@ public sealed partial class PlayerPage : Page
         RefreshVideoLayout();
     }
 
-    public void SyncControlsVisibility()
+    public void SyncControlsVisibility(bool forceCursor = false)
     {
-        UpdateControlsVisibility(ViewModel.IsControlsVisible, animate: false);
+        UpdateControlsVisibility(ViewModel.IsControlsVisible, animate: false, forceCursor: forceCursor);
     }
 
     private void ToggleFullscreen()

@@ -950,19 +950,12 @@ public partial class PlayerViewModel : ObservableObject
     [RelayCommand]
     public void BackToHome()
     {
-        if (IsFullscreen)
+        if (IsFullscreen && App.Window is not MainWindow)
         {
             try
             {
-                if (App.Window is MainWindow mainWindow)
-                {
-                    mainWindow.SetFullscreen(false);
-                }
-                else
-                {
-                    App.Window.AppWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.Default);
-                    IsFullscreen = false;
-                }
+                App.Window.AppWindow.SetPresenter(Microsoft.UI.Windowing.AppWindowPresenterKind.Default);
+                IsFullscreen = false;
             }
             catch { }
         }

@@ -105,11 +105,11 @@ public static class CursorHelper
         catch { }
     }
 
-    public static void HideGlobalCursor()
+    public static void HideGlobalCursor(bool force = false)
     {
         lock (_syncLock)
         {
-            if (_isGlobalHidden) return;
+            if (_isGlobalHidden && !force) return;
             if (App.Window is MainWindow mw && !mw.IsWindowActive) return;
 
             IntPtr blank = GetBlankHCursor();

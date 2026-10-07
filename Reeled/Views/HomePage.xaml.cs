@@ -1097,12 +1097,6 @@ public sealed partial class HomePage : Page
 
     private void OnPageSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        EnsureScrollViewerHooked();
-        if (_clipsScrollViewer != null && _clipsScrollViewer.VerticalOffset <= 4.0)
-        {
-            _shouldStayAtTop = true;
-        }
-
         double scale = XamlRoot?.RasterizationScale ?? 1.0;
         if (scale <= 0) scale = 1.0;
 
@@ -1136,12 +1130,6 @@ public sealed partial class HomePage : Page
 
     private void AnimateSidebar(bool isOpen, bool animate = true)
     {
-        EnsureScrollViewerHooked();
-        if (_clipsScrollViewer != null && _clipsScrollViewer.VerticalOffset <= 4.0)
-        {
-            _shouldStayAtTop = true;
-        }
-
         if (IsReduceMotionEnabled()) animate = false;
         _sidebarStoryboard?.Stop();
         _sidebarStoryboard = null;
@@ -1389,10 +1377,6 @@ public sealed partial class HomePage : Page
             _lastCalculatedWidth = -1;
             _lastColumnCount = -1;
             UpdateGridResponsiveLayout();
-            if (_shouldStayAtTop && _clipsScrollViewer != null)
-            {
-                _clipsScrollViewer.ChangeView(null, 0.0, null, disableAnimation: true);
-            }
         };
 
         _sidebarStoryboard = sb;
@@ -1498,34 +1482,12 @@ public sealed partial class HomePage : Page
     private Windows.Foundation.Point _autoscrollOrigin;
     private double _autoscrollDeltaY;
     private ScrollViewer? _clipsScrollViewer;
-    private bool _shouldStayAtTop;
 
     private void EnsureScrollViewerHooked()
     {
         if (_clipsScrollViewer == null && ClipsGridView != null)
         {
             _clipsScrollViewer = FindVisualChild<ScrollViewer>(ClipsGridView);
-            if (_clipsScrollViewer != null)
-            {
-                _clipsScrollViewer.VerticalAnchorRatio = 0.0;
-                _clipsScrollViewer.ViewChanged += OnClipsScrollViewerViewChanged;
-            }
-        }
-    }
-
-    private void OnClipsScrollViewerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
-    {
-        if (_clipsScrollViewer == null) return;
-        if (!e.IsIntermediate)
-        {
-            if (_shouldStayAtTop || (_clipsScrollViewer.VerticalOffset > 0.0 && _clipsScrollViewer.VerticalOffset < 6.0))
-            {
-                _clipsScrollViewer.ChangeView(null, 0.0, null, disableAnimation: true);
-            }
-            if (_clipsScrollViewer.VerticalOffset >= 6.0)
-            {
-                _shouldStayAtTop = false;
-            }
         }
     }
 
@@ -1710,7 +1672,7 @@ public sealed partial class HomePage : Page
                 if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot && wrapGrid != ClipsGridView?.ItemsPanelRoot)
                 {
                     _activeGroupWrapGrids.Add(wrapGrid);
-                    if (_currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
+                    if (_currentCardWidth > 0 && (Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5 || wrapGrid.MaximumRowsOrColumns != _lastColumnCount))
                     {
                         wrapGrid.ItemWidth = _currentCardWidth;
                         wrapGrid.ItemHeight = _currentCardHeight;
@@ -1811,11 +1773,6 @@ public sealed partial class HomePage : Page
 
     private void OnClipsGridViewSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        EnsureScrollViewerHooked();
-        if (_clipsScrollViewer != null && _clipsScrollViewer.VerticalOffset <= 4.0)
-        {
-            _shouldStayAtTop = true;
-        }
         UpdateGridResponsiveLayout(forcedGridWidth: e.NewSize.Width);
     }
 
@@ -1924,11 +1881,7 @@ public sealed partial class HomePage : Page
         }
 
         EnsureScrollViewerHooked();
-        bool wasAtTop = _shouldStayAtTop || _clipsScrollViewer == null || _clipsScrollViewer.VerticalOffset <= 4.0;
-        if (wasAtTop)
-        {
-            _shouldStayAtTop = true;
-        }
+        bool wasAtTop = _clipsScrollViewer == null || _clipsScrollViewer.VerticalOffset <= 2.0;
 
         double availableWidth = GetClipsAvailableWidth(forcedGridWidth);
         if (availableWidth <= 50) return;
@@ -1973,10 +1926,9 @@ public sealed partial class HomePage : Page
                 rootWrapGrid.ItemHeight = double.NaN;
                 rootWrapGrid.MaximumRowsOrColumns = 1;
             }
+            FindAndRegisterGroupWrapGrids(ClipsGridView);
         }
-
-        // Only search the visual tree if our cache of active group wrap grids is empty
-        if (_activeGroupWrapGrids.Count == 0)
+        else if (_activeGroupWrapGrids.Count == 0)
         {
             FindAndRegisterGroupWrapGrids(ClipsGridView);
         }
@@ -2024,7 +1976,7 @@ public sealed partial class HomePage : Page
         {
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
-                if (wasAtTop && _clipsScrollViewer != null && _clipsScrollViewer.VerticalOffset > 0.0 && _clipsScrollViewer.VerticalOffset <= 80.0)
+                if (_clipsScrollViewer != null && _clipsScrollViewer.VerticalOffset > 0.0 && _clipsScrollViewer.VerticalOffset <= 32.0)
                 {
                     _clipsScrollViewer.ChangeView(null, 0.0, null, disableAnimation: true);
                 }
@@ -2073,7 +2025,7 @@ public sealed partial class HomePage : Page
                 if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot && wrapGrid != ClipsGridView?.ItemsPanelRoot)
                 {
                     _activeGroupWrapGrids.Add(wrapGrid);
-                    if (_currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
+                    if (_currentCardWidth > 0 && (Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5 || wrapGrid.MaximumRowsOrColumns != _lastColumnCount))
                     {
                         wrapGrid.ItemWidth = _currentCardWidth;
                         wrapGrid.ItemHeight = _currentCardHeight;
@@ -2348,7 +2300,6 @@ public sealed partial class HomePage : Page
 
     private void OnClipsGridPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        _shouldStayAtTop = false;
         var pt = e.GetCurrentPoint(this);
         if (pt.Properties.IsMiddleButtonPressed)
         {
@@ -2417,7 +2368,6 @@ public sealed partial class HomePage : Page
 
     private void OnClipsGridPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
-        _shouldStayAtTop = false;
         if (_isAutoscrolling)
         {
             StopAutoscroll();
@@ -2449,7 +2399,6 @@ public sealed partial class HomePage : Page
     private void ScrollClipsToTop()
     {
         if (ClipsGridView == null) return;
-        _shouldStayAtTop = true;
         EnsureScrollViewerHooked();
         _clipsScrollViewer?.ChangeView(null, 0.0, null, disableAnimation: true);
 

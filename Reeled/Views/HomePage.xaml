@@ -965,7 +965,6 @@
                         <GroupStyle>
                             <GroupStyle.HeaderContainerStyle>
                                 <Style TargetType="GridViewHeaderItem">
-                                    <Setter Property="CanBeScrollAnchor" Value="True" />
                                     <Setter Property="Transitions">
                                         <Setter.Value>
                                             <TransitionCollection />

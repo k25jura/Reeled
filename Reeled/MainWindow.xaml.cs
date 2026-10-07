@@ -46,6 +46,22 @@ public sealed partial class MainWindow : Window
     public Microsoft.UI.Xaml.Controls.Frame NavigationFrame => RootFrame;
 
     private bool _isCursorHidden;
+    private bool _isWindowActive = true;
+    public bool IsWindowActive
+    {
+        get
+        {
+            try
+            {
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                return _isWindowActive && (GetForegroundWindow() == hwnd);
+            }
+            catch
+            {
+                return _isWindowActive;
+            }
+        }
+    }
     private bool _isSidebarOpen;
     private bool _areCaptionControlsVisible = true;
     private bool _hasSubclassedChildWindows;
@@ -110,6 +126,9 @@ public sealed partial class MainWindow : Window
     [DllImport("User32.dll")]
     private static extern bool SetCursorPos(int x, int y);
 
+    [DllImport("User32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
     [DllImport("User32.dll", CharSet = CharSet.Auto)]
     private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
@@ -165,7 +184,8 @@ public sealed partial class MainWindow : Window
 
         Activated += (s, e) =>
         {
-            if (e.WindowActivationState == WindowActivationState.Deactivated)
+            _isWindowActive = (e.WindowActivationState != WindowActivationState.Deactivated);
+            if (!_isWindowActive)
             {
                 SetCursorHidden(false);
             }
@@ -520,16 +540,22 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
+            if (!IsWindowActive)
+            {
+                return;
+            }
+
             _isCursorHidden = true;
             Helpers.CursorHelper.HideGlobalCursor();
 
             var blank = Helpers.CursorHelper.GetBlankInputCursor();
             Helpers.CursorHelper.SetElementCursor(PlayerOverlayContainer, blank);
+            PlayerViewControl?.SetCursorHidden(true);
 
             EnsureChildWindowsSubclassed();
 
             IntPtr blankH = Helpers.CursorHelper.GetBlankHCursor();
-            if (blankH != IntPtr.Zero && IsPlayerVisible)
+            if (blankH != IntPtr.Zero && IsPlayerVisible && IsWindowActive)
             {
                 SetCursor(blankH);
             }
@@ -553,6 +579,7 @@ public sealed partial class MainWindow : Window
 
             Helpers.CursorHelper.SetElementCursor(RootWindowGrid, null);
             Helpers.CursorHelper.SetElementCursor(PlayerOverlayContainer, null);
+            PlayerViewControl?.SetCursorHidden(false);
 
             SetCursor(LoadCursor(IntPtr.Zero, IDC_ARROW));
 
@@ -720,15 +747,20 @@ public sealed partial class MainWindow : Window
             uMsg == WM_KILLFOCUS ||
             (uMsg == WM_NCACTIVATE && wParam == IntPtr.Zero))
         {
+            _isWindowActive = false;
             if (_isCursorHidden)
             {
                 SetCursorHidden(false);
             }
         }
+        else if (uMsg == WM_ACTIVATE && (wParam.ToInt64() & 0xFFFF) != WA_INACTIVE)
+        {
+            _isWindowActive = true;
+        }
 
         if (uMsg == WM_SETCURSOR && _isCursorHidden)
         {
-            if (IsPlayerVisible && (lParam.ToInt64() & 0xFFFF) == HTCLIENT)
+            if (IsPlayerVisible && IsWindowActive && (lParam.ToInt64() & 0xFFFF) == HTCLIENT)
             {
                 IntPtr blank = Helpers.CursorHelper.GetBlankHCursor();
                 if (blank != IntPtr.Zero)

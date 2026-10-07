@@ -32,7 +32,6 @@
     <Content Include="Assets\light-icon.svg" />
     <Content Include="Assets\dark-banner.svg" />
     <Content Include="Assets\dark-icon.svg" />
-    <Content Include="Assets\releed.png" />
     <Content Include="Assets\reeled.png" />
   </ItemGroup>
 

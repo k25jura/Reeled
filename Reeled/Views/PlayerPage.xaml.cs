@@ -184,6 +184,7 @@ public sealed partial class PlayerPage : Page
 
         // Catch pointer movements even if handled by inner controls to wake up cursor & controls
         this.AddHandler(UIElement.PointerMovedEvent, new PointerEventHandler(OnPagePointerMoved), true);
+        this.AddHandler(UIElement.PointerExitedEvent, new PointerEventHandler(OnPagePointerExited), true);
 
         Loaded += (s, e) =>
         {
@@ -602,10 +603,23 @@ public sealed partial class PlayerPage : Page
         UpdateCursorHiddenState(false);
     }
 
+    public void SetCursorHidden(bool hide)
+    {
+        UpdateCursorHiddenState(hide);
+    }
+
     private void UpdateCursorHiddenState(bool hide)
     {
         var settingsService = App.GetService<Services.ILocalStorageService>();
         bool allowAutoHide = settingsService?.CurrentSettings?.AutoHideCursor ?? true;
+
+        if (hide && allowAutoHide)
+        {
+            if (App.Window is MainWindow mainWindow && !mainWindow.IsWindowActive)
+            {
+                hide = false;
+            }
+        }
 
         if (hide && allowAutoHide)
         {
@@ -625,6 +639,15 @@ public sealed partial class PlayerPage : Page
     private void OnVideoViewInitialized(object? sender, LibVLCSharp.Platforms.Windows.InitializedEventArgs e)
     {
         ViewModel.AttachVideoView(PlayerVideoView, e.SwapChainOptions);
+    }
+
+    private void OnPagePointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        UpdateCursorHiddenState(false);
+        if (App.Window is MainWindow mainWindow)
+        {
+            mainWindow.SetCursorHidden(false);
+        }
     }
 
     private void OnPagePointerMoved(object sender, PointerRoutedEventArgs e)
@@ -1398,8 +1421,9 @@ public sealed partial class PlayerPage : Page
             }
             else if (ViewModel.IsPlaying)
             {
-                UpdateCursorHiddenState(true);
-                mainWindow.SetCursorHidden(true);
+                bool shouldHideCursor = mainWindow.IsWindowActive;
+                UpdateCursorHiddenState(shouldHideCursor);
+                mainWindow.SetCursorHidden(shouldHideCursor);
                 mainWindow.SetCaptionControlsVisible(false);
             }
             else

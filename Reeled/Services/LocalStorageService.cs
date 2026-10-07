@@ -33,7 +33,7 @@ public class LocalStorageService : ILocalStorageService
             try
             {
                 string json = File.ReadAllText(_settingsFilePath);
-                var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions);
+                var loaded = JsonSerializer.Deserialize(json, AppJsonSerializerContext.Default.AppSettings);
                 if (loaded != null)
                 {
                     loaded.HasInitializedDefaults = true;
@@ -60,7 +60,7 @@ public class LocalStorageService : ILocalStorageService
             if (File.Exists(_settingsFilePath))
             {
                 string json = await File.ReadAllTextAsync(_settingsFilePath);
-                var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions);
+                var loaded = JsonSerializer.Deserialize(json, AppJsonSerializerContext.Default.AppSettings);
                 if (loaded != null)
                 {
                     loaded.HasInitializedDefaults = true;
@@ -93,7 +93,7 @@ public class LocalStorageService : ILocalStorageService
         try
         {
             _currentSettings = settings;
-            string json = JsonSerializer.Serialize(settings, JsonOptions);
+            string json = JsonSerializer.Serialize(settings, AppJsonSerializerContext.Default.AppSettings);
             await File.WriteAllTextAsync(_settingsFilePath, json);
         }
         catch (Exception)
@@ -111,7 +111,7 @@ public class LocalStorageService : ILocalStorageService
         try
         {
             _currentSettings = settings;
-            string json = JsonSerializer.Serialize(settings, JsonOptions);
+            string json = JsonSerializer.Serialize(settings, AppJsonSerializerContext.Default.AppSettings);
             File.WriteAllText(_settingsFilePath, json);
         }
         catch (Exception)

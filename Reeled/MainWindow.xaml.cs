@@ -25,8 +25,12 @@ public sealed partial class MainWindow : Window
     private const int WM_SIZING = 0x0214;
     private const int WM_SETCURSOR = 0x0020;
     private const int WM_ACTIVATE = 0x0006;
+    private const int WM_ACTIVATEAPP = 0x001C;
     private const int WM_KILLFOCUS = 0x0008;
     private const int WM_NCACTIVATE = 0x0086;
+    private const int WM_SIZE = 0x0005;
+    private const int SIZE_MINIMIZED = 1;
+    private const int WM_DESTROY = 0x0002;
     private const int WA_INACTIVE = 0;
     private const int IDC_ARROW = 32512;
     private const int HTCLIENT = 1;
@@ -530,49 +534,7 @@ public sealed partial class MainWindow : Window
 
     public void SetCursorHidden(bool hide)
     {
-        if (_isCursorHidden == hide) return;
-
-        if (hide)
-        {
-            var settingsService = App.GetService<Services.ILocalStorageService>();
-            if (settingsService?.CurrentSettings?.AutoHideCursor == false)
-            {
-                return;
-            }
-
-            if (!IsWindowActive)
-            {
-                return;
-            }
-
-            _isCursorHidden = true;
-            Helpers.CursorHelper.HideGlobalCursor();
-
-            var blank = Helpers.CursorHelper.GetBlankInputCursor();
-            Helpers.CursorHelper.SetElementCursor(PlayerOverlayContainer, blank);
-            PlayerViewControl?.SetCursorHidden(true);
-
-            EnsureChildWindowsSubclassed();
-
-            IntPtr blankH = Helpers.CursorHelper.GetBlankHCursor();
-            if (blankH != IntPtr.Zero && IsPlayerVisible && IsWindowActive)
-            {
-                SetCursor(blankH);
-            }
-
-            try
-            {
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-                SendMessage(hwnd, WM_SETCURSOR, hwnd, (IntPtr)1);
-                EnumChildWindows(hwnd, (childHwnd, lParam) =>
-                {
-                    SendMessage(childHwnd, WM_SETCURSOR, childHwnd, (IntPtr)1);
-                    return true;
-                }, IntPtr.Zero);
-            }
-            catch { }
-        }
-        else
+        if (!hide)
         {
             _isCursorHidden = false;
             Helpers.CursorHelper.RestoreGlobalCursor();
@@ -594,7 +556,48 @@ public sealed partial class MainWindow : Window
                 }, IntPtr.Zero);
             }
             catch { }
+            return;
         }
+
+        if (_isCursorHidden) return;
+
+        var settingsService = App.GetService<Services.ILocalStorageService>();
+        if (settingsService?.CurrentSettings?.AutoHideCursor == false)
+        {
+            return;
+        }
+
+        if (!IsWindowActive)
+        {
+            return;
+        }
+
+        _isCursorHidden = true;
+        Helpers.CursorHelper.HideGlobalCursor();
+
+        var blank = Helpers.CursorHelper.GetBlankInputCursor();
+        Helpers.CursorHelper.SetElementCursor(PlayerOverlayContainer, blank);
+        PlayerViewControl?.SetCursorHidden(true);
+
+        EnsureChildWindowsSubclassed();
+
+        IntPtr blankH = Helpers.CursorHelper.GetBlankHCursor();
+        if (blankH != IntPtr.Zero && IsPlayerVisible && IsWindowActive)
+        {
+            SetCursor(blankH);
+        }
+
+        try
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            SendMessage(hwnd, WM_SETCURSOR, hwnd, (IntPtr)1);
+            EnumChildWindows(hwnd, (childHwnd, lParam) =>
+            {
+                SendMessage(childHwnd, WM_SETCURSOR, childHwnd, (IntPtr)1);
+                return true;
+            }, IntPtr.Zero);
+        }
+        catch { }
     }
 
     public void SetCaptionControlsVisible(bool visible)
@@ -744,16 +747,17 @@ public sealed partial class MainWindow : Window
     private IntPtr WindowSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, nuint uIdSubclass, nuint dwRefData)
     {
         if ((uMsg == WM_ACTIVATE && (wParam.ToInt64() & 0xFFFF) == WA_INACTIVE) ||
+            (uMsg == WM_ACTIVATEAPP && wParam == IntPtr.Zero) ||
             uMsg == WM_KILLFOCUS ||
-            (uMsg == WM_NCACTIVATE && wParam == IntPtr.Zero))
+            (uMsg == WM_NCACTIVATE && wParam == IntPtr.Zero) ||
+            (uMsg == WM_SIZE && wParam.ToInt64() == SIZE_MINIMIZED) ||
+            uMsg == WM_DESTROY)
         {
             _isWindowActive = false;
-            if (_isCursorHidden)
-            {
-                SetCursorHidden(false);
-            }
+            SetCursorHidden(false);
         }
-        else if (uMsg == WM_ACTIVATE && (wParam.ToInt64() & 0xFFFF) != WA_INACTIVE)
+        else if ((uMsg == WM_ACTIVATE && (wParam.ToInt64() & 0xFFFF) != WA_INACTIVE) ||
+                 (uMsg == WM_ACTIVATEAPP && wParam != IntPtr.Zero))
         {
             _isWindowActive = true;
         }

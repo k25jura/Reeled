@@ -110,6 +110,29 @@ public static class CursorHelper
         lock (_syncLock)
         {
             if (_isGlobalHidden) return;
+            if (App.Window is MainWindow mw && !mw.IsWindowActive) return;
+
+            IntPtr blank = GetBlankHCursor();
+            if (blank == IntPtr.Zero) return;
+
+            IntPtr copyNormal = CopyIcon(blank);
+            if (copyNormal != IntPtr.Zero)
+            {
+                SetSystemCursor(copyNormal, OCR_NORMAL);
+            }
+
+            IntPtr copyHand = CopyIcon(blank);
+            if (copyHand != IntPtr.Zero)
+            {
+                SetSystemCursor(copyHand, OCR_HAND);
+            }
+
+            IntPtr copyIBeam = CopyIcon(blank);
+            if (copyIBeam != IntPtr.Zero)
+            {
+                SetSystemCursor(copyIBeam, OCR_IBEAM);
+            }
+
             _isGlobalHidden = true;
         }
     }

@@ -72,7 +72,8 @@ public sealed partial class SettingsPage : Page
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
                 _isInitializing = false;
-                SetActiveCategory("FoldersSection", animate: false);
+                string targetCategory = string.IsNullOrEmpty(_activeSectionTag) ? "FoldersSection" : _activeSectionTag;
+                SetActiveCategory(targetCategory, animate: false);
                 UpdateTitleBarDragArea();
             });
         };

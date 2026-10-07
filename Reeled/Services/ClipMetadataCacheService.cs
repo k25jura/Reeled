@@ -34,7 +34,7 @@ public class ClipMetadataCacheService : IClipMetadataCacheService
             if (File.Exists(_cacheFilePath))
             {
                 string json = File.ReadAllText(_cacheFilePath);
-                var items = JsonSerializer.Deserialize<List<CachedClipMetadata>>(json);
+                var items = JsonSerializer.Deserialize(json, AppJsonSerializerContext.Default.ListCachedClipMetadata);
                 if (items != null)
                 {
                     foreach (var item in items)
@@ -93,7 +93,7 @@ public class ClipMetadataCacheService : IClipMetadataCacheService
             if (!_isDirty) return;
 
             var list = new List<CachedClipMetadata>(_cache.Values);
-            string json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = false });
+            string json = JsonSerializer.Serialize(list, AppJsonSerializerContext.Default.ListCachedClipMetadata);
             string tempFile = _cacheFilePath + ".tmp";
             await File.WriteAllTextAsync(tempFile, json);
             File.Move(tempFile, _cacheFilePath, overwrite: true);

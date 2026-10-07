@@ -75,7 +75,7 @@ public class LocalizationService : ILocalizationService
                     try
                     {
                         string json = File.ReadAllText(file);
-                        var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+                        var dict = JsonSerializer.Deserialize(json, AppJsonSerializerContext.Default.DictionaryStringString);
                         if (dict != null)
                         {
                             string langCode = Path.GetFileNameWithoutExtension(file);

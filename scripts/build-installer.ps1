@@ -35,7 +35,17 @@ if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to publish Reeled application binaries."
 }
 
-Write-Host "`n[2/4] Compressing published payload into payload.zip..." -ForegroundColor Yellow
+Write-Host "`n[2/4] Pruning unused architectures and compressing payload into payload.zip..." -ForegroundColor Yellow
+
+# Prune redundant 32-bit and ARM64 LibVLC binaries from win-x64 build (saves ~180MB uncompressed)
+$vlcArm64 = Join-Path $PublishDir "libvlc\win-arm64"
+$vlcX86 = Join-Path $PublishDir "libvlc\win-x86"
+if (Test-Path $vlcArm64) { Remove-Item $vlcArm64 -Recurse -Force }
+if (Test-Path $vlcX86) { Remove-Item $vlcX86 -Recurse -Force }
+
+# Remove debug symbol files (.pdb) from release payload
+Get-ChildItem -Path $PublishDir -Filter "*.pdb" -Recurse | Remove-Item -Force
+
 if (Test-Path $PayloadZip) { Remove-Item $PayloadZip -Force }
 
 # Use .NET ZipFile for fast and optimal compression

@@ -89,7 +89,16 @@
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
-    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+    <PublishTrimmed>False</PublishTrimmed>
   </PropertyGroup>
+
+  <!-- Ensure unpackaged WinUI 3 compiled XAML binaries and PRI files are included in PublishDir -->
+  <Target Name="CopyWinUIXamlResourcesToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_XamlResources Include="$(TargetDir)**\*.xbf" />
+      <_PriFiles Include="$(TargetDir)*.pri" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_XamlResources)" DestinationFolder="$(PublishDir)%(RecursiveDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_PriFiles)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

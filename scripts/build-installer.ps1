@@ -42,8 +42,38 @@ $vlcX86 = Join-Path $PublishDir "libvlc\win-x86"
 if (Test-Path $vlcArm64) { Remove-Item $vlcArm64 -Recurse -Force }
 if (Test-Path $vlcX86) { Remove-Item $vlcX86 -Recurse -Force }
 
-# Remove debug symbol files (.pdb) from release payload
-Get-ChildItem -Path $PublishDir -Filter "*.pdb" -Recurse | Remove-Item -Force
+# Ensure all WinUI 3 XBF compiled files and PRI resource indexes are included in publish dir
+$PossibleBinDirs = @(
+    (Join-Path $RootDir "Reeled\bin\$Configuration\net8.0-windows10.0.26100.0\win-x64"),
+    (Join-Path $RootDir "Reeled\bin\x64\$Configuration\net8.0-windows10.0.26100.0\win-x64")
+)
+foreach ($bd in $PossibleBinDirs) {
+    if (Test-Path $bd) {
+        Write-Host "Verifying WinUI 3 compiled XAML resources and PRI indexes from $bd..." -ForegroundColor Cyan
+        Get-ChildItem -Path $bd -Include "*.xbf" -Recurse | Where-Object { $_.FullName -notlike "*\publish\*" } | ForEach-Object {
+            $rel = [System.IO.Path]::GetRelativePath($bd, $_.FullName)
+            $dest = Join-Path $PublishDir $rel
+            $destDir = Split-Path -Parent $dest
+            if (!(Test-Path $destDir)) { New-Item -ItemType Directory -Force -Path $destDir | Out-Null }
+            Copy-Item -Path $_.FullName -Destination $dest -Force
+        }
+        Get-ChildItem -Path $bd -Filter "*.pri" | Where-Object { $_.FullName -notlike "*\publish\*" } | ForEach-Object {
+            $dest = Join-Path $PublishDir $_.Name
+            Copy-Item -Path $_.FullName -Destination $dest -Force
+        }
+    }
+}
+
+# Remove any accidental nested publish folder
+$nestedPub = Join-Path $PublishDir "publish"
+if (Test-Path $nestedPub) { Remove-Item $nestedPub -Recurse -Force }
+
+# Verify critical files exist in payload
+$AppXbf = Join-Path $PublishDir "App.xbf"
+$ReeledPri = Join-Path $PublishDir "Reeled.pri"
+if (!(Test-Path $AppXbf) -or !(Test-Path $ReeledPri)) {
+    Write-Error "CRITICAL: WinUI 3 App.xbf or Reeled.pri was not found in $PublishDir! Build cannot proceed."
+}
 
 if (Test-Path $PayloadZip) { Remove-Item $PayloadZip -Force }
 

@@ -37,6 +37,7 @@
   "Installing_Status_Downloading": "Завантаження файлів програми... ({0:0.#} МБ / {1:0.#} МБ)",
   "Installing_Status_DownloadingWithSpeed": "Завантаження... {0:0.#} МБ / {1:0.#} МБ ({2:0.#} МБ/с)",
   "Installing_Status_DownloadFailed": "Не вдалося завантажити файли встановлення. Будь ласка, перевірте підключення до інтернету.",
+  "Installing_Status_DownloadNotFound": "Файли встановлення не знайдено на GitHub (404). Будь ласка, помістіть payload.zip у ту саму папку, де знаходиться ReeledSetup.exe, або опублікуйте реліз на GitHub.",
   "Installing_Status_Extracting": "Розпакування файлів... ({0}/{1})",
   "Installing_Status_Shortcuts": "Створення ярликів програми...",
   "Installing_Status_Registering": "Реєстрація можливостей Windows та контекстного меню...",

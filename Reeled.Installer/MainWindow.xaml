@@ -285,11 +285,13 @@
                     <Grid x:Name="InstallingStepPanel" Visibility="Collapsed" VerticalAlignment="Center" Margin="0,40,0,0">
                         <StackPanel Spacing="16">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
-                                <ProgressRing IsActive="True" Width="24" Height="24" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                                <ProgressRing x:Name="InstallProgressRing" IsActive="True" Width="24" Height="24" Foreground="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" />
                                 <TextBlock x:Name="InstallingStatusText" 
                                            Text="Preparing installation..." 
                                            FontSize="13" 
                                            VerticalAlignment="Center" 
+                                           TextWrapping="Wrap"
+                                           MaxWidth="460"
                                            Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
                             </StackPanel>
 

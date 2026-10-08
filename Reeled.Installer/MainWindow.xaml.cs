@@ -62,6 +62,7 @@ public sealed partial class MainWindow : Window
         {
             _appWindow.Title = _loc["Installer_Title"];
             _appWindow.Resize(new SizeInt32(800, 560));
+            CenterWindowOnScreen(800, 560);
 
             string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "AppIcon.ico");
             if (File.Exists(iconPath))
@@ -87,6 +88,24 @@ public sealed partial class MainWindow : Window
         // Default path
         InstallPathTextBox.Text = _installService.DefaultInstallDirectory;
         UpdateDiskSpace();
+    }
+
+    private void CenterWindowOnScreen(int width, int height)
+    {
+        if (_appWindow == null) return;
+
+        try
+        {
+            var displayArea = DisplayArea.GetFromWindowId(_appWindow.Id, DisplayAreaFallback.Nearest);
+            if (displayArea != null)
+            {
+                var workArea = displayArea.WorkArea;
+                int x = workArea.X + Math.Max(0, (workArea.Width - width) / 2);
+                int y = workArea.Y + Math.Max(0, (workArea.Height - height) / 2);
+                _appWindow.Move(new PointInt32(x, y));
+            }
+        }
+        catch { }
     }
 
     private void UpdateTitleBarTheme(ElementTheme actualTheme)
@@ -454,6 +473,7 @@ public sealed partial class MainWindow : Window
         bool videoAssoc = VideoAssociationCheckBox.IsChecked ?? true;
 
         _installCts = new CancellationTokenSource();
+        InstallProgressRing.IsActive = true;
         var progress = new Progress<InstallProgress>(p =>
         {
             InstallProgressBar.Value = p.Percentage;
@@ -474,8 +494,11 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            InstallingStatusText.Text = $"Error: {ex.Message}";
+            InstallProgressRing.IsActive = false;
+            InstallingStatusText.Text = ex.Message;
             CancelButton.IsEnabled = true;
+            BackButton.IsEnabled = true;
+            BackButton.Visibility = Visibility.Visible;
         }
     }
 

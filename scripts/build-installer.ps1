@@ -73,12 +73,32 @@ if (!(Test-Path $SetupExe)) {
     Write-Error "ReeledSetup.exe was not found in $InstallerPublishDir"
 }
 
-Write-Host "`n[4/4] Finalizing release artifacts..." -ForegroundColor Yellow
+Write-Host "`n[4/5] Signing installer binaries (Authenticode)..." -ForegroundColor Yellow
 $FinalSetupExe = Join-Path $ArtifactsDir "ReeledSetup.exe"
 $VersionedSetupExe = Join-Path $ArtifactsDir "ReeledSetup-v$Version.exe"
 
 Copy-Item $SetupExe $FinalSetupExe -Force
 Copy-Item $SetupExe $VersionedSetupExe -Force
+
+try {
+    $CertSubject = "CN=k25jura, O=k25jura"
+    $Cert = Get-ChildItem -Path Cert:\CurrentUser\My -CodeSigningCert | Where-Object { $_.Subject -like "*$CertSubject*" } | Select-Object -First 1
+
+    if (-not $Cert) {
+        Write-Host "Creating local code signing certificate for $CertSubject..." -ForegroundColor Cyan
+        $Cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $CertSubject -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(5)
+    }
+
+    if ($Cert) {
+        Write-Host "Signing binaries with certificate $($Cert.Thumbprint)..." -ForegroundColor Green
+        Set-AuthenticodeSignature -FilePath $FinalSetupExe -Certificate $Cert -HashAlgorithm SHA256 -TimestampServer "http://timestamp.digicert.com" | Out-Null
+        Set-AuthenticodeSignature -FilePath $VersionedSetupExe -Certificate $Cert -HashAlgorithm SHA256 -TimestampServer "http://timestamp.digicert.com" | Out-Null
+    }
+} catch {
+    Write-Warning "Code signing warning: $_"
+}
+
+Write-Host "`n[5/5] Finalizing release artifacts..." -ForegroundColor Yellow
 
 $SetupSizeMB = [math]::Round((Get-Item $FinalSetupExe).Length / 1MB, 2)
 $Hash = (Get-FileHash -Path $FinalSetupExe -Algorithm SHA256).Hash

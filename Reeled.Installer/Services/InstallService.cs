@@ -160,6 +160,12 @@ public class InstallService
         CancellationToken cancellationToken)
     {
         using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            throw new FileNotFoundException(
+                loc["Installing_Status_DownloadNotFound"] ?? 
+                "Installation package not found on GitHub (404). Please place payload.zip in the same folder as ReeledSetup.exe or ensure the GitHub Release is published.");
+        }
         response.EnsureSuccessStatusCode();
 
         long? totalBytes = response.Content.Headers.ContentLength;
@@ -208,15 +214,34 @@ public class InstallService
 
     private string? GetLocalPayloadPath()
     {
-        // 1. Same directory as ReeledSetup.exe
-        string localPayload = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "payload.zip");
-        if (File.Exists(localPayload)) return localPayload;
+        // 1. Check directory where current executable is located (Environment.ProcessPath)
+        string? exePath = Environment.ProcessPath;
+        if (!string.IsNullOrEmpty(exePath))
+        {
+            string? exeDir = Path.GetDirectoryName(exePath);
+            if (!string.IsNullOrEmpty(exeDir))
+            {
+                string p = Path.Combine(exeDir, "payload.zip");
+                if (File.Exists(p)) return p;
 
-        // 2. Resources subfolder
+                string parentPayload = Path.Combine(exeDir, "..", "payload.zip");
+                if (File.Exists(parentPayload)) return parentPayload;
+            }
+        }
+
+        // 2. Base directory of AppDomain
+        string b1 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "payload.zip");
+        if (File.Exists(b1)) return b1;
+
+        // 3. Current working directory
+        string b2 = Path.Combine(Environment.CurrentDirectory, "payload.zip");
+        if (File.Exists(b2)) return b2;
+
+        // 4. Resources subfolder
         string resPayload = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "payload.zip");
         if (File.Exists(resPayload)) return resPayload;
 
-        // 3. Parent artifacts folder (for dev / local builds)
+        // 5. Parent artifacts folder (for dev / local builds)
         string devPayload = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "artifacts", "payload.zip");
         if (File.Exists(devPayload)) return devPayload;
 

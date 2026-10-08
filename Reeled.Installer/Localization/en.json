@@ -37,6 +37,7 @@
   "Installing_Status_Downloading": "Downloading application files... ({0:0.#} MB / {1:0.#} MB)",
   "Installing_Status_DownloadingWithSpeed": "Downloading... {0:0.#} MB / {1:0.#} MB ({2:0.#} MB/s)",
   "Installing_Status_DownloadFailed": "Failed to download installation files. Please check your internet connection.",
+  "Installing_Status_DownloadNotFound": "Installation package not found on GitHub (404). Please place payload.zip in the same folder as ReeledSetup.exe or ensure the GitHub Release is published.",
   "Installing_Status_Extracting": "Extracting files... ({0}/{1})",
   "Installing_Status_Shortcuts": "Creating application shortcuts...",
   "Installing_Status_Registering": "Registering Windows capabilities and context menu...",

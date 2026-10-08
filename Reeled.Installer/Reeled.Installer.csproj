@@ -49,10 +49,8 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
-    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
-    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">False</PublishTrimmed>
+    <PublishReadyToRun>False</PublishReadyToRun>
+    <PublishTrimmed>False</PublishTrimmed>
     <PublishSingleFile Condition="'$(Configuration)' != 'Debug'">True</PublishSingleFile>
     <SelfContained Condition="'$(Configuration)' != 'Debug'">True</SelfContained>
     <IncludeNativeLibrariesForSelfExtract Condition="'$(Configuration)' != 'Debug'">True</IncludeNativeLibrariesForSelfExtract>

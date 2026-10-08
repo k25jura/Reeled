@@ -18,10 +18,12 @@ public partial class App : Application
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
         string[] cmdArgs = Environment.GetCommandLineArgs();
+        string currentExeName = System.IO.Path.GetFileNameWithoutExtension(Environment.ProcessPath ?? "");
         IsUninstallMode = cmdArgs.Any(a => string.Equals(a, "/uninstall", StringComparison.OrdinalIgnoreCase) ||
                                            string.Equals(a, "-uninstall", StringComparison.OrdinalIgnoreCase) ||
                                            string.Equals(a, "--uninstall", StringComparison.OrdinalIgnoreCase) ||
-                                           string.Equals(a, "/u", StringComparison.OrdinalIgnoreCase));
+                                           string.Equals(a, "/u", StringComparison.OrdinalIgnoreCase)) ||
+                          string.Equals(currentExeName, "uninstall", StringComparison.OrdinalIgnoreCase);
 
         bool isSilent = cmdArgs.Any(a => string.Equals(a, "/silent", StringComparison.OrdinalIgnoreCase) ||
                                          string.Equals(a, "-silent", StringComparison.OrdinalIgnoreCase) ||

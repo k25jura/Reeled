@@ -115,15 +115,23 @@ public class InstallService
                     progress.Report(new InstallProgress(pct, statusMsg));
                 }
 
-                // Copy installer as ReeledSetup.exe
+                // Copy installer as both Uninstall.exe and ReeledSetup.exe for redundancy
                 progress.Report(new InstallProgress(88, loc["Installing_Status_Shortcuts"]));
                 string currentExe = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
+                string uninstallTarget = Path.Combine(destinationDir, "Uninstall.exe");
                 string setupTarget = Path.Combine(destinationDir, "ReeledSetup.exe");
                 if (!string.IsNullOrEmpty(currentExe) && File.Exists(currentExe))
                 {
                     try
                     {
-                        File.Copy(currentExe, setupTarget, overwrite: true);
+                        if (!File.Exists(uninstallTarget))
+                        {
+                            File.Copy(currentExe, uninstallTarget, overwrite: true);
+                        }
+                        if (!File.Exists(setupTarget))
+                        {
+                            File.Copy(currentExe, setupTarget, overwrite: true);
+                        }
                     }
                     catch { }
                 }

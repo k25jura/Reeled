@@ -42,6 +42,13 @@ $vlcX86 = Join-Path $PublishDir "libvlc\win-x86"
 if (Test-Path $vlcArm64) { Remove-Item $vlcArm64 -Recurse -Force }
 if (Test-Path $vlcX86) { Remove-Item $vlcX86 -Recurse -Force }
 
+# Copy Assets directly to PublishDir so all SVG/PNG/ICO/fonts are included
+$AssetsSource = Join-Path $RootDir "Reeled\Assets"
+if (Test-Path $AssetsSource) {
+    Write-Host "Copying application assets from $AssetsSource..." -ForegroundColor Cyan
+    Copy-Item -Path $AssetsSource -Destination $PublishDir -Recurse -Force
+}
+
 # Ensure all WinUI 3 XBF compiled files and PRI resource indexes are included in publish dir
 $PossibleBinDirs = @(
     (Join-Path $RootDir "Reeled\bin\$Configuration\net8.0-windows10.0.26100.0\win-x64"),
@@ -68,39 +75,6 @@ foreach ($bd in $PossibleBinDirs) {
 $nestedPub = Join-Path $PublishDir "publish"
 if (Test-Path $nestedPub) { Remove-Item $nestedPub -Recurse -Force }
 
-# Compile lightweight native Uninstall forwarder
-$LauncherSource = Join-Path $RootDir "scripts\UninstallLauncher.cs"
-$IconPath = Join-Path $RootDir "Reeled\Assets\AppIcon.ico"
-$UninstallExe = Join-Path $PublishDir "Uninstall.exe"
-$CscPath = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-if (-not (Test-Path $CscPath)) {
-    $CscPath = "$env:WINDIR\Microsoft.NET\Framework\v4.0.30319\csc.exe"
-}
-if ((Test-Path $CscPath) -and (Test-Path $LauncherSource)) {
-    Write-Host "Compiling native Uninstall forwarder with $CscPath..." -ForegroundColor Cyan
-    & $CscPath /nologo /target:winexe /out:"$UninstallExe" /win32icon:"$IconPath" "$LauncherSource"
-}
-
-# Sign application binaries in payload if certificate is available
-try {
-    $CertSubject = "CN=k25jura, O=k25jura"
-    $Cert = Get-ChildItem -Path Cert:\CurrentUser\My -CodeSigningCert | Where-Object { $_.Subject -like "*$CertSubject*" } | Select-Object -First 1
-    if (-not $Cert) {
-        $Cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $CertSubject -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(5)
-    }
-    if ($Cert) {
-        $ReeledExeInPub = Join-Path $PublishDir "Reeled.exe"
-        if (Test-Path $ReeledExeInPub) {
-            Set-AuthenticodeSignature -FilePath $ReeledExeInPub -Certificate $Cert -HashAlgorithm SHA256 -TimestampServer "http://timestamp.digicert.com" | Out-Null
-        }
-        if (Test-Path $UninstallExe) {
-            Set-AuthenticodeSignature -FilePath $UninstallExe -Certificate $Cert -HashAlgorithm SHA256 -TimestampServer "http://timestamp.digicert.com" | Out-Null
-        }
-    }
-} catch {
-    Write-Warning "Payload binary signing warning: $_"
-}
-
 # Verify critical files exist in payload
 $AppXbf = Join-Path $PublishDir "App.xbf"
 $ReeledPri = Join-Path $PublishDir "Reeled.pri"
@@ -108,16 +82,7 @@ if (!(Test-Path $AppXbf) -or !(Test-Path $ReeledPri)) {
     Write-Error "CRITICAL: WinUI 3 App.xbf or Reeled.pri was not found in $PublishDir! Build cannot proceed."
 }
 
-if (Test-Path $PayloadZip) { Remove-Item $PayloadZip -Force }
-
-# Use .NET ZipFile for fast and optimal compression
-[System.Reflection.Assembly]::LoadWithPartialName("System.IO.Compression.FileSystem") | Out-Null
-[System.IO.Compression.ZipFile]::CreateFromDirectory($PublishDir, $PayloadZip, [System.IO.Compression.CompressionLevel]::Optimal, $false)
-
-$PayloadSizeMB = [math]::Round((Get-Item $PayloadZip).Length / 1MB, 2)
-Write-Host "Payload archive created: $PayloadZip ($PayloadSizeMB MB)" -ForegroundColor Green
-
-Write-Host "`n[3/4] Publishing Reeled.Installer (ReeledSetup.exe)..." -ForegroundColor Yellow
+Write-Host "`n[3/5] Publishing Reeled.Installer (ReeledSetup.exe & Uninstall.exe)..." -ForegroundColor Yellow
 dotnet publish "$RootDir\Reeled.Installer\Reeled.Installer.csproj" `
     -c $Configuration `
     -r win-x64 `
@@ -125,6 +90,8 @@ dotnet publish "$RootDir\Reeled.Installer\Reeled.Installer.csproj" `
     -p:PublishSingleFile=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:EnableCompressionInSingleFile=true `
+    -p:PublishReadyToRun=false `
+    -p:AssemblyName=ReeledSetup `
     -o $InstallerPublishDir
 
 if ($LASTEXITCODE -ne 0) {
@@ -136,7 +103,26 @@ if (!(Test-Path $SetupExe)) {
     Write-Error "ReeledSetup.exe was not found in $InstallerPublishDir"
 }
 
-Write-Host "`n[4/5] Signing installer binaries (Authenticode)..." -ForegroundColor Yellow
+# Publish Uninstall.exe as dedicated WinUI 3 uninstaller executable
+$UninstallTempDir = Join-Path $ArtifactsDir "uninstall_build"
+if (Test-Path $UninstallTempDir) { Remove-Item $UninstallTempDir -Recurse -Force }
+dotnet publish "$RootDir\Reeled.Installer\Reeled.Installer.csproj" `
+    -c $Configuration `
+    -r win-x64 `
+    --self-contained true `
+    -p:PublishSingleFile=true `
+    -p:IncludeNativeLibrariesForSelfExtract=true `
+    -p:EnableCompressionInSingleFile=true `
+    -p:PublishReadyToRun=false `
+    -p:AssemblyName=Uninstall `
+    -o $UninstallTempDir
+
+$BuiltUninstallExe = Join-Path $UninstallTempDir "Uninstall.exe"
+if (Test-Path $BuiltUninstallExe) {
+    Copy-Item $BuiltUninstallExe (Join-Path $PublishDir "Uninstall.exe") -Force
+}
+
+Write-Host "`n[4/5] Signing installer and application binaries (Authenticode)..." -ForegroundColor Yellow
 $FinalSetupExe = Join-Path $ArtifactsDir "ReeledSetup.exe"
 $VersionedSetupExe = Join-Path $ArtifactsDir "ReeledSetup-v$Version.exe"
 
@@ -156,10 +142,31 @@ try {
         Write-Host "Signing binaries with certificate $($Cert.Thumbprint)..." -ForegroundColor Green
         Set-AuthenticodeSignature -FilePath $FinalSetupExe -Certificate $Cert -HashAlgorithm SHA256 -TimestampServer "http://timestamp.digicert.com" | Out-Null
         Set-AuthenticodeSignature -FilePath $VersionedSetupExe -Certificate $Cert -HashAlgorithm SHA256 -TimestampServer "http://timestamp.digicert.com" | Out-Null
+
+        $ReeledExeInPub = Join-Path $PublishDir "Reeled.exe"
+        if (Test-Path $ReeledExeInPub) {
+            Set-AuthenticodeSignature -FilePath $ReeledExeInPub -Certificate $Cert -HashAlgorithm SHA256 -TimestampServer "http://timestamp.digicert.com" | Out-Null
+        }
+        $UninstallExeInPub = Join-Path $PublishDir "Uninstall.exe"
+        if (Test-Path $UninstallExeInPub) {
+            Set-AuthenticodeSignature -FilePath $UninstallExeInPub -Certificate $Cert -HashAlgorithm SHA256 -TimestampServer "http://timestamp.digicert.com" | Out-Null
+        }
     }
 } catch {
     Write-Warning "Code signing warning: $_"
 }
+
+Write-Host "`n[5/5] Compressing payload archive into payload.zip..." -ForegroundColor Yellow
+if (Test-Path $PayloadZip) { Remove-Item $PayloadZip -Force }
+
+# Use .NET ZipFile for fast and optimal compression
+[System.Reflection.Assembly]::LoadWithPartialName("System.IO.Compression.FileSystem") | Out-Null
+[System.IO.Compression.ZipFile]::CreateFromDirectory($PublishDir, $PayloadZip, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+
+$PayloadSizeMB = [math]::Round((Get-Item $PayloadZip).Length / 1MB, 2)
+Write-Host "Payload archive created: $PayloadZip ($PayloadSizeMB MB)" -ForegroundColor Green
+
+
 
 Write-Host "`n[5/5] Finalizing release artifacts..." -ForegroundColor Yellow
 

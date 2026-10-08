@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Reeled.Services;
@@ -74,8 +77,16 @@ public partial class App : Application
         return services.BuildServiceProvider();
     }
 
-    protected override void OnLaunched(LaunchActivatedEventArgs args)
+    protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
+        var videoFiles = ParseVideoFileArguments(args);
+        if (!SingleInstanceService.TryRegisterSingleInstance(videoFiles))
+        {
+            // Another instance is already running and was notified via IPC
+            Environment.Exit(0);
+            return;
+        }
+
         Helpers.CursorHelper.RestoreGlobalCursor();
         Window = new MainWindow();
         DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
@@ -84,6 +95,48 @@ public partial class App : Application
         loc.SetLanguage(storage.CurrentSettings.Language ?? "System");
         ApplyTheme(storage.CurrentSettings.AppTheme);
         Window.Activate();
+
+        if (videoFiles.Count > 0)
+        {
+            var nav = GetService<INavigationService>();
+            await nav.OpenVideoFilesAsync(videoFiles);
+        }
+    }
+
+    private static List<string> ParseVideoFileArguments(LaunchActivatedEventArgs args)
+    {
+        var result = new List<string>();
+        try
+        {
+            var cmdArgs = Environment.GetCommandLineArgs();
+            if (cmdArgs.Length > 1)
+            {
+                foreach (var arg in cmdArgs.Skip(1))
+                {
+                    var clean = arg.Trim('"', '\'', ' ');
+                    if (File.Exists(clean) && NavigationService.IsVideoFilePath(clean))
+                    {
+                        result.Add(clean);
+                    }
+                }
+            }
+        }
+        catch { }
+
+        if (result.Count == 0 && !string.IsNullOrWhiteSpace(args.Arguments))
+        {
+            try
+            {
+                var clean = args.Arguments.Trim('"', '\'', ' ');
+                if (File.Exists(clean) && NavigationService.IsVideoFilePath(clean))
+                {
+                    result.Add(clean);
+                }
+            }
+            catch { }
+        }
+
+        return result;
     }
 
     public static bool IsWindowsInLightTheme()

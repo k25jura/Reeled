@@ -156,7 +156,7 @@ public class SystemIntegrationService
         string exePath = Path.Combine(installDir, "Reeled.exe");
         string setupExe = Path.Combine(installDir, "ReeledSetup.exe");
         string uninstallExe = Path.Combine(installDir, "Uninstall.exe");
-        string cmdTarget = File.Exists(setupExe) ? setupExe : (File.Exists(uninstallExe) ? uninstallExe : setupExe);
+        string cmdTarget = File.Exists(uninstallExe) ? uninstallExe : (File.Exists(setupExe) ? setupExe : uninstallExe);
 
         try
         {

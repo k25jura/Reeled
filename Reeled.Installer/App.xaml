@@ -45,6 +45,8 @@
 
                             <Color x:Key="TextFillColorTertiary">#666666</Color>
                             <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
+
+                            <FontFamily x:Key="ContentControlThemeFontFamily">Century Gothic, Segoe UI Variable, Segoe UI, sans-serif</FontFamily>
                         </ResourceDictionary>
 
                         <ResourceDictionary x:Key="Light">
@@ -82,26 +84,35 @@
 
                             <Color x:Key="TextFillColorTertiary">#8A8A8E</Color>
                             <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
+
+                            <FontFamily x:Key="ContentControlThemeFontFamily">Century Gothic, Segoe UI Variable, Segoe UI, sans-serif</FontFamily>
                         </ResourceDictionary>
                     </ResourceDictionary.ThemeDictionaries>
                 </ResourceDictionary>
             </ResourceDictionary.MergedDictionaries>
 
+            <!-- Global font and corner radii -->
             <FontFamily x:Key="AppFontFamily">Century Gothic, Segoe UI Variable, Segoe UI, sans-serif</FontFamily>
+            <FontFamily x:Key="ContentControlThemeFontFamily">Century Gothic, Segoe UI Variable, Segoe UI, sans-serif</FontFamily>
+
+            <CornerRadius x:Key="ControlCornerRadius">6</CornerRadius>
+            <CornerRadius x:Key="OverlayCornerRadius">8</CornerRadius>
+
+            <!-- Text typography styles with Century Gothic -->
             <Style TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
             </Style>
-            <Style TargetType="Button">
+
+            <Style x:Key="BodyStrongTextBlockStyle" TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="FontSize" Value="13.5" />
             </Style>
-            <Style TargetType="CheckBox">
+
+            <Style x:Key="CaptionTextBlockStyle" TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
-            </Style>
-            <Style TargetType="TextBox">
-                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
-            </Style>
-            <Style TargetType="ComboBox">
-                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="FontWeight" Value="Normal" />
+                <Setter Property="FontSize" Value="12" />
             </Style>
         </ResourceDictionary>
     </Application.Resources>

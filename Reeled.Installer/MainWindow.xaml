@@ -13,6 +13,16 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
+        <!-- Custom TitleBar drag region (extends across top, leaving right 140px for OS caption buttons) -->
+        <Border x:Name="AppTitleBar" 
+                Grid.ColumnSpan="2"
+                Height="36" 
+                VerticalAlignment="Top" 
+                HorizontalAlignment="Stretch" 
+                Background="Transparent" 
+                Margin="0,0,140,0" 
+                Canvas.ZIndex="10" />
+
         <!-- 1. LEFT HERO BANNER -->
         <Border Grid.Column="0" 
                 Background="{ThemeResource BannerBackgroundBrush}" 
@@ -26,7 +36,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- Branding Header -->
-                <StackPanel Grid.Row="0" Margin="24,28,24,20" Spacing="10">
+                <StackPanel Grid.Row="0" Margin="24,36,24,20" Spacing="10">
                     <Image Source="ms-appx:///Assets/reeled.png" 
                            Width="44" Height="44" 
                            HorizontalAlignment="Left" />
@@ -43,56 +53,69 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Pure Text Step Indicators (No Pill Backgrounds) -->
-                <StackPanel Grid.Row="1" Margin="16,8,16,0" Spacing="4">
-                    <!-- Step 1: Welcome -->
-                    <Grid x:Name="StepRow1" Padding="8,8" Background="Transparent">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="4" />
-                            <ColumnDefinition Width="24" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border x:Name="StepIndicator1" CornerRadius="2" Background="{ThemeResource TextFillColorPrimaryBrush}" Opacity="1" />
-                        <FontIcon x:Name="StepIcon1" Grid.Column="1" Glyph="&#xE80F;" FontSize="14" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                        <TextBlock x:Name="StepLabel1" Grid.Column="2" Text="Welcome" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" Margin="6,0,0,0" />
-                    </Grid>
+                <!-- Navigation Root with Sliding Active Handle Animation -->
+                <Grid x:Name="StepsNavRoot" Grid.Row="1" Margin="16,8,16,0" VerticalAlignment="Top">
+                    <!-- Sliding Active Selection Indicator Pill (Matching main page and settings sidebar) -->
+                    <Border x:Name="ActiveIndicatorPill"
+                            Width="3"
+                            Height="18"
+                            CornerRadius="1.5"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                            Opacity="0"
+                            IsHitTestVisible="False">
+                        <Border.RenderTransform>
+                            <TransformGroup>
+                                <TranslateTransform x:Name="IndicatorTranslation" Y="0" />
+                                <ScaleTransform x:Name="IndicatorScale" ScaleY="0" CenterY="9" />
+                            </TransformGroup>
+                        </Border.RenderTransform>
+                    </Border>
 
-                    <!-- Step 2: Options -->
-                    <Grid x:Name="StepRow2" Padding="8,8" Background="Transparent">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="4" />
-                            <ColumnDefinition Width="24" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border x:Name="StepIndicator2" CornerRadius="2" Background="{ThemeResource TextFillColorPrimaryBrush}" Opacity="0" />
-                        <FontIcon x:Name="StepIcon2" Grid.Column="1" Glyph="&#xE713;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                        <TextBlock x:Name="StepLabel2" Grid.Column="2" Text="Options" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="6,0,0,0" />
-                    </Grid>
+                    <!-- Steps Stack -->
+                    <StackPanel x:Name="StepsStackPanel" Spacing="4" Margin="10,0,0,0">
+                        <!-- Step 1: Welcome -->
+                        <Grid x:Name="StepRow1" Height="36" Padding="6,0" Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="24" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon x:Name="StepIcon1" Glyph="&#xE80F;" FontSize="15" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="StepLabel1" Grid.Column="1" Text="Welcome" FontSize="13" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        </Grid>
 
-                    <!-- Step 3: Installing -->
-                    <Grid x:Name="StepRow3" Padding="8,8" Background="Transparent">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="4" />
-                            <ColumnDefinition Width="24" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border x:Name="StepIndicator3" CornerRadius="2" Background="{ThemeResource TextFillColorPrimaryBrush}" Opacity="0" />
-                        <FontIcon x:Name="StepIcon3" Grid.Column="1" Glyph="&#xE896;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                        <TextBlock x:Name="StepLabel3" Grid.Column="2" Text="Installing" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="6,0,0,0" />
-                    </Grid>
+                        <!-- Step 2: Options -->
+                        <Grid x:Name="StepRow2" Height="36" Padding="6,0" Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="24" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon x:Name="StepIcon2" Glyph="&#xE713;" FontSize="15" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="StepLabel2" Grid.Column="1" Text="Options" FontSize="13" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        </Grid>
 
-                    <!-- Step 4: Finished -->
-                    <Grid x:Name="StepRow4" Padding="8,8" Background="Transparent">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="4" />
-                            <ColumnDefinition Width="24" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border x:Name="StepIndicator4" CornerRadius="2" Background="{ThemeResource TextFillColorPrimaryBrush}" Opacity="0" />
-                        <FontIcon x:Name="StepIcon4" Grid.Column="1" Glyph="&#xE73E;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                        <TextBlock x:Name="StepLabel4" Grid.Column="2" Text="Finished" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="6,0,0,0" />
-                    </Grid>
-                </StackPanel>
+                        <!-- Step 3: Installing -->
+                        <Grid x:Name="StepRow3" Height="36" Padding="6,0" Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="24" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon x:Name="StepIcon3" Glyph="&#xE896;" FontSize="15" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="StepLabel3" Grid.Column="1" Text="Installing" FontSize="13" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        </Grid>
+
+                        <!-- Step 4: Finished -->
+                        <Grid x:Name="StepRow4" Height="36" Padding="6,0" Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="24" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon x:Name="StepIcon4" Glyph="&#xE73E;" FontSize="15" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="StepLabel4" Grid.Column="1" Text="Finished" FontSize="13" Foreground="{ThemeResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        </Grid>
+                    </StackPanel>
+                </Grid>
 
                 <!-- Left Footer Note -->
                 <TextBlock Grid.Row="2" 
@@ -115,7 +138,7 @@
             </Grid.RowDefinitions>
 
             <!-- Step Header (Title & Subtitle + Theme Toggle in top-right) -->
-            <Grid Grid.Row="0" Margin="32,24,24,14">
+            <Grid Grid.Row="0" Margin="32,32,24,14">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -134,13 +157,14 @@
                                TextWrapping="Wrap" />
                 </StackPanel>
 
-                <!-- Theme Toggle Button (Displaced from sidebar to clean top-right location) -->
+                <!-- Theme Toggle Button -->
                 <Button x:Name="ThemeToggleButton" 
                         Grid.Column="1" 
                         Click="OnThemeToggleClicked" 
                         ToolTipService.ToolTip="Toggle Theme" 
                         Style="{ThemeResource SubtleButtonStyle}" 
                         Padding="6" 
+                        CornerRadius="6"
                         VerticalAlignment="Top" 
                         Margin="8,0,0,0">
                     <FontIcon x:Name="ThemeIcon" Glyph="&#xE708;" FontSize="14" />
@@ -159,68 +183,59 @@
 
                     <!-- STEP 1: WELCOME & ONBOARDING -->
                     <StackPanel x:Name="WelcomeStepPanel" Visibility="Visible" Spacing="10">
-                        <!-- Card 1: Library -->
-                        <Border Background="{ThemeResource CardBackgroundBrush}" 
-                                BorderBrush="{ThemeResource CardBorderBrush}" 
+                        <!-- Card 1: Library (Settings container style from main app, no icon background) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
                                 BorderThickness="1" 
                                 CornerRadius="8" 
-                                Padding="14,10">
-                            <Grid ColumnDefinitions="36,*">
-                                <Border Width="28" Height="28" 
-                                        Background="{ThemeResource LayerFillColorDefaultBrush}" 
-                                        BorderBrush="{ThemeResource CardBorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="6" 
-                                        VerticalAlignment="Center">
-                                    <FontIcon Glyph="&#xE8B7;" FontSize="14" Foreground="{ThemeResource TextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center" Margin="10,0,0,0">
-                                    <TextBlock x:Name="Feature1Title" Text="Library &amp; Folders" FontWeight="SemiBold" FontSize="13" />
-                                    <TextBlock x:Name="Feature1Desc" Text="Watches your recording folders and organizes clips with quick date filtering and search." FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                                Padding="16,12">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE8B7;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="Feature1Title" Text="Library &amp; Folders" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="13.5" />
+                                    <TextBlock x:Name="Feature1Desc" Text="Watches your recording folders and organizes clips with quick date filtering and search." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Grid>
                         </Border>
 
-                        <!-- Card 2: Player -->
-                        <Border Background="{ThemeResource CardBackgroundBrush}" 
-                                BorderBrush="{ThemeResource CardBorderBrush}" 
+                        <!-- Card 2: Player (Settings container style from main app, no icon background) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
                                 BorderThickness="1" 
                                 CornerRadius="8" 
-                                Padding="14,10">
-                            <Grid ColumnDefinitions="36,*">
-                                <Border Width="28" Height="28" 
-                                        Background="{ThemeResource LayerFillColorDefaultBrush}" 
-                                        BorderBrush="{ThemeResource CardBorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="6" 
-                                        VerticalAlignment="Center">
-                                    <FontIcon Glyph="&#xE768;" FontSize="14" Foreground="{ThemeResource TextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center" Margin="10,0,0,0">
-                                    <TextBlock x:Name="Feature2Title" Text="Direct3D11 Player" FontWeight="SemiBold" FontSize="13" />
-                                    <TextBlock x:Name="Feature2Desc" Text="Hardware-accelerated playback with timeline scrubbing, audio track mixing, and frame stepping." FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                                Padding="16,12">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE768;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="Feature2Title" Text="Direct3D11 Player" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="13.5" />
+                                    <TextBlock x:Name="Feature2Desc" Text="Hardware-accelerated playback with timeline scrubbing, audio track mixing, and frame stepping." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Grid>
                         </Border>
 
-                        <!-- Card 3: Moments -->
-                        <Border Background="{ThemeResource CardBackgroundBrush}" 
-                                BorderBrush="{ThemeResource CardBorderBrush}" 
+                        <!-- Card 3: Moments (Settings container style from main app, no icon background) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
                                 BorderThickness="1" 
                                 CornerRadius="8" 
-                                Padding="14,10">
-                            <Grid ColumnDefinitions="36,*">
-                                <Border Width="28" Height="28" 
-                                        Background="{ThemeResource LayerFillColorDefaultBrush}" 
-                                        BorderBrush="{ThemeResource CardBorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="6" 
-                                        VerticalAlignment="Center">
-                                    <FontIcon Glyph="&#xE7C1;" FontSize="14" Foreground="{ThemeResource TextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center" Margin="10,0,0,0">
-                                    <TextBlock x:Name="Feature3Title" Text="Clip Bookmarks" FontWeight="SemiBold" FontSize="13" />
-                                    <TextBlock x:Name="Feature3Desc" Text="Pin timestamps on the timeline to bookmark moments and jump between them in the drawer." FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                                Padding="16,12">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Glyph="&#xE7C1;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="Feature3Title" Text="Clip Bookmarks" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="13.5" />
+                                    <TextBlock x:Name="Feature3Desc" Text="Pin timestamps on the timeline to bookmark moments and jump between them in the drawer." Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -228,7 +243,7 @@
                         <!-- Language Selector Row -->
                         <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,6,0,0" VerticalAlignment="Center">
                             <TextBlock x:Name="LanguageLabel" Text="Language:" FontSize="13" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <ComboBox x:Name="LanguageComboBox" Width="150" SelectionChanged="OnLanguageSelectionChanged">
+                            <ComboBox x:Name="LanguageComboBox" Width="150" CornerRadius="6" SelectionChanged="OnLanguageSelectionChanged">
                                 <ComboBoxItem Content="English" Tag="en" />
                                 <ComboBoxItem Content="Українська" Tag="uk" />
                             </ComboBox>
@@ -241,8 +256,8 @@
                         <StackPanel Spacing="6">
                             <TextBlock x:Name="DestinationFolderLabel" Text="Destination Folder:" FontSize="13" FontWeight="SemiBold" />
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                <TextBox x:Name="InstallPathTextBox" TextChanged="OnInstallPathTextChanged" VerticalAlignment="Center" />
-                                <Button x:Name="BrowseButton" Grid.Column="1" Content="Browse..." Click="OnBrowseClicked" VerticalAlignment="Center" />
+                                <TextBox x:Name="InstallPathTextBox" CornerRadius="6" TextChanged="OnInstallPathTextChanged" VerticalAlignment="Center" />
+                                <Button x:Name="BrowseButton" Grid.Column="1" Content="Browse..." CornerRadius="6" Click="OnBrowseClicked" VerticalAlignment="Center" />
                             </Grid>
                             <!-- Disk Space Indicator -->
                             <StackPanel Orientation="Horizontal" Spacing="12" Margin="2,4,0,0">
@@ -252,7 +267,7 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <!-- System Integration Checkboxes -->
+                        <!-- System Integration Checkboxes (Restored rounded WinUI 3 checkboxes) -->
                         <StackPanel Spacing="10" Margin="0,4,0,0">
                             <CheckBox x:Name="DesktopShortcutCheckBox" 
                                       Content="Create a Desktop shortcut" 
@@ -298,14 +313,14 @@
                     <!-- STEP 4: FINISHED -->
                     <Grid x:Name="FinishedStepPanel" Visibility="Collapsed" VerticalAlignment="Center" Margin="0,28,0,0">
                         <StackPanel Spacing="16" HorizontalAlignment="Center">
-                            <!-- Success Badge (Clean monochrome / subtle design, no orange) -->
+                            <!-- Success Badge -->
                             <Border Width="48" Height="48" 
                                     Background="{ThemeResource LayerFillColorDefaultBrush}" 
-                                    BorderBrush="{ThemeResource CardBorderBrush}"
-                                    BorderThickness="1"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                    BorderThickness="1" 
                                     CornerRadius="24" 
                                     HorizontalAlignment="Center">
-                                <FontIcon Glyph="&#xE73E;" FontSize="20" Foreground="{ThemeResource TextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <FontIcon Glyph="&#xE73E;" FontSize="20" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
 
                             <StackPanel Spacing="4" HorizontalAlignment="Center">
@@ -342,16 +357,22 @@
                                 Content="&lt; Back" 
                                 Click="OnBackClicked" 
                                 IsEnabled="False" 
-                                Width="84" />
+                                MinWidth="90" 
+                                Padding="14,6" 
+                                CornerRadius="6" />
                         <Button x:Name="NextButton" 
                                 Content="Next &gt;" 
                                 Click="OnNextClicked" 
                                 Style="{ThemeResource AccentButtonStyle}" 
-                                Width="96" />
+                                MinWidth="100" 
+                                Padding="16,6" 
+                                CornerRadius="6" />
                         <Button x:Name="CancelButton" 
                                 Content="Cancel" 
                                 Click="OnCancelClicked" 
-                                Width="84" />
+                                MinWidth="100" 
+                                Padding="16,6" 
+                                CornerRadius="6" />
                     </StackPanel>
                 </Grid>
             </Border>

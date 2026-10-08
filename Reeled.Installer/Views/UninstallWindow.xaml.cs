@@ -20,6 +20,11 @@ public sealed partial class UninstallWindow : Window
 
         ConfigureWindow();
         ApplyLocalization();
+
+        RootGrid.Loaded += (s, e) =>
+        {
+            UpdateTitleBarTheme(RootGrid.ActualTheme);
+        };
     }
 
     private void ConfigureWindow()
@@ -27,6 +32,9 @@ public sealed partial class UninstallWindow : Window
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
         _appWindow = AppWindow.GetFromWindowId(windowId);
+
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
 
         if (_appWindow != null)
         {
@@ -44,6 +52,8 @@ public sealed partial class UninstallWindow : Window
                 presenter.IsResizable = false;
                 presenter.IsMaximizable = false;
             }
+
+            UpdateTitleBarTheme(RootGrid.ActualTheme);
         }
 
         try
@@ -51,6 +61,35 @@ public sealed partial class UninstallWindow : Window
             SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
         }
         catch { }
+    }
+
+    private void UpdateTitleBarTheme(ElementTheme theme)
+    {
+        if (Microsoft.UI.Windowing.AppWindowTitleBar.IsCustomizationSupported() && _appWindow?.TitleBar != null)
+        {
+            var titleBar = _appWindow.TitleBar;
+            titleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+            titleBar.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+
+            if (theme == ElementTheme.Dark)
+            {
+                titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
+                titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
+                titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(30, 255, 255, 255);
+                titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(180, 255, 255, 255);
+                titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(50, 255, 255, 255);
+                titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(120, 255, 255, 255);
+            }
+            else
+            {
+                titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 24, 24, 27);
+                titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 24, 24, 27);
+                titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(30, 0, 0, 0);
+                titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(180, 24, 24, 27);
+                titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(50, 0, 0, 0);
+                titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(120, 0, 0, 0);
+            }
+        }
     }
 
     private void ApplyLocalization()

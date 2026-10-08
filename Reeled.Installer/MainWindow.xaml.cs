@@ -28,6 +28,12 @@ public sealed partial class MainWindow : Window
     private AppWindow? _appWindow;
     private ElementTheme _currentTheme = ElementTheme.Default;
 
+    // Sliding indicator state
+    private double _currentIndicatorY = 0;
+    private double _targetIndicatorY = 0;
+    private bool _isIndicatorVisible = false;
+    private Storyboard? _indicatorStoryboard;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -35,6 +41,12 @@ public sealed partial class MainWindow : Window
         ConfigureWindow();
         InitializeLocalization();
         UpdateStepView(animate: false);
+
+        RootGrid.Loaded += (s, e) =>
+        {
+            UpdateTitleBarTheme(_currentTheme);
+            AnimateIndicatorTo(GetStepRow(_currentStep), false);
+        };
     }
 
     private void ConfigureWindow()
@@ -42,6 +54,9 @@ public sealed partial class MainWindow : Window
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
         _appWindow = AppWindow.GetFromWindowId(windowId);
+
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
 
         if (_appWindow != null)
         {
@@ -59,6 +74,8 @@ public sealed partial class MainWindow : Window
                 presenter.IsResizable = false;
                 presenter.IsMaximizable = false;
             }
+
+            UpdateTitleBarTheme(_currentTheme);
         }
 
         try
@@ -70,6 +87,39 @@ public sealed partial class MainWindow : Window
         // Default path
         InstallPathTextBox.Text = _installService.DefaultInstallDirectory;
         UpdateDiskSpace();
+    }
+
+    private void UpdateTitleBarTheme(ElementTheme actualTheme)
+    {
+        if (Microsoft.UI.Windowing.AppWindowTitleBar.IsCustomizationSupported() && _appWindow?.TitleBar != null)
+        {
+            var titleBar = _appWindow.TitleBar;
+            titleBar.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+            titleBar.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+
+            var themeToUse = actualTheme == ElementTheme.Default
+                ? RootGrid.ActualTheme
+                : actualTheme;
+
+            if (themeToUse == ElementTheme.Dark)
+            {
+                titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
+                titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
+                titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(30, 255, 255, 255);
+                titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(180, 255, 255, 255);
+                titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(50, 255, 255, 255);
+                titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(120, 255, 255, 255);
+            }
+            else
+            {
+                titleBar.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 24, 24, 27);
+                titleBar.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 24, 24, 27);
+                titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(30, 0, 0, 0);
+                titleBar.ButtonPressedForegroundColor = Windows.UI.Color.FromArgb(180, 24, 24, 27);
+                titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(50, 0, 0, 0);
+                titleBar.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(120, 0, 0, 0);
+            }
+        }
     }
 
     private void InitializeLocalization()
@@ -157,6 +207,15 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private FrameworkElement GetStepRow(WizardStep step) => step switch
+    {
+        WizardStep.Welcome => StepRow1,
+        WizardStep.Options => StepRow2,
+        WizardStep.Installing => StepRow3,
+        WizardStep.Finished => StepRow4,
+        _ => StepRow1
+    };
+
     private void UpdateStepView(bool animate = true)
     {
         WelcomeStepPanel.Visibility = _currentStep == WizardStep.Welcome ? Visibility.Visible : Visibility.Collapsed;
@@ -177,10 +236,117 @@ public sealed partial class MainWindow : Window
         UpdateStepIndicators();
         UpdateStepHeaders();
 
+        AnimateIndicatorTo(GetStepRow(_currentStep), animate);
+
         if (animate)
         {
             PlayEntranceAnimation();
         }
+    }
+
+    private void AnimateIndicatorTo(FrameworkElement targetRow, bool animate)
+    {
+        if (ActiveIndicatorPill == null || StepsNavRoot == null || IndicatorTranslation == null)
+            return;
+
+        try
+        {
+            var transform = targetRow.TransformToVisual(StepsNavRoot);
+            var pt = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
+            double targetY = pt.Y + (targetRow.ActualHeight - 18.0) / 2.0;
+
+            if (!_isIndicatorVisible)
+            {
+                _currentIndicatorY = targetY;
+                _targetIndicatorY = targetY;
+                IndicatorTranslation.Y = targetY;
+                ActiveIndicatorPill.Opacity = 1.0;
+                if (IndicatorScale != null) IndicatorScale.ScaleY = 1.0;
+                _isIndicatorVisible = true;
+                return;
+            }
+
+            if (Math.Abs(_targetIndicatorY - targetY) < 1.0 && _isIndicatorVisible)
+            {
+                return;
+            }
+
+            double fromY = _currentIndicatorY;
+            _targetIndicatorY = targetY;
+
+            if (_indicatorStoryboard != null)
+            {
+                _indicatorStoryboard.Stop();
+                _indicatorStoryboard = null;
+                IndicatorTranslation.Y = fromY;
+                if (IndicatorScale != null) IndicatorScale.ScaleY = 1.0;
+            }
+
+            if (!animate)
+            {
+                _currentIndicatorY = targetY;
+                IndicatorTranslation.Y = targetY;
+                if (IndicatorScale != null) IndicatorScale.ScaleY = 1.0;
+                ActiveIndicatorPill.Opacity = 1.0;
+                return;
+            }
+
+            double distance = Math.Abs(targetY - fromY);
+            var moveSb = new Storyboard();
+            var appleEase = new QuarticEase { EasingMode = EasingMode.EaseOut };
+
+            // 1. Vertical Glide Animation (Y translation) with fluid Apple curve
+            var animTranslate = new DoubleAnimation
+            {
+                From = fromY,
+                To = targetY,
+                Duration = TimeSpan.FromMilliseconds(240),
+                EasingFunction = appleEase
+            };
+            moveSb.Children.Add(animTranslate);
+            Storyboard.SetTarget(animTranslate, IndicatorTranslation);
+            Storyboard.SetTargetProperty(animTranslate, "Y");
+
+            // 2. Fluid stretch during transit
+            if (distance > 5.0 && IndicatorScale != null)
+            {
+                double stretch = Math.Min(1.18, 1.0 + (distance / 400.0));
+                var animScaleKeyFrames = new DoubleAnimationUsingKeyFrames();
+                animScaleKeyFrames.KeyFrames.Add(new DiscreteDoubleKeyFrame
+                {
+                    Value = 1.0,
+                    KeyTime = KeyTime.FromTimeSpan(TimeSpan.Zero)
+                });
+                animScaleKeyFrames.KeyFrames.Add(new EasingDoubleKeyFrame
+                {
+                    Value = stretch,
+                    KeyTime = KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(80)),
+                    EasingFunction = appleEase
+                });
+                animScaleKeyFrames.KeyFrames.Add(new EasingDoubleKeyFrame
+                {
+                    Value = 1.0,
+                    KeyTime = KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(220)),
+                    EasingFunction = appleEase
+                });
+
+                moveSb.Children.Add(animScaleKeyFrames);
+                Storyboard.SetTarget(animScaleKeyFrames, IndicatorScale);
+                Storyboard.SetTargetProperty(animScaleKeyFrames, "ScaleY");
+            }
+
+            moveSb.Completed += (s, e) =>
+            {
+                _currentIndicatorY = targetY;
+                IndicatorTranslation.Y = targetY;
+                if (IndicatorScale != null) IndicatorScale.ScaleY = 1.0;
+                _indicatorStoryboard = null;
+            };
+
+            _indicatorStoryboard = moveSb;
+            moveSb.Begin();
+        }
+        catch { }
     }
 
     private void PlayEntranceAnimation()
@@ -214,39 +380,33 @@ public sealed partial class MainWindow : Window
 
     private void UpdateStepIndicators()
     {
-        UpdateStepRow(StepIndicator1, StepIcon1, StepLabel1, WizardStep.Welcome, "\uE80F");
-        UpdateStepRow(StepIndicator2, StepIcon2, StepLabel2, WizardStep.Options, "\uE713");
-        UpdateStepRow(StepIndicator3, StepIcon3, StepLabel3, WizardStep.Installing, "\uE896");
-        UpdateStepRow(StepIndicator4, StepIcon4, StepLabel4, WizardStep.Finished, "\uE73E");
+        UpdateStepRow(StepIcon1, StepLabel1, WizardStep.Welcome, "\uE80F");
+        UpdateStepRow(StepIcon2, StepLabel2, WizardStep.Options, "\uE713");
+        UpdateStepRow(StepIcon3, StepLabel3, WizardStep.Installing, "\uE896");
+        UpdateStepRow(StepIcon4, StepLabel4, WizardStep.Finished, "\uE73E");
     }
 
-    private void UpdateStepRow(Border indicator, FontIcon icon, TextBlock label, WizardStep step, string defaultGlyph)
+    private void UpdateStepRow(FontIcon icon, TextBlock label, WizardStep step, string defaultGlyph)
     {
-        var primaryBrush = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
-        var secondaryBrush = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
-
         if (_currentStep == step)
         {
-            indicator.Opacity = 1.0;
             icon.Glyph = defaultGlyph;
-            icon.Foreground = primaryBrush;
-            label.Foreground = primaryBrush;
+            icon.Opacity = 1.0;
+            label.Opacity = 1.0;
             label.FontWeight = FontWeights.SemiBold;
         }
         else if (_currentStep > step)
         {
-            indicator.Opacity = 0.0;
             icon.Glyph = "\uE73E"; // Completed checkmark
-            icon.Foreground = secondaryBrush;
-            label.Foreground = secondaryBrush;
+            icon.Opacity = 0.7;
+            label.Opacity = 0.7;
             label.FontWeight = FontWeights.Normal;
         }
         else
         {
-            indicator.Opacity = 0.0;
             icon.Glyph = defaultGlyph;
-            icon.Foreground = secondaryBrush;
-            label.Foreground = secondaryBrush;
+            icon.Opacity = 0.55;
+            label.Opacity = 0.55;
             label.FontWeight = FontWeights.Normal;
         }
     }
@@ -426,5 +586,6 @@ public sealed partial class MainWindow : Window
 
         RootGrid.RequestedTheme = _currentTheme;
         ThemeIcon.Glyph = _currentTheme == ElementTheme.Dark ? "\uE708" : "\uE706";
+        UpdateTitleBarTheme(_currentTheme);
     }
 }

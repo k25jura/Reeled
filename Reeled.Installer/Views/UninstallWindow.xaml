@@ -13,8 +13,18 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <!-- Custom TitleBar drag region -->
+        <Border x:Name="AppTitleBar" 
+                Grid.RowSpan="2"
+                Height="36" 
+                VerticalAlignment="Top" 
+                HorizontalAlignment="Stretch" 
+                Background="Transparent" 
+                Margin="0,0,140,0" 
+                Canvas.ZIndex="10" />
+
         <!-- Main Body -->
-        <Grid Grid.Row="0" Margin="32,28,32,16">
+        <Grid Grid.Row="0" Margin="32,36,32,16">
 
             <!-- Confirmation Panel (Step 1) -->
             <StackPanel x:Name="ConfirmPanel" Spacing="16" VerticalAlignment="Center">
@@ -26,8 +36,8 @@
                     </StackPanel>
                 </StackPanel>
 
-                <Border Background="{ThemeResource CardBackgroundBrush}" 
-                        BorderBrush="{ThemeResource CardBorderBrush}" 
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
                         BorderThickness="1" 
                         CornerRadius="8" 
                         Padding="16,12" 
@@ -51,11 +61,11 @@
             <StackPanel x:Name="FinishedPanel" Visibility="Collapsed" Spacing="16" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Border Width="48" Height="48" 
                         Background="{ThemeResource LayerFillColorDefaultBrush}" 
-                        BorderBrush="{ThemeResource CardBorderBrush}" 
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
                         BorderThickness="1" 
                         CornerRadius="24" 
                         HorizontalAlignment="Center">
-                    <FontIcon Glyph="&#xE73E;" FontSize="20" Foreground="{ThemeResource TextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <FontIcon Glyph="&#xE73E;" FontSize="20" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
                 <StackPanel Spacing="4" HorizontalAlignment="Center">
                     <TextBlock x:Name="DoneTitleText" Text="Uninstallation Complete" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
@@ -74,16 +84,22 @@
                         Content="Uninstall" 
                         Click="OnUninstallClicked" 
                         Style="{ThemeResource AccentButtonStyle}" 
-                        Width="96" />
+                        MinWidth="100" 
+                        Padding="16,6" 
+                        CornerRadius="6" />
                 <Button x:Name="CancelButton" 
                         Content="Cancel" 
                         Click="OnCancelClicked" 
-                        Width="84" />
+                        MinWidth="100" 
+                        Padding="16,6" 
+                        CornerRadius="6" />
                 <Button x:Name="CloseButton" 
                         Content="Close" 
                         Click="OnCloseClicked" 
                         Visibility="Collapsed" 
-                        Width="84" />
+                        MinWidth="100" 
+                        Padding="16,6" 
+                        CornerRadius="6" />
             </StackPanel>
         </Border>
     </Grid>

@@ -480,3 +480,8 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Release and Installer Artifacts
+artifacts/
+Reeled.Installer/Resources/payload.zip
+

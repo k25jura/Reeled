@@ -1,0 +1,86 @@
+param (
+    [string]$Configuration = "Release",
+    [string]$Version = "1.0.0"
+)
+
+$ErrorActionPreference = "Stop"
+
+Write-Host "==========================================================" -ForegroundColor Cyan
+Write-Host "   Reeled Custom WinUI 3 Installer Build Pipeline         " -ForegroundColor Cyan
+Write-Host "   Configuration: $Configuration | Version: $Version      " -ForegroundColor Cyan
+Write-Host "==========================================================" -ForegroundColor Cyan
+
+$RootDir = Split-Path -Parent $PSScriptRoot
+$ArtifactsDir = Join-Path $RootDir "artifacts"
+$PublishDir = Join-Path $ArtifactsDir "publish"
+$InstallerPublishDir = Join-Path $ArtifactsDir "installer"
+$PayloadZip = Join-Path $RootDir "Reeled.Installer\Resources\payload.zip"
+
+# Ensure output directories exist
+if (Test-Path $ArtifactsDir) { Remove-Item -Path $ArtifactsDir -Recurse -Force }
+New-Item -ItemType Directory -Force -Path $ArtifactsDir | Out-Null
+New-Item -ItemType Directory -Force -Path $PublishDir | Out-Null
+New-Item -ItemType Directory -Force -Path (Split-Path -Parent $PayloadZip) | Out-Null
+
+Write-Host "`n[1/4] Publishing Reeled application binaries ($Configuration)..." -ForegroundColor Yellow
+dotnet publish "$RootDir\Reeled\Reeled.csproj" `
+    -c $Configuration `
+    -r win-x64 `
+    --self-contained true `
+    -p:PublishReadyToRun=true `
+    -p:PublishTrimmed=false `
+    -o $PublishDir
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to publish Reeled application binaries."
+}
+
+Write-Host "`n[2/4] Compressing published payload into payload.zip..." -ForegroundColor Yellow
+if (Test-Path $PayloadZip) { Remove-Item $PayloadZip -Force }
+
+# Use .NET ZipFile for fast and optimal compression
+[System.Reflection.Assembly]::LoadWithPartialName("System.IO.Compression.FileSystem") | Out-Null
+[System.IO.Compression.ZipFile]::CreateFromDirectory($PublishDir, $PayloadZip, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+
+$PayloadSizeMB = [math]::Round((Get-Item $PayloadZip).Length / 1MB, 2)
+Write-Host "Payload archive created: $PayloadZip ($PayloadSizeMB MB)" -ForegroundColor Green
+
+# Also place a copy in artifacts directory
+Copy-Item $PayloadZip (Join-Path $ArtifactsDir "payload.zip") -Force
+
+Write-Host "`n[3/4] Publishing Reeled.Installer (ReeledSetup.exe)..." -ForegroundColor Yellow
+dotnet publish "$RootDir\Reeled.Installer\Reeled.Installer.csproj" `
+    -c $Configuration `
+    -r win-x64 `
+    --self-contained true `
+    -p:PublishSingleFile=true `
+    -p:IncludeNativeLibrariesForSelfExtract=true `
+    -p:EnableCompressionInSingleFile=true `
+    -o $InstallerPublishDir
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to publish Reeled.Installer."
+}
+
+$SetupExe = Join-Path $InstallerPublishDir "ReeledSetup.exe"
+if (!(Test-Path $SetupExe)) {
+    Write-Error "ReeledSetup.exe was not found in $InstallerPublishDir"
+}
+
+Write-Host "`n[4/4] Finalizing release artifacts..." -ForegroundColor Yellow
+$FinalSetupExe = Join-Path $ArtifactsDir "ReeledSetup.exe"
+$VersionedSetupExe = Join-Path $ArtifactsDir "ReeledSetup-v$Version.exe"
+
+Copy-Item $SetupExe $FinalSetupExe -Force
+Copy-Item $SetupExe $VersionedSetupExe -Force
+
+$SetupSizeMB = [math]::Round((Get-Item $FinalSetupExe).Length / 1MB, 2)
+$Hash = (Get-FileHash -Path $FinalSetupExe -Algorithm SHA256).Hash
+
+Write-Host "`n==========================================================" -ForegroundColor Green
+Write-Host "   BUILD SUCCEEDED!                                       " -ForegroundColor Green
+Write-Host "==========================================================" -ForegroundColor Green
+Write-Host "Installer: $FinalSetupExe ($SetupSizeMB MB)" -ForegroundColor White
+Write-Host "SHA-256:   $Hash" -ForegroundColor White
+Write-Host "Versioned: $VersionedSetupExe" -ForegroundColor White
+Write-Host "==========================================================" -ForegroundColor Green

@@ -1,0 +1,68 @@
+name: Build & Release Reeled
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Reeled Setup (Windows x64)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Extract Tag Version
+        id: get_version
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $ver = "${{ github.event.inputs.version }}"
+          } else {
+            $ver = "${{ github.ref_name }}".TrimStart('v')
+          }
+          Write-Host "Detected Version: $ver"
+          "version=$ver" >> $env:GITHUB_OUTPUT
+
+      - name: Build & Package Custom Installer
+        shell: pwsh
+        run: |
+          .\scripts\build-installer.ps1 -Configuration Release -Version "${{ steps.get_version.outputs.version }}"
+
+      - name: Generate SHA256 Checksums
+        shell: pwsh
+        run: |
+          Get-FileHash -Path artifacts\ReeledSetup.exe -Algorithm SHA256 | Out-File -FilePath artifacts\checksums.txt
+          Get-Content artifacts\checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        with:
+          name: Reeled v${{ steps.get_version.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            artifacts/ReeledSetup.exe
+            artifacts/ReeledSetup-v${{ steps.get_version.outputs.version }}.exe
+            artifacts/payload.zip
+            artifacts/checksums.txt

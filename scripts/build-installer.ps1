@@ -68,6 +68,39 @@ foreach ($bd in $PossibleBinDirs) {
 $nestedPub = Join-Path $PublishDir "publish"
 if (Test-Path $nestedPub) { Remove-Item $nestedPub -Recurse -Force }
 
+# Compile lightweight native Uninstall forwarder
+$LauncherSource = Join-Path $RootDir "scripts\UninstallLauncher.cs"
+$IconPath = Join-Path $RootDir "Reeled\Assets\AppIcon.ico"
+$UninstallExe = Join-Path $PublishDir "Uninstall.exe"
+$CscPath = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+if (-not (Test-Path $CscPath)) {
+    $CscPath = "$env:WINDIR\Microsoft.NET\Framework\v4.0.30319\csc.exe"
+}
+if ((Test-Path $CscPath) -and (Test-Path $LauncherSource)) {
+    Write-Host "Compiling native Uninstall forwarder with $CscPath..." -ForegroundColor Cyan
+    & $CscPath /nologo /target:winexe /out:"$UninstallExe" /win32icon:"$IconPath" "$LauncherSource"
+}
+
+# Sign application binaries in payload if certificate is available
+try {
+    $CertSubject = "CN=k25jura, O=k25jura"
+    $Cert = Get-ChildItem -Path Cert:\CurrentUser\My -CodeSigningCert | Where-Object { $_.Subject -like "*$CertSubject*" } | Select-Object -First 1
+    if (-not $Cert) {
+        $Cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject $CertSubject -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(5)
+    }
+    if ($Cert) {
+        $ReeledExeInPub = Join-Path $PublishDir "Reeled.exe"
+        if (Test-Path $ReeledExeInPub) {
+            Set-AuthenticodeSignature -FilePath $ReeledExeInPub -Certificate $Cert -HashAlgorithm SHA256 -TimestampServer "http://timestamp.digicert.com" | Out-Null
+        }
+        if (Test-Path $UninstallExe) {
+            Set-AuthenticodeSignature -FilePath $UninstallExe -Certificate $Cert -HashAlgorithm SHA256 -TimestampServer "http://timestamp.digicert.com" | Out-Null
+        }
+    }
+} catch {
+    Write-Warning "Payload binary signing warning: $_"
+}
+
 # Verify critical files exist in payload
 $AppXbf = Join-Path $PublishDir "App.xbf"
 $ReeledPri = Join-Path $PublishDir "Reeled.pri"

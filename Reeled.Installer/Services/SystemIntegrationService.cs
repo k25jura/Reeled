@@ -154,7 +154,9 @@ public class SystemIntegrationService
     public void RegisterUninstaller(string installDir, long estimatedSizeBytes)
     {
         string exePath = Path.Combine(installDir, "Reeled.exe");
+        string setupExe = Path.Combine(installDir, "ReeledSetup.exe");
         string uninstallExe = Path.Combine(installDir, "Uninstall.exe");
+        string cmdTarget = File.Exists(setupExe) ? setupExe : (File.Exists(uninstallExe) ? uninstallExe : setupExe);
 
         try
         {
@@ -164,8 +166,8 @@ public class SystemIntegrationService
             uninstKey.SetValue("Publisher", "k25jura");
             uninstKey.SetValue("DisplayIcon", $"{exePath},0");
             uninstKey.SetValue("InstallLocation", installDir);
-            uninstKey.SetValue("UninstallString", $"\"{uninstallExe}\" /uninstall");
-            uninstKey.SetValue("QuietUninstallString", $"\"{uninstallExe}\" /uninstall /silent");
+            uninstKey.SetValue("UninstallString", $"\"{cmdTarget}\" /uninstall");
+            uninstKey.SetValue("QuietUninstallString", $"\"{cmdTarget}\" /uninstall /silent");
             uninstKey.SetValue("EstimatedSize", (int)(estimatedSizeBytes / 1024));
             uninstKey.SetValue("URLInfoAbout", "https://github.com/k25jura/Reeled");
             uninstKey.SetValue("HelpLink", "https://github.com/k25jura/Reeled/issues");

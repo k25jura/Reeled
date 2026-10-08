@@ -115,15 +115,15 @@ public class InstallService
                     progress.Report(new InstallProgress(pct, statusMsg));
                 }
 
-                // Copy installer as Uninstaller
+                // Copy installer as ReeledSetup.exe
                 progress.Report(new InstallProgress(88, loc["Installing_Status_Shortcuts"]));
-                string currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
-                string uninstallTarget = Path.Combine(destinationDir, "Uninstall.exe");
+                string currentExe = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
+                string setupTarget = Path.Combine(destinationDir, "ReeledSetup.exe");
                 if (!string.IsNullOrEmpty(currentExe) && File.Exists(currentExe))
                 {
                     try
                     {
-                        File.Copy(currentExe, uninstallTarget, overwrite: true);
+                        File.Copy(currentExe, setupTarget, overwrite: true);
                     }
                     catch { }
                 }
@@ -277,9 +277,9 @@ public class InstallService
                 catch { }
             }
 
-            // 4. Remove Files in installDir (except Uninstall.exe which is currently running)
+            // 4. Remove Files in installDir (except running uninstaller executables)
             progress.Report(new InstallProgress(70, loc["Uninstall_Status_Removing"]));
-            string currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
+            string currentExe = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
 
             try
             {
@@ -287,7 +287,10 @@ public class InstallService
                 {
                     foreach (var file in Directory.GetFiles(installDir, "*", SearchOption.AllDirectories))
                     {
-                        if (!string.Equals(file, currentExe, StringComparison.OrdinalIgnoreCase))
+                        string fileName = Path.GetFileName(file);
+                        if (!string.Equals(file, currentExe, StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(fileName, "ReeledSetup.exe", StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(fileName, "Uninstall.exe", StringComparison.OrdinalIgnoreCase))
                         {
                             try { File.Delete(file); } catch { }
                         }

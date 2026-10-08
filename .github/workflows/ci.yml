@@ -24,11 +24,11 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore Dependencies
-        run: dotnet restore Reeled.sln
+      - name: Restore Dependencies (win-x64)
+        run: dotnet restore Reeled.sln -r win-x64
 
-      - name: Build Debug
-        run: dotnet build Reeled.sln -c Debug --no-restore
+      - name: Build Reeled App
+        run: dotnet build Reeled/Reeled.csproj -c Release -r win-x64 --no-restore
 
-      - name: Build Release
-        run: dotnet build Reeled.sln -c Release --no-restore
+      - name: Build Reeled Installer
+        run: dotnet build Reeled.Installer/Reeled.Installer.csproj -c Release -r win-x64 --no-restore

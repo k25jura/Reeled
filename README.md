@@ -7,93 +7,66 @@
 </p>
 
 <p align="center">
-  <strong>Fast, modern Windows 11 gameplay clip player and library manager</strong>
+  A local video player and library manager for gameplay clips on Windows.
 </p>
 
-<p align="center">
-  <img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%2011%20%7C%2010-0078D4?logo=windows">
-  <img alt="Framework" src="https://img.shields.io/badge/Framework-WinUI%203-blue">
-  <img alt=".NET" src="https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet">
-  <img alt="Engine" src="https://img.shields.io/badge/Engine-LibVLC-E05A00">
-  <img alt="License" src="https://img.shields.io/badge/License-GPL--3.0-green.svg">
-</p>
+---
 
-> **Work in progress**: Reeled is currently in active development. Features and UI are subject to change.
+**Reeled** is a desktop player and organizer built for gameplay recordings (NVIDIA Shadowplay, OBS Studio, Medal, SteelSeries Moments, etc.). Instead of digging through folders or opening clips one-by-one in a generic video player, Reeled gives you a dedicated library to browse your recordings and a Direct3D11 player made for reviewing gameplay — with real-time timeline scrubbing, multi-audio track mixing, volume boost, and timestamp bookmarks.
 
-**Reeled** is a modern Windows 11 video viewer focused on game clips and library manager built with **unpackaged WinUI 3 (Windows App SDK)** targeting **.NET 8** and powered by **LibVLCSharp** and native **VideoLAN LibVLC 3.0**.
-
-Designed specifically for those who wants to browse, index, manage, and review local MP4 and MKV gameplay recordings (NVIDIA Shadowplay, OBS Studio, Medal, SteelSeries Moments, etc.) in one place with hardware-accelerated playback, real-time timeline scrubbing, and moment bookmarking.
+Built with unpackaged WinUI 3 (Windows App SDK), .NET 8, and LibVLC 3.0.
 
 ---
 
 ## Features
 
-### Library and Folder Navigation
-- **Directory Tree Sidebar**: Browse configured watch folders and nested subdirectories.
-- **Folder Management**: Configure multiple custom watch directories.
-- **Real-Time Auto-Refresh**: Powered by `FileSystemWatcher`, newly saved, renamed, or deleted clips update in the grid automatically.
-- **Search and Sort**: Instant search filtering and sorting.
-- **Clip Context Menu**:
-  - **Clip Information**: Dedicated modal displaying comprehensive file properties.
-  - **Favorite Toggle**: Star and unstar clips with persistent metadata.
-  - **Safe Delete**: Delete directly to the Windows Recycle Bin.
-  - **File Operations**: Inline renaming, Reveal in File Explorer, and Copy File Path.
+### Library & Folders
+- **Folder Watching**: Add your recording directories (e.g. Shadowplay or OBS output folders). Newly recorded, renamed, or deleted clips update automatically.
+- **Organization**: Filter clips by date, group by month, and search by title or tags.
+- **Clip Context Menu**: View video metadata (resolution, bitrate, codecs, audio tracks), favorite clips, rename, open in File Explorer, or delete to the Windows Recycle Bin.
 
-### Hardware-Accelerated Playback
-- **Direct3D11 Video Canvas**: Hardware-accelerated rendering using `LibVLCSharp.WinUI` Direct3D11 SwapChainPanel.
-- **Real-Time Timeline Scrubbing**: Instantaneous video seeking while dragging the timeline slider.
-- **Playback Speed**: Adjust the playback speed.
-- **Repeat Modes**: Cycle between Repeat Off, Repeat All, and Repeat One (`R`), with user preferences automatically saved across sessions.
-- **Audio Control**: Volume slider with mouse scroll wheel support and a dynamic volume icon that reflects mute, low, medium, and high volume states.
+### Video Player
+- **Direct3D11 Playback**: Hardware-accelerated rendering powered by LibVLC 3.0.
+- **Timeline Scrubbing**: Smooth video seeking while dragging the timeline slider.
+- **Audio Control**: Multi-track audio switching, volume boost above 100%, and scroll-wheel volume adjustment.
+- **Playback Tools**: Frame-by-frame stepping, playback speed controls, and repeat modes (off, loop one, loop all).
+- **Clip Queue**: Quick slide-out drawer (`Q`) to switch to other clips in the folder without heading back to the library.
 
-### Moments and Bookmarking System
-- **Mark Timestamps**: Press `B` or click **Mark Moment** during playback to pin key highlights.
-- **Timeline Highlight Markers**: Pinned moments appear as prominent yellow tick markers directly along the timeline seek bar.
-- **Jump to Moment**: Quick-jump buttons formatted with timestamps to instantly see the key points.
-- **Moments Drawer**: Dedicated slide-out drawer to view, jump to, rename, or delete bookmarked moments.
-
-### Media Controls
-- **Full-Width Control Bar**: Grouped, all usual playback controls such as Stop, Previous Clip, Step Backward, Play/Pause, Step Forward, Next Clip.
-  - Seek bar with elapsed and remaining time indicators and timeline moment highlights.
-  - Tool buttons: Moments drawer toggle, Clip Queue drawer toggle, Playback speed selector, Repeat mode toggle.
-  - Volume slider, mute toggle, and full-screen toggle.
-- **Clip Queue Drawer**: Slide-in playlist sidebar (`Q`) allowing switching between clips in the active folder without returning to the library.
-- **Auto-Hiding Interface**: Header, window controls, bottom control bar and cursor automatically fade out during playback inactivity.
+### Moments & Bookmarks
+- **Mark Highlights**: Press `B` during playback to mark a moment at the current timestamp.
+- **Timeline Markers**: Bookmarked moments appear directly as tick markers on the seek bar.
+- **Moments Drawer**: Open the slide-out drawer to review marks, rename descriptions, or jump between timestamps.
 
 ---
 
-## Keyboard and Mouse Shortcuts
+## Keyboard & Mouse Shortcuts
 
 | Input | Action |
 | --- | --- |
-| `Space` | Play / Pause toggle |
-| `Left Arrow` / `Right Arrow` | Skip backward / forward 5 seconds |
-| `Shift + Left Arrow` / `Right Arrow` | Fine skip backward / forward 1 second |
-| `Up Arrow` / `Down Arrow` | Volume up / down 5% |
-| `Mouse Scroll Wheel` | Volume adjust (over player canvas or volume slider) |
-| `M` | Toggle Mute |
-| `B` | Mark a Moment bookmark at current timestamp |
+| `Space` | Play / Pause |
+| `Left` / `Right Arrow` | Seek backward / forward 5 seconds |
+| `Shift + Left` / `Right Arrow` | Fine seek backward / forward 1 second |
+| `Up` / `Down Arrow` | Volume up / down 5% |
+| `Mouse Scroll Wheel` | Volume adjust (over canvas or volume slider) |
+| `M` | Toggle mute |
+| `B` | Mark moment bookmark at current timestamp |
 | `Q` | Toggle Clip Queue drawer |
-| `R` | Cycle Repeat mode (Off / All / One) |
+| `R` | Cycle repeat mode (Off / All / One) |
 | `S` | Stop playback |
-| `F` or `F11` | Toggle Fullscreen mode |
-| `Double Click` (Canvas) | Toggle Fullscreen mode |
-| `Escape` | Exit Fullscreen / Return to Library |
+| `F` or `F11` | Toggle fullscreen |
+| `Double Click` (Canvas) | Toggle fullscreen |
+| `Escape` | Exit fullscreen / Return to library |
 
 ---
 
-## Architecture and Tech Stack
+## Tech Stack
 
 - **UI Framework**: WinUI 3 (Windows App SDK 1.6+) unpackaged
-- **Target Framework**: .NET 8 (`net8.0-windows10.0.26100.0`)
-- **Architecture Pattern**: MVVM via `CommunityToolkit.Mvvm` (8.4.2)
-- **Dependency Injection**: `Microsoft.Extensions.DependencyInjection`
-- **Video Engine**: `LibVLCSharp.WinUI` (3.10.1) and native `VideoLAN.LibVLC.Windows` (3.0.23.1) Direct3D11 SwapChainPanel
-- **Metadata and Thumbnails**: Windows Shell `StorageItemThumbnail` with persistent disk caching
-- **Native Interop**:
-  - `shell32.dll` `SHFileOperation` for shell Recycle Bin deletion
-  - `user32.dll` `ShowCursor` and window subclassing for seamless cursor management
-- **Persistence**: JSON-backed local storage for application settings, watch folders, and clip bookmarks
+- **Runtime**: .NET 8 (`net8.0-windows10.0.26100.0`)
+- **Architecture**: MVVM via `CommunityToolkit.Mvvm` with dependency injection
+- **Video Engine**: `LibVLCSharp.WinUI` and native VideoLAN LibVLC 3.0 (Direct3D11 SwapChainPanel)
+- **Thumbnails**: Windows Shell `StorageItemThumbnail` with persistent disk caching
+- **Storage**: JSON storage for user settings, watched folders, and clip metadata
 
 ---
 
@@ -102,7 +75,6 @@ Designed specifically for those who wants to browse, index, manage, and review l
 ### Prerequisites
 - Windows 10 (version 1809 or newer) or Windows 11
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (or newer)
-- Visual Studio 2022 or JetBrains Rider (with .NET desktop development workload and Windows App SDK)
 
 ### Build and Run
 
@@ -112,7 +84,7 @@ Designed specifically for those who wants to browse, index, manage, and review l
    cd Reeled
    ```
 
-2. Build the unpackaged solution:
+2. Build the solution:
    ```bash
    dotnet build
    ```

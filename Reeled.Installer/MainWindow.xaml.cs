@@ -5,10 +5,12 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI;
+using Microsoft.UI.Text;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Reeled.Installer.Services;
 using Windows.Graphics;
 
@@ -32,7 +34,7 @@ public sealed partial class MainWindow : Window
 
         ConfigureWindow();
         InitializeLocalization();
-        UpdateStepView();
+        UpdateStepView(animate: false);
     }
 
     private void ConfigureWindow()
@@ -44,9 +46,8 @@ public sealed partial class MainWindow : Window
         if (_appWindow != null)
         {
             _appWindow.Title = _loc["Installer_Title"];
-            _appWindow.Resize(new SizeInt32(780, 530));
+            _appWindow.Resize(new SizeInt32(800, 560));
 
-            // Set app icon on titlebar
             string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "AppIcon.ico");
             if (File.Exists(iconPath))
             {
@@ -75,7 +76,6 @@ public sealed partial class MainWindow : Window
     {
         _loc.LanguageChanged += ApplyLocalization;
 
-        // Select current language in dropdown
         for (int i = 0; i < LanguageComboBox.Items.Count; i++)
         {
             if (LanguageComboBox.Items[i] is ComboBoxItem item &&
@@ -157,7 +157,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void UpdateStepView()
+    private void UpdateStepView(bool animate = true)
     {
         WelcomeStepPanel.Visibility = _currentStep == WizardStep.Welcome ? Visibility.Visible : Visibility.Collapsed;
         OptionsStepPanel.Visibility = _currentStep == WizardStep.Options ? Visibility.Visible : Visibility.Collapsed;
@@ -174,48 +174,80 @@ public sealed partial class MainWindow : Window
 
         NextButton.IsEnabled = _currentStep != WizardStep.Installing;
 
-        UpdateStepPills();
+        UpdateStepIndicators();
         UpdateStepHeaders();
+
+        if (animate)
+        {
+            PlayEntranceAnimation();
+        }
     }
 
-    private void UpdateStepPills()
+    private void PlayEntranceAnimation()
     {
-        UpdatePill(StepPill1, StepIcon1, StepLabel1, WizardStep.Welcome, "\uE80F");
-        UpdatePill(StepPill2, StepIcon2, StepLabel2, WizardStep.Options, "\uE713");
-        UpdatePill(StepPill3, StepIcon3, StepLabel3, WizardStep.Installing, "\uE896");
-        UpdatePill(StepPill4, StepIcon4, StepLabel4, WizardStep.Finished, "\uE73E");
+        var storyboard = new Storyboard();
+
+        var opacityAnim = new DoubleAnimation
+        {
+            From = 0.0,
+            To = 1.0,
+            Duration = new Duration(TimeSpan.FromMilliseconds(220)),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        Storyboard.SetTarget(opacityAnim, StepContentContainer);
+        Storyboard.SetTargetProperty(opacityAnim, "Opacity");
+        storyboard.Children.Add(opacityAnim);
+
+        var slideAnim = new DoubleAnimation
+        {
+            From = 10.0,
+            To = 0.0,
+            Duration = new Duration(TimeSpan.FromMilliseconds(240)),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        Storyboard.SetTarget(slideAnim, StepContentTransform);
+        Storyboard.SetTargetProperty(slideAnim, "Y");
+        storyboard.Children.Add(slideAnim);
+
+        storyboard.Begin();
     }
 
-    private void UpdatePill(Border pill, FontIcon icon, TextBlock label, WizardStep step, string defaultGlyph)
+    private void UpdateStepIndicators()
     {
-        var accentBrush = (Brush)Application.Current.Resources["AppAccentBrush"];
-        var cardBgBrush = (Brush)Application.Current.Resources["CardBackgroundBrush"];
-        var primaryTextBrush = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
-        var secondaryTextBrush = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        UpdateStepRow(StepIndicator1, StepIcon1, StepLabel1, WizardStep.Welcome, "\uE80F");
+        UpdateStepRow(StepIndicator2, StepIcon2, StepLabel2, WizardStep.Options, "\uE713");
+        UpdateStepRow(StepIndicator3, StepIcon3, StepLabel3, WizardStep.Installing, "\uE896");
+        UpdateStepRow(StepIndicator4, StepIcon4, StepLabel4, WizardStep.Finished, "\uE73E");
+    }
+
+    private void UpdateStepRow(Border indicator, FontIcon icon, TextBlock label, WizardStep step, string defaultGlyph)
+    {
+        var primaryBrush = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+        var secondaryBrush = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
 
         if (_currentStep == step)
         {
-            pill.Background = cardBgBrush;
+            indicator.Opacity = 1.0;
             icon.Glyph = defaultGlyph;
-            icon.Foreground = accentBrush;
-            label.Foreground = primaryTextBrush;
-            label.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+            icon.Foreground = primaryBrush;
+            label.Foreground = primaryBrush;
+            label.FontWeight = FontWeights.SemiBold;
         }
         else if (_currentStep > step)
         {
-            pill.Background = new SolidColorBrush(Colors.Transparent);
-            icon.Glyph = "\uE73E"; // Checkmark
-            icon.Foreground = accentBrush;
-            label.Foreground = secondaryTextBrush;
-            label.FontWeight = Microsoft.UI.Text.FontWeights.Normal;
+            indicator.Opacity = 0.0;
+            icon.Glyph = "\uE73E"; // Completed checkmark
+            icon.Foreground = secondaryBrush;
+            label.Foreground = secondaryBrush;
+            label.FontWeight = FontWeights.Normal;
         }
         else
         {
-            pill.Background = new SolidColorBrush(Colors.Transparent);
+            indicator.Opacity = 0.0;
             icon.Glyph = defaultGlyph;
-            icon.Foreground = secondaryTextBrush;
-            label.Foreground = secondaryTextBrush;
-            label.FontWeight = Microsoft.UI.Text.FontWeights.Normal;
+            icon.Foreground = secondaryBrush;
+            label.Foreground = secondaryBrush;
+            label.FontWeight = FontWeights.Normal;
         }
     }
 
@@ -351,7 +383,7 @@ public sealed partial class MainWindow : Window
         }
         catch
         {
-            // Fallback: standard prompt
+            // Fallback
         }
     }
 

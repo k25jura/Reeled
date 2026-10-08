@@ -19,10 +19,10 @@
             <!-- Confirmation Panel (Step 1) -->
             <StackPanel x:Name="ConfirmPanel" Spacing="16" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" Spacing="16">
-                    <Image Source="ms-appx:///Assets/reeled.png" Width="48" Height="48" VerticalAlignment="Center" />
+                    <Image Source="ms-appx:///Assets/reeled.png" Width="44" Height="44" VerticalAlignment="Center" />
                     <StackPanel Spacing="2" VerticalAlignment="Center">
-                        <TextBlock x:Name="TitleText" Text="Uninstall Reeled" FontSize="20" FontWeight="SemiBold" />
-                        <TextBlock x:Name="SubtitleText" Text="Are you sure you want to completely remove Reeled from your computer?" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                        <TextBlock x:Name="TitleText" Text="Uninstall Reeled" FontSize="18" FontWeight="SemiBold" />
+                        <TextBlock x:Name="SubtitleText" Text="Are you sure you want to remove Reeled from your computer?" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                     </StackPanel>
                 </StackPanel>
 
@@ -41,16 +41,21 @@
             <!-- Progress Panel (Step 2) -->
             <StackPanel x:Name="ProgressPanel" Visibility="Collapsed" Spacing="16" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
-                    <ProgressRing IsActive="True" Width="24" Height="24" Foreground="{ThemeResource AppAccentBrush}" />
-                    <TextBlock x:Name="ProgressStatusText" Text="Removing files..." FontSize="14" VerticalAlignment="Center" />
+                    <ProgressRing IsActive="True" Width="24" Height="24" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
+                    <TextBlock x:Name="ProgressStatusText" Text="Removing files..." FontSize="13" VerticalAlignment="Center" />
                 </StackPanel>
-                <ProgressBar x:Name="UninstallProgressBar" Maximum="100" Value="0" Height="8" CornerRadius="4" Foreground="{ThemeResource AppAccentBrush}" Margin="16,0" />
+                <ProgressBar x:Name="UninstallProgressBar" Maximum="100" Value="0" Height="6" CornerRadius="3" Foreground="{ThemeResource AccentFillColorDefaultBrush}" Margin="24,0" />
             </StackPanel>
 
             <!-- Finished Panel (Step 3) -->
             <StackPanel x:Name="FinishedPanel" Visibility="Collapsed" Spacing="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-                <Border Width="56" Height="56" Background="{ThemeResource AppAccentBrush}" CornerRadius="28" HorizontalAlignment="Center" Opacity="0.15">
-                    <FontIcon Glyph="&#xE73E;" FontSize="24" Foreground="{ThemeResource AppAccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <Border Width="48" Height="48" 
+                        Background="{ThemeResource LayerFillColorDefaultBrush}" 
+                        BorderBrush="{ThemeResource CardBorderBrush}" 
+                        BorderThickness="1" 
+                        CornerRadius="24" 
+                        HorizontalAlignment="Center">
+                    <FontIcon Glyph="&#xE73E;" FontSize="20" Foreground="{ThemeResource TextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
                 <StackPanel Spacing="4" HorizontalAlignment="Center">
                     <TextBlock x:Name="DoneTitleText" Text="Uninstallation Complete" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
@@ -61,7 +66,7 @@
 
         <!-- Bottom Action Bar -->
         <Border Grid.Row="1" 
-                BorderBrush="{ThemeResource CardBorderBrush}" 
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
                 BorderThickness="0,1,0,0" 
                 Padding="32,14">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">

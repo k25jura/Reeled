@@ -10,28 +10,99 @@
                 <ResourceDictionary>
                     <ResourceDictionary.ThemeDictionaries>
                         <ResourceDictionary x:Key="Default">
-                            <Color x:Key="AppAccentColor">#FF7B54</Color>
-                            <SolidColorBrush x:Key="AppAccentBrush" Color="{StaticResource AppAccentColor}" />
-                            <Color x:Key="BannerBackgroundColor">#121214</Color>
+                            <!-- Backgrounds matching Reeled theme -->
+                            <Color x:Key="SolidBackgroundFillColorBase">#101010</Color>
+                            <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
+
+                            <Color x:Key="ApplicationPageBackgroundThemeColor">#101010</Color>
+                            <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="{StaticResource ApplicationPageBackgroundThemeColor}" />
+
+                            <Color x:Key="BannerBackgroundColor">#101010</Color>
                             <SolidColorBrush x:Key="BannerBackgroundBrush" Color="{StaticResource BannerBackgroundColor}" />
-                            <Color x:Key="CardBackground">#1C1C20</Color>
+
+                            <Color x:Key="LayerFillColorDefault">#161616</Color>
+                            <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="{StaticResource LayerFillColorDefault}" />
+
+                            <Color x:Key="LayerFillColorAlt">#121212</Color>
+                            <SolidColorBrush x:Key="LayerFillColorAltBrush" Color="{StaticResource LayerFillColorAlt}" />
+
+                            <Color x:Key="CardBackground">#181818</Color>
                             <SolidColorBrush x:Key="CardBackgroundBrush" Color="{StaticResource CardBackground}" />
-                            <Color x:Key="CardBorder">#2C2C32</Color>
+                            <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="{StaticResource CardBackground}" />
+
+                            <Color x:Key="CardBorder">#282828</Color>
                             <SolidColorBrush x:Key="CardBorderBrush" Color="{StaticResource CardBorder}" />
+                            <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{StaticResource CardBorder}" />
+
+                            <Color x:Key="DividerStrokeColorDefault">#242424</Color>
+                            <SolidColorBrush x:Key="DividerStrokeColorDefaultBrush" Color="{StaticResource DividerStrokeColorDefault}" />
+
+                            <Color x:Key="TextFillColorPrimary">#EDEDED</Color>
+                            <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="{StaticResource TextFillColorPrimary}" />
+
+                            <Color x:Key="TextFillColorSecondary">#8E8E93</Color>
+                            <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="{StaticResource TextFillColorSecondary}" />
+
+                            <Color x:Key="TextFillColorTertiary">#666666</Color>
+                            <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
                         </ResourceDictionary>
+
                         <ResourceDictionary x:Key="Light">
-                            <Color x:Key="AppAccentColor">#E05638</Color>
-                            <SolidColorBrush x:Key="AppAccentBrush" Color="{StaticResource AppAccentColor}" />
-                            <Color x:Key="BannerBackgroundColor">#F3F3F5</Color>
+                            <Color x:Key="SolidBackgroundFillColorBase">#F0F0F3</Color>
+                            <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
+
+                            <Color x:Key="ApplicationPageBackgroundThemeColor">#F4F4F6</Color>
+                            <SolidColorBrush x:Key="ApplicationPageBackgroundThemeBrush" Color="{StaticResource ApplicationPageBackgroundThemeColor}" />
+
+                            <Color x:Key="BannerBackgroundColor">#F4F4F6</Color>
                             <SolidColorBrush x:Key="BannerBackgroundBrush" Color="{StaticResource BannerBackgroundColor}" />
+
+                            <Color x:Key="LayerFillColorDefault">#FFFFFF</Color>
+                            <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="{StaticResource LayerFillColorDefault}" />
+
+                            <Color x:Key="LayerFillColorAlt">#F8F8FA</Color>
+                            <SolidColorBrush x:Key="LayerFillColorAltBrush" Color="{StaticResource LayerFillColorAlt}" />
+
                             <Color x:Key="CardBackground">#FFFFFF</Color>
                             <SolidColorBrush x:Key="CardBackgroundBrush" Color="{StaticResource CardBackground}" />
+                            <SolidColorBrush x:Key="CardBackgroundFillColorDefaultBrush" Color="{StaticResource CardBackground}" />
+
                             <Color x:Key="CardBorder">#E5E5EA</Color>
                             <SolidColorBrush x:Key="CardBorderBrush" Color="{StaticResource CardBorder}" />
+                            <SolidColorBrush x:Key="CardStrokeColorDefaultBrush" Color="{StaticResource CardBorder}" />
+
+                            <Color x:Key="DividerStrokeColorDefault">#E5E5EA</Color>
+                            <SolidColorBrush x:Key="DividerStrokeColorDefaultBrush" Color="{StaticResource DividerStrokeColorDefault}" />
+
+                            <Color x:Key="TextFillColorPrimary">#1A1A1A</Color>
+                            <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="{StaticResource TextFillColorPrimary}" />
+
+                            <Color x:Key="TextFillColorSecondary">#5C5C60</Color>
+                            <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="{StaticResource TextFillColorSecondary}" />
+
+                            <Color x:Key="TextFillColorTertiary">#8A8A8E</Color>
+                            <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
                         </ResourceDictionary>
                     </ResourceDictionary.ThemeDictionaries>
                 </ResourceDictionary>
             </ResourceDictionary.MergedDictionaries>
+
+            <FontFamily x:Key="AppFontFamily">Century Gothic, Segoe UI Variable, Segoe UI, sans-serif</FontFamily>
+            <Style TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+            </Style>
+            <Style TargetType="Button">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+            </Style>
+            <Style TargetType="CheckBox">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+            </Style>
+            <Style TargetType="TextBox">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+            </Style>
+            <Style TargetType="ComboBox">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

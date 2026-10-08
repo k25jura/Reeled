@@ -31,7 +31,7 @@ public sealed partial class UninstallWindow : Window
         if (_appWindow != null)
         {
             _appWindow.Title = _loc["Uninstall_Title"];
-            _appWindow.Resize(new SizeInt32(560, 360));
+            _appWindow.Resize(new SizeInt32(580, 380));
 
             string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "AppIcon.ico");
             if (File.Exists(iconPath))

@@ -1006,6 +1006,8 @@
                         <ItemsPanelTemplate>
                             <ItemsWrapGrid Orientation="Horizontal" 
                                            HorizontalAlignment="Stretch" 
+                                           ItemWidth="280" 
+                                           ItemHeight="158" 
                                            MaximumRowsOrColumns="-1" />
                         </ItemsPanelTemplate>
                     </GridView.ItemsPanel>

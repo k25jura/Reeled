@@ -227,7 +227,7 @@ public sealed partial class HomePage : Page
             }
         }
 
-        _activeGroupWrapGrids.RemoveWhere(wg => wg.XamlRoot == null || (ViewModel.DateGrouping != DateGroupingMode.None && wg == ClipsGridView?.ItemsPanelRoot));
+        _activeGroupWrapGrids.RemoveWhere(wg => wg.XamlRoot == null);
         FindAndRegisterGroupWrapGrids(ClipsGridView);
 
         _lastCalculatedWidth = -1;
@@ -1196,23 +1196,11 @@ public sealed partial class HomePage : Page
                 _lastCalculatedWidth = calcW;
                 _lastColumnCount = targetCols;
 
-                if (ViewModel.DateGrouping == DateGroupingMode.None)
+                if (ClipsGridView?.ItemsPanelRoot is ItemsWrapGrid fg)
                 {
-                    if (ClipsGridView?.ItemsPanelRoot is ItemsWrapGrid fg)
-                    {
-                        fg.ItemWidth = calcW;
-                        fg.ItemHeight = calcH;
-                        fg.MaximumRowsOrColumns = targetCols;
-                    }
-                }
-                else
-                {
-                    if (ClipsGridView?.ItemsPanelRoot is ItemsWrapGrid fg)
-                    {
-                        fg.ItemWidth = double.NaN;
-                        fg.ItemHeight = double.NaN;
-                        fg.MaximumRowsOrColumns = 1;
-                    }
+                    fg.ItemWidth = calcW;
+                    fg.ItemHeight = calcH;
+                    fg.MaximumRowsOrColumns = targetCols;
                 }
                 if (SkeletonItemsControl?.ItemsPanelRoot is ItemsWrapGrid sg)
                 {
@@ -1669,17 +1657,14 @@ public sealed partial class HomePage : Page
 
             if (FindParent<ItemsWrapGrid>(card) is ItemsWrapGrid wrapGrid)
             {
-                if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot && wrapGrid != ClipsGridView?.ItemsPanelRoot)
+                if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
                 {
                     _activeGroupWrapGrids.Add(wrapGrid);
-                    if (_currentCardWidth > 0 && (Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5 || wrapGrid.MaximumRowsOrColumns != _lastColumnCount))
+                    if (_currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
                     {
                         wrapGrid.ItemWidth = _currentCardWidth;
                         wrapGrid.ItemHeight = _currentCardHeight;
-                        if (_lastColumnCount > 0)
-                        {
-                            wrapGrid.MaximumRowsOrColumns = _lastColumnCount;
-                        }
+                        wrapGrid.MaximumRowsOrColumns = -1;
                     }
                 }
                 else if (_currentCardWidth <= 0)
@@ -1758,13 +1743,6 @@ public sealed partial class HomePage : Page
                 ClipsGroupedSource.Source = ViewModel.GroupedClips;
                 ClipsGridView.ItemsSource = ClipsGroupedSource.View;
             }
-            if (ClipsGridView.ItemsPanelRoot is ItemsWrapGrid rootWrapGrid)
-            {
-                _activeGroupWrapGrids.Remove(rootWrapGrid);
-                rootWrapGrid.ItemWidth = double.NaN;
-                rootWrapGrid.ItemHeight = double.NaN;
-                rootWrapGrid.MaximumRowsOrColumns = 1;
-            }
         }
         _lastCalculatedWidth = -1;
         _lastColumnCount = -1;
@@ -1783,11 +1761,14 @@ public sealed partial class HomePage : Page
         for (int i = 0; i < count; i++)
         {
             var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is ItemsWrapGrid wg && wg != SkeletonItemsControl?.ItemsPanelRoot && wg != ClipsGridView?.ItemsPanelRoot)
+            if (child is ItemsWrapGrid wg && wg != SkeletonItemsControl?.ItemsPanelRoot)
             {
                 _activeGroupWrapGrids.Add(wg);
             }
-            FindAndRegisterGroupWrapGrids(child);
+            else
+            {
+                FindAndRegisterGroupWrapGrids(child);
+            }
         }
     }
 
@@ -1917,18 +1898,12 @@ public sealed partial class HomePage : Page
         _currentCardWidth = calculatedWidth;
         _currentCardHeight = calculatedHeight;
 
-        if (ViewModel.DateGrouping != DateGroupingMode.None)
+        if (ClipsGridView.ItemsPanelRoot is ItemsWrapGrid rootWrapGrid && rootWrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
         {
-            if (ClipsGridView.ItemsPanelRoot is ItemsWrapGrid rootWrapGrid)
-            {
-                _activeGroupWrapGrids.Remove(rootWrapGrid);
-                rootWrapGrid.ItemWidth = double.NaN;
-                rootWrapGrid.ItemHeight = double.NaN;
-                rootWrapGrid.MaximumRowsOrColumns = 1;
-            }
-            FindAndRegisterGroupWrapGrids(ClipsGridView);
+            _activeGroupWrapGrids.Add(rootWrapGrid);
         }
-        else if (_activeGroupWrapGrids.Count == 0)
+
+        if (_activeGroupWrapGrids.Count == 0)
         {
             FindAndRegisterGroupWrapGrids(ClipsGridView);
         }
@@ -1986,7 +1961,7 @@ public sealed partial class HomePage : Page
 
     private void UpdateGroupWrapGrids(double width, double height, int columns = -1)
     {
-        _activeGroupWrapGrids.RemoveWhere(wg => wg.XamlRoot == null || (ViewModel.DateGrouping != DateGroupingMode.None && wg == ClipsGridView?.ItemsPanelRoot));
+        _activeGroupWrapGrids.RemoveWhere(wg => wg.XamlRoot == null);
         foreach (var wrapGrid in _activeGroupWrapGrids)
         {
             wrapGrid.ItemWidth = width;
@@ -2022,17 +1997,14 @@ public sealed partial class HomePage : Page
 
             if (FindParent<ItemsWrapGrid>(gvi) is ItemsWrapGrid wrapGrid)
             {
-                if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot && wrapGrid != ClipsGridView?.ItemsPanelRoot)
+                if (wrapGrid != SkeletonItemsControl?.ItemsPanelRoot)
                 {
                     _activeGroupWrapGrids.Add(wrapGrid);
-                    if (_currentCardWidth > 0 && (Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5 || wrapGrid.MaximumRowsOrColumns != _lastColumnCount))
+                    if (_currentCardWidth > 0 && Math.Abs(wrapGrid.ItemWidth - _currentCardWidth) > 0.5)
                     {
                         wrapGrid.ItemWidth = _currentCardWidth;
                         wrapGrid.ItemHeight = _currentCardHeight;
-                        if (_lastColumnCount > 0)
-                        {
-                            wrapGrid.MaximumRowsOrColumns = _lastColumnCount;
-                        }
+                        wrapGrid.MaximumRowsOrColumns = -1;
                     }
                 }
             }

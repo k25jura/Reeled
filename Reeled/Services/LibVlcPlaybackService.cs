@@ -194,6 +194,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
                     media.AddOption(":no-video");
                     media.AddOption(":no-spu");
                     media.AddOption(":no-sub-autodetect-file");
+                    media.AddOption(":file-caching=150");
                     media.AddOption($":audio-track-id={trackId}");
                     slavePlayer.Media = media;
                     slavePlayer.Volume = _storedVolume;
@@ -387,7 +388,25 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
     public LibVlcPlaybackService()
     {
         _dispatcherQueue = App.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
-        Task.Run(EnsureCoreInitialized);
+        Task.Run(() =>
+        {
+            EnsureCoreInitialized();
+            try
+            {
+                using var prewarm = new LibVLC(
+                    "--no-audio",
+                    "--no-video",
+                    "--no-osd",
+                    "--no-sub-autodetect",
+                    "--no-lua",
+                    "--no-stats"
+                );
+            }
+            catch (Exception ex)
+            {
+                try { File.AppendAllText("reeled_crash.log", $"[LibVLC Prewarm Error] {ex}\n"); } catch { }
+            }
+        });
     }
 
     public void InitializeEngine(string[]? swapChainOptions = null)
@@ -402,10 +421,16 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
                 "--no-osd",
                 "--no-video-title-show",
                 "--no-mouse-events",
-                "--file-caching=300",
-                "--live-caching=300",
-                "--disc-caching=300",
-                "--network-caching=300"
+                "--no-sub-autodetect",
+                "--no-lua",
+                "--no-stats",
+                "--no-snapshot-preview",
+                "--avcodec-hw=any",
+                "--avcodec-fast",
+                "--file-caching=150",
+                "--live-caching=150",
+                "--disc-caching=150",
+                "--network-caching=150"
             };
 
             if (swapChainOptions != null && swapChainOptions.Length > 0)
@@ -422,7 +447,15 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         catch (Exception ex)
         {
             try { File.AppendAllText("reeled_crash.log", $"[InitializeEngine Error] {ex}\n"); } catch { }
-            _libVLC = new LibVLC();
+            _libVLC = new LibVLC(
+                "--no-osd",
+                "--no-sub-autodetect",
+                "--no-lua",
+                "--no-stats",
+                "--avcodec-hw=any",
+                "--avcodec-fast",
+                "--file-caching=150"
+            );
             _mediaPlayer = new MediaPlayer(_libVLC);
             _mediaPlayer.EnableMouseInput = false;
             _mediaPlayer.EnableKeyInput = false;
@@ -434,7 +467,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
     {
         _dispatcherQueue ??= App.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
 
-        if (_libVLC == null || _currentSwapChainOptions == null)
+        if (_libVLC == null || _currentSwapChainOptions == null || !AreOptionsEqual(_currentSwapChainOptions, swapChainOptions))
         {
             if (_libVLC != null)
             {
@@ -608,7 +641,10 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         {
             try
             {
-                _mediaPlayer.Stop();
+                if (_mediaPlayer.IsPlaying || _mediaPlayer.State == VLCState.Playing || _mediaPlayer.State == VLCState.Paused)
+                {
+                    _mediaPlayer.Stop();
+                }
 
                 var oldMedia = _currentMedia;
                 _currentMedia = null;
@@ -618,6 +654,8 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
                 }
 
                 var newMedia = new Media(_libVLC, filePath, FromType.FromPath);
+                newMedia.AddOption(":no-sub-autodetect-file");
+                newMedia.AddOption(":file-caching=150");
                 _currentMedia = newMedia;
                 _mediaPlayer.Play(newMedia);
             }

@@ -731,11 +731,20 @@ public partial class HomeViewModel : ObservableObject
         await SyncDirectoriesAsync(forceReload: true);
     }
 
+    private long _lastPlayClipTimestamp;
+
     [RelayCommand]
     public void PlayClip(GameClip? clip)
     {
         clip ??= SelectedClip;
         if (clip == null) return;
+
+        long now = Environment.TickCount64;
+        if (now - _lastPlayClipTimestamp < 400)
+        {
+            return;
+        }
+        _lastPlayClipTimestamp = now;
 
         _navigationService.NavigateToPlayer(clip, FilteredClips);
     }

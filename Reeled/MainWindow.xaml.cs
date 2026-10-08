@@ -351,8 +351,13 @@ public sealed partial class MainWindow : Window
 
     private void OnNavigatedToPlayer(Models.GameClip clip, System.Collections.Generic.List<Models.GameClip> playlist)
     {
-        _isPlayerClosing = false;
         var playerVM = App.GetService<PlayerViewModel>();
+        if (IsPlayerVisible && playerVM.CurrentClip?.FilePath == clip.FilePath)
+        {
+            return;
+        }
+
+        _isPlayerClosing = false;
         playerVM.LoadClip(clip, playlist);
 
         _transitionStoryboard?.Stop();

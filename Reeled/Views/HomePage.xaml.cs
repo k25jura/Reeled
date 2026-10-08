@@ -3334,41 +3334,6 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private void OnClipCardTapped(object sender, TappedRoutedEventArgs e)
-    {
-        if (e.OriginalSource is DependencyObject dep && IsDescendantOf<Button>(dep))
-        {
-            return;
-        }
-        if (sender is FrameworkElement element && element.DataContext is GameClip clip)
-        {
-            ViewModel.PlayClip(clip);
-        }
-    }
-
-    private void OnClipCardDoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
-    {
-        if (e.OriginalSource is DependencyObject dep && IsDescendantOf<Button>(dep))
-        {
-            return;
-        }
-        if (sender is FrameworkElement element && element.DataContext is GameClip clip)
-        {
-            ViewModel.PlayClip(clip);
-        }
-    }
-
-    private static bool IsDescendantOf<T>(DependencyObject element) where T : DependencyObject
-    {
-        DependencyObject? current = element;
-        while (current != null)
-        {
-            if (current is T) return true;
-            current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current);
-        }
-        return false;
-    }
-
     private void OnFavoriteClick(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is GameClip clip)

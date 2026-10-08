@@ -224,12 +224,33 @@ public partial class PlayerViewModel : ObservableObject
         RepeatMode = _storageService.CurrentSettings.DefaultRepeatMode;
     }
 
+    private GameClip? _previousActiveClip;
+
     public void LoadClip(GameClip clip, IEnumerable<GameClip> playlist)
     {
-        Playlist.Clear();
-        foreach (var item in playlist)
+        var newItems = playlist as IList<GameClip> ?? playlist.ToList();
+
+        bool isIdentical = (Playlist.Count == newItems.Count);
+        if (isIdentical)
         {
-            Playlist.Add(item);
+            for (int i = 0; i < newItems.Count; i++)
+            {
+                if (!ReferenceEquals(Playlist[i], newItems[i]) && Playlist[i].FilePath != newItems[i].FilePath)
+                {
+                    isIdentical = false;
+                    break;
+                }
+            }
+        }
+
+        if (!isIdentical)
+        {
+            Playlist.Clear();
+            _previousActiveClip = null;
+            foreach (var item in newItems)
+            {
+                Playlist.Add(item);
+            }
         }
 
         SetClip(clip);
@@ -243,13 +264,34 @@ public partial class PlayerViewModel : ObservableObject
         _playbackService.SetPlaybackRate(PlaybackRate);
     }
 
+    private void UpdateActivePlaylistItem(GameClip clip)
+    {
+        if (_previousActiveClip != null && !ReferenceEquals(_previousActiveClip, clip))
+        {
+            _previousActiveClip.IsActive = false;
+        }
+
+        GameClip target = clip;
+        if (_previousActiveClip == null || !ReferenceEquals(_previousActiveClip, clip))
+        {
+            foreach (var item in Playlist)
+            {
+                if (ReferenceEquals(item, clip) || string.Equals(item.FilePath, clip.FilePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    target = item;
+                    break;
+                }
+            }
+        }
+
+        target.IsActive = true;
+        _previousActiveClip = target;
+        CurrentClip = target;
+    }
+
     private void SetClip(GameClip clip)
     {
-        CurrentClip = clip;
-        foreach (var item in Playlist)
-        {
-            item.IsActive = string.Equals(item.FilePath, clip.FilePath, StringComparison.OrdinalIgnoreCase);
-        }
+        UpdateActivePlaylistItem(clip);
         CurrentTime = TimeSpan.Zero;
         ProgressValue = 0.0;
 

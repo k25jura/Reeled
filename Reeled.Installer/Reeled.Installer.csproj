@@ -16,6 +16,13 @@
     <Nullable>enable</Nullable>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <DefaultLanguage>en-US</DefaultLanguage>
+    <Company>k25jura</Company>
+    <Authors>k25jura</Authors>
+    <Product>Reeled</Product>
+    <AssemblyTitle>Reeled Setup</AssemblyTitle>
+    <Copyright>Copyright © 2026 k25jura</Copyright>
+    <Description>Reeled Setup and Installation Bootstrapper</Description>
+    <Version>1.0.0</Version>
     <EnableMsixTooling>true</EnableMsixTooling>
   </PropertyGroup>
 
@@ -28,7 +35,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resources\payload.zip" Condition="Exists('Resources\payload.zip')" />
     <EmbeddedResource Include="Localization\*.json" />
   </ItemGroup>
 

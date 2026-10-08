@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Net.Http;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,7 +13,18 @@ public record InstallProgress(double Percentage, string StatusText);
 
 public class InstallService
 {
+    public const string DefaultPayloadUrl = "https://github.com/k25jura/Reeled/releases/latest/download/payload.zip";
+
     private readonly SystemIntegrationService _systemIntegration = new();
+    private static readonly HttpClient _httpClient = new()
+    {
+        Timeout = TimeSpan.FromMinutes(10)
+    };
+
+    static InstallService()
+    {
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("ReeledSetup/1.0 (Windows NT; x64)");
+    }
 
     public string DefaultInstallDirectory =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Reeled");
@@ -39,116 +51,174 @@ public class InstallService
         IProgress<InstallProgress> progress,
         CancellationToken cancellationToken = default)
     {
-        await Task.Run(() =>
-        {
-            var loc = LocalizationService.Instance;
-            progress.Report(new InstallProgress(0, loc["Installing_Status_Preparing"]));
+        var loc = LocalizationService.Instance;
+        string? tempDownloadedFile = null;
 
+        try
+        {
+            progress.Report(new InstallProgress(0, loc["Installing_Status_Preparing"]));
             Directory.CreateDirectory(destinationDir);
 
-            // Locate Payload
-            using Stream? payloadStream = GetPayloadStream();
-            if (payloadStream == null)
+            // 1. Check if payload exists locally first
+            string? localPayloadPath = GetLocalPayloadPath();
+            Stream? payloadStream = null;
+
+            if (!string.IsNullOrEmpty(localPayloadPath) && File.Exists(localPayloadPath))
             {
-                throw new InvalidOperationException("Installation payload was not found. Please ensure payload.zip is bundled with the installer.");
+                payloadStream = File.OpenRead(localPayloadPath);
+            }
+            else
+            {
+                // 2. Download from GitHub Releases
+                progress.Report(new InstallProgress(2, loc["Installing_Status_Connecting"]));
+
+                tempDownloadedFile = Path.Combine(Path.GetTempPath(), $"Reeled_payload_{Guid.NewGuid():N}.zip");
+                await DownloadPayloadAsync(DefaultPayloadUrl, tempDownloadedFile, progress, loc, cancellationToken);
+
+                payloadStream = File.OpenRead(tempDownloadedFile);
             }
 
-            using var archive = new ZipArchive(payloadStream, ZipArchiveMode.Read);
-            int totalEntries = archive.Entries.Count;
-            int current = 0;
-            long totalBytesExtracted = 0;
-
-            foreach (var entry in archive.Entries)
+            using (payloadStream)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                using var archive = new ZipArchive(payloadStream, ZipArchiveMode.Read);
+                int totalEntries = archive.Entries.Count;
+                int current = 0;
+                long totalBytesExtracted = 0;
 
-                string fullPath = Path.Combine(destinationDir, entry.FullName);
-
-                // Handle directory entries
-                if (entry.FullName.EndsWith("/") || entry.FullName.EndsWith("\\") || string.IsNullOrEmpty(entry.Name))
+                foreach (var entry in archive.Entries)
                 {
-                    Directory.CreateDirectory(fullPath);
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    string fullPath = Path.Combine(destinationDir, entry.FullName);
+
+                    // Handle directory entries
+                    if (entry.FullName.EndsWith("/") || entry.FullName.EndsWith("\\") || string.IsNullOrEmpty(entry.Name))
+                    {
+                        Directory.CreateDirectory(fullPath);
+                        current++;
+                        continue;
+                    }
+
+                    string? parent = Path.GetDirectoryName(fullPath);
+                    if (!string.IsNullOrEmpty(parent))
+                    {
+                        Directory.CreateDirectory(parent);
+                    }
+
+                    entry.ExtractToFile(fullPath, overwrite: true);
+                    totalBytesExtracted += entry.Length;
                     current++;
-                    continue;
+
+                    // Extraction spans 50% to 85%
+                    double pct = 50.0 + ((double)current / totalEntries * 35.0);
+                    string statusMsg = loc.Format("Installing_Status_Extracting", current, totalEntries);
+                    progress.Report(new InstallProgress(pct, statusMsg));
                 }
 
-                string? parent = Path.GetDirectoryName(fullPath);
-                if (!string.IsNullOrEmpty(parent))
+                // Copy installer as Uninstaller
+                progress.Report(new InstallProgress(88, loc["Installing_Status_Shortcuts"]));
+                string currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
+                string uninstallTarget = Path.Combine(destinationDir, "Uninstall.exe");
+                if (!string.IsNullOrEmpty(currentExe) && File.Exists(currentExe))
                 {
-                    Directory.CreateDirectory(parent);
+                    try
+                    {
+                        File.Copy(currentExe, uninstallTarget, overwrite: true);
+                    }
+                    catch { }
                 }
 
-                entry.ExtractToFile(fullPath, overwrite: true);
-                totalBytesExtracted += entry.Length;
-                current++;
+                // Create Shortcuts
+                string targetAppExe = Path.Combine(destinationDir, "Reeled.exe");
+                _systemIntegration.CreateShortcuts(targetAppExe, createDesktopShortcut, createStartMenuShortcut);
 
-                double pct = (double)current / totalEntries * 80.0; // 0% to 80% for extraction
-                string statusMsg = loc.Format("Installing_Status_Extracting", current, totalEntries);
-                progress.Report(new InstallProgress(pct, statusMsg));
+                // Windows Capabilities & Context Menu Registration
+                progress.Report(new InstallProgress(94, loc["Installing_Status_Registering"]));
+                _systemIntegration.RegisterWindowsIntegration(destinationDir, registerVideoPlayer);
+
+                // Add/Remove Programs Registration
+                _systemIntegration.RegisterUninstaller(destinationDir, totalBytesExtracted);
+
+                progress.Report(new InstallProgress(100, loc["Installing_Status_Finishing"]));
             }
-
-            // Copy installer as Uninstaller
-            progress.Report(new InstallProgress(85, loc["Installing_Status_Shortcuts"]));
-            string currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
-            string uninstallTarget = Path.Combine(destinationDir, "Uninstall.exe");
-            if (!string.IsNullOrEmpty(currentExe) && File.Exists(currentExe))
+        }
+        finally
+        {
+            // Clean up temporary downloaded payload
+            if (!string.IsNullOrEmpty(tempDownloadedFile) && File.Exists(tempDownloadedFile))
             {
-                try
-                {
-                    File.Copy(currentExe, uninstallTarget, overwrite: true);
-                }
-                catch { }
+                try { File.Delete(tempDownloadedFile); } catch { }
             }
-
-            // Create Shortcuts
-            string targetAppExe = Path.Combine(destinationDir, "Reeled.exe");
-            _systemIntegration.CreateShortcuts(targetAppExe, createDesktopShortcut, createStartMenuShortcut);
-
-            // Windows Capabilities & Context Menu Registration
-            progress.Report(new InstallProgress(92, loc["Installing_Status_Registering"]));
-            _systemIntegration.RegisterWindowsIntegration(destinationDir, registerVideoPlayer);
-
-            // Add/Remove Programs Registration
-            _systemIntegration.RegisterUninstaller(destinationDir, totalBytesExtracted);
-
-            progress.Report(new InstallProgress(100, loc["Installing_Status_Finishing"]));
-        }, cancellationToken);
+        }
     }
 
-    private Stream? GetPayloadStream()
+    private async Task DownloadPayloadAsync(
+        string url,
+        string destinationFilePath,
+        IProgress<InstallProgress> progress,
+        LocalizationService loc,
+        CancellationToken cancellationToken)
     {
-        // 1. Check Embedded Resource
-        var assembly = Assembly.GetExecutingAssembly();
-        string[] resourceNames = assembly.GetManifestResourceNames();
-        foreach (var name in resourceNames)
+        using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        long? totalBytes = response.Content.Headers.ContentLength;
+        double totalMb = (totalBytes ?? (148L * 1024 * 1024)) / (1024.0 * 1024.0);
+
+        await using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        await using var fileStream = new FileStream(destinationFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
+
+        byte[] buffer = new byte[81920];
+        long totalRead = 0;
+        int bytesRead;
+
+        var stopwatch = Stopwatch.StartNew();
+        long lastSpeedCalcTicks = 0;
+        long lastSpeedBytes = 0;
+        double currentSpeedMbSec = 0;
+
+        while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
         {
-            if (name.EndsWith("payload.zip", StringComparison.OrdinalIgnoreCase))
+            await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken);
+            totalRead += bytesRead;
+
+            long elapsedTicks = stopwatch.ElapsedMilliseconds;
+            if (elapsedTicks - lastSpeedCalcTicks > 400)
             {
-                var stream = assembly.GetManifestResourceStream(name);
-                if (stream != null) return stream;
+                double seconds = (elapsedTicks - lastSpeedCalcTicks) / 1000.0;
+                if (seconds > 0)
+                {
+                    currentSpeedMbSec = ((totalRead - lastSpeedBytes) / (1024.0 * 1024.0)) / seconds;
+                }
+                lastSpeedCalcTicks = elapsedTicks;
+                lastSpeedBytes = totalRead;
             }
-        }
 
-        // 2. Check Local File alongside installer
+            double downloadedMb = totalRead / (1024.0 * 1024.0);
+            double downloadFraction = totalBytes.HasValue && totalBytes.Value > 0
+                ? (double)totalRead / totalBytes.Value
+                : Math.Min(downloadedMb / 150.0, 0.95);
+
+            // Download spans 2% to 50%
+            double pct = 2.0 + (downloadFraction * 48.0);
+            string statusMsg = loc.Format("Installing_Status_DownloadingWithSpeed", downloadedMb, totalMb, currentSpeedMbSec);
+            progress.Report(new InstallProgress(pct, statusMsg));
+        }
+    }
+
+    private string? GetLocalPayloadPath()
+    {
+        // 1. Same directory as ReeledSetup.exe
         string localPayload = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "payload.zip");
-        if (File.Exists(localPayload))
-        {
-            return File.OpenRead(localPayload);
-        }
+        if (File.Exists(localPayload)) return localPayload;
 
-        // 3. Check Resources subfolder
+        // 2. Resources subfolder
         string resPayload = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "payload.zip");
-        if (File.Exists(resPayload))
-        {
-            return File.OpenRead(resPayload);
-        }
+        if (File.Exists(resPayload)) return resPayload;
 
-        // 4. Check parent artifacts folder (development mode)
+        // 3. Parent artifacts folder (for dev / local builds)
         string devPayload = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "artifacts", "payload.zip");
-        if (File.Exists(devPayload))
-        {
-            return File.OpenRead(devPayload);
-        }
+        if (File.Exists(devPayload)) return devPayload;
 
         return null;
     }

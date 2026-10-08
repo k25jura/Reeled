@@ -14,13 +14,12 @@ $RootDir = Split-Path -Parent $PSScriptRoot
 $ArtifactsDir = Join-Path $RootDir "artifacts"
 $PublishDir = Join-Path $ArtifactsDir "publish"
 $InstallerPublishDir = Join-Path $ArtifactsDir "installer"
-$PayloadZip = Join-Path $RootDir "Reeled.Installer\Resources\payload.zip"
+$PayloadZip = Join-Path $ArtifactsDir "payload.zip"
 
 # Ensure output directories exist
 if (Test-Path $ArtifactsDir) { Remove-Item -Path $ArtifactsDir -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $ArtifactsDir | Out-Null
 New-Item -ItemType Directory -Force -Path $PublishDir | Out-Null
-New-Item -ItemType Directory -Force -Path (Split-Path -Parent $PayloadZip) | Out-Null
 
 Write-Host "`n[1/4] Publishing Reeled application binaries ($Configuration)..." -ForegroundColor Yellow
 dotnet publish "$RootDir\Reeled\Reeled.csproj" `
@@ -54,9 +53,6 @@ if (Test-Path $PayloadZip) { Remove-Item $PayloadZip -Force }
 
 $PayloadSizeMB = [math]::Round((Get-Item $PayloadZip).Length / 1MB, 2)
 Write-Host "Payload archive created: $PayloadZip ($PayloadSizeMB MB)" -ForegroundColor Green
-
-# Also place a copy in artifacts directory
-Copy-Item $PayloadZip (Join-Path $ArtifactsDir "payload.zip") -Force
 
 Write-Host "`n[3/4] Publishing Reeled.Installer (ReeledSetup.exe)..." -ForegroundColor Yellow
 dotnet publish "$RootDir\Reeled.Installer\Reeled.Installer.csproj" `

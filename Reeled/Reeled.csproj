@@ -17,6 +17,13 @@
     <NoWarn>$(NoWarn);MVVMTK0045</NoWarn>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <DefaultLanguage>en-US</DefaultLanguage>
+    <Company>k25jura</Company>
+    <Authors>k25jura</Authors>
+    <Product>Reeled</Product>
+    <AssemblyTitle>Reeled</AssemblyTitle>
+    <Copyright>Copyright © 2026 k25jura</Copyright>
+    <Description>Modern high-performance gaming clips library and player</Description>
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

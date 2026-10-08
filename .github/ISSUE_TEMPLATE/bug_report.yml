@@ -1,0 +1,64 @@
+name: Bug Report
+description: Report a reproducible bug or unexpected behavior in Reeled.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an issue! Please provide as much detail as possible to help us reproduce and resolve it.
+
+  - type: input
+    id: version
+    attributes:
+      label: Reeled Version
+      description: What version of Reeled are you running? (e.g. 1.0.0)
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Windows OS Version
+      options:
+        - Windows 11 (23H2 or newer)
+        - Windows 11 (22H2 or older)
+        - Windows 10 (22H2)
+        - Other / Insider Preview
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description of the Bug
+      description: Clear and concise description of what the problem is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the issue.
+      placeholder: |
+        1. Open Reeled
+        2. Click on ...
+        3. Play clip ...
+        4. See error ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context / Logs / Video Specs
+      description: Video codecs (MP4, MKV, NVENC, AV1), GPU model, or any error messages.

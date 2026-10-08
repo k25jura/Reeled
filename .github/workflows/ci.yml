@@ -1,0 +1,34 @@
+name: CI Build & Validation
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build:
+    name: Build Solution (Windows x64)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore Reeled.sln
+
+      - name: Build Debug
+        run: dotnet build Reeled.sln -c Debug --no-restore
+
+      - name: Build Release
+        run: dotnet build Reeled.sln -c Release --no-restore

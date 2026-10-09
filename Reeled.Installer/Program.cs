@@ -23,7 +23,7 @@ public static class Program
             bool isStaged = args.Any(a => string.Equals(a, "--staged", StringComparison.OrdinalIgnoreCase));
 
             // If this is uninstallation and we are running from an installation directory (not staged in %TEMP%),
-            // stage ourselves into %TEMP% to prevent file-locking and WinUI 3 XBF/PRI resource collisions with Reeled.exe.
+            // stage ourselves into a unique folder in %TEMP% to prevent file-locking and WinUI 3 XBF/PRI resource collisions with Reeled.exe.
             if (isUninstall && !isStaged)
             {
                 string currentProcessPath = Environment.ProcessPath ?? "";
@@ -71,32 +71,25 @@ public static class Program
                     }
                 }
 
-                string stageDir = Path.Combine(Path.GetTempPath(), "Reeled_Uninstall");
+                // Opportunistically cleanup old completed staging folders
                 try
                 {
-                    // Kill any leftover running processes from previous temp runs before copying
-                    foreach (var p in Process.GetProcessesByName("Uninstall"))
+                    foreach (var dir in Directory.GetDirectories(Path.GetTempPath(), "Reeled_Uninstall*"))
                     {
-                        try
-                        {
-                            if (p.MainModule?.FileName?.StartsWith(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase) == true)
-                            {
-                                p.Kill();
-                                p.WaitForExit(1000);
-                            }
-                        }
-                        catch { }
+                        try { Directory.Delete(dir, true); } catch { }
                     }
+                }
+                catch { }
 
-                    if (!Directory.Exists(stageDir))
-                    {
-                        Directory.CreateDirectory(stageDir);
-                    }
+                string stageDir = Path.Combine(Path.GetTempPath(), $"Reeled_Uninstall_{Guid.NewGuid():N}");
+                try
+                {
+                    Directory.CreateDirectory(stageDir);
 
                     string stagedExe = Path.Combine(stageDir, "Uninstall.exe");
                     if (!string.IsNullOrEmpty(currentProcessPath) && File.Exists(currentProcessPath))
                     {
-                        File.Copy(currentProcessPath, stagedExe, overwrite: true);
+                        File.Copy(currentProcessPath, stagedExe, overwrite: false);
                     }
 
                     bool isSilent = args.Any(a => string.Equals(a, "/silent", StringComparison.OrdinalIgnoreCase) ||
@@ -104,7 +97,8 @@ public static class Program
                                                  string.Equals(a, "--silent", StringComparison.OrdinalIgnoreCase) ||
                                                  string.Equals(a, "/s", StringComparison.OrdinalIgnoreCase));
 
-                    string stagedArguments = $"/uninstall --staged --dir=\"{targetDir}\"";
+                    string safeTargetDir = targetDir.TrimEnd('\\', '/');
+                    string stagedArguments = $"/uninstall --staged --dir=\"{safeTargetDir}\"";
                     if (isSilent) stagedArguments += " /silent";
 
                     var psi = new ProcessStartInfo
@@ -116,7 +110,7 @@ public static class Program
                     };
 
                     Process.Start(psi);
-                    return; // Exit immediately! Frees install folder and prevents WinUI 3 resource conflict
+                    return; // Staged launch succeeded! Exit immediately to release install folder.
                 }
                 catch (Exception ex)
                 {
@@ -126,6 +120,8 @@ public static class Program
                             $"[SelfStageError] {DateTime.Now}: {ex}\n");
                     }
                     catch { }
+                    // NEVER drop through to WinUI 3 in the install directory!
+                    return;
                 }
             }
 

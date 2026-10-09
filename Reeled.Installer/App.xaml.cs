@@ -85,7 +85,7 @@ public partial class App : Application
 
             var uninstallWindow = new UninstallWindow();
             MainWindowInstance = uninstallWindow;
-            uninstallWindow.Activate();
+            uninstallWindow.ActivateAndBringToForeground();
         }
         else
         {
@@ -99,14 +99,16 @@ public partial class App : Application
     {
         try
         {
-            string tempStageDir = Path.Combine(Path.GetTempPath(), "Reeled_Uninstall");
-            if (AppDomain.CurrentDomain.BaseDirectory.StartsWith(tempStageDir, StringComparison.OrdinalIgnoreCase) ||
-                (Environment.ProcessPath != null && Environment.ProcessPath.StartsWith(tempStageDir, StringComparison.OrdinalIgnoreCase)))
+            string currentBase = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\', '/');
+            string tempPath = Path.GetTempPath().TrimEnd('\\', '/');
+
+            if (currentBase.StartsWith(tempPath, StringComparison.OrdinalIgnoreCase) &&
+                Path.GetFileName(currentBase).StartsWith("Reeled_Uninstall", StringComparison.OrdinalIgnoreCase))
             {
                 var psi = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
-                    Arguments = $"/c timeout /t 2 /nobreak > NUL & rmdir /s /q \"{tempStageDir}\"",
+                    Arguments = $"/c timeout /t 2 /nobreak > NUL & rmdir /s /q \"{currentBase}\"",
                     WindowStyle = ProcessWindowStyle.Hidden,
                     CreateNoWindow = true,
                     UseShellExecute = false

@@ -28,13 +28,13 @@
 
             <!-- Confirmation Panel (Step 1) -->
             <StackPanel x:Name="ConfirmPanel" Spacing="16" VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal" Spacing="16">
-                    <Image Source="ms-appx:///Assets/reeled.png" Width="44" Height="44" VerticalAlignment="Center" />
-                    <StackPanel Spacing="2" VerticalAlignment="Center">
-                        <TextBlock x:Name="TitleText" Text="Uninstall Reeled" FontSize="18" FontWeight="SemiBold" />
+                <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,4">
+                    <Image Grid.Column="0" Source="ms-appx:///Assets/reeled.png" Width="44" Height="44" VerticalAlignment="Center" Margin="0,0,16,0" />
+                    <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock x:Name="TitleText" Text="Uninstall Reeled" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
                         <TextBlock x:Name="SubtitleText" Text="Are you sure you want to remove Reeled from your computer?" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                     </StackPanel>
-                </StackPanel>
+                </Grid>
 
                 <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
@@ -67,9 +67,9 @@
                         HorizontalAlignment="Center">
                     <FontIcon Glyph="&#xE73E;" FontSize="20" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
-                <StackPanel Spacing="4" HorizontalAlignment="Center">
-                    <TextBlock x:Name="DoneTitleText" Text="Uninstallation Complete" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                    <TextBlock x:Name="DoneSubtitleText" Text="Reeled has been successfully removed from your computer." FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" />
+                <StackPanel Spacing="4" HorizontalAlignment="Center" MaxWidth="520">
+                    <TextBlock x:Name="DoneTitleText" Text="Uninstallation Complete" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" />
+                    <TextBlock x:Name="DoneSubtitleText" Text="Reeled has been successfully removed from your computer." FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" />
                 </StackPanel>
             </StackPanel>
         </Grid>

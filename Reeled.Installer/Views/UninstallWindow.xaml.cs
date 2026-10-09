@@ -14,6 +14,15 @@ public sealed partial class UninstallWindow : Window
     private readonly InstallService _installService = new();
     private AppWindow? _appWindow;
 
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool BringWindowToTop(IntPtr hWnd);
+
     public UninstallWindow()
     {
         InitializeComponent();
@@ -24,7 +33,28 @@ public sealed partial class UninstallWindow : Window
         RootGrid.Loaded += (s, e) =>
         {
             UpdateTitleBarTheme(RootGrid.ActualTheme);
+            try
+            {
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                ShowWindow(hwnd, 9); // SW_RESTORE
+                SetForegroundWindow(hwnd);
+                BringWindowToTop(hwnd);
+            }
+            catch { }
         };
+    }
+
+    public void ActivateAndBringToForeground()
+    {
+        Activate();
+        try
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            ShowWindow(hwnd, 9); // SW_RESTORE
+            SetForegroundWindow(hwnd);
+            BringWindowToTop(hwnd);
+        }
+        catch { }
     }
 
     private void ConfigureWindow()
@@ -39,8 +69,8 @@ public sealed partial class UninstallWindow : Window
         if (_appWindow != null)
         {
             _appWindow.Title = _loc["Uninstall_Title"];
-            _appWindow.Resize(new SizeInt32(580, 380));
-            CenterWindowOnScreen(580, 380);
+            _appWindow.Resize(new SizeInt32(600, 390));
+            CenterWindowOnScreen(600, 390);
 
             string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "AppIcon.ico");
             if (File.Exists(iconPath))

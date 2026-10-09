@@ -49,6 +49,7 @@ public partial class App : Application
         AppDomain.CurrentDomain.ProcessExit += (sender, args) =>
         {
             Helpers.CursorHelper.RestoreGlobalCursor();
+            try { SingleInstanceService.Stop(); } catch { }
         };
 
         Services = ConfigureServices();
@@ -143,19 +144,19 @@ public partial class App : Application
     {
         try
         {
-            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
-            if (key?.GetValue("AppsUseLightTheme") is int val)
-            {
-                return val != 0;
-            }
+            var uiSettings = new Windows.UI.ViewManagement.UISettings();
+            var bg = uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background);
+            return (bg.R + bg.G + bg.B) > 384;
         }
         catch { }
 
         try
         {
-            var uiSettings = new Windows.UI.ViewManagement.UISettings();
-            var bg = uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background);
-            return (bg.R + bg.G + bg.B) > 384;
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            if (key?.GetValue("AppsUseLightTheme") is int val)
+            {
+                return val != 0;
+            }
         }
         catch { }
 

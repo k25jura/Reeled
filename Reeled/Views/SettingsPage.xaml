@@ -1716,9 +1716,9 @@
                                                 </StackPanel>
                                             </StackPanel>
 
-                                            <!-- Row 1, Col 0: Working Set Memory -->
+                                            <!-- Row 1, Col 0: Process Memory -->
                                             <StackPanel Grid.Row="1" Grid.Column="0" Spacing="2">
-                                                <TextBlock x:Name="DiagMemoryLabel" Text="Working Set Memory" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                <TextBlock x:Name="DiagMemoryLabel" Text="Process Memory" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                                 <TextBlock Text="{x:Bind ViewModel.MemoryUsageFormatted, Mode=OneWay}" FontSize="12.5" FontWeight="SemiBold" />
                                             </StackPanel>
 

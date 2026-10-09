@@ -24,6 +24,7 @@
     <Description>Reeled Setup and Installation Bootstrapper</Description>
     <Version>1.0.0</Version>
     <EnableMsixTooling>true</EnableMsixTooling>
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

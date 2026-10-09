@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -461,6 +462,47 @@ public partial class SettingsViewModel : ObservableObject
         }
     }
 
+    [DllImport("psapi.dll", EntryPoint = "QueryWorkingSet", SetLastError = true)]
+    private static extern bool QueryWorkingSet(IntPtr hProcess, IntPtr pv, uint cb);
+
+    private static double GetActivePrivateWorkingSetMb(System.Diagnostics.Process proc)
+    {
+        try
+        {
+            // 4MB buffer can hold up to 524,288 page entries on 64-bit (~2GB of working set)
+            int bufferSize = 1024 * 1024 * 4;
+            IntPtr pBuf = Marshal.AllocHGlobal(bufferSize);
+            try
+            {
+                if (QueryWorkingSet(proc.Handle, pBuf, (uint)bufferSize))
+                {
+                    long count = Marshal.ReadIntPtr(pBuf).ToInt64();
+                    long privatePages = 0;
+                    for (int i = 1; i <= count; i++)
+                    {
+                        long entry = Marshal.ReadIntPtr(pBuf, i * IntPtr.Size).ToInt64();
+                        // Bit 8 is the Shared flag (0x100). If 0, the page is private to this process.
+                        if ((entry & 0x100) == 0)
+                        {
+                            privatePages++;
+                        }
+                    }
+                    return (privatePages * 4096.0) / (1024.0 * 1024.0);
+                }
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(pBuf);
+            }
+        }
+        catch
+        {
+            // Fall back to PrivateMemorySize64 if QueryWorkingSet fails or access is denied
+        }
+
+        return proc.PrivateMemorySize64 / (1024.0 * 1024.0);
+    }
+
     public void UpdateDiagnostics()
     {
         try
@@ -473,7 +515,7 @@ public partial class SettingsViewModel : ObservableObject
             RuntimeFormatted = $".NET {Environment.Version.Major}.{Environment.Version.Minor}.{Environment.Version.Build}";
 
             using var proc = System.Diagnostics.Process.GetCurrentProcess();
-            double mb = proc.WorkingSet64 / (1024.0 * 1024.0);
+            double mb = GetActivePrivateWorkingSetMb(proc);
             string mbUnit = _localizationService["Unit_MB"];
             MemoryUsageFormatted = string.Format(_localizationService.CurrentCulture, "{0:F1} {1}", mb, mbUnit);
 
@@ -504,7 +546,7 @@ public partial class SettingsViewModel : ObservableObject
                        $"OS: {OsVersionFormatted}\n" +
                        $"Architecture: {ArchitectureFormatted}\n" +
                        $"Runtime: {RuntimeFormatted}\n" +
-                       $"Working Set Memory: {MemoryUsageFormatted}\n" +
+                       $"Process Memory: {MemoryUsageFormatted}\n" +
                        $"Library: {LibraryStatsFormatted}\n" +
                        $"Theme: {_storageService.CurrentSettings.AppTheme}\n" +
                        $"Language: {_localizationService.CurrentLanguage} (Effective: {_localizationService.EffectiveLanguage})\n" +

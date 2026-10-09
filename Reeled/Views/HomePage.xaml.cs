@@ -178,9 +178,103 @@ public sealed partial class HomePage : Page
         this.RequestedTheme = theme;
         UpdateLogo(theme);
         UpdateNavTabVisuals();
+
+        if (ClipsSearchBox != null)
+        {
+            ClipsSearchBox.RequestedTheme = theme;
+        }
+
+        if (SortOptionsButton != null)
+        {
+            SortOptionsButton.RequestedTheme = theme;
+        }
+
+        if (ViewOptionsButton != null)
+        {
+            ViewOptionsButton.RequestedTheme = theme;
+        }
+
+        if (SortMenuFlyout != null)
+        {
+            SortMenuFlyout.XamlRoot = this.XamlRoot;
+            foreach (var item in SortMenuFlyout.Items)
+            {
+                if (item is FrameworkElement fe) fe.RequestedTheme = theme;
+            }
+        }
+
+        if (ViewMenuFlyout != null)
+        {
+            ViewMenuFlyout.XamlRoot = this.XamlRoot;
+            foreach (var item in ViewMenuFlyout.Items)
+            {
+                if (item is FrameworkElement fe) fe.RequestedTheme = theme;
+            }
+        }
+
+        if (DirectoriesTreeView != null)
+        {
+            DirectoriesTreeView.RequestedTheme = theme;
+            UpdateTreeViewItemsTheme(DirectoriesTreeView, theme);
+        }
+
         if (ClipsGridView != null)
         {
             ClipsGridView.RequestedTheme = theme;
+            UpdateRealizedCardThemes(theme);
+        }
+    }
+
+    private void UpdateTreeViewItemsTheme(DependencyObject parent, ElementTheme theme)
+    {
+        int count = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is FrameworkElement fe)
+            {
+                fe.RequestedTheme = theme;
+            }
+            UpdateTreeViewItemsTheme(child, theme);
+        }
+    }
+
+    private void UpdateRealizedCardThemes(ElementTheme theme)
+    {
+        if (ClipsGridView == null) return;
+
+        void UpdateContainer(object item)
+        {
+            if (ClipsGridView.ContainerFromItem(item) is GridViewItem gvi)
+            {
+                gvi.RequestedTheme = theme;
+                if (FindVisualChildByName<FrameworkElement>(gvi, "CardRootGrid") is FrameworkElement rootGrid)
+                {
+                    rootGrid.RequestedTheme = theme;
+                }
+                if (FindVisualChildByName<Border>(gvi, "HoverHighlightBorder") is Border hoverBorder)
+                {
+                    hoverBorder.RequestedTheme = theme;
+                }
+            }
+        }
+
+        if (ViewModel.DateGrouping == DateGroupingMode.None)
+        {
+            foreach (var item in ViewModel.FilteredClips)
+            {
+                UpdateContainer(item);
+            }
+        }
+        else
+        {
+            foreach (var group in ViewModel.GroupedClips)
+            {
+                foreach (var item in group)
+                {
+                    UpdateContainer(item);
+                }
+            }
         }
     }
 
@@ -3460,6 +3554,10 @@ public sealed partial class HomePage : Page
             AnimateCardHover(element, isHovered: true);
 
             var flyout = new MenuFlyout();
+            if (this.XamlRoot != null)
+            {
+                flyout.XamlRoot = this.XamlRoot;
+            }
             flyout.Opening += OnFlyoutOpening;
             flyout.Opened += OnFlyoutOpened;
             flyout.Closed += (s, args) =>

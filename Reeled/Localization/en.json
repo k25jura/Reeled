@@ -189,7 +189,7 @@
   "About_DiagOS": "Operating System",
   "About_DiagArch": "Architecture",
   "About_DiagRuntime": "Runtime",
-  "About_DiagMemory": "Working Set Memory",
+  "About_DiagMemory": "Process Memory",
   "About_DiagLibrary": "Library Stats",
   "About_GitHub": "GitHub Repository",
   "About_Releases": "Release Notes",

@@ -219,6 +219,14 @@ public sealed partial class SettingsPage : Page
         {
             SettingsScrollViewer.RequestedTheme = theme;
         }
+        if (SettingsContentRoot != null)
+        {
+            SettingsContentRoot.RequestedTheme = theme;
+        }
+        if (CategoriesNavRoot != null)
+        {
+            CategoriesNavRoot.RequestedTheme = theme;
+        }
         UpdateCategoryButtonColors(theme);
     }
 

@@ -57,15 +57,29 @@ public class InstallService
         try
         {
             progress.Report(new InstallProgress(0, loc["Installing_Status_Preparing"]));
+
+            // Terminate any running Reeled processes so files are not locked during extraction
+            foreach (var proc in Process.GetProcessesByName("Reeled"))
+            {
+                try
+                {
+                    proc.Kill();
+                    proc.WaitForExit(2000);
+                }
+                catch { }
+            }
+
             Directory.CreateDirectory(destinationDir);
 
             // 1. Check if payload exists locally first
             string? localPayloadPath = GetLocalPayloadPath();
             Stream? payloadStream = null;
+            bool isLocalPayload = !string.IsNullOrEmpty(localPayloadPath) && File.Exists(localPayloadPath);
 
-            if (!string.IsNullOrEmpty(localPayloadPath) && File.Exists(localPayloadPath))
+            if (isLocalPayload)
             {
-                payloadStream = File.OpenRead(localPayloadPath);
+                progress.Report(new InstallProgress(5, loc["Installing_Status_Extracting"]));
+                payloadStream = File.OpenRead(localPayloadPath!);
             }
             else
             {
@@ -84,6 +98,9 @@ public class InstallService
                 int totalEntries = archive.Entries.Count;
                 int current = 0;
                 long totalBytesExtracted = 0;
+
+                double startPct = isLocalPayload ? 5.0 : 50.0;
+                double spanPct = isLocalPayload ? 83.0 : 38.0;
 
                 foreach (var entry in archive.Entries)
                 {
@@ -109,14 +126,13 @@ public class InstallService
                     totalBytesExtracted += entry.Length;
                     current++;
 
-                    // Extraction spans 50% to 85%
-                    double pct = 50.0 + ((double)current / totalEntries * 35.0);
+                    double pct = startPct + ((double)current / totalEntries * spanPct);
                     string statusMsg = loc.Format("Installing_Status_Extracting", current, totalEntries);
                     progress.Report(new InstallProgress(pct, statusMsg));
                 }
 
                 // Copy installer as both Uninstall.exe and ReeledSetup.exe for redundancy
-                progress.Report(new InstallProgress(88, loc["Installing_Status_Shortcuts"]));
+                progress.Report(new InstallProgress(90, loc["Installing_Status_Shortcuts"]));
                 string currentExe = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
                 string uninstallTarget = Path.Combine(destinationDir, "Uninstall.exe");
                 string setupTarget = Path.Combine(destinationDir, "ReeledSetup.exe");
@@ -141,7 +157,7 @@ public class InstallService
                 _systemIntegration.CreateShortcuts(targetAppExe, createDesktopShortcut, createStartMenuShortcut);
 
                 // Windows Capabilities & Context Menu Registration
-                progress.Report(new InstallProgress(94, loc["Installing_Status_Registering"]));
+                progress.Report(new InstallProgress(95, loc["Installing_Status_Registering"]));
                 _systemIntegration.RegisterWindowsIntegration(destinationDir, registerVideoPlayer);
 
                 // Add/Remove Programs Registration
@@ -261,19 +277,31 @@ public class InstallService
         await Task.Run(() =>
         {
             var loc = LocalizationService.Instance;
-            progress.Report(new InstallProgress(10, loc["Uninstall_Status_Preparing"]));
+            progress.Report(new InstallProgress(5, loc["Uninstall_Status_Preparing"]));
+
+            // Terminate any running Reeled processes first
+            foreach (var proc in Process.GetProcessesByName("Reeled"))
+            {
+                try
+                {
+                    proc.Kill();
+                    proc.WaitForExit(2000);
+                }
+                catch { }
+            }
 
             // 1. Remove Shortcuts
-            progress.Report(new InstallProgress(30, loc["Uninstall_Status_Shortcuts"]));
+            progress.Report(new InstallProgress(25, loc["Uninstall_Status_Shortcuts"]));
             _systemIntegration.RemoveShortcuts();
 
             // 2. Remove Registry entries
-            progress.Report(new InstallProgress(50, loc["Uninstall_Status_Registry"]));
+            progress.Report(new InstallProgress(45, loc["Uninstall_Status_Registry"]));
             _systemIntegration.RemoveWindowsIntegration();
 
             // 3. Remove App Data if requested
             if (wipeUserData)
             {
+                progress.Report(new InstallProgress(60, loc["Uninstall_Status_Removing"]));
                 try
                 {
                     string localAppData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Reeled");
@@ -285,28 +313,27 @@ public class InstallService
                 catch { }
             }
 
-            // 4. Remove Files in installDir (except running uninstaller executables)
-            progress.Report(new InstallProgress(70, loc["Uninstall_Status_Removing"]));
-            string currentExe = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
-
+            // 4. Remove Files in installDir (since uninstaller is staged in %TEMP%, installDir can be completely purged)
+            progress.Report(new InstallProgress(75, loc["Uninstall_Status_Removing"]));
             try
             {
                 if (Directory.Exists(installDir))
                 {
-                    foreach (var file in Directory.GetFiles(installDir, "*", SearchOption.AllDirectories))
+                    try
                     {
-                        string fileName = Path.GetFileName(file);
-                        if (!string.Equals(file, currentExe, StringComparison.OrdinalIgnoreCase) &&
-                            !string.Equals(fileName, "ReeledSetup.exe", StringComparison.OrdinalIgnoreCase) &&
-                            !string.Equals(fileName, "Uninstall.exe", StringComparison.OrdinalIgnoreCase))
+                        Directory.Delete(installDir, recursive: true);
+                    }
+                    catch
+                    {
+                        // Fallback file by file if any handle is briefly lingering
+                        foreach (var file in Directory.GetFiles(installDir, "*", SearchOption.AllDirectories))
                         {
                             try { File.Delete(file); } catch { }
                         }
-                    }
-
-                    foreach (var dir in Directory.GetDirectories(installDir, "*", SearchOption.AllDirectories))
-                    {
-                        try { Directory.Delete(dir, recursive: true); } catch { }
+                        foreach (var dir in Directory.GetDirectories(installDir, "*", SearchOption.AllDirectories))
+                        {
+                            try { Directory.Delete(dir, recursive: true); } catch { }
+                        }
                     }
                 }
             }

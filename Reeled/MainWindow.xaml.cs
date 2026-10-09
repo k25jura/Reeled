@@ -265,6 +265,17 @@ public sealed partial class MainWindow : Window
         AppWindow.Closing += (s, e) =>
         {
             Helpers.CursorHelper.RestoreGlobalCursor();
+            try
+            {
+                var playbackService = App.GetService<ILibVlcPlaybackService>();
+                playbackService.Dispose();
+            }
+            catch { }
+            try
+            {
+                SingleInstanceService.Stop();
+            }
+            catch { }
         };
 
         Closed += (s, e) =>
@@ -276,6 +287,20 @@ public sealed partial class MainWindow : Window
                 playbackService.Dispose();
             }
             catch { }
+
+            try
+            {
+                SingleInstanceService.Stop();
+            }
+            catch { }
+
+            try
+            {
+                Microsoft.UI.Xaml.Application.Current?.Exit();
+            }
+            catch { }
+
+            Environment.Exit(0);
         };
 
         RootWindowGrid.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnWindowGlobalKeyDown), handledEventsToo: true);
@@ -288,6 +313,16 @@ public sealed partial class MainWindow : Window
         {
             DispatcherQueue.TryEnqueue(() =>
             {
+                var storage = App.GetService<ILocalStorageService>();
+                if (storage.CurrentSettings.AppTheme == "Default")
+                {
+                    App.ApplyTheme("Default");
+                }
+            });
+
+            DispatcherQueue.TryEnqueue(async () =>
+            {
+                await Task.Delay(150);
                 var storage = App.GetService<ILocalStorageService>();
                 if (storage.CurrentSettings.AppTheme == "Default")
                 {
@@ -324,6 +359,14 @@ public sealed partial class MainWindow : Window
         RootWindowGrid.ActualThemeChanged += (s, e) =>
         {
             UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
+            if (RootFrame.Content is Views.HomePage hp)
+            {
+                hp.ApplyThemeVisuals(RootWindowGrid.ActualTheme);
+            }
+            else if (RootFrame.Content is Views.SettingsPage sp)
+            {
+                sp.ApplyThemeVisuals(RootWindowGrid.ActualTheme);
+            }
         };
         UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
 

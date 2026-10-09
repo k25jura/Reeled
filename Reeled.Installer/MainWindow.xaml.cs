@@ -484,6 +484,10 @@ public sealed partial class MainWindow : Window
         try
         {
             await _installService.InstallAsync(dest, desktop, startMenu, videoAssoc, progress, _installCts.Token);
+            InstallProgressBar.Value = 100;
+            InstallPercentageText.Text = "100%";
+            InstallingStatusText.Text = _loc["Installing_Status_Finishing"];
+            await Task.Delay(400);
             _currentStep = WizardStep.Finished;
             UpdateStepView();
         }

@@ -21,6 +21,9 @@ public static class SingleInstanceService
     [DllImport("user32.dll")]
     private static extern bool ShowWindow(nint hWnd, int nCmdShow);
 
+    [DllImport("user32.dll")]
+    private static extern bool BringWindowToTop(nint hWnd);
+
     public static bool TryRegisterSingleInstance(IReadOnlyList<string> filesToOpen)
     {
         try
@@ -91,6 +94,13 @@ public static class SingleInstanceService
                             await nav.OpenVideoFilesAsync(files);
                         });
                     }
+                    else
+                    {
+                        App.DispatcherQueue?.TryEnqueue(() =>
+                        {
+                            BringToForeground();
+                        });
+                    }
                 }
                 catch when (_pipeCts.IsCancellationRequested)
                 {
@@ -111,7 +121,29 @@ public static class SingleInstanceService
             if (App.WindowHandle != IntPtr.Zero)
             {
                 ShowWindow(App.WindowHandle, 9); // SW_RESTORE
+                BringWindowToTop(App.WindowHandle);
                 SetForegroundWindow(App.WindowHandle);
+            }
+        }
+        catch { }
+    }
+
+    public static void Stop()
+    {
+        try
+        {
+            _pipeCts?.Cancel();
+            _pipeCts?.Dispose();
+            _pipeCts = null;
+        }
+        catch { }
+
+        try
+        {
+            if (_mutex != null)
+            {
+                _mutex.Dispose();
+                _mutex = null;
             }
         }
         catch { }

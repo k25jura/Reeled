@@ -58,7 +58,7 @@ foreach ($bd in $PossibleBinDirs) {
     if (Test-Path $bd) {
         Write-Host "Verifying WinUI 3 compiled XAML resources and PRI indexes from $bd..." -ForegroundColor Cyan
         Get-ChildItem -Path $bd -Include "*.xbf" -Recurse | Where-Object { $_.FullName -notlike "*\publish\*" } | ForEach-Object {
-            $rel = [System.IO.Path]::GetRelativePath($bd, $_.FullName)
+            $rel = $_.FullName.Substring($bd.Length).TrimStart('\', '/')
             $dest = Join-Path $PublishDir $rel
             $destDir = Split-Path -Parent $dest
             if (!(Test-Path $destDir)) { New-Item -ItemType Directory -Force -Path $destDir | Out-Null }

@@ -54,6 +54,12 @@ public sealed partial class UninstallWindow : Window
                 presenter.IsMaximizable = false;
             }
 
+            _appWindow.Closing += (s, e) =>
+            {
+                App.ScheduleTempCleanup();
+                Environment.Exit(0);
+            };
+
             UpdateTitleBarTheme(RootGrid.ActualTheme);
         }
 
@@ -138,7 +144,7 @@ public sealed partial class UninstallWindow : Window
         CancelButton.IsEnabled = false;
 
         bool wipe = WipeUserDataCheckBox.IsChecked == true;
-        string installDir = AppDomain.CurrentDomain.BaseDirectory;
+        string installDir = App.TargetInstallDirectory ?? _installService.DefaultInstallDirectory;
 
         var progress = new Progress<InstallProgress>(p =>
         {
@@ -164,11 +170,13 @@ public sealed partial class UninstallWindow : Window
 
     private void OnCancelClicked(object sender, RoutedEventArgs e)
     {
-        this.Close();
+        App.ScheduleTempCleanup();
+        Environment.Exit(0);
     }
 
     private void OnCloseClicked(object sender, RoutedEventArgs e)
     {
-        this.Close();
+        App.ScheduleTempCleanup();
+        Environment.Exit(0);
     }
 }

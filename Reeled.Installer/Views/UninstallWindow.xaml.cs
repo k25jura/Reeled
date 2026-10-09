@@ -13,6 +13,7 @@ public sealed partial class UninstallWindow : Window
     private readonly LocalizationService _loc = LocalizationService.Instance;
     private readonly InstallService _installService = new();
     private AppWindow? _appWindow;
+    private bool _isUninstallCompleted = false;
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
@@ -87,7 +88,7 @@ public sealed partial class UninstallWindow : Window
             _appWindow.Closing += (s, e) =>
             {
                 App.ScheduleTempCleanup();
-                Environment.Exit(0);
+                Environment.Exit(_isUninstallCompleted ? 0 : 1);
             };
 
             UpdateTitleBarTheme(RootGrid.ActualTheme);
@@ -196,12 +197,13 @@ public sealed partial class UninstallWindow : Window
         CancelButton.Visibility = Visibility.Collapsed;
         UninstallButton.Visibility = Visibility.Collapsed;
         CloseButton.Visibility = Visibility.Visible;
+        _isUninstallCompleted = true;
     }
 
     private void OnCancelClicked(object sender, RoutedEventArgs e)
     {
         App.ScheduleTempCleanup();
-        Environment.Exit(0);
+        Environment.Exit(1);
     }
 
     private void OnCloseClicked(object sender, RoutedEventArgs e)

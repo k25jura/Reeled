@@ -105,12 +105,35 @@ public static class Program
                     {
                         FileName = stagedExe,
                         Arguments = stagedArguments,
-                        UseShellExecute = true,
+                        UseShellExecute = false,
                         WorkingDirectory = stageDir
                     };
 
-                    Process.Start(psi);
-                    return; // Staged launch succeeded! Exit immediately to release install folder.
+                    var stagedProc = Process.Start(psi);
+                    stagedProc?.WaitForExit();
+
+                    if (stagedProc != null && stagedProc.ExitCode == 0)
+                    {
+                        // Uninstallation succeeded! Schedule cleanup of the installation directory
+                        try
+                        {
+                            if (!string.IsNullOrEmpty(safeTargetDir) && Directory.Exists(safeTargetDir))
+                            {
+                                var cleanupPsi = new ProcessStartInfo
+                                {
+                                    FileName = "cmd.exe",
+                                    Arguments = $"/c timeout /t 1 /nobreak > NUL & rmdir /s /q \"{safeTargetDir}\"",
+                                    WindowStyle = ProcessWindowStyle.Hidden,
+                                    CreateNoWindow = true,
+                                    UseShellExecute = false
+                                };
+                                Process.Start(cleanupPsi);
+                            }
+                        }
+                        catch { }
+                    }
+
+                    return;
                 }
                 catch (Exception ex)
                 {

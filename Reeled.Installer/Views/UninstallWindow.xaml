@@ -52,7 +52,7 @@
             <StackPanel x:Name="ProgressPanel" Visibility="Collapsed" Spacing="16" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
                     <ProgressRing IsActive="True" Width="24" Height="24" Foreground="{ThemeResource AccentFillColorDefaultBrush}" />
-                    <TextBlock x:Name="ProgressStatusText" Text="Removing files..." FontSize="13" VerticalAlignment="Center" />
+                    <TextBlock x:Name="ProgressStatusText" Text="Removing files..." FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
                 </StackPanel>
                 <ProgressBar x:Name="UninstallProgressBar" Maximum="100" Value="0" Height="6" CornerRadius="3" Foreground="{ThemeResource AccentFillColorDefaultBrush}" Margin="24,0" />
             </StackPanel>

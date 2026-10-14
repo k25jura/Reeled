@@ -1120,6 +1120,8 @@ public sealed partial class SettingsPage : Page
         if (MaxVolumeSubtitleText != null) MaxVolumeSubtitleText.Text = loc["Playback_MaxVolumeSubtitle"];
         if (StartMutedTitleText != null) StartMutedTitleText.Text = loc["Playback_StartMutedTitle"];
         if (StartMutedSubtitleText != null) StartMutedSubtitleText.Text = loc["Playback_StartMutedSubtitle"];
+        if (ResumePlaybackTitleText != null) ResumePlaybackTitleText.Text = loc["Playback_ResumeTitle"];
+        if (ResumePlaybackSubtitleText != null) ResumePlaybackSubtitleText.Text = loc["Playback_ResumeSubtitle"];
         if (DefaultRepeatTitleText != null) DefaultRepeatTitleText.Text = loc["Playback_RepeatModeTitle"];
         if (DefaultRepeatSubtitleText != null) DefaultRepeatSubtitleText.Text = loc["Playback_RepeatModeSubtitle"];
         if (AutoHideTitleText != null) AutoHideTitleText.Text = loc["Playback_AutoHideTitle"];

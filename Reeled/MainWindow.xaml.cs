@@ -265,6 +265,7 @@ public sealed partial class MainWindow : Window
         AppWindow.Closing += (s, e) =>
         {
             Helpers.CursorHelper.RestoreGlobalCursor();
+            FlushStateOnExit();
             try
             {
                 var playbackService = App.GetService<ILibVlcPlaybackService>();
@@ -281,6 +282,7 @@ public sealed partial class MainWindow : Window
         Closed += (s, e) =>
         {
             Helpers.CursorHelper.RestoreGlobalCursor();
+            FlushStateOnExit();
             try
             {
                 var playbackService = App.GetService<ILibVlcPlaybackService>();
@@ -379,6 +381,36 @@ public sealed partial class MainWindow : Window
 
         // Startup on HomePage
         RootFrame.Navigate(typeof(HomePage), null, new SuppressNavigationTransitionInfo());
+    }
+
+    private bool _stateFlushed;
+
+    /// <summary>
+    /// Settings and the metadata cache are saved in the background during normal use; persist them
+    /// synchronously before the process exits so the last changes aren't lost.
+    /// </summary>
+    private void FlushStateOnExit()
+    {
+        if (_stateFlushed) return;
+        _stateFlushed = true;
+
+        try
+        {
+            if (IsPlayerVisible)
+            {
+                App.GetService<PlayerViewModel>().SaveResumePosition();
+            }
+        }
+        catch { }
+
+        try { App.GetService<IClipMetadataCacheService>().Flush(); } catch { }
+
+        try
+        {
+            var storage = App.GetService<ILocalStorageService>();
+            storage.SaveSettingsSync(storage.CurrentSettings);
+        }
+        catch { }
     }
 
     private void OnWindowGlobalKeyDown(object sender, KeyRoutedEventArgs e)

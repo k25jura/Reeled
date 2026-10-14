@@ -92,6 +92,8 @@ public sealed partial class PlayerPage : Page
         _inactivityTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(initialTimeout > 0 ? initialTimeout : 2.0) };
         _inactivityTimer.Tick += (s, e) =>
         {
+            // One-shot: pointer movement restarts it
+            _inactivityTimer.Stop();
             if (ViewModel.IsPlaying && !ViewModel.IsSidebarOpen && !AreFlyoutsOrPopupsOpen)
             {
                 ViewModel.IsControlsVisible = false;
@@ -143,6 +145,7 @@ public sealed partial class PlayerPage : Page
                 {
                     RestartInactivityTimer();
                 }
+                UpdateTimelineRendering();
                 DispatcherQueue.TryEnqueue(RenderTimelineMarkers);
             }
             else if (e.PropertyName == nameof(PlayerViewModel.PlaybackRate))
@@ -188,7 +191,11 @@ public sealed partial class PlayerPage : Page
 
         Loaded += (s, e) =>
         {
-            Activate();
+            // The page lives in a collapsed overlay from startup; only activate when it's actually shown
+            if (App.Window is MainWindow mainWindow && mainWindow.IsPlayerVisible)
+            {
+                Activate();
+            }
             ApplyLocalization();
             HookButtonPulses();
             var loc = App.GetService<Services.ILocalizationService>();
@@ -502,12 +509,31 @@ public sealed partial class PlayerPage : Page
         DispatcherQueue.TryEnqueue(RenderTimelineMarkers);
         UpdateBackdropBlur();
 
-        StartTimelineRendering();
+        _isActive = true;
+        UpdateTimelineRendering();
     }
 
     public void SetVideoSurfaceVisibility(Visibility visibility)
     {
         PlayerVideoView.Visibility = visibility;
+    }
+
+    private bool _isActive;
+
+    /// <summary>
+    /// The per-frame timeline interpolation keeps the compositor rendering every frame, so it only
+    /// runs while the player is shown and actually playing.
+    /// </summary>
+    private void UpdateTimelineRendering()
+    {
+        if (_isActive && ViewModel.IsPlaying)
+        {
+            StartTimelineRendering();
+        }
+        else
+        {
+            StopTimelineRendering();
+        }
     }
 
     private void StartTimelineRendering()
@@ -545,6 +571,7 @@ public sealed partial class PlayerPage : Page
     public void Deactivate()
     {
         PlayerVideoView.Visibility = Visibility.Collapsed;
+        _isActive = false;
         StopTimelineRendering();
         _inactivityTimer.Stop();
         _osdHideTimer?.Stop();
@@ -2484,12 +2511,82 @@ public sealed partial class PlayerPage : Page
 
     public void HandleKeyDown(KeyRoutedEventArgs e)
     {
+        // Never steal keystrokes from text entry (moment titles, hex color input)
+        if (e.OriginalSource is TextBox or PasswordBox or AutoSuggestBox) return;
+
         var ctrl = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control);
         var shift = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift);
         bool isShift = shift.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+        bool isCtrl = ctrl.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+        if (isCtrl) return;
+
+        if (e.Key is >= VirtualKey.Number0 and <= VirtualKey.Number9 || e.Key is >= VirtualKey.NumberPad0 and <= VirtualKey.NumberPad9)
+        {
+            int digit = e.Key >= VirtualKey.NumberPad0 ? e.Key - VirtualKey.NumberPad0 : e.Key - VirtualKey.Number0;
+            ViewModel.SeekToFraction(digit / 10.0);
+            e.Handled = true;
+            return;
+        }
+
+        switch ((int)e.Key)
+        {
+            case VK_OEM_COMMA:
+                ViewModel.StepFrame(forward: false);
+                e.Handled = true;
+                return;
+            case VK_OEM_PERIOD:
+                ViewModel.StepFrame(forward: true);
+                e.Handled = true;
+                return;
+            case VK_OEM_4: // [
+                ViewModel.AdjustSpeed(-0.25);
+                UpdateSpeedPresetHighlight();
+                e.Handled = true;
+                return;
+            case VK_OEM_6: // ]
+                ViewModel.AdjustSpeed(0.25);
+                UpdateSpeedPresetHighlight();
+                e.Handled = true;
+                return;
+            case VK_OEM_5: // \
+                ViewModel.ResetSpeed();
+                UpdateSpeedPresetHighlight();
+                e.Handled = true;
+                return;
+        }
 
         switch (e.Key)
         {
+            case VirtualKey.Home:
+                ViewModel.SeekToFraction(0.0);
+                e.Handled = true;
+                break;
+
+            case VirtualKey.End:
+                ViewModel.SeekToFraction(1.0);
+                e.Handled = true;
+                break;
+
+            case VirtualKey.N:
+            case VirtualKey.PageDown:
+                ViewModel.PlayNext();
+                AnimateElementClickPulse(NextClipButton, 0.92);
+                e.Handled = true;
+                break;
+
+            case VirtualKey.P:
+            case VirtualKey.PageUp:
+                ViewModel.PlayPrevious();
+                AnimateElementClickPulse(PreviousClipButton, 0.92);
+                e.Handled = true;
+                break;
+
+            case VirtualKey.S:
+                ViewModel.Stop();
+                AnimateElementClickPulse(StopClipButton, 0.92);
+                e.Handled = true;
+                break;
+
             case VirtualKey.Space:
                 ViewModel.TogglePlayPause();
                 AnimateElementClickPulse(PlayPauseButton, 0.92);
@@ -2592,6 +2689,12 @@ public sealed partial class PlayerPage : Page
                 break;
         }
     }
+
+    private const int VK_OEM_COMMA = 0xBC;
+    private const int VK_OEM_PERIOD = 0xBE;
+    private const int VK_OEM_4 = 0xDB;
+    private const int VK_OEM_5 = 0xDC;
+    private const int VK_OEM_6 = 0xDD;
 
     private void OnPageKeyDown(object sender, KeyRoutedEventArgs e)
     {

@@ -121,13 +121,13 @@ public partial class PlayerViewModel : ObservableObject
 
     public int SliderVolume => Math.Clamp(Volume, 0, 100);
 
-    public Microsoft.UI.Xaml.Media.Brush VolumeSliderBrush => IsVolumeBoosted
-        ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 160, 0))
-        : new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255));
+    private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush BoostedVolumeBrush = new(Windows.UI.Color.FromArgb(255, 255, 160, 0));
+    private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush NormalVolumeSliderBrush = new(Windows.UI.Color.FromArgb(255, 255, 255, 255));
+    private static readonly Microsoft.UI.Xaml.Media.SolidColorBrush NormalVolumeTextBrush = new(Windows.UI.Color.FromArgb(255, 192, 192, 192));
 
-    public Microsoft.UI.Xaml.Media.Brush VolumeTextBrush => IsVolumeBoosted
-        ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 160, 0))
-        : new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 192, 192, 192));
+    public Microsoft.UI.Xaml.Media.Brush VolumeSliderBrush => IsVolumeBoosted ? BoostedVolumeBrush : NormalVolumeSliderBrush;
+
+    public Microsoft.UI.Xaml.Media.Brush VolumeTextBrush => IsVolumeBoosted ? BoostedVolumeBrush : NormalVolumeTextBrush;
 
     public string VolumeGlyph
     {
@@ -253,7 +253,28 @@ public partial class PlayerViewModel : ObservableObject
             }
         }
 
+        // Defaults apply when the player is opened; switching clips inside the player keeps the
+        // current volume, speed and repeat choice.
+        ApplySessionDefaults();
         SetClip(clip);
+    }
+
+    private void ApplySessionDefaults()
+    {
+        var settings = _storageService.CurrentSettings;
+
+        double speedToApply = settings.RememberPlaybackSpeed ? settings.PlaybackSpeed : settings.DefaultPlaybackSpeed;
+        if (speedToApply <= 0.1) speedToApply = 1.0;
+        PlaybackRate = (float)speedToApply;
+        _playbackService.SetPlaybackRate(PlaybackRate);
+
+        IsMuted = settings.StartMuted;
+        _playbackService.SetMute(IsMuted);
+
+        Volume = Math.Clamp(settings.DefaultVolume, 0, MaxVolume);
+        _playbackService.SetVolume(Volume);
+
+        RepeatMode = settings.DefaultRepeatMode;
     }
 
     public void AttachVideoView(LibVLCSharp.Platforms.Windows.VideoView videoView, string[] swapChainOptions)
@@ -289,28 +310,20 @@ public partial class PlayerViewModel : ObservableObject
         CurrentClip = target;
     }
 
-    private void SetClip(GameClip clip)
+    private void SetClip(GameClip clip, bool allowResume = true)
     {
+        SaveResumePosition();
+
         UpdateActivePlaylistItem(clip);
-        CurrentTime = TimeSpan.Zero;
-        ProgressValue = 0.0;
-
-        double speedToApply = _storageService.CurrentSettings.RememberPlaybackSpeed
-            ? _storageService.CurrentSettings.PlaybackSpeed
-            : _storageService.CurrentSettings.DefaultPlaybackSpeed;
-        if (speedToApply <= 0.1) speedToApply = 1.0;
-        PlaybackRate = (float)speedToApply;
-        _playbackService.SetPlaybackRate(PlaybackRate);
+        TotalTime = clip.Duration;
         OnPropertyChanged(nameof(FormattedPlaybackRate));
-
-        IsMuted = _storageService.CurrentSettings.StartMuted;
-        _playbackService.SetMute(IsMuted);
-
-        Volume = Math.Clamp(_storageService.CurrentSettings.DefaultVolume, 0, MaxVolume);
-        _playbackService.SetVolume(Volume);
         OnPropertyChanged(nameof(VolumeGlyph));
 
-        RepeatMode = _storageService.CurrentSettings.DefaultRepeatMode;
+        long startMs = allowResume ? GetResumePositionMs(clip) : 0;
+        CurrentTime = TimeSpan.FromMilliseconds(startMs);
+        ProgressValue = TotalTime > TimeSpan.Zero ? CurrentTime.TotalSeconds / TotalTime.TotalSeconds * 100.0 : 0.0;
+        AnchorSeconds = CurrentTime.TotalSeconds;
+        LastPositionTimeTicks = 0;
 
         Bookmarks.Clear();
         foreach (var bm in clip.Bookmarks.OrderBy(b => b.Timestamp))
@@ -329,7 +342,61 @@ public partial class PlayerViewModel : ObservableObject
         RefreshAudioTracks();
         RefreshSubtitleTracks();
 
-        _ = _playbackService.PlayMediaAsync(clip.FilePath);
+        _ = _playbackService.PlayMediaAsync(clip.FilePath, startMs);
+        if (startMs > 0)
+        {
+            ShowToast(string.Format(_localizationService["Player_Toast_Resumed"], FormattedCurrentTime));
+        }
+    }
+
+    private const double ResumeMinimumClipSeconds = 120;
+
+    private long GetResumePositionMs(GameClip clip)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (!settings.ResumePlayback || !settings.ResumePositions.TryGetValue(clip.FilePath, out long ms) || ms <= 0)
+            return 0;
+
+        // Ignore stale positions that no longer fit the file (e.g. it was trimmed)
+        if (clip.Duration > TimeSpan.Zero && ms >= clip.Duration.TotalMilliseconds * 0.95)
+            return 0;
+
+        return ms;
+    }
+
+    /// <summary>Remembers where a long clip was left so it resumes there next time.</summary>
+    public void SaveResumePosition()
+    {
+        var clip = CurrentClip;
+        var settings = _storageService.CurrentSettings;
+        if (clip == null || !settings.ResumePlayback) return;
+
+        double total = TotalTime.TotalSeconds;
+        double position = CurrentTime.TotalSeconds;
+        bool changed;
+
+        if (total < ResumeMinimumClipSeconds || position < 5 || position >= total * 0.95)
+        {
+            changed = settings.ResumePositions.Remove(clip.FilePath);
+        }
+        else
+        {
+            // Re-insert so the entry moves to the end; insertion order approximates recency for trimming
+            settings.ResumePositions.Remove(clip.FilePath);
+            settings.ResumePositions[clip.FilePath] = (long)CurrentTime.TotalMilliseconds;
+            changed = true;
+
+            const int maxEntries = 300;
+            while (settings.ResumePositions.Count > maxEntries)
+            {
+                settings.ResumePositions.Remove(settings.ResumePositions.Keys.First());
+            }
+        }
+
+        if (changed)
+        {
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
     }
 
     private void OnPlaybackPositionChanged(float position)
@@ -414,17 +481,30 @@ public partial class PlayerViewModel : ObservableObject
     private void OnMediaEnded()
     {
         IsPlaying = false;
-        if (RepeatMode == RepeatMode.One && CurrentClip != null)
+        if (CurrentClip == null) return;
+
+        // A finished clip starts from the beginning next time
+        CurrentTime = TotalTime;
+
+        int idx = Playlist.IndexOf(CurrentClip);
+        if (RepeatMode == RepeatMode.One)
         {
-            SetClip(CurrentClip);
+            SetClip(CurrentClip, allowResume: false);
         }
-        else if (HasNextClip)
+        else if (idx >= 0 && idx < Playlist.Count - 1)
         {
-            PlayNext();
+            SetClip(Playlist[idx + 1]);
         }
         else if (RepeatMode == RepeatMode.All && Playlist.Count > 0)
         {
             SetClip(Playlist[0]);
+        }
+        else
+        {
+            // End of the queue with repeat off: stop here with the controls visible
+            SaveResumePosition();
+            ProgressValue = 100.0;
+            IsControlsVisible = true;
         }
     }
 
@@ -439,7 +519,7 @@ public partial class PlayerViewModel : ObservableObject
     [RelayCommand]
     public void Stop()
     {
-        _playbackService.Stop();
+        _ = _playbackService.StopAsync();
         ProgressValue = 0;
         CurrentTime = TimeSpan.Zero;
         IsPlaying = false;
@@ -541,6 +621,52 @@ public partial class PlayerViewModel : ObservableObject
         _playbackService.SeekTime(targetMs);
     }
 
+    public void StepFrame(bool forward)
+    {
+        if (TotalTime <= TimeSpan.Zero) return;
+
+        if (_playbackService.IsPlaying)
+        {
+            _playbackService.Pause();
+            IsPlaying = false;
+        }
+
+        if (forward)
+        {
+            _playbackService.NextFrame();
+            ShowToast(_localizationService["Player_Toast_NextFrame"]);
+        }
+        else
+        {
+            // LibVLC has no previous-frame primitive: seek back by one frame duration
+            double fps = _playbackService.Fps > 1 ? _playbackService.Fps : 60.0;
+            SeekToSeconds(Math.Max(0, CurrentTime.TotalSeconds - 1.0 / fps));
+            ShowToast(_localizationService["Player_Toast_PreviousFrame"]);
+        }
+    }
+
+    public void SeekToFraction(double fraction)
+    {
+        if (TotalTime <= TimeSpan.Zero) return;
+        fraction = Math.Clamp(fraction, 0.0, 1.0);
+        // Land just short of the end so seeking to 100% doesn't immediately end the clip
+        SeekToSeconds(Math.Min(TotalTime.TotalSeconds * fraction, Math.Max(0, TotalTime.TotalSeconds - 0.5)));
+        ShowToast(FormattedCurrentTime);
+    }
+
+    private void SeekToSeconds(double targetSec)
+    {
+        AnchorSeconds = targetSec;
+        LastPositionTimeTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+        _seekSuppressionUntilTicks = LastPositionTimeTicks + (long)(0.40 * System.Diagnostics.Stopwatch.Frequency);
+
+        CurrentTime = TimeSpan.FromSeconds(targetSec);
+        ProgressValue = targetSec / TotalTime.TotalSeconds * 100.0;
+        OnPropertyChanged(nameof(FormattedCurrentTime));
+
+        _playbackService.SeekTime((long)(targetSec * 1000.0));
+    }
+
     public void OnSliderDragStarted()
     {
         _isDraggingSlider = true;
@@ -594,11 +720,11 @@ public partial class PlayerViewModel : ObservableObject
                 string endStr = endTimestamp.Value.Hours > 0
                     ? endTimestamp.Value.ToString(@"hh\:mm\:ss")
                     : endTimestamp.Value.ToString(@"mm\:ss");
-                finalLabel = $"Moment {FormattedCurrentTime} - {endStr}";
+                finalLabel = string.Format(_localizationService["Player_DefaultRangeLabel"], FormattedCurrentTime, endStr);
             }
             else
             {
-                finalLabel = $"Mark at {FormattedCurrentTime}";
+                finalLabel = string.Format(_localizationService["Player_DefaultMarkLabel"], FormattedCurrentTime);
             }
         }
         else
@@ -667,7 +793,7 @@ public partial class PlayerViewModel : ObservableObject
     {
         if (CurrentClip == null || bookmark == null) return;
 
-        string trimmed = string.IsNullOrWhiteSpace(newLabel) ? $"Mark at {bookmark.FormattedTimestamp}" : newLabel.Trim();
+        string trimmed = string.IsNullOrWhiteSpace(newLabel) ? string.Format(_localizationService["Player_DefaultMarkLabel"], bookmark.FormattedTimestamp) : newLabel.Trim();
         bookmark.Label = trimmed;
 
         var settings = _storageService.CurrentSettings;
@@ -697,7 +823,7 @@ public partial class PlayerViewModel : ObservableObject
             ? Math.Clamp(newEnd.Value.TotalSeconds / TotalTime.TotalSeconds, 0.0, 1.0)
             : null;
 
-        string trimmed = string.IsNullOrWhiteSpace(newLabel) ? $"Mark at {bookmark.FormattedTimestamp}" : newLabel.Trim();
+        string trimmed = string.IsNullOrWhiteSpace(newLabel) ? string.Format(_localizationService["Player_DefaultMarkLabel"], bookmark.FormattedTimestamp) : newLabel.Trim();
         bookmark.Label = trimmed;
 
         if (!string.IsNullOrWhiteSpace(newColor))
@@ -1001,7 +1127,8 @@ public partial class PlayerViewModel : ObservableObject
             }
             catch { }
         }
-        _playbackService.Stop();
+        SaveResumePosition();
+        _ = _playbackService.StopAsync();
         _navigationService.NavigateToHome();
     }
 

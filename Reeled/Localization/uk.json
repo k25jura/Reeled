@@ -375,6 +375,22 @@
   "Player_Toast_Speed": "Швидкість {0}x",
   "Player_Toast_SubtitlesLoaded": "Завантажено субтитри: {0}",
   "Player_Toast_SubtitlesDisabled": "Субтитри вимкнено",
+  "Player_Toast_Resumed": "Продовжено з {0}",
+  "Player_Toast_NextFrame": "Наступний кадр",
+  "Player_Toast_PreviousFrame": "Попередній кадр",
+  "Player_DefaultMarkLabel": "Позначка на {0}",
+  "Player_DefaultRangeLabel": "Момент {0} - {1}",
+
+  "Playback_ResumeTitle": "Продовжувати з місця зупинки",
+  "Playback_ResumeSubtitle": "Відтворювати кліпи довші за 2 хвилини з останньої переглянутої позиції",
+
+  "Updates_NeverChecked": "Ще не перевірялося",
+
+  "Dialog_Rename_InvalidChars": "Ім'я файлу не може містити жодного з цих символів: \\ / : * ? \" < > |",
+  "Dialog_Rename_Failed": "Не вдалося перейменувати файл. Можливо, файл із такою назвою вже існує або кліп відкрито в іншій програмі.",
+  "Dialog_Delete_Failed": "Не вдалося перемістити файл до кошика. Можливо, його відкрито в іншій програмі.",
+  "Dialog_Error_Title": "Щось пішло не так",
+  "Dialog_Error_Close": "OK",
 
   "Unit_Byte": "Б",
   "Unit_KB": "КБ",

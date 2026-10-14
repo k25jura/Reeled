@@ -727,10 +727,42 @@
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
 
-                                <ToggleSwitch Grid.Column="2" 
-                                              IsOn="{x:Bind ViewModel.StartMuted, Mode=TwoWay}" 
-                                              OnContent="" 
-                                              OffContent="" 
+                                <ToggleSwitch Grid.Column="2"
+                                              IsOn="{x:Bind ViewModel.StartMuted, Mode=TwoWay}"
+                                              OnContent=""
+                                              OffContent=""
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card: Resume Playback -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE81C;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="ResumePlaybackTitleText" Text="Resume where you left off" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="ResumePlaybackSubtitleText" Text="Continue clips longer than 2 minutes from the last watched position"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2"
+                                              IsOn="{x:Bind ViewModel.ResumePlayback, Mode=TwoWay}"
+                                              OnContent=""
+                                              OffContent=""
                                               MinWidth="0"
                                               HorizontalAlignment="Right"
                                               VerticalAlignment="Center" />

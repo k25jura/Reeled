@@ -16,6 +16,8 @@ public sealed partial class HomePage : Page
 {
     public HomeViewModel ViewModel { get; }
     private Services.IThumbnailService? _thumbnailService;
+    private bool _isWired;
+    private GameClip? _hoveredClip;
 
     public HomePage()
     {
@@ -51,6 +53,11 @@ public sealed partial class HomePage : Page
             {
                 UpdateGridResponsiveLayout();
             });
+
+            // The page is cached, so Loaded fires again every time we come back from Settings.
+            // Everything below subscribes handlers and must only run once.
+            if (_isWired) return;
+            _isWired = true;
 
             if (ClipsGridView != null)
             {
@@ -157,6 +164,7 @@ public sealed partial class HomePage : Page
             }
             else if (e.PropertyName == nameof(HomeViewModel.ShowSkeletonLoading) || e.PropertyName == nameof(HomeViewModel.IsLoading))
             {
+                UpdateSkeletonAnimations();
                 if (!ViewModel.ShowSkeletonLoading)
                 {
                     _clipsScrollViewer = null;
@@ -880,12 +888,15 @@ public sealed partial class HomePage : Page
     private void OnDirectoriesTreeViewLoaded(object sender, RoutedEventArgs e)
     {
         HookTreeViewScrollViewer();
-        if (DirectoriesTreeView != null)
+        if (DirectoriesTreeView != null && !_isTreeViewWired)
         {
+            _isTreeViewWired = true;
             DirectoriesTreeView.LayoutUpdated += OnDirectoriesTreeViewLayoutUpdated;
             DirectoriesTreeView.PointerWheelChanged += (s, args) => UpdateFolderIndicatorPosition();
         }
     }
+
+    private bool _isTreeViewWired;
 
     private void OnDirectoriesTreeViewLayoutUpdated(object? sender, object e)
     {
@@ -1777,9 +1788,22 @@ public sealed partial class HomePage : Page
         }
     }
 
+    private readonly Dictionary<FrameworkElement, Storyboard> _skeletonStoryboards = new();
+
+    /// <summary>The shimmer loops forever, so pause it whenever the skeleton isn't on screen.</summary>
+    private void UpdateSkeletonAnimations()
+    {
+        bool active = ViewModel.ShowSkeletonLoading;
+        foreach (var sb in _skeletonStoryboards.Values)
+        {
+            if (active) sb.Resume();
+            else sb.Pause();
+        }
+    }
+
     private void OnSkeletonCardLoaded(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement elem)
+        if (sender is FrameworkElement elem && !_skeletonStoryboards.ContainsKey(elem))
         {
             var anim = new DoubleAnimation
             {
@@ -1794,7 +1818,12 @@ public sealed partial class HomePage : Page
             sb.Children.Add(anim);
             Storyboard.SetTarget(anim, elem);
             Storyboard.SetTargetProperty(anim, "Opacity");
+            _skeletonStoryboards[elem] = sb;
             sb.Begin();
+            if (!ViewModel.ShowSkeletonLoading)
+            {
+                sb.Pause();
+            }
         }
     }
 
@@ -2069,13 +2098,8 @@ public sealed partial class HomePage : Page
 
     private void OnClipContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
-        if (args.ItemContainer is GridViewItem gvi)
+        if (args.ItemContainer is GridViewItem gvi && !args.InRecycleQueue)
         {
-            if (args.InRecycleQueue)
-            {
-                return;
-            }
-
             if (gvi.RequestedTheme != ActualTheme)
             {
                 gvi.RequestedTheme = ActualTheme;
@@ -2106,6 +2130,13 @@ public sealed partial class HomePage : Page
 
         if (args.InRecycleQueue)
         {
+            // Release the bitmap once the card scrolls out of view. The thumbnail service keeps a
+            // bounded LRU (plus the disk cache), so scrolling back is still instant, but memory no
+            // longer grows with every clip that has ever been on screen.
+            if (args.Item is Models.GameClip recycledClip)
+            {
+                recycledClip.Thumbnail = null;
+            }
             return;
         }
 
@@ -2151,6 +2182,7 @@ public sealed partial class HomePage : Page
         }
         if (sender is FrameworkElement card)
         {
+            _hoveredClip = card.DataContext as GameClip;
             AnimateCardHover(card, isHovered: true);
         }
     }
@@ -2159,6 +2191,10 @@ public sealed partial class HomePage : Page
     {
         if (sender is FrameworkElement card)
         {
+            if (ReferenceEquals(_hoveredClip, card.DataContext))
+            {
+                _hoveredClip = null;
+            }
             AnimateCardHover(card, isHovered: false);
         }
     }
@@ -2440,12 +2476,54 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private void OnPageKeyDown(object sender, KeyRoutedEventArgs e)
+    private async void OnPageKeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (_isAutoscrolling && e.Key == Windows.System.VirtualKey.Escape)
         {
             StopAutoscroll();
             e.Handled = true;
+            return;
+        }
+
+        // The player overlay sits above this page; its own handler owns the keyboard while shown
+        if ((App.Window as MainWindow)?.IsPlayerVisible == true) return;
+
+        bool ctrl = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+        bool isTyping = e.OriginalSource is TextBox or AutoSuggestBox or PasswordBox;
+
+        // These run even if the search box already handled the key (it swallows Escape)
+        if (e.Key == Windows.System.VirtualKey.F && ctrl)
+        {
+            ClipsSearchBox?.Focus(FocusState.Keyboard);
+            e.Handled = true;
+            return;
+        }
+        if (e.Key == Windows.System.VirtualKey.Escape && isTyping && !string.IsNullOrEmpty(ViewModel.SearchQuery))
+        {
+            ViewModel.SearchQuery = string.Empty;
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Handled) return;
+
+        switch (e.Key)
+        {
+            case Windows.System.VirtualKey.F5:
+                e.Handled = true;
+                await ViewModel.RefreshClipsAsync();
+                break;
+
+            case Windows.System.VirtualKey.Delete when !isTyping && _hoveredClip != null:
+                e.Handled = true;
+                await ShowDeleteConfirmDialogAsync(_hoveredClip);
+                break;
+
+            case Windows.System.VirtualKey.F2 when !isTyping && _hoveredClip != null:
+                e.Handled = true;
+                await ShowLocalRenameDialogAsync(_hoveredClip);
+                break;
         }
     }
 
@@ -3836,22 +3914,74 @@ public sealed partial class HomePage : Page
         };
         textBox.Loaded += (s, e) => textBox.SelectAll();
 
+        var errorText = new TextBlock
+        {
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = GetThemeResourceBrush("SystemFillColorCriticalBrush"),
+            Visibility = Visibility.Collapsed
+        };
+        textBox.TextChanged += (s, e) => errorText.Visibility = Visibility.Collapsed;
+
+        var panel = new StackPanel { Spacing = 8, MinWidth = 340, RequestedTheme = currentTheme };
+        panel.Children.Add(textBox);
+        panel.Children.Add(errorText);
+
         var dialog = new ContentDialog
         {
             XamlRoot = this.XamlRoot,
             RequestedTheme = currentTheme,
             Title = loc?["Dialog_Rename_Title"] ?? "Rename Clip",
-            Content = textBox,
+            Content = panel,
             PrimaryButtonText = loc?["Dialog_Rename_Confirm"] ?? "Rename",
             CloseButtonText = loc?["Dialog_Rename_Cancel"] ?? "Cancel",
             DefaultButton = ContentDialogButton.Primary
         };
 
-        var result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(textBox.Text))
+        // Validate and rename while the dialog is still open so mistakes can be corrected in place
+        dialog.PrimaryButtonClick += (s, args) =>
         {
-            ViewModel.RenameClipInternal(clip, textBox.Text.Trim());
-        }
+            string newName = textBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(newName))
+            {
+                args.Cancel = true;
+                return;
+            }
+
+            string? error = null;
+            if (newName.IndexOfAny(System.IO.Path.GetInvalidFileNameChars()) >= 0)
+            {
+                error = loc?["Dialog_Rename_InvalidChars"] ?? "A file name can't contain any of these characters: \\ / : * ? \" < > |";
+            }
+            else if (!ViewModel.RenameClipInternal(clip, newName))
+            {
+                error = loc?["Dialog_Rename_Failed"] ?? "Couldn't rename the file.";
+            }
+
+            if (error != null)
+            {
+                errorText.Text = error;
+                errorText.Visibility = Visibility.Visible;
+                args.Cancel = true;
+            }
+        };
+
+        await dialog.ShowAsync();
+    }
+
+    private async System.Threading.Tasks.Task ShowErrorDialogAsync(string message)
+    {
+        var loc = App.GetService<Services.ILocalizationService>();
+        var dialog = new ContentDialog
+        {
+            XamlRoot = this.XamlRoot,
+            RequestedTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme,
+            Title = loc?["Dialog_Error_Title"] ?? "Something went wrong",
+            Content = message,
+            CloseButtonText = loc?["Dialog_Error_Close"] ?? "OK",
+            DefaultButton = ContentDialogButton.Close
+        };
+        await dialog.ShowAsync();
     }
 
     private async System.Threading.Tasks.Task ShowDeleteConfirmDialogAsync(GameClip clip)
@@ -3871,9 +4001,9 @@ public sealed partial class HomePage : Page
         };
 
         var result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.Primary)
+        if (result == ContentDialogResult.Primary && !ViewModel.DeleteClip(clip))
         {
-            ViewModel.DeleteClip(clip);
+            await ShowErrorDialogAsync(loc?["Dialog_Delete_Failed"] ?? "Couldn't move the file to the Recycle Bin.");
         }
     }
 

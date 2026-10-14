@@ -460,6 +460,8 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private string? _resolvedInstallDir;
+
     private async void StartInstallation()
     {
         string dest = InstallPathTextBox.Text.Trim();
@@ -467,6 +469,8 @@ public sealed partial class MainWindow : Window
         {
             dest = _installService.DefaultInstallDirectory;
         }
+        dest = InstallService.ResolveInstallDirectory(dest);
+        _resolvedInstallDir = dest;
 
         bool desktop = DesktopShortcutCheckBox.IsChecked ?? true;
         bool startMenu = StartMenuShortcutCheckBox.IsChecked ?? true;
@@ -510,7 +514,7 @@ public sealed partial class MainWindow : Window
     {
         if (LaunchAppCheckBox.IsChecked == true)
         {
-            string dest = InstallPathTextBox.Text.Trim();
+            string dest = _resolvedInstallDir ?? InstallPathTextBox.Text.Trim();
             string exe = Path.Combine(dest, "Reeled.exe");
             if (File.Exists(exe))
             {

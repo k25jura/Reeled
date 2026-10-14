@@ -92,6 +92,22 @@ public partial class App : Application
             var nav = GetService<INavigationService>();
             await nav.OpenVideoFilesAsync(videoFiles);
         }
+
+        _ = RunStartupUpdateCheckAsync();
+    }
+
+    private static async System.Threading.Tasks.Task RunStartupUpdateCheckAsync()
+    {
+        try
+        {
+            // Let the library finish its first scan before touching the network
+            await System.Threading.Tasks.Task.Delay(TimeSpan.FromSeconds(10));
+            await GetService<SettingsViewModel>().AutoCheckForUpdatesAsync();
+        }
+        catch (Exception ex)
+        {
+            Helpers.Log.Error("AutoUpdateCheck", ex);
+        }
     }
 
     private static List<string> ParseVideoFileArguments(LaunchActivatedEventArgs args)

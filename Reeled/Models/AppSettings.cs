@@ -31,6 +31,8 @@ public class AppSettings
     public bool EnableOsdNotifications { get; set; } = true;
     public bool ShowMomentsBadges { get; set; } = true;
     public bool EnableBackdropBlur { get; set; } = true;
+    /// <summary>0 = Light, 1 = Balanced, 2 = Strong.</summary>
+    public int BackdropBlurLevel { get; set; } = 1;
     public Dictionary<string, string> CustomClipTitles { get; set; } = new();
     public DateGroupingMode DateGrouping { get; set; } = DateGroupingMode.None;
     public ViewDensityMode ViewDensity { get; set; } = ViewDensityMode.Comfortable;

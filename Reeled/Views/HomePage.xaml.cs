@@ -60,6 +60,8 @@ public sealed partial class HomePage : Page
             if (_isWired) return;
             _isWired = true;
 
+            RegisterLibraryShortcuts();
+
             if (ClipsGridView != null)
             {
                 ClipsGridView.RequestedTheme = ActualTheme;
@@ -1555,6 +1557,11 @@ public sealed partial class HomePage : Page
                 presenterStyle.BasedOn = baseStyle;
             }
             presenterStyle.Setters.Add(new Setter(FrameworkElement.RequestedThemeProperty, currentTheme));
+            // Library menus follow the same backdrop blur settings as the player flyouts
+            var menuTint = currentTheme == ElementTheme.Light
+                ? Windows.UI.Color.FromArgb(255, 249, 249, 249)
+                : Windows.UI.Color.FromArgb(255, 32, 32, 32);
+            presenterStyle.Setters.Add(new Setter(Control.BackgroundProperty, Helpers.Backdrop.Create(menuTint, Helpers.Backdrop.Surface.Flyout)));
             menuFlyout.MenuFlyoutPresenterStyle = presenterStyle;
 
             foreach (var item in menuFlyout.Items)
@@ -2008,7 +2015,16 @@ public sealed partial class HomePage : Page
             // longer grows with every clip that has ever been on screen.
             if (args.Item is Models.GameClip recycledClip)
             {
-                recycledClip.Thumbnail = null;
+                // After a Reset the same clip can be realized in a new container before its old
+                // container's recycle notification arrives. Releasing right away would blank the
+                // visible card, so release only once no container shows the clip anymore.
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    if (ClipsGridView?.ContainerFromItem(recycledClip) == null)
+                    {
+                        recycledClip.Thumbnail = null;
+                    }
+                });
             }
             return;
         }
@@ -2351,7 +2367,7 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private async void OnPageKeyDown(object sender, KeyRoutedEventArgs e)
+    private void OnPageKeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (_isAutoscrolling && e.Key == Windows.System.VirtualKey.Escape)
         {
@@ -2360,47 +2376,89 @@ public sealed partial class HomePage : Page
             return;
         }
 
-        // The player overlay sits above this page; its own handler owns the keyboard while shown
-        if ((App.Window as MainWindow)?.IsPlayerVisible == true) return;
-
-        bool ctrl = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
-            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+        // Escape only matters while typing in search (it already has focus, so KeyDown reaches us);
+        // the search box swallows Escape itself, hence handledEventsToo on this handler.
         bool isTyping = e.OriginalSource is TextBox or AutoSuggestBox or PasswordBox;
-
-        // These run even if the search box already handled the key (it swallows Escape)
-        if (e.Key == Windows.System.VirtualKey.F && ctrl)
-        {
-            ClipsSearchBox?.Focus(FocusState.Keyboard);
-            e.Handled = true;
-            return;
-        }
         if (e.Key == Windows.System.VirtualKey.Escape && isTyping && !string.IsNullOrEmpty(ViewModel.SearchQuery))
         {
             ViewModel.SearchQuery = string.Empty;
             e.Handled = true;
-            return;
-        }
-
-        if (e.Handled) return;
-
-        switch (e.Key)
-        {
-            case Windows.System.VirtualKey.F5:
-                e.Handled = true;
-                await ViewModel.RefreshClipsAsync();
-                break;
-
-            case Windows.System.VirtualKey.Delete when !isTyping && _hoveredClip != null:
-                e.Handled = true;
-                await ShowDeleteConfirmDialogAsync(_hoveredClip);
-                break;
-
-            case Windows.System.VirtualKey.F2 when !isTyping && _hoveredClip != null:
-                e.Handled = true;
-                await ShowLocalRenameDialogAsync(_hoveredClip);
-                break;
         }
     }
+
+    /// <summary>
+    /// Library shortcuts are keyboard accelerators rather than KeyDown handlers: the card grid can't take
+    /// focus, so KeyDown never reached the page unless the search box happened to be focused.
+    /// Accelerators fire whenever the page is in the live tree, so each one checks it actually owns input.
+    /// </summary>
+    private void RegisterLibraryShortcuts()
+    {
+        void Add(Windows.System.VirtualKey key, Windows.System.VirtualKeyModifiers modifiers, Func<bool> action)
+        {
+            var accelerator = new KeyboardAccelerator { Key = key, Modifiers = modifiers };
+            accelerator.Invoked += (s, args) =>
+            {
+                if (!CanHandleLibraryShortcut()) return;
+                args.Handled = action();
+            };
+            KeyboardAccelerators.Add(accelerator);
+        }
+
+        Add(Windows.System.VirtualKey.F, Windows.System.VirtualKeyModifiers.Control, () =>
+        {
+            ClipsSearchBox?.Focus(FocusState.Keyboard);
+            return true;
+        });
+
+        Add(Windows.System.VirtualKey.F5, Windows.System.VirtualKeyModifiers.None, () =>
+        {
+            _ = ViewModel.RefreshClipsAsync();
+            return true;
+        });
+
+        Add(Windows.System.VirtualKey.Delete, Windows.System.VirtualKeyModifiers.None, () =>
+        {
+            var clip = GetShortcutTargetClip();
+            if (clip == null || IsTextInputFocused()) return false;
+            _ = ShowDeleteConfirmDialogAsync(clip);
+            return true;
+        });
+
+        Add(Windows.System.VirtualKey.F2, Windows.System.VirtualKeyModifiers.None, () =>
+        {
+            var clip = GetShortcutTargetClip();
+            if (clip == null || IsTextInputFocused()) return false;
+            _ = ShowLocalRenameDialogAsync(clip);
+            return true;
+        });
+
+        // Accelerator tooltips would otherwise be appended to the page's tooltips
+        KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
+    }
+
+    private bool CanHandleLibraryShortcut()
+    {
+        if (XamlRoot == null) return false;
+        if ((App.Window as MainWindow)?.IsPlayerVisible == true) return false;
+        if (App.Window is MainWindow mw && !ReferenceEquals(mw.NavigationFrame.Content, this)) return false;
+        // Don't act behind an open dialog or menu
+        return VisualTreeHelper.GetOpenPopupsForXamlRoot(XamlRoot).Count == 0;
+    }
+
+    /// <summary>
+    /// True while the user is editing text, where Delete/F2 belong to the text box. An empty search box
+    /// that merely kept focus (e.g. after Esc cleared it) shouldn't block the card shortcuts.
+    /// </summary>
+    private bool IsTextInputFocused() =>
+        XamlRoot != null && FocusManager.GetFocusedElement(XamlRoot) switch
+        {
+            TextBox textBox => !string.IsNullOrEmpty(textBox.Text),
+            PasswordBox => true,
+            _ => false
+        };
+
+    /// <summary>The card under the pointer, falling back to the last right-clicked card.</summary>
+    private GameClip? GetShortcutTargetClip() => _hoveredClip ?? ViewModel.SelectedClip;
 
     private void OnAutoscrollRendering(object? sender, object e)
     {

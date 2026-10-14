@@ -161,6 +161,20 @@ public partial class SettingsViewModel : ObservableObject
     private bool _resumePlayback = true;
 
     [ObservableProperty]
+    private int _backdropBlurLevel = 1;
+
+    partial void OnBackdropBlurLevelChanged(int value)
+    {
+        var settings = _storageService.CurrentSettings;
+        int clamped = Math.Clamp(value, 0, 2);
+        if (settings.BackdropBlurLevel != clamped)
+        {
+            settings.BackdropBlurLevel = clamped;
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    [ObservableProperty]
     private string _gitHubToken = string.Empty;
 
     [ObservableProperty]
@@ -253,6 +267,7 @@ public partial class SettingsViewModel : ObservableObject
         AutoCheckUpdates = _storageService.CurrentSettings.AutoCheckUpdates;
         ReduceMotion = _storageService.CurrentSettings.ReduceMotion;
         ResumePlayback = _storageService.CurrentSettings.ResumePlayback;
+        BackdropBlurLevel = _storageService.CurrentSettings.BackdropBlurLevel;
         GitHubToken = _storageService.CurrentSettings.GitHubToken ?? string.Empty;
         if (!IsUpdateAvailable && !IsUpdateReadyToInstall && !IsCheckingForUpdates)
         {
@@ -1062,6 +1077,7 @@ public partial class SettingsViewModel : ObservableObject
         settings.SortIndex = 0;
         settings.ReduceMotion = false;
         settings.ResumePlayback = true;
+        settings.BackdropBlurLevel = 1;
 
         settings.EnableSkeletonLoading = true;
         settings.EnableClipCache = true;

@@ -148,7 +148,15 @@ public partial class HomeViewModel : ObservableObject
             RefreshMomentsBadgeVisibility();
             if (CurrentSection == NavigationSection.SavedMoments)
             {
+                // Clips is the section's base set: a clip whose last moment was removed must leave it,
+                // and one that gained its first moment must join it
+                var withMoments = AllClips.Where(c => c.Bookmarks.Count > 0).ToList();
+                if (withMoments.Count != Clips.Count || withMoments.Any(c => !Clips.Contains(c)))
+                {
+                    Clips.ReplaceRange(withMoments);
+                }
                 ApplyFilterAndSort();
+                UpdateCounts();
             }
         });
     }
@@ -577,7 +585,9 @@ public partial class HomeViewModel : ObservableObject
         _indexerService.UpdateWatchers(settings.WatchDirectories);
 
         AllClips.ReplaceRange(processedClips);
-        Directories.ReplaceRange(processedTrees);
+        // Merge instead of replacing: a full Reset made the TreeView tear down and rebuild every row,
+        // so folders blinked out and back in on each refresh and lost their realized containers
+        MergeDirectoryNodes(Directories, processedTrees);
         OnPropertyChanged(nameof(HasDirectories));
 
         _loadedWatchDirectories.Clear();
@@ -1298,6 +1308,53 @@ public partial class HomeViewModel : ObservableObject
     private void OnClipRenamed(string oldPath, string newPath)
     {
         _dispatcherQueue.TryEnqueue(() => ApplyRename(oldPath, newPath));
+    }
+
+    /// <summary>
+    /// Updates <paramref name="target"/> in place to match <paramref name="source"/>, keeping existing
+    /// node instances (and so their expanded state, selection and tree containers) wherever the path matches.
+    /// </summary>
+    private static void MergeDirectoryNodes(ObservableCollection<DirectoryNode> target, IList<DirectoryNode> source)
+    {
+        for (int i = target.Count - 1; i >= 0; i--)
+        {
+            if (!source.Any(s => PathUtil.PathEquals(s.FullPath, target[i].FullPath)))
+            {
+                target.RemoveAt(i);
+            }
+        }
+
+        for (int i = 0; i < source.Count; i++)
+        {
+            var incoming = source[i];
+            int existingIndex = -1;
+            for (int j = 0; j < target.Count; j++)
+            {
+                if (PathUtil.PathEquals(target[j].FullPath, incoming.FullPath))
+                {
+                    existingIndex = j;
+                    break;
+                }
+            }
+
+            if (existingIndex < 0)
+            {
+                target.Insert(Math.Min(i, target.Count), incoming);
+                continue;
+            }
+
+            if (existingIndex != i && i < target.Count)
+            {
+                target.Move(existingIndex, i);
+            }
+
+            var node = target[i];
+            if (node.ClipCount != incoming.ClipCount) node.ClipCount = incoming.ClipCount;
+            if (node.IsWatchRoot != incoming.IsWatchRoot) node.IsWatchRoot = incoming.IsWatchRoot;
+            if (node.Name != incoming.Name) node.Name = incoming.Name;
+            MergeDirectoryNodes(node.SubDirectories, incoming.SubDirectories);
+            node.HasSubDirectories = node.SubDirectories.Count > 0;
+        }
     }
 
     public static DirectoryNode? FindNodeByPath(IEnumerable<DirectoryNode> nodes, string path)

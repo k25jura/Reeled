@@ -178,6 +178,12 @@ public sealed partial class SettingsPage : Page
         }
     }
 
+    private void OnBlurStrengthSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isInitializing || BlurStrengthComboBox.SelectedIndex < 0) return;
+        ViewModel.BackdropBlurLevel = BlurStrengthComboBox.SelectedIndex;
+    }
+
     private void OnLanguageSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_isInitializing) return;
@@ -1165,6 +1171,19 @@ public sealed partial class SettingsPage : Page
                 };
                 ThemeComboBox.SelectedIndex = themeIdx;
             }
+
+            if (BlurStrengthComboBox != null)
+            {
+                BlurStrengthComboBox.ItemsSource = new string[]
+                {
+                    loc["Appearance_BlurLight"],
+                    loc["Appearance_BlurBalanced"],
+                    loc["Appearance_BlurStrong"]
+                };
+                BlurStrengthComboBox.SelectedIndex = Math.Clamp(ViewModel.BackdropBlurLevel, 0, 2);
+            }
+            if (BlurStrengthTitleText != null) BlurStrengthTitleText.Text = loc["Appearance_BlurStrengthTitle"];
+            if (BlurStrengthSubtitleText != null) BlurStrengthSubtitleText.Text = loc["Appearance_BlurStrengthSubtitle"];
 
             if (LanguageComboBox != null)
             {

@@ -157,6 +157,7 @@ public sealed partial class PlayerPage : Page
         ViewModel.Bookmarks.CollectionChanged += (s, e) =>
         {
             DispatcherQueue.TryEnqueue(RenderTimelineMarkers);
+            DispatcherQueue.TryEnqueue(RefreshMomentsPopupIfVisible);
         };
 
         SizeChanged += (s, e) =>
@@ -571,8 +572,7 @@ public sealed partial class PlayerPage : Page
         _momentsDismissTimer?.Stop();
         _momentsPopupStoryboard?.Stop();
         _lastPromptClipPath = null;
-        MomentsJumpPopup.Visibility = Visibility.Collapsed;
-        MomentsJumpPopup.Opacity = 0.0;
+        HideMomentsPopup(animate: false);
         UpdateCursorHiddenState(false);
 
         // Reset control bar states so subsequent sessions begin healthy and visible
@@ -1057,17 +1057,21 @@ public sealed partial class PlayerPage : Page
     {
         try
         {
-            var storage = App.GetService<Services.ILocalStorageService>();
-            bool enableBlur = storage?.CurrentSettings?.EnableBackdropBlur ?? true;
-            if (Resources.TryGetValue("PlayerFlyoutBackdropBrush", out var brushObj) && brushObj is AcrylicBrush acrylic)
+            // Both brushes are shared resources, so updating them in place restyles every bar,
+            // flyout, popup and badge that uses them
+            if (Resources.TryGetValue("PlayerFlyoutBackdropBrush", out var flyoutObj) && flyoutObj is AcrylicBrush flyoutBrush)
             {
-                acrylic.AlwaysUseFallback = !enableBlur;
-                acrylic.FallbackColor = enableBlur
-                    ? Windows.UI.Color.FromArgb(196, 22, 22, 22)
-                    : Windows.UI.Color.FromArgb(255, 22, 22, 22);
+                Helpers.Backdrop.Apply(flyoutBrush, Windows.UI.Color.FromArgb(255, 26, 26, 26), Helpers.Backdrop.Surface.Flyout);
+            }
+            if (Resources.TryGetValue("PlayerBarBackdropBrush", out var barObj) && barObj is AcrylicBrush barBrush)
+            {
+                Helpers.Backdrop.Apply(barBrush, Windows.UI.Color.FromArgb(255, 18, 18, 18), Helpers.Backdrop.Surface.Bar);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Helpers.Log.Error("UpdateBackdropBlur", ex);
+        }
     }
 
     private void AnimateMarkModeSwitch(FrameworkElement toShow, TranslateTransform? toShowTranslation, FrameworkElement toHide, bool isRangeMode)
@@ -2272,7 +2276,7 @@ public sealed partial class PlayerPage : Page
         if (clip.Bookmarks.Count > 0)
         {
             _lastPromptClipPath = clip.FilePath;
-            ShowMomentsPopup(clip.Bookmarks);
+            ShowMomentsPopup(clip);
         }
         else
         {
@@ -2280,60 +2284,65 @@ public sealed partial class PlayerPage : Page
         }
     }
 
-    private void ShowMomentsPopup(System.Collections.Generic.IReadOnlyList<ClipBookmark> bookmarks)
+    private void ShowMomentsPopup(GameClip clip)
     {
+        // Show a sorted snapshot: binding the clip's live collection let the card stay up empty when
+        // moments were removed or re-sorted while it was visible.
+        var moments = clip.Bookmarks.OrderBy(b => b.Timestamp).ToList();
+        if (moments.Count == 0)
+        {
+            HideMomentsPopup(animate: false);
+            return;
+        }
+
         _momentsPopupStoryboard?.Stop();
         _momentsDismissTimer?.Stop();
         _inactivityTimer.Stop();
         ViewModel.IsControlsVisible = true;
 
-        MomentsPopupItemsList.ItemsSource = bookmarks;
+        MomentsPopupItemsList.ItemsSource = moments;
+        if (MomentsPromptCount != null) MomentsPromptCount.Text = moments.Count.ToString(System.Globalization.CultureInfo.CurrentCulture);
         MomentsJumpPopup.Visibility = Visibility.Visible;
 
         var sb = new Storyboard();
-        var easeOut = new QuarticEase { EasingMode = EasingMode.EaseOut };
-        bool reduceMotion = IsReduceMotionEnabled();
-        var duration = TimeSpan.FromMilliseconds(reduceMotion ? 140 : 240);
-
-        if (!reduceMotion)
-        {
-            var animX = new DoubleAnimation
-            {
-                From = -30,
-                To = 0,
-                Duration = duration,
-                EasingFunction = easeOut
-            };
-            Storyboard.SetTarget(animX, MomentsPopupTranslation);
-            Storyboard.SetTargetProperty(animX, "X");
-            sb.Children.Add(animX);
-        }
-        else
-        {
-            MomentsPopupTranslation.X = 0;
-        }
-
-        var animOp = new DoubleAnimation
-        {
-            From = 0.0,
-            To = 1.0,
-            Duration = duration,
-            EasingFunction = easeOut
-        };
-        Storyboard.SetTarget(animOp, MomentsJumpPopup);
-        Storyboard.SetTargetProperty(animOp, "Opacity");
-        sb.Children.Add(animOp);
+        var ease = new ExponentialEase { EasingMode = EasingMode.EaseOut, Exponent = 6 };
+        AddDoubleAnimation(sb, MomentsJumpPopup, "Opacity", 1.0, 180, ease);
+        AddDoubleAnimation(sb, MomentsPopupTranslation, "TranslateX", 0.0, 320, ease);
+        AddDoubleAnimation(sb, MomentsPopupTranslation, "ScaleX", 1.0, 320, ease);
+        AddDoubleAnimation(sb, MomentsPopupTranslation, "ScaleY", 1.0, 320, ease);
 
         sb.Completed += (s, e) =>
         {
+            if (!ReferenceEquals(_momentsPopupStoryboard, sb)) return;
             _momentsPopupStoryboard = null;
-            MomentsPopupTranslation.X = 0;
-            MomentsJumpPopup.Opacity = 1.0;
             StartMomentsDismissTimer(7000);
         };
 
         _momentsPopupStoryboard = sb;
         Helpers.Motion.Begin(sb);
+    }
+
+    /// <summary>Keeps a visible moments card in step with edits made while it is open.</summary>
+    private void RefreshMomentsPopupIfVisible()
+    {
+        if (MomentsJumpPopup.Visibility != Visibility.Visible || ViewModel.CurrentClip == null) return;
+
+        var moments = ViewModel.CurrentClip.Bookmarks.OrderBy(b => b.Timestamp).ToList();
+        if (moments.Count == 0)
+        {
+            HideMomentsPopup(animate: true);
+            return;
+        }
+        MomentsPopupItemsList.ItemsSource = moments;
+        if (MomentsPromptCount != null) MomentsPromptCount.Text = moments.Count.ToString(System.Globalization.CultureInfo.CurrentCulture);
+    }
+
+    private static void AddDoubleAnimation(Storyboard sb, DependencyObject target, string property, double to, double ms, EasingFunctionBase ease)
+    {
+        var anim = new DoubleAnimation { To = to, Duration = TimeSpan.FromMilliseconds(ms), EasingFunction = ease };
+        Storyboard.SetTarget(anim, target);
+        Storyboard.SetTargetProperty(anim, property);
+        sb.Children.Add(anim);
     }
 
     private void StartMomentsDismissTimer(int milliseconds)
@@ -2353,58 +2362,38 @@ public sealed partial class PlayerPage : Page
         _momentsDismissTimer?.Stop();
         _momentsPopupStoryboard?.Stop();
 
-        if (!animate)
+        void Finish()
         {
             MomentsJumpPopup.Visibility = Visibility.Collapsed;
             MomentsJumpPopup.Opacity = 0.0;
-            MomentsPopupTranslation.X = -30;
+            MomentsPopupTranslation.TranslateX = -16;
+            MomentsPopupTranslation.ScaleX = 0.98;
+            MomentsPopupTranslation.ScaleY = 0.98;
+            MomentsPopupItemsList.ItemsSource = null;
             if (!AreFlyoutsOrPopupsOpen && ViewModel.IsPlaying)
             {
                 RestartInactivityTimer();
             }
+        }
+
+        if (!animate || MomentsJumpPopup.Visibility != Visibility.Visible)
+        {
+            Finish();
             return;
         }
 
         var sb = new Storyboard();
-        var easeIn = new QuarticEase { EasingMode = EasingMode.EaseIn };
-        bool reduceMotion = IsReduceMotionEnabled();
-        var duration = TimeSpan.FromMilliseconds(reduceMotion ? 140 : 180);
-
-        if (!reduceMotion)
-        {
-            var animX = new DoubleAnimation
-            {
-                From = MomentsPopupTranslation.X,
-                To = -30,
-                Duration = duration,
-                EasingFunction = easeIn
-            };
-            Storyboard.SetTarget(animX, MomentsPopupTranslation);
-            Storyboard.SetTargetProperty(animX, "X");
-            sb.Children.Add(animX);
-        }
-
-        var animOp = new DoubleAnimation
-        {
-            From = MomentsJumpPopup.Opacity,
-            To = 0.0,
-            Duration = duration,
-            EasingFunction = easeIn
-        };
-        Storyboard.SetTarget(animOp, MomentsJumpPopup);
-        Storyboard.SetTargetProperty(animOp, "Opacity");
-        sb.Children.Add(animOp);
+        var ease = new CubicEase { EasingMode = EasingMode.EaseIn };
+        AddDoubleAnimation(sb, MomentsJumpPopup, "Opacity", 0.0, 150, ease);
+        AddDoubleAnimation(sb, MomentsPopupTranslation, "TranslateX", -10.0, 170, ease);
+        AddDoubleAnimation(sb, MomentsPopupTranslation, "ScaleX", 0.98, 170, ease);
+        AddDoubleAnimation(sb, MomentsPopupTranslation, "ScaleY", 0.98, 170, ease);
 
         sb.Completed += (s, e) =>
         {
+            if (!ReferenceEquals(_momentsPopupStoryboard, sb)) return;
             _momentsPopupStoryboard = null;
-            MomentsJumpPopup.Visibility = Visibility.Collapsed;
-            MomentsJumpPopup.Opacity = 0.0;
-            MomentsPopupTranslation.X = -30;
-            if (!AreFlyoutsOrPopupsOpen && ViewModel.IsPlaying)
-            {
-                RestartInactivityTimer();
-            }
+            Finish();
         };
 
         _momentsPopupStoryboard = sb;

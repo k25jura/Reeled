@@ -990,13 +990,44 @@
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
 
-                                <ToggleSwitch Grid.Column="2" 
-                                              IsOn="{x:Bind ViewModel.EnableBackdropBlur, Mode=TwoWay}" 
-                                              OnContent="" 
-                                              OffContent="" 
+                                <ToggleSwitch Grid.Column="2"
+                                              IsOn="{x:Bind ViewModel.EnableBackdropBlur, Mode=TwoWay}"
+                                              OnContent=""
+                                              OffContent=""
                                               MinWidth="0"
                                               HorizontalAlignment="Right"
                                               VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card: Blur Strength -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE9E9;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="BlurStrengthTitleText" Text="Blur strength" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="BlurStrengthSubtitleText" Text="How much of the video shows through player controls and menus"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ComboBox Grid.Column="2"
+                                          x:Name="BlurStrengthComboBox"
+                                          SelectionChanged="OnBlurStrengthSelectionChanged"
+                                          IsEnabled="{x:Bind ViewModel.EnableBackdropBlur, Mode=OneWay}"
+                                          MinWidth="160"
+                                          VerticalAlignment="Center" />
                             </Grid>
                         </Border>
 

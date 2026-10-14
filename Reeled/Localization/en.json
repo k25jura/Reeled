@@ -112,6 +112,11 @@
   "Appearance_MomentsBadgesSubtitle": "Display bookmark counter pill on video thumbnail cards in the library",
   "Appearance_BackdropBlurTitle": "Backdrop blur",
   "Appearance_BackdropBlurSubtitle": "Enable acrylic blur on player controls and flyouts",
+  "Appearance_BlurStrengthTitle": "Blur strength",
+  "Appearance_BlurStrengthSubtitle": "How much of the video shows through player controls and menus",
+  "Appearance_BlurLight": "Light",
+  "Appearance_BlurBalanced": "Balanced",
+  "Appearance_BlurStrong": "Strong",
   "Appearance_ReduceMotionTitle": "Reduce motion",
   "Appearance_ReduceMotionSubtitle": "Turn off sliding, scaling and rolling animations. Also applies when Windows animation effects are off",
 

@@ -36,19 +36,49 @@ public static class Motion
     /// </summary>
     public static void Begin(Microsoft.UI.Xaml.Media.Animation.Storyboard storyboard)
     {
-        storyboard.Begin();
         if (IsReduced)
         {
-            // Jump straight to the end values; Completed still fires. (Setting a large SpeedRatio
-            // instead crashes inside Microsoft.UI.Xaml with a stowed exception.)
-            try
+            // Collapse every child to ~1ms so the storyboard still runs to completion and raises
+            // Completed (much UI state is finalized there). SkipToFill() doesn't raise Completed, and a
+            // huge SpeedRatio crashes inside Microsoft.UI.Xaml.
+            foreach (var child in storyboard.Children)
             {
-                storyboard.SkipToFill();
+                Collapse(child);
             }
-            catch
-            {
-                // A storyboard that already finished or was stopped synchronously has nothing to skip
-            }
+        }
+        storyboard.Begin();
+    }
+
+    private static readonly Microsoft.UI.Xaml.Duration Instant =
+        new(TimeSpan.FromMilliseconds(1));
+
+    private static readonly Microsoft.UI.Xaml.Media.Animation.KeyTime InstantKeyTime =
+        Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1));
+
+    private static void Collapse(Microsoft.UI.Xaml.Media.Animation.Timeline timeline)
+    {
+        timeline.BeginTime = TimeSpan.Zero;
+        switch (timeline)
+        {
+            case Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames d:
+                // Same KeyTime for all frames: the last frame's value wins, i.e. the end state
+                foreach (var frame in d.KeyFrames) frame.KeyTime = InstantKeyTime;
+                break;
+            case Microsoft.UI.Xaml.Media.Animation.ColorAnimationUsingKeyFrames c:
+                foreach (var frame in c.KeyFrames) frame.KeyTime = InstantKeyTime;
+                break;
+            case Microsoft.UI.Xaml.Media.Animation.ObjectAnimationUsingKeyFrames o:
+                foreach (var frame in o.KeyFrames) frame.KeyTime = InstantKeyTime;
+                break;
+            case Microsoft.UI.Xaml.Media.Animation.PointAnimationUsingKeyFrames p:
+                foreach (var frame in p.KeyFrames) frame.KeyTime = InstantKeyTime;
+                break;
+            default:
+                if (timeline.RepeatBehavior.Type != Microsoft.UI.Xaml.Media.Animation.RepeatBehaviorType.Forever)
+                {
+                    timeline.Duration = Instant;
+                }
+                break;
         }
     }
 

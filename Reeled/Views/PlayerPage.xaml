@@ -43,15 +43,22 @@
             <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
         </Style>
 
+        <!-- Tint values are set at runtime from the Backdrop blur settings (Helpers.Backdrop) -->
         <AcrylicBrush x:Key="PlayerFlyoutBackdropBrush"
-                      TintColor="#161616"
-                      TintOpacity="0.72"
-                      TintLuminosityOpacity="0.65"
-                      FallbackColor="#C4161616" />
+                      TintColor="#1A1A1A"
+                      TintOpacity="0.40"
+                      TintLuminosityOpacity="0.50"
+                      FallbackColor="#D91A1A1A" />
+
+        <AcrylicBrush x:Key="PlayerBarBackdropBrush"
+                      TintColor="#121212"
+                      TintOpacity="0.30"
+                      TintLuminosityOpacity="0.40"
+                      FallbackColor="#D9121212" />
 
         <Style x:Key="PlayerFlyoutPresenterStyle" TargetType="FlyoutPresenter">
             <Setter Property="Background" Value="{StaticResource PlayerFlyoutBackdropBrush}" />
-            <Setter Property="BorderBrush" Value="#303030" />
+            <Setter Property="BorderBrush" Value="#33FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="0" />
@@ -173,8 +180,8 @@
         <!-- Top Header Overlay (Telegram style) -->
         <Border x:Name="TopHeaderBar"
                 VerticalAlignment="Top" 
-                Background="#E6161616" 
-                BorderBrush="#262626" 
+                Background="{StaticResource PlayerBarBackdropBrush}" 
+                BorderBrush="#1FFFFFFF" 
                 BorderThickness="0,0,0,1" 
                 Padding="16,8,16,8">
             <Grid>
@@ -210,8 +217,8 @@
                 HorizontalAlignment="Center"
                 VerticalAlignment="Bottom"
                 Margin="0,0,0,48"
-                Background="#F2121212"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                Background="{StaticResource PlayerFlyoutBackdropBrush}"
+                BorderBrush="#33FFFFFF"
                 BorderThickness="1"
                 CornerRadius="18"
                 Padding="16,6"
@@ -252,7 +259,7 @@
                 HorizontalAlignment="Center"
                 VerticalAlignment="Bottom"
                 Margin="0,0,0,112"
-                Background="#F2121212"
+                Background="{StaticResource PlayerFlyoutBackdropBrush}"
                 BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
                 BorderThickness="1"
                 CornerRadius="18"
@@ -298,8 +305,8 @@
                 VerticalAlignment="Bottom" 
                 HorizontalAlignment="Stretch" 
                 Margin="0" 
-                Background="#E6161616" 
-                BorderBrush="#262626" 
+                Background="{StaticResource PlayerBarBackdropBrush}" 
+                BorderBrush="#1FFFFFFF" 
                 BorderThickness="0,1,0,0" 
                 CornerRadius="0" 
                 Padding="16,8">
@@ -1117,103 +1124,93 @@
                 HorizontalAlignment="Left"
                 VerticalAlignment="Bottom"
                 Margin="20,0,0,116"
-                Width="320"
-                MaxHeight="260"
+                Width="300"
                 Background="{StaticResource PlayerFlyoutBackdropBrush}"
-                BorderBrush="#303030"
+                BorderBrush="#33FFFFFF"
                 BorderThickness="1"
-                CornerRadius="8"
-                Padding="8,10"
+                CornerRadius="10"
+                Padding="6,10,6,6"
                 Opacity="0"
                 Visibility="Collapsed"
+                RenderTransformOrigin="0,1"
                 PointerEntered="OnMomentsPopupPointerEntered"
                 PointerExited="OnMomentsPopupPointerExited">
             <Border.RenderTransform>
-                <TranslateTransform x:Name="MomentsPopupTranslation" X="-30" />
+                <CompositeTransform x:Name="MomentsPopupTranslation" TranslateX="-16" ScaleX="0.98" ScaleY="0.98" />
             </Border.RenderTransform>
-            <Grid RowSpacing="8">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-
-                <!-- Header: Icon + Title + Close button (Aligned with item icons at 8px) -->
-                <Grid Grid.Row="0" Margin="8,0,8,0">
+            <!-- Auto rows only: the list sizes to its content, so the card can never render as a bare header -->
+            <StackPanel Spacing="6">
+                <Grid Margin="10,0,2,0" ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <FontIcon Glyph="&#xE8A4;" FontSize="14" Foreground="#FFD700" />
-                        <TextBlock x:Name="MomentsPromptTitle" Text="Moments in this clip" FontSize="14" FontWeight="SemiBold" Foreground="White" />
+                        <TextBlock x:Name="MomentsPromptTitle" Text="Moments in this clip" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                        <TextBlock x:Name="MomentsPromptCount" FontSize="12" Foreground="#99FFFFFF" VerticalAlignment="Center" />
                     </StackPanel>
                     <Button x:Name="MomentsPromptDismissButton"
                             Grid.Column="1"
                             Click="OnDismissMomentsPopupClick"
-                            Width="26" Height="26"
+                            Width="24" Height="24"
                             Padding="0" MinWidth="0" MinHeight="0"
-                            CornerRadius="4"
+                            CornerRadius="12"
                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                             ToolTipService.ToolTip="Dismiss"
                             Style="{StaticResource PlayerIconButtonStyle}">
-                        <FontIcon Glyph="&#xE711;" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <FontIcon Glyph="&#xE711;" FontSize="9" Foreground="#B3FFFFFF" />
                     </Button>
                 </Grid>
 
-                <!-- List of Bookmarked Moments to Choose From -->
-                <ScrollViewer Grid.Row="1" MaxHeight="190" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer MaxHeight="196" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <ItemsControl x:Name="MomentsPopupItemsList">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="models:ClipBookmark">
                                 <Button HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Stretch"
-                                        Margin="0,2"
-                                        Padding="8,6"
-                                        CornerRadius="4"
+                                        Padding="10,7"
+                                        CornerRadius="6"
                                         Click="OnPopupBookmarkItemClick"
                                         Tag="{x:Bind}"
                                         Style="{ThemeResource SubtleButtonStyle}">
-                                    <Grid ColumnSpacing="8">
+                                    <Grid ColumnSpacing="10">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- Play Glyph + Timestamp -->
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                            <FontIcon Glyph="&#xE768;" FontSize="10" Foreground="#FFD700" />
-                                            <TextBlock Text="{x:Bind FormattedTimestamp, Mode=OneWay}" 
-                                                       FontSize="12" 
-                                                       Foreground="White" 
-                                                       VerticalAlignment="Center" />
-                                        </StackPanel>
+                                        <!-- The moment's own color, matching its timeline marker -->
+                                        <Ellipse Grid.Column="0" Width="8" Height="8" VerticalAlignment="Center"
+                                                 Fill="{x:Bind ColorHex, Mode=OneWay, Converter={StaticResource HexToBrushConverter}}" />
 
-                                        <!-- Label (No hover tooltip) -->
-                                        <TextBlock Grid.Column="1" 
-                                                   Text="{x:Bind Label, Mode=OneWay}" 
-                                                   FontSize="12" 
-                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                                   VerticalAlignment="Center" 
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{x:Bind Label, Mode=OneWay}"
+                                                   FontSize="12.5"
+                                                   Foreground="White"
+                                                   VerticalAlignment="Center"
                                                    TextTrimming="CharacterEllipsis" />
 
-                                        <!-- Jump Arrow Glyph -->
-                                        <FontIcon Grid.Column="2" Glyph="&#xE76C;" FontSize="10" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{x:Bind FormattedRange, Mode=OneWay}"
+                                                   FontSize="12"
+                                                   Foreground="#99FFFFFF"
+                                                   VerticalAlignment="Center" />
                                     </Grid>
                                 </Button>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </ScrollViewer>
-            </Grid>
+            </StackPanel>
         </Border>
 
         <!-- Collapsible Playlist Queue Sidebar (Slide-in Right) -->
         <Border x:Name="PlaylistQueueSidebar"
                 HorizontalAlignment="Right" 
                 Width="320" 
-                Background="#F2161616" 
-                BorderBrush="#262626" 
+                Background="{StaticResource PlayerBarBackdropBrush}" 
+                BorderBrush="#1FFFFFFF" 
                 BorderThickness="1,0,0,0"
                 Opacity="0"
                 Visibility="Collapsed">

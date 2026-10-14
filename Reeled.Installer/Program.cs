@@ -8,6 +8,22 @@ namespace Reeled.Installer;
 
 public static class Program
 {
+    private static readonly string TraceFile = Path.Combine(Path.GetTempPath(), "reeled_installer.log");
+
+    internal static void Trace(string message)
+    {
+        try { File.AppendAllText(TraceFile, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{Environment.ProcessId}] {message}{Environment.NewLine}"); } catch { }
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern bool IsProcessInJob(IntPtr process, IntPtr job, out bool result);
+
+    private static bool IsInJob()
+    {
+        try { return IsProcessInJob(Process.GetCurrentProcess().Handle, IntPtr.Zero, out bool r) && r; }
+        catch { return false; }
+    }
+
     [STAThread]
     static void Main(string[] args)
     {
@@ -21,6 +37,9 @@ public static class Program
                                string.Equals(currentExeName, "uninstall", StringComparison.OrdinalIgnoreCase);
 
             bool isStaged = args.Any(a => string.Equals(a, "--staged", StringComparison.OrdinalIgnoreCase));
+
+            Trace($"Start exe={Environment.ProcessPath} args=[{string.Join(" ", args)}] cwd={Environment.CurrentDirectory} " +
+                  $"uninstall={isUninstall} staged={isStaged} inJob={IsInJob()}");
 
             // If this is uninstallation and we are running from an installation directory (not staged in %TEMP%),
             // stage ourselves into a unique folder in %TEMP% to prevent file-locking and WinUI 3 XBF/PRI resource collisions with Reeled.exe.
@@ -110,7 +129,9 @@ public static class Program
                     };
 
                     var stagedProc = Process.Start(psi);
+                    Trace($"Staged uninstaller started pid={stagedProc?.Id} target={safeTargetDir}");
                     stagedProc?.WaitForExit();
+                    Trace($"Staged uninstaller exited code={stagedProc?.ExitCode}");
 
                     if (stagedProc != null && stagedProc.ExitCode == 0)
                     {

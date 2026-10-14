@@ -26,24 +26,14 @@ public partial class App : Application
         UnhandledException += (sender, args) =>
         {
             Helpers.CursorHelper.RestoreGlobalCursor();
-            try
-            {
-                string log = $"[UnhandledException] {DateTime.Now}\nMessage: {args.Message}\nException: {args.Exception}\nStackTrace:\n{args.Exception?.StackTrace}\n\n";
-                System.IO.File.AppendAllText("reeled_crash.log", log);
-            }
-            catch { }
+            Helpers.Log.Error("UnhandledException", $"{args.Message}\n{args.Exception}");
             args.Handled = true;
         };
 
         AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
         {
             Helpers.CursorHelper.RestoreGlobalCursor();
-            try
-            {
-                string log = $"[AppDomain Unhandled] {DateTime.Now}\nExceptionObject: {args.ExceptionObject}\n\n";
-                System.IO.File.AppendAllText("reeled_crash.log", log);
-            }
-            catch { }
+            Helpers.Log.Error("AppDomain Unhandled", args.ExceptionObject?.ToString() ?? "unknown");
         };
 
         AppDomain.CurrentDomain.ProcessExit += (sender, args) =>
@@ -101,6 +91,22 @@ public partial class App : Application
         {
             var nav = GetService<INavigationService>();
             await nav.OpenVideoFilesAsync(videoFiles);
+        }
+
+        _ = RunStartupUpdateCheckAsync();
+    }
+
+    private static async System.Threading.Tasks.Task RunStartupUpdateCheckAsync()
+    {
+        try
+        {
+            // Let the library finish its first scan before touching the network
+            await System.Threading.Tasks.Task.Delay(TimeSpan.FromSeconds(10));
+            await GetService<SettingsViewModel>().AutoCheckForUpdatesAsync();
+        }
+        catch (Exception ex)
+        {
+            Helpers.Log.Error("AutoUpdateCheck", ex);
         }
     }
 

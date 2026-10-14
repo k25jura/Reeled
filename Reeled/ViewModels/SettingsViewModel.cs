@@ -158,6 +158,9 @@ public partial class SettingsViewModel : ObservableObject
     private bool _reduceMotion;
 
     [ObservableProperty]
+    private bool _resumePlayback = true;
+
+    [ObservableProperty]
     private string _gitHubToken = string.Empty;
 
     [ObservableProperty]
@@ -249,9 +252,13 @@ public partial class SettingsViewModel : ObservableObject
         };
         AutoCheckUpdates = _storageService.CurrentSettings.AutoCheckUpdates;
         ReduceMotion = _storageService.CurrentSettings.ReduceMotion;
+        ResumePlayback = _storageService.CurrentSettings.ResumePlayback;
         GitHubToken = _storageService.CurrentSettings.GitHubToken ?? string.Empty;
-        UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
-        LastCheckedFormatted = string.Format(_localizationService["Updates_LastChecked"], _localizationService["Date_Today"]);
+        if (!IsUpdateAvailable && !IsUpdateReadyToInstall && !IsCheckingForUpdates)
+        {
+            UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
+        }
+        UpdateLastCheckedText();
 
         CalculateCacheSize();
         CalculateClipCacheSize();
@@ -296,6 +303,7 @@ public partial class SettingsViewModel : ObservableObject
         CalculateMomentsStats();
         CalculateClipCacheSize();
         UpdateDiagnostics();
+        UpdateLastCheckedText();
         if (IsUpdateAvailable)
         {
             UpdateStatusFormatted = _localizationService["Updates_StatusAvailable"];
@@ -542,7 +550,7 @@ public partial class SettingsViewModel : ObservableObject
         {
             UpdateDiagnostics();
             var text = "--- Reeled Diagnostics ---\n" +
-                       $"Version: 1.0.0\n" +
+                       $"Version: {_updateService.CurrentVersion}\n" +
                        $"OS: {OsVersionFormatted}\n" +
                        $"Architecture: {ArchitectureFormatted}\n" +
                        $"Runtime: {RuntimeFormatted}\n" +
@@ -575,7 +583,12 @@ public partial class SettingsViewModel : ObservableObject
             WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
 
             var folder = await picker.PickSingleFolderAsync();
-            if (folder != null && !WatchFolders.Contains(folder.Path))
+            if (folder != null && WatchFolders.Any(existing => Helpers.PathUtil.IsUnder(folder.Path, existing)))
+            {
+                // Already indexed through an existing watch folder (or added before): just open it
+                await NavigateToDirectoryAsync(folder.Path);
+            }
+            else if (folder != null)
             {
                 WatchFolders.Add(folder.Path);
                 var settings = _storageService.CurrentSettings;
@@ -718,7 +731,9 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public async Task CheckForUpdatesAsync()
+    public Task CheckForUpdatesAsync() => CheckForUpdatesCoreAsync(silent: false);
+
+    private async Task CheckForUpdatesCoreAsync(bool silent)
     {
         if (IsCheckingForUpdates || IsDownloadingUpdate) return;
 
@@ -751,22 +766,37 @@ public partial class SettingsViewModel : ObservableObject
                 if (!string.IsNullOrEmpty(info.ErrorMessage))
                 {
                     UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
-                    UpdatesStatusMessage = string.Format(_localizationService["Updates_ErrorCheck"], info.ErrorMessage);
+                    if (!silent)
+                    {
+                        UpdatesStatusMessage = string.Format(_localizationService["Updates_ErrorCheck"], info.ErrorMessage);
+                    }
                 }
                 else
                 {
                     UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
-                    UpdatesStatusMessage = string.Format(_localizationService["Updates_NoUpdates"], info.CurrentVersion);
+                    if (!silent)
+                    {
+                        UpdatesStatusMessage = string.Format(_localizationService["Updates_NoUpdates"], info.CurrentVersion);
+                    }
                 }
             }
 
-            LastCheckedFormatted = string.Format(_localizationService["Updates_LastChecked"], DateTime.Now.ToString("t", _localizationService.CurrentCulture));
+            if (string.IsNullOrEmpty(info.ErrorMessage))
+            {
+                var settings = _storageService.CurrentSettings;
+                settings.LastUpdateCheckUtc = DateTime.UtcNow;
+                _ = _storageService.SaveSettingsAsync(settings);
+            }
+            UpdateLastCheckedText();
         }
         catch (Exception ex)
         {
             IsUpdateAvailable = false;
             UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
-            UpdatesStatusMessage = string.Format(_localizationService["Updates_ErrorCheck"], ex.Message);
+            if (!silent)
+            {
+                UpdatesStatusMessage = string.Format(_localizationService["Updates_ErrorCheck"], ex.Message);
+            }
         }
         finally
         {
@@ -844,6 +874,49 @@ public partial class SettingsViewModel : ObservableObject
         _ = _storageService.SaveSettingsAsync(settings);
     }
 
+    partial void OnResumePlaybackChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.ResumePlayback != value)
+        {
+            settings.ResumePlayback = value;
+            if (!value)
+            {
+                settings.ResumePositions.Clear();
+            }
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    private void UpdateLastCheckedText()
+    {
+        var last = _storageService.CurrentSettings.LastUpdateCheckUtc;
+        if (last == null)
+        {
+            LastCheckedFormatted = _localizationService["Updates_NeverChecked"];
+            return;
+        }
+
+        var local = last.Value.ToLocalTime();
+        string when = local.Date == DateTime.Today
+            ? $"{_localizationService["Date_Today"]} {local.ToString("t", _localizationService.CurrentCulture)}"
+            : local.ToString("g", _localizationService.CurrentCulture);
+        LastCheckedFormatted = string.Format(_localizationService["Updates_LastChecked"], when);
+    }
+
+    /// <summary>
+    /// Background check run shortly after launch when "Check for updates automatically" is on.
+    /// Throttled to once a day; results only surface in the Updates section.
+    /// </summary>
+    public async Task AutoCheckForUpdatesAsync()
+    {
+        var settings = _storageService.CurrentSettings;
+        if (!settings.AutoCheckUpdates) return;
+        if (settings.LastUpdateCheckUtc is DateTime last && DateTime.UtcNow - last < TimeSpan.FromHours(20)) return;
+
+        await CheckForUpdatesCoreAsync(silent: true);
+    }
+
     partial void OnReduceMotionChanged(bool value)
     {
         var settings = _storageService.CurrentSettings;
@@ -911,23 +984,24 @@ public partial class SettingsViewModel : ObservableObject
         }
     }
 
-    private void CalculateCacheSize()
+    private async void CalculateCacheSize()
     {
         try
         {
             string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string cacheDir = Path.Combine(localAppData, "Reeled", "Thumbnails");
-            if (!Directory.Exists(cacheDir))
-            {
-                CacheSizeFormatted = "0 KB";
-                return;
-            }
 
-            long total = 0;
-            foreach (var file in Directory.EnumerateFiles(cacheDir))
+            // Thousands of thumbnails: enumerate off the UI thread so opening Settings doesn't hitch
+            long total = await Task.Run(() =>
             {
-                try { total += new FileInfo(file).Length; } catch { }
-            }
+                if (!Directory.Exists(cacheDir)) return 0L;
+                long sum = 0;
+                foreach (var file in new DirectoryInfo(cacheDir).EnumerateFiles())
+                {
+                    try { sum += file.Length; } catch { }
+                }
+                return sum;
+            });
 
             double mb = total / (1024.0 * 1024.0);
             string mbUnit = _localizationService["Unit_MB"];
@@ -987,6 +1061,7 @@ public partial class SettingsViewModel : ObservableObject
         settings.MetadataHoverOnly = false;
         settings.SortIndex = 0;
         settings.ReduceMotion = false;
+        settings.ResumePlayback = true;
 
         settings.EnableSkeletonLoading = true;
         settings.EnableClipCache = true;

@@ -41,11 +41,19 @@ Built with unpackaged WinUI 3 (Windows App SDK), .NET 8, and LibVLC 3.0.
 
 ## Keyboard & Mouse Shortcuts
 
+**Player**
+
 | Input | Action |
 | --- | --- |
 | `Space` | Play / Pause |
 | `Left` / `Right Arrow` | Seek backward / forward 5 seconds |
 | `Shift + Left` / `Right Arrow` | Fine seek backward / forward 1 second |
+| `,` / `.` | Step one frame backward / forward (pauses) |
+| `Home` / `End` | Jump to start / end |
+| `0` – `9` | Jump to 0% – 90% of the clip |
+| `N` / `P` (or `Page Down` / `Page Up`) | Next / previous clip |
+| `[` / `]` | Playback speed down / up 0.25x |
+| `\` | Reset playback speed |
 | `Up` / `Down Arrow` | Volume up / down 5% |
 | `Mouse Scroll Wheel` | Volume adjust (over canvas or volume slider) |
 | `M` | Toggle mute |
@@ -56,6 +64,17 @@ Built with unpackaged WinUI 3 (Windows App SDK), .NET 8, and LibVLC 3.0.
 | `F` or `F11` | Toggle fullscreen |
 | `Double Click` (Canvas) | Toggle fullscreen |
 | `Escape` | Exit fullscreen / Return to library |
+
+**Library**
+
+| Input | Action |
+| --- | --- |
+| `Ctrl + F` | Focus search |
+| `Escape` (in search) | Clear search |
+| `F5` | Rescan watch folders |
+| `F2` | Rename the clip under the cursor (in app) |
+| `Delete` | Move the clip under the cursor to the Recycle Bin (asks first) |
+| `Middle Click` | Autoscroll |
 
 ---
 

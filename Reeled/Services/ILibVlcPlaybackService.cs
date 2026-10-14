@@ -39,11 +39,18 @@ public interface ILibVlcPlaybackService : IDisposable
     void InitializeEngine(string[]? swapChainOptions = null);
     void DisposeEngine();
     void AttachToVideoView(LibVLCSharp.Platforms.Windows.VideoView videoView, string[] swapChainOptions);
-    Task PlayMediaAsync(string filePath);
+    float Fps { get; }
+
+    /// <summary>Loads and plays a file. Overlapping calls are serialized and only the latest one wins.</summary>
+    Task PlayMediaAsync(string filePath, long startTimeMs = 0);
     void Play();
     void Pause();
     void TogglePlayPause();
     void Stop();
+    /// <summary>Stops playback without blocking the UI thread on video output teardown.</summary>
+    Task StopAsync();
+    /// <summary>Advances exactly one frame and leaves playback paused.</summary>
+    void NextFrame();
     void SetPosition(float ratio);
     void SeekTime(long timeMs);
     void SkipSeconds(int seconds);

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.UI.Dispatching;
 using Windows.Storage;
 using Reeled.Models;
 
@@ -19,38 +20,37 @@ public class ClipMetadataService : IClipMetadataService
 
     public async Task PopulateMetadataAsync(GameClip clip)
     {
-        if (string.IsNullOrEmpty(clip.FilePath) || !File.Exists(clip.FilePath))
+        string path = clip.FilePath;
+        if (string.IsNullOrEmpty(path) || !File.Exists(path))
             return;
 
+        // Probe everything off the UI thread first. GameClip properties are x:Bind sources, so they
+        // must only be assigned on the UI thread: a cross-thread PropertyChanged throws inside the setter.
+        FileInfo fileInfo;
+        TimeSpan? duration = null;
+        uint width = 0, height = 0;
         try
         {
-            var fileInfo = new FileInfo(clip.FilePath);
-            clip.FileSizeBytes = fileInfo.Length;
-            clip.CreatedDate = fileInfo.CreationTimeUtc;
-            clip.ModifiedDate = fileInfo.LastWriteTimeUtc;
-            clip.FileName = fileInfo.Name;
-            clip.DirectoryPath = fileInfo.DirectoryName ?? string.Empty;
-
-            if (_cacheService.TryGet(clip.FilePath, fileInfo.Length, fileInfo.LastWriteTimeUtc.Ticks, out var cached) && cached != null)
+            fileInfo = new FileInfo(path);
+            if (_cacheService.TryGet(path, fileInfo.Length, fileInfo.LastWriteTimeUtc.Ticks, out var cached) && cached != null)
             {
-                clip.Duration = TimeSpan.FromTicks(cached.DurationTicks);
-                clip.VideoWidth = cached.VideoWidth;
-                clip.VideoHeight = cached.VideoHeight;
+                duration = TimeSpan.FromTicks(cached.DurationTicks);
+                width = cached.VideoWidth;
+                height = cached.VideoHeight;
             }
             else
             {
-                var storageFile = await StorageFile.GetFileFromPathAsync(clip.FilePath);
+                var storageFile = await StorageFile.GetFileFromPathAsync(path);
                 var videoProps = await storageFile.Properties.GetVideoPropertiesAsync();
-
                 if (videoProps != null)
                 {
-                    clip.Duration = videoProps.Duration;
-                    clip.VideoWidth = videoProps.Width;
-                    clip.VideoHeight = videoProps.Height;
+                    duration = videoProps.Duration;
+                    width = videoProps.Width;
+                    height = videoProps.Height;
 
                     _cacheService.Set(new CachedClipMetadata
                     {
-                        FilePath = clip.FilePath,
+                        FilePath = path,
                         FileSizeBytes = fileInfo.Length,
                         LastWriteTimeUtcTicks = fileInfo.LastWriteTimeUtc.Ticks,
                         DurationTicks = videoProps.Duration.Ticks,
@@ -64,17 +64,47 @@ public class ClipMetadataService : IClipMetadataService
         }
         catch (Exception)
         {
-            // If WinRT storage properties fail, basic FileInfo is already set
+            // WinRT property handler failures are expected for some containers; keep basic file info
+            return;
         }
 
-        // Asynchronously ensure thumbnail exists on disk cache without creating BitmapImage in memory
+        RunOnUiThread(() =>
+        {
+            if (!string.Equals(clip.FilePath, path, StringComparison.OrdinalIgnoreCase)) return;
+
+            if (clip.FileSizeBytes != fileInfo.Length) clip.FileSizeBytes = fileInfo.Length;
+            if (clip.CreatedDate != fileInfo.CreationTimeUtc) clip.CreatedDate = fileInfo.CreationTimeUtc;
+            if (clip.ModifiedDate != fileInfo.LastWriteTimeUtc) clip.ModifiedDate = fileInfo.LastWriteTimeUtc;
+            if (duration.HasValue && duration.Value > TimeSpan.Zero) clip.Duration = duration.Value;
+            if (width > 0) clip.VideoWidth = width;
+            if (height > 0) clip.VideoHeight = height;
+        });
+
+        // Warm the on-disk thumbnail cache without creating a BitmapImage in memory
         _ = Task.Run(async () =>
         {
             try
             {
-                clip.ThumbnailCachePath = await _thumbnailService.EnsureThumbnailOnDiskAsync(clip.FilePath);
+                string? thumbPath = await _thumbnailService.EnsureThumbnailOnDiskAsync(path);
+                if (thumbPath != null)
+                {
+                    RunOnUiThread(() => clip.ThumbnailCachePath = thumbPath);
+                }
             }
             catch { }
         });
+    }
+
+    private static void RunOnUiThread(Action action)
+    {
+        var dispatcher = App.DispatcherQueue;
+        if (dispatcher == null || dispatcher.HasThreadAccess)
+        {
+            action();
+        }
+        else
+        {
+            dispatcher.TryEnqueue(DispatcherQueuePriority.Low, () => action());
+        }
     }
 }

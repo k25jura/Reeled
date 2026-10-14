@@ -15,7 +15,7 @@ public class ClipMetadataCacheService : IClipMetadataCacheService
     private readonly string _cacheFilePath;
     private readonly ConcurrentDictionary<string, CachedClipMetadata> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _saveLock = new(1, 1);
-    private bool _isDirty;
+    private volatile bool _isDirty;
 
     public ClipMetadataCacheService(ILocalStorageService storageService)
     {
@@ -49,7 +49,7 @@ public class ClipMetadataCacheService : IClipMetadataCacheService
         }
         catch (Exception ex)
         {
-            try { File.AppendAllText("reeled_crash.log", $"[ClipMetadataCache.Load Error] {ex}\n"); } catch { }
+            Helpers.Log.Error("ClipMetadataCache.Load Error", ex);
         }
     }
 
@@ -87,26 +87,54 @@ public class ClipMetadataCacheService : IClipMetadataCacheService
         if (!_storageService.CurrentSettings.EnableClipCache) return;
         if (!_isDirty) return;
 
-        await _saveLock.WaitAsync();
+        await _saveLock.WaitAsync().ConfigureAwait(false);
         try
         {
             if (!_isDirty) return;
 
-            var list = new List<CachedClipMetadata>(_cache.Values);
-            string json = JsonSerializer.Serialize(list, AppJsonSerializerContext.Default.ListCachedClipMetadata);
-            string tempFile = _cacheFilePath + ".tmp";
-            await File.WriteAllTextAsync(tempFile, json);
-            File.Move(tempFile, _cacheFilePath, overwrite: true);
+            // Clear the flag before snapshotting so entries added mid-write mark the cache dirty again
             _isDirty = false;
+            string json = SerializeSnapshot();
+            string tempFile = _cacheFilePath + ".tmp";
+            await File.WriteAllTextAsync(tempFile, json).ConfigureAwait(false);
+            File.Move(tempFile, _cacheFilePath, overwrite: true);
         }
         catch (Exception ex)
         {
-            try { File.AppendAllText("reeled_crash.log", $"[ClipMetadataCache.Save Error] {ex}\n"); } catch { }
+            _isDirty = true;
+            Helpers.Log.Error("ClipMetadataCache.Save Error", ex);
         }
         finally
         {
             _saveLock.Release();
         }
+    }
+
+    public void Flush()
+    {
+        if (!_storageService.CurrentSettings.EnableClipCache || !_isDirty) return;
+        if (!_saveLock.Wait(TimeSpan.FromSeconds(2))) return;
+        try
+        {
+            _isDirty = false;
+            string tempFile = _cacheFilePath + ".tmp";
+            File.WriteAllText(tempFile, SerializeSnapshot());
+            File.Move(tempFile, _cacheFilePath, overwrite: true);
+        }
+        catch (Exception ex)
+        {
+            Helpers.Log.Error("ClipMetadataCache.Flush Error", ex);
+        }
+        finally
+        {
+            _saveLock.Release();
+        }
+    }
+
+    private string SerializeSnapshot()
+    {
+        var list = new List<CachedClipMetadata>(_cache.Values);
+        return JsonSerializer.Serialize(list, AppJsonSerializerContext.Default.ListCachedClipMetadata);
     }
 
     public async Task ClearAsync()
@@ -123,7 +151,7 @@ public class ClipMetadataCacheService : IClipMetadataCacheService
         }
         catch (Exception ex)
         {
-            try { File.AppendAllText("reeled_crash.log", $"[ClipMetadataCache.Clear Error] {ex}\n"); } catch { }
+            Helpers.Log.Error("ClipMetadataCache.Clear Error", ex);
         }
         finally
         {

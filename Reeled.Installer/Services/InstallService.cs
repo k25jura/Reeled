@@ -29,6 +29,32 @@ public class InstallService
     public string DefaultInstallDirectory =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Reeled");
 
+    /// <summary>
+    /// Uninstall deletes the install directory recursively, so never install straight into a folder that
+    /// already holds unrelated files (e.g. a typed "C:\Games"): use a "Reeled" subfolder instead.
+    /// </summary>
+    public static string ResolveInstallDirectory(string requested)
+    {
+        try
+        {
+            string full = Path.GetFullPath(requested.Trim());
+            bool isExistingReeledInstall = File.Exists(Path.Combine(full, "Reeled.exe"));
+            bool isNamedReeled = string.Equals(Path.GetFileName(full.TrimEnd(Path.DirectorySeparatorChar)), "Reeled", StringComparison.OrdinalIgnoreCase);
+            bool hasOtherContent = Directory.Exists(full) && Directory.EnumerateFileSystemEntries(full).Any();
+            bool isDriveRoot = string.Equals(Path.GetPathRoot(full), full, StringComparison.OrdinalIgnoreCase);
+
+            if (isDriveRoot || (hasOtherContent && !isExistingReeledInstall && !isNamedReeled))
+            {
+                return Path.Combine(full, "Reeled");
+            }
+            return full;
+        }
+        catch
+        {
+            return requested;
+        }
+    }
+
     public long GetDriveFreeSpaceBytes(string path)
     {
         try
@@ -102,11 +128,18 @@ public class InstallService
                 double startPct = isLocalPayload ? 5.0 : 50.0;
                 double spanPct = isLocalPayload ? 83.0 : 38.0;
 
+                string destinationRoot = Path.GetFullPath(destinationDir).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
                 foreach (var entry in archive.Entries)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    string fullPath = Path.Combine(destinationDir, entry.FullName);
+                    // Reject entries that would escape the install folder ("..\" or rooted paths)
+                    string fullPath = Path.GetFullPath(Path.Combine(destinationRoot, entry.FullName));
+                    if (!fullPath.StartsWith(destinationRoot, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidDataException($"Blocked unsafe path in installation package: {entry.FullName}");
+                    }
 
                     // Handle directory entries
                     if (entry.FullName.EndsWith("/") || entry.FullName.EndsWith("\\") || string.IsNullOrEmpty(entry.Name))

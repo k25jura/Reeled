@@ -375,6 +375,22 @@
   "Player_Toast_Speed": "{0}x Speed",
   "Player_Toast_SubtitlesLoaded": "Loaded subtitles: {0}",
   "Player_Toast_SubtitlesDisabled": "Subtitles disabled",
+  "Player_Toast_Resumed": "Resumed at {0}",
+  "Player_Toast_NextFrame": "Next frame",
+  "Player_Toast_PreviousFrame": "Previous frame",
+  "Player_DefaultMarkLabel": "Mark at {0}",
+  "Player_DefaultRangeLabel": "Moment {0} - {1}",
+
+  "Playback_ResumeTitle": "Resume where you left off",
+  "Playback_ResumeSubtitle": "Continue clips longer than 2 minutes from the last watched position",
+
+  "Updates_NeverChecked": "Not checked yet",
+
+  "Dialog_Rename_InvalidChars": "A file name can't contain any of these characters: \\ / : * ? \" < > |",
+  "Dialog_Rename_Failed": "Couldn't rename the file. A file with that name may already exist, or the clip is open in another app.",
+  "Dialog_Delete_Failed": "Couldn't move the file to the Recycle Bin. It may be open in another app.",
+  "Dialog_Error_Title": "Something went wrong",
+  "Dialog_Error_Close": "OK",
 
   "Unit_Byte": "B",
   "Unit_KB": "KB",

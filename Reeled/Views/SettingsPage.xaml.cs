@@ -178,6 +178,12 @@ public sealed partial class SettingsPage : Page
         }
     }
 
+    private void OnBlurStrengthSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isInitializing || BlurStrengthComboBox.SelectedIndex < 0) return;
+        ViewModel.BackdropBlurLevel = BlurStrengthComboBox.SelectedIndex;
+    }
+
     private void OnLanguageSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_isInitializing) return;
@@ -390,7 +396,7 @@ public sealed partial class SettingsPage : Page
         Storyboard.SetTargetProperty(animY, "ScaleY");
         sb.Children.Add(animX);
         sb.Children.Add(animY);
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private void ScrollToSection(string sectionName)
@@ -493,7 +499,7 @@ public sealed partial class SettingsPage : Page
                     Storyboard.SetTarget(anim, selectedBorder);
                     Storyboard.SetTargetProperty(anim, "Opacity");
                     sb.Children.Add(anim);
-                    sb.Begin();
+                    Helpers.Motion.Begin(sb);
                 }
                 else
                 {
@@ -549,7 +555,7 @@ public sealed partial class SettingsPage : Page
             }
 
             var storage = App.GetService<ILocalStorageService>();
-            bool reduceMotion = storage?.CurrentSettings.ReduceMotion == true;
+            bool reduceMotion = Helpers.Motion.IsReduced;
 
             if (!animate || reduceMotion)
             {
@@ -570,9 +576,9 @@ public sealed partial class SettingsPage : Page
                         sbIn.Children.Add(fadeIn);
                         Storyboard.SetTarget(fadeIn, ActiveIndicatorPill);
                         Storyboard.SetTargetProperty(fadeIn, "Opacity");
-                        sbIn.Begin();
+                        Helpers.Motion.Begin(sbIn);
                     };
-                    sb.Begin();
+                    Helpers.Motion.Begin(sb);
                     return;
                 }
 
@@ -639,7 +645,7 @@ public sealed partial class SettingsPage : Page
 
             _currentIndicatorY = targetY;
             _indicatorStoryboard = moveSb;
-            moveSb.Begin();
+            Helpers.Motion.Begin(moveSb);
         }
         catch { }
     }
@@ -720,7 +726,7 @@ public sealed partial class SettingsPage : Page
             trans.Y = 0.0;
         };
 
-        openSb.Begin();
+        Helpers.Motion.Begin(openSb);
 
         // Auto-collapse after 3.5s with graceful, gentle reverse animation at the same speed (240ms)
         var collapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(3500) };
@@ -771,7 +777,7 @@ public sealed partial class SettingsPage : Page
                 trans.Y = -6.0;
             };
 
-            closeSb.Begin();
+            Helpers.Motion.Begin(closeSb);
         };
         timer = collapseTimer;
         collapseTimer.Start();
@@ -924,7 +930,7 @@ public sealed partial class SettingsPage : Page
 
         if (open) UpdateAvailableBorder.IsHitTestVisible = true;
         _updateCardStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private void AnimateDownloadStateTransition(bool isDownloading)
@@ -1049,7 +1055,7 @@ public sealed partial class SettingsPage : Page
         }
 
         _downloadTransitionStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private async void OnPatchNotesClick(object sender, RoutedEventArgs e)
@@ -1166,6 +1172,19 @@ public sealed partial class SettingsPage : Page
                 ThemeComboBox.SelectedIndex = themeIdx;
             }
 
+            if (BlurStrengthComboBox != null)
+            {
+                BlurStrengthComboBox.ItemsSource = new string[]
+                {
+                    loc["Appearance_BlurLight"],
+                    loc["Appearance_BlurBalanced"],
+                    loc["Appearance_BlurStrong"]
+                };
+                BlurStrengthComboBox.SelectedIndex = Math.Clamp(ViewModel.BackdropBlurLevel, 0, 2);
+            }
+            if (BlurStrengthTitleText != null) BlurStrengthTitleText.Text = loc["Appearance_BlurStrengthTitle"];
+            if (BlurStrengthSubtitleText != null) BlurStrengthSubtitleText.Text = loc["Appearance_BlurStrengthSubtitle"];
+
             if (LanguageComboBox != null)
             {
                 int langIdx = ViewModel.SelectedLanguageIndex;
@@ -1251,7 +1270,7 @@ public sealed partial class SettingsPage : Page
         if (DiagMemoryLabel != null) DiagMemoryLabel.Text = loc["About_DiagMemory"];
         if (DiagLibraryLabel != null) DiagLibraryLabel.Text = loc["About_DiagLibrary"];
         if (AboutFrameworkText != null) AboutFrameworkText.Text = loc["About_Framework"];
-        if (AboutVersionText != null) AboutVersionText.Text = $"{loc["About_Version"]} (.NET 8 Windows App SDK x64)";
+        if (AboutVersionText != null) AboutVersionText.Text = $"{string.Format(loc["About_Version"], App.GetService<IUpdateService>().CurrentVersion)} (.NET 8 Windows App SDK x64)";
         if (AboutGithubText != null) AboutGithubText.Text = loc["About_GitHub"];
         if (AboutReleasesText != null) AboutReleasesText.Text = loc["About_Releases"];
         if (AboutIssuesText != null) AboutIssuesText.Text = loc["About_Issues"];

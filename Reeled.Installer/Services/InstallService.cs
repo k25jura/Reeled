@@ -380,7 +380,9 @@ public class InstallService
                 var psi = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
-                    Arguments = $"/c timeout /t 2 /nobreak > NUL & rmdir /s /q \"{installDir}\"",
+                    // Retry for ~30s: the launcher Uninstall.exe in the install folder keeps a lock until
+                    // the uninstall window closes and it exits
+                    Arguments = $"/c for /L %i in (1,1,30) do (rmdir /s /q \"{installDir}\" 2>nul & if exist \"{installDir}\" (timeout /t 1 /nobreak >nul) else (exit /b 0))",
                     WindowStyle = ProcessWindowStyle.Hidden,
                     CreateNoWindow = true,
                     UseShellExecute = false

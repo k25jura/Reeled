@@ -112,8 +112,13 @@
   "Appearance_MomentsBadgesSubtitle": "Display bookmark counter pill on video thumbnail cards in the library",
   "Appearance_BackdropBlurTitle": "Backdrop blur",
   "Appearance_BackdropBlurSubtitle": "Enable acrylic blur on player controls and flyouts",
+  "Appearance_BlurStrengthTitle": "Blur strength",
+  "Appearance_BlurStrengthSubtitle": "How much of the video shows through player controls and menus",
+  "Appearance_BlurLight": "Light",
+  "Appearance_BlurBalanced": "Balanced",
+  "Appearance_BlurStrong": "Strong",
   "Appearance_ReduceMotionTitle": "Reduce motion",
-  "Appearance_ReduceMotionSubtitle": "Disable rolling counters, card scaling, and smooth animations for simpler UI",
+  "Appearance_ReduceMotionSubtitle": "Turn off sliding, scaling and rolling animations. Also applies when Windows animation effects are off",
 
   "Language_SectionTitle": "Language & Region",
   "Language_SectionSubtitle": "Configure interface language, auto-detection, and regional date formatting",
@@ -177,7 +182,7 @@
 
   "About_HeroTitle": "Reeled",
   "About_Tagline": "Modern game clips viewer & player for Windows",
-  "About_Version": "Version 1.0.0",
+  "About_Version": "Version {0}",
   "About_Framework": "Built with WinUI 3, Windows App SDK & LibVLC",
   "About_Developer": "Everything in one app for me and others to use",
   "About_CreatedBy": "Created by k25jura",

@@ -7,6 +7,47 @@ namespace Reeled.Installer.Services;
 
 public class SystemIntegrationService
 {
+    /// <summary>
+    /// The signed-in user's registry hive. Registry.CurrentUser is not safe here: an uninstaller started
+    /// from Windows Settings is relaunched through WMI (to escape Settings' job object), and processes WMI
+    /// creates run without the user profile loaded, so HKEY_CURRENT_USER maps to HKU\.DEFAULT. The user's
+    /// own hive is always loaded under HKEY_USERS\&lt;SID&gt; while they are logged on.
+    /// </summary>
+    internal static RegistryKey UserHive => _userHive.Value;
+
+    private static readonly Lazy<RegistryKey> _userHive = new(OpenUserHive);
+
+    private static RegistryKey OpenUserHive()
+    {
+        {
+            try
+            {
+                string? sid = System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value;
+                if (!string.IsNullOrEmpty(sid))
+                {
+                    var hive = Registry.Users.OpenSubKey(sid, writable: true);
+                    Program.Trace($"User hive {sid}: {(hive != null ? "opened" : "not loaded")}");
+                    if (hive != null) return hive;
+                }
+            }
+            catch (Exception ex)
+            {
+                Program.Trace($"Opening user hive failed: {ex.Message}");
+            }
+            return Registry.CurrentUser;
+        }
+    }
+
+    /// <summary>Product version from the assembly, e.g. "1.1.0".</summary>
+    internal static string AppVersion
+    {
+        get
+        {
+            var v = typeof(SystemIntegrationService).Assembly.GetName().Version;
+            return v == null ? "1.0.0" : $"{v.Major}.{v.Minor}.{Math.Max(0, v.Build)}";
+        }
+    }
+
     private static readonly string[] VideoExtensions = new[]
     {
         ".mp4", ".mkv", ".webm", ".mov", ".avi", ".wmv", ".flv", ".m4v", ".ts"
@@ -67,13 +108,13 @@ public class SystemIntegrationService
         try
         {
             // 1. Register Application Under HKCU\Software\RegisteredApplications
-            using (var regApps = Registry.CurrentUser.CreateSubKey(@"Software\RegisteredApplications"))
+            using (var regApps = UserHive.CreateSubKey(@"Software\RegisteredApplications"))
             {
                 regApps.SetValue("Reeled", @"Software\Reeled\Capabilities");
             }
 
             // 2. Capabilities Definition
-            using (var capKey = Registry.CurrentUser.CreateSubKey(@"Software\Reeled\Capabilities"))
+            using (var capKey = UserHive.CreateSubKey(@"Software\Reeled\Capabilities"))
             {
                 capKey.SetValue("ApplicationName", "Reeled");
                 capKey.SetValue("ApplicationDescription", "The modern high-performance gaming clips library and player.");
@@ -90,7 +131,7 @@ public class SystemIntegrationService
             }
 
             // 3. ProgID Registration: Reeled.Video
-            using (var progId = Registry.CurrentUser.CreateSubKey(@"Software\Classes\Reeled.Video"))
+            using (var progId = UserHive.CreateSubKey(@"Software\Classes\Reeled.Video"))
             {
                 progId.SetValue("", "Video clip");
                 progId.SetValue("FriendlyTypeName", "Reeled Video Clip");
@@ -103,7 +144,7 @@ public class SystemIntegrationService
             }
 
             // 4. Register in Applications for Explorer and "Open with"
-            using (var appKey = Registry.CurrentUser.CreateSubKey(@"Software\Classes\Applications\Reeled.exe"))
+            using (var appKey = UserHive.CreateSubKey(@"Software\Classes\Applications\Reeled.exe"))
             {
                 appKey.SetValue("FriendlyAppName", "Reeled");
 
@@ -121,7 +162,7 @@ public class SystemIntegrationService
             }
 
             // 5. Register in SystemFileAssociations for Explorer "Open with" context menu on video files
-            using (var sfaVideo = Registry.CurrentUser.CreateSubKey(@"Software\Classes\SystemFileAssociations\video\OpenWithList\Reeled.exe"))
+            using (var sfaVideo = UserHive.CreateSubKey(@"Software\Classes\SystemFileAssociations\video\OpenWithList\Reeled.exe"))
             {
                 // Registering the key ensures Reeled appears in Explorer context menu -> "Open with"
             }
@@ -133,10 +174,10 @@ public class SystemIntegrationService
                 {
                     try
                     {
-                        using var extKey = Registry.CurrentUser.CreateSubKey($@"Software\Classes\{ext}\OpenWithProgids");
+                        using var extKey = UserHive.CreateSubKey($@"Software\Classes\{ext}\OpenWithProgids");
                         extKey.SetValue("Reeled.Video", "");
 
-                        using var openWithList = Registry.CurrentUser.CreateSubKey($@"Software\Classes\{ext}\OpenWithList\Reeled.exe");
+                        using var openWithList = UserHive.CreateSubKey($@"Software\Classes\{ext}\OpenWithList\Reeled.exe");
                     }
                     catch { }
                 }
@@ -164,9 +205,9 @@ public class SystemIntegrationService
 
         try
         {
-            using var uninstKey = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\Reeled");
+            using var uninstKey = UserHive.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\Reeled");
             uninstKey.SetValue("DisplayName", "Reeled");
-            uninstKey.SetValue("DisplayVersion", "1.0.0");
+            uninstKey.SetValue("DisplayVersion", AppVersion);
             uninstKey.SetValue("Publisher", "k25jura");
             uninstKey.SetValue("DisplayIcon", $"{exePath},0");
             uninstKey.SetValue("InstallLocation", installDir);
@@ -199,46 +240,41 @@ public class SystemIntegrationService
 
     public void RemoveWindowsIntegration()
     {
-        try
+        // Each step is independent: previously the first failure skipped everything after it, including
+        // the Add/Remove Programs entry, so Settings kept listing an app that was already gone.
+        void Step(string name, Action action)
         {
-            // 1. Remove RegisteredApplications entry
-            using (var regApps = Registry.CurrentUser.OpenSubKey(@"Software\RegisteredApplications", writable: true))
-            {
-                regApps?.DeleteValue("Reeled", throwOnMissingValue: false);
-            }
-
-            // 2. Delete Software\Reeled
-            Registry.CurrentUser.DeleteSubKeyTree(@"Software\Reeled", throwOnMissingSubKey: false);
-
-            // 3. Delete Software\Classes\Reeled.Video
-            Registry.CurrentUser.DeleteSubKeyTree(@"Software\Classes\Reeled.Video", throwOnMissingSubKey: false);
-
-            // 4. Delete Software\Classes\Applications\Reeled.exe
-            Registry.CurrentUser.DeleteSubKeyTree(@"Software\Classes\Applications\Reeled.exe", throwOnMissingSubKey: false);
-
-            // 5. Delete SystemFileAssociations video entry
-            Registry.CurrentUser.DeleteSubKeyTree(@"Software\Classes\SystemFileAssociations\video\OpenWithList\Reeled.exe", throwOnMissingSubKey: false);
-
-            // 6. Delete OpenWithProgids entries
-            foreach (var ext in VideoExtensions)
-            {
-                try
-                {
-                    using var extKey = Registry.CurrentUser.OpenSubKey($@"Software\Classes\{ext}\OpenWithProgids", writable: true);
-                    extKey?.DeleteValue("Reeled.Video", throwOnMissingValue: false);
-
-                    Registry.CurrentUser.DeleteSubKeyTree($@"Software\Classes\{ext}\OpenWithList\Reeled.exe", throwOnMissingSubKey: false);
-                }
-                catch { }
-            }
-
-            // 7. Delete Uninstall Registry Entry
-            Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\Reeled", throwOnMissingSubKey: false);
-
-            // Notify Windows Shell of association changes
-            SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+            try { action(); }
+            catch (Exception ex) { Program.Trace($"RemoveWindowsIntegration {name} failed: {ex.GetType().Name}: {ex.Message}"); }
         }
-        catch { }
+
+        Step("RegisteredApplications", () =>
+        {
+            using var regApps = UserHive.OpenSubKey(@"Software\RegisteredApplications", writable: true);
+            regApps?.DeleteValue("Reeled", throwOnMissingValue: false);
+        });
+        Step("Capabilities", () => UserHive.DeleteSubKeyTree(@"Software\Reeled", throwOnMissingSubKey: false));
+        Step("ProgId", () => UserHive.DeleteSubKeyTree(@"Software\Classes\Reeled.Video", throwOnMissingSubKey: false));
+        Step("Applications", () => UserHive.DeleteSubKeyTree(@"Software\Classes\Applications\Reeled.exe", throwOnMissingSubKey: false));
+        Step("SystemFileAssociations", () => UserHive.DeleteSubKeyTree(@"Software\Classes\SystemFileAssociations\video\OpenWithList\Reeled.exe", throwOnMissingSubKey: false));
+
+        foreach (var ext in VideoExtensions)
+        {
+            Step($"OpenWith {ext}", () =>
+            {
+                using (var extKey = UserHive.OpenSubKey($@"Software\Classes\{ext}\OpenWithProgids", writable: true))
+                {
+                    extKey?.DeleteValue("Reeled.Video", throwOnMissingValue: false);
+                }
+                UserHive.DeleteSubKeyTree($@"Software\Classes\{ext}\OpenWithList\Reeled.exe", throwOnMissingSubKey: false);
+            });
+        }
+
+        Step("UninstallKey", () => UserHive.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\Reeled", throwOnMissingSubKey: false));
+        Step("Notify", () => SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero));
+
+        using var remaining = UserHive.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\Reeled");
+        Program.Trace($"RemoveWindowsIntegration done; uninstall key still present={remaining != null}");
     }
 
     [System.Runtime.InteropServices.DllImport("shell32.dll")]

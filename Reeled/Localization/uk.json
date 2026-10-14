@@ -112,8 +112,13 @@
   "Appearance_MomentsBadgesSubtitle": "Відображати лічильник моментів на картках відео у бібліотеці",
   "Appearance_BackdropBlurTitle": "Розмиття фону",
   "Appearance_BackdropBlurSubtitle": "Увімкнути акрилове розмиття на панелях керування та спливаючих меню",
+  "Appearance_BlurStrengthTitle": "Інтенсивність розмиття",
+  "Appearance_BlurStrengthSubtitle": "Наскільки відео просвічує крізь елементи керування та меню",
+  "Appearance_BlurLight": "Легке",
+  "Appearance_BlurBalanced": "Збалансоване",
+  "Appearance_BlurStrong": "Сильне",
   "Appearance_ReduceMotionTitle": "Зменшити рух",
-  "Appearance_ReduceMotionSubtitle": "Вимкнути анімації лічильників, масштабування карток та плавні переходи для спрощеного інтерфейсу",
+  "Appearance_ReduceMotionSubtitle": "Вимкнути анімації ковзання, масштабування та лічильників. Також діє, коли в Windows вимкнено ефекти анімації",
 
   "Language_SectionTitle": "Мова та регіон",
   "Language_SectionSubtitle": "Налаштуйте мову інтерфейсу, автовизначення та форматування дати",
@@ -177,7 +182,7 @@
 
   "About_HeroTitle": "Reeled",
   "About_Tagline": "Сучасний переглядач та плеєр ігрових кліпів для Windows",
-  "About_Version": "Версія 1.0.0",
+  "About_Version": "Версія {0}",
   "About_Framework": "Створено на WinUI 3, Windows App SDK та LibVLC",
   "About_Developer": "Все в одній програмі для власного та загального користування",
   "About_CreatedBy": "Створено k25jura",

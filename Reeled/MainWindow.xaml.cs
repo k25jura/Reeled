@@ -493,7 +493,7 @@ public sealed partial class MainWindow : Window
         };
 
         _transitionStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private void OnNavigatedToHome()
@@ -611,7 +611,7 @@ public sealed partial class MainWindow : Window
         };
 
         _transitionStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private void OnNavigatedToSettings()
@@ -1182,7 +1182,7 @@ public sealed partial class MainWindow : Window
         }
 
         _dropOverlayStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private async Task ProcessDroppedStorageItemsAsync(IReadOnlyList<IStorageItem> items)
@@ -1236,9 +1236,5 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private static bool IsReduceMotionEnabled()
-    {
-        var storage = App.GetService<ILocalStorageService>();
-        return storage?.CurrentSettings?.ReduceMotion == true;
-    }
+    private static bool IsReduceMotionEnabled() => Helpers.Motion.IsReduced;
 }

@@ -1270,7 +1270,7 @@ public sealed partial class SettingsPage : Page
         if (DiagMemoryLabel != null) DiagMemoryLabel.Text = loc["About_DiagMemory"];
         if (DiagLibraryLabel != null) DiagLibraryLabel.Text = loc["About_DiagLibrary"];
         if (AboutFrameworkText != null) AboutFrameworkText.Text = loc["About_Framework"];
-        if (AboutVersionText != null) AboutVersionText.Text = $"{loc["About_Version"]} (.NET 8 Windows App SDK x64)";
+        if (AboutVersionText != null) AboutVersionText.Text = $"{string.Format(loc["About_Version"], App.GetService<IUpdateService>().CurrentVersion)} (.NET 8 Windows App SDK x64)";
         if (AboutGithubText != null) AboutGithubText.Text = loc["About_GitHub"];
         if (AboutReleasesText != null) AboutReleasesText.Text = loc["About_Releases"];
         if (AboutIssuesText != null) AboutIssuesText.Text = loc["About_Issues"];

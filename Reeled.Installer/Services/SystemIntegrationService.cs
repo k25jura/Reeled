@@ -38,6 +38,16 @@ public class SystemIntegrationService
         }
     }
 
+    /// <summary>Product version from the assembly, e.g. "1.1.0".</summary>
+    internal static string AppVersion
+    {
+        get
+        {
+            var v = typeof(SystemIntegrationService).Assembly.GetName().Version;
+            return v == null ? "1.0.0" : $"{v.Major}.{v.Minor}.{Math.Max(0, v.Build)}";
+        }
+    }
+
     private static readonly string[] VideoExtensions = new[]
     {
         ".mp4", ".mkv", ".webm", ".mov", ".avi", ".wmv", ".flv", ".m4v", ".ts"
@@ -197,7 +207,7 @@ public class SystemIntegrationService
         {
             using var uninstKey = UserHive.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\Reeled");
             uninstKey.SetValue("DisplayName", "Reeled");
-            uninstKey.SetValue("DisplayVersion", "1.0.0");
+            uninstKey.SetValue("DisplayVersion", AppVersion);
             uninstKey.SetValue("Publisher", "k25jura");
             uninstKey.SetValue("DisplayIcon", $"{exePath},0");
             uninstKey.SetValue("InstallLocation", installDir);

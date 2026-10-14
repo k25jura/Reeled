@@ -182,7 +182,7 @@
 
   "About_HeroTitle": "Reeled",
   "About_Tagline": "Modern game clips viewer & player for Windows",
-  "About_Version": "Version 1.0.0",
+  "About_Version": "Version {0}",
   "About_Framework": "Built with WinUI 3, Windows App SDK & LibVLC",
   "About_Developer": "Everything in one app for me and others to use",
   "About_CreatedBy": "Created by k25jura",

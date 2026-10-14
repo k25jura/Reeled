@@ -37,6 +37,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        BannerVersionText.Text = $"v{Services.SystemIntegrationService.AppVersion}";
 
         ConfigureWindow();
         InitializeLocalization();

@@ -182,7 +182,7 @@
 
   "About_HeroTitle": "Reeled",
   "About_Tagline": "Сучасний переглядач та плеєр ігрових кліпів для Windows",
-  "About_Version": "Версія 1.0.0",
+  "About_Version": "Версія {0}",
   "About_Framework": "Створено на WinUI 3, Windows App SDK та LibVLC",
   "About_Developer": "Все в одній програмі для власного та загального користування",
   "About_CreatedBy": "Створено k25jura",

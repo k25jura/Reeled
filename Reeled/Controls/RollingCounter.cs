@@ -66,17 +66,7 @@ public sealed class RollingCounter : UserControl
         this.RegisterPropertyChangedCallback(ForegroundProperty, OnTextStyleChanged);
     }
 
-    private static bool IsReduceMotionEnabled()
-    {
-        try
-        {
-            return App.GetService<ILocalStorageService>()?.CurrentSettings.ReduceMotion == true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    private static bool IsReduceMotionEnabled() => Helpers.Motion.IsReduced;
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {

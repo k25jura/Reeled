@@ -64,6 +64,9 @@ public partial class HomeViewModel : ObservableObject
 
     public event Action? RequestScrollToTop;
 
+    /// <summary>Raised after the visible clip set was rebuilt for a different section or folder.</summary>
+    public event Action? ViewContentReplaced;
+
     public bool CanOpenDirectoryInExplorer =>
         CurrentSection == NavigationSection.Folder && !string.IsNullOrEmpty(SelectedDirectory?.FullPath);
 
@@ -657,6 +660,7 @@ public partial class HomeViewModel : ObservableObject
         Clips.ReplaceRange(targetClips);
         ApplyFilterAndSort();
         UpdateCounts();
+        ViewContentReplaced?.Invoke();
         RequestScrollToTop?.Invoke();
     }
 

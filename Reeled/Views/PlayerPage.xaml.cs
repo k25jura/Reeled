@@ -52,17 +52,7 @@ public sealed partial class PlayerPage : Page
         (MomentsJumpPopup != null && MomentsJumpPopup.Visibility == Visibility.Visible) ||
         (MarkMomentFlyout != null && MarkMomentFlyout.IsOpen);
 
-    private static bool IsReduceMotionEnabled()
-    {
-        try
-        {
-            return App.GetService<Services.ILocalStorageService>()?.CurrentSettings.ReduceMotion == true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    private static bool IsReduceMotionEnabled() => Helpers.Motion.IsReduced;
 
     public PlayerPage()
     {
@@ -473,7 +463,7 @@ public sealed partial class PlayerPage : Page
         }
 
         _sidebarStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     public void RefreshVideoLayout()
@@ -1047,7 +1037,7 @@ public sealed partial class PlayerPage : Page
         Storyboard.SetTargetProperty(animX, "ScaleX");
         Storyboard.SetTarget(animY, scale);
         Storyboard.SetTargetProperty(animY, "ScaleY");
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
 
@@ -1151,7 +1141,7 @@ public sealed partial class PlayerPage : Page
             }
         };
         _markModeSwitchStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private readonly Dictionary<int, CheckBox> _audioTrackCheckBoxes = new();
@@ -1433,7 +1423,7 @@ public sealed partial class PlayerPage : Page
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(anim, RootContainer);
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(anim, "Opacity");
         sb.Children.Add(anim);
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private void UpdateControlsVisibility(bool visible, bool animate = true, bool forceCursor = false)
@@ -1571,7 +1561,7 @@ public sealed partial class PlayerPage : Page
         }
 
         _controlsStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private void SetOsdText(string message)
@@ -1626,7 +1616,7 @@ public sealed partial class PlayerPage : Page
         };
 
         _osdStoryboard = sbIn;
-        sbIn.Begin();
+        Helpers.Motion.Begin(sbIn);
     }
 
     private void StartOsdHideTimer()
@@ -1658,7 +1648,7 @@ public sealed partial class PlayerPage : Page
             };
 
             _osdStoryboard = sbOut;
-            sbOut.Begin();
+            Helpers.Motion.Begin(sbOut);
         };
         _osdHideTimer.Start();
     }
@@ -2104,7 +2094,7 @@ public sealed partial class PlayerPage : Page
             ActiveMomentPromptBadge.Opacity = 0.0;
         };
         _activeMomentBadgeStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private void UpdateActiveMomentBadge(ClipBookmark? bookmark)
@@ -2153,7 +2143,7 @@ public sealed partial class PlayerPage : Page
                 ActiveMomentPromptBadge.Opacity = 1.0;
             };
             _activeMomentBadgeStoryboard = sb;
-            sb.Begin();
+            Helpers.Motion.Begin(sb);
         }
     }
 
@@ -2343,7 +2333,7 @@ public sealed partial class PlayerPage : Page
         };
 
         _momentsPopupStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private void StartMomentsDismissTimer(int milliseconds)
@@ -2418,7 +2408,7 @@ public sealed partial class PlayerPage : Page
         };
 
         _momentsPopupStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private void OnMomentsPopupPointerEntered(object sender, PointerRoutedEventArgs e)

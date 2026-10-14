@@ -113,7 +113,7 @@
   "Appearance_BackdropBlurTitle": "Розмиття фону",
   "Appearance_BackdropBlurSubtitle": "Увімкнути акрилове розмиття на панелях керування та спливаючих меню",
   "Appearance_ReduceMotionTitle": "Зменшити рух",
-  "Appearance_ReduceMotionSubtitle": "Вимкнути анімації лічильників, масштабування карток та плавні переходи для спрощеного інтерфейсу",
+  "Appearance_ReduceMotionSubtitle": "Вимкнути анімації ковзання, масштабування та лічильників. Також діє, коли в Windows вимкнено ефекти анімації",
 
   "Language_SectionTitle": "Мова та регіон",
   "Language_SectionSubtitle": "Налаштуйте мову інтерфейсу, автовизначення та форматування дати",

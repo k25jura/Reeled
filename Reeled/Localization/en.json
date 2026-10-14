@@ -113,7 +113,7 @@
   "Appearance_BackdropBlurTitle": "Backdrop blur",
   "Appearance_BackdropBlurSubtitle": "Enable acrylic blur on player controls and flyouts",
   "Appearance_ReduceMotionTitle": "Reduce motion",
-  "Appearance_ReduceMotionSubtitle": "Disable rolling counters, card scaling, and smooth animations for simpler UI",
+  "Appearance_ReduceMotionSubtitle": "Turn off sliding, scaling and rolling animations. Also applies when Windows animation effects are off",
 
   "Language_SectionTitle": "Language & Region",
   "Language_SectionSubtitle": "Configure interface language, auto-detection, and regional date formatting",

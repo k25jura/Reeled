@@ -25,6 +25,7 @@ public sealed partial class HomePage : Page
         _thumbnailService = App.GetService<Services.IThumbnailService>();
         InitializeComponent();
         ViewModel.RequestScrollToTop += ScrollClipsToTop;
+        ViewModel.ViewContentReplaced += OnViewContentReplaced;
 
         Helpers.CursorHelper.SetElementCursor(SidebarResizeHandle, Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast));
 
@@ -74,12 +75,6 @@ public sealed partial class HomePage : Page
                 EnsureScrollViewerHooked();
             }
 
-            _resizeThrottleTimer.Tick += (s2, e2) =>
-            {
-                _resizeThrottleTimer.Stop();
-                UpdateGridResponsiveLayout(isThrottled: true);
-            };
-
             if (ClipsSearchBox != null)
             {
                 ClipsSearchBox.Loaded += (s, e) => ApplyLocalization();
@@ -125,6 +120,7 @@ public sealed partial class HomePage : Page
                 {
                     SidebarContainer.Width = _sidebarWidth;
                     SidebarContentBorder.Width = _sidebarWidth;
+                    SidebarSpacer.Width = _sidebarWidth;
                     _lastCalculatedWidth = -1;
                     _lastColumnCount = -1;
                     DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
@@ -286,49 +282,102 @@ public sealed partial class HomePage : Page
         }
     }
 
-    public void OnReturnedFromViewer()
-    {
-        if (ClipsGridView != null)
-        {
-            ClipsGridView.ItemContainerTransitions = new TransitionCollection
-            {
-                new RepositionThemeTransition { IsStaggeringEnabled = false }
-            };
+    private Storyboard? _viewSwitchStoryboard;
+    private string? _lastViewKey;
 
-            // Re-apply RepositionThemeTransition to all realized items
-            // because existing realized containers in WinUI 3 retain stale compositor peers
-            // after the parent frame opacity was set to 0.0 during media playback.
-            if (ViewModel.DateGrouping == DateGroupingMode.None)
+    private void OnViewContentReplaced()
+    {
+        if (ViewModel.DateGrouping != DateGroupingMode.None)
+        {
+            RebindGroupedSource();
+        }
+
+        // Only animate real view switches; a background rescan of the same view should stay still
+        string viewKey = $"{ViewModel.CurrentSection}|{ViewModel.SelectedDirectory?.FullPath}";
+        if (viewKey != _lastViewKey && _lastViewKey != null)
+        {
+            PlayViewSwitchTransition();
+        }
+        _lastViewKey = viewKey;
+    }
+
+    /// <summary>
+    /// Group headers are realized per CollectionViewSource view. Replacing every group through a
+    /// collection Reset can leave header containers unrealized, so a section change hands the grid a
+    /// fresh view instead. Item containers are virtualized, so this costs one cheap re-realization.
+    /// </summary>
+    private void RebindGroupedSource()
+    {
+        if (ClipsGridView == null || ClipsGroupedSource == null) return;
+
+        // Rebinding discards containers without a recycle pass, so release bitmaps that are leaving the view
+        var visible = new HashSet<GameClip>(ViewModel.FilteredClips);
+        foreach (var clip in ViewModel.AllClips)
+        {
+            if (clip.Thumbnail != null && !visible.Contains(clip))
             {
-                foreach (var item in ViewModel.FilteredClips)
-                {
-                    if (ClipsGridView.ContainerFromItem(item) is GridViewItem gvi)
-                    {
-                        gvi.Transitions = new TransitionCollection
-                        {
-                            new RepositionThemeTransition { IsStaggeringEnabled = false }
-                        };
-                    }
-                }
-            }
-            else
-            {
-                foreach (var group in ViewModel.GroupedClips)
-                {
-                    foreach (var item in group)
-                    {
-                        if (ClipsGridView.ContainerFromItem(item) is GridViewItem gvi)
-                        {
-                            gvi.Transitions = new TransitionCollection
-                            {
-                                new RepositionThemeTransition { IsStaggeringEnabled = false }
-                            };
-                        }
-                    }
-                }
+                clip.Thumbnail = null;
             }
         }
 
+        ClipsGroupedSource.Source = null;
+        ClipsGroupedSource.Source = ViewModel.GroupedClips;
+        ClipsGridView.ItemsSource = ClipsGroupedSource.View;
+
+        _activeGroupWrapGrids.Clear();
+        _lastCalculatedWidth = -1;
+        _lastColumnCount = -1;
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () => UpdateGridResponsiveLayout());
+    }
+
+    private void PlayViewSwitchTransition()
+    {
+        if (ClipsHost == null || ClipsHostTranslate == null) return;
+
+        _viewSwitchStoryboard?.Stop();
+        if (IsReduceMotionEnabled())
+        {
+            ClipsHost.Opacity = 1.0;
+            ClipsHostTranslate.Y = 0.0;
+            if (HeaderTitlePanel != null) HeaderTitlePanel.Opacity = 1.0;
+            return;
+        }
+
+        var ease = new ExponentialEase { EasingMode = EasingMode.EaseOut, Exponent = 5 };
+        var sb = new Storyboard();
+
+        var fade = new DoubleAnimation { From = 0.0, To = 1.0, Duration = TimeSpan.FromMilliseconds(200), EasingFunction = ease };
+        Storyboard.SetTarget(fade, ClipsHost);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+        sb.Children.Add(fade);
+
+        var rise = new DoubleAnimation { From = 14.0, To = 0.0, Duration = TimeSpan.FromMilliseconds(280), EasingFunction = ease };
+        Storyboard.SetTarget(rise, ClipsHostTranslate);
+        Storyboard.SetTargetProperty(rise, "Y");
+        sb.Children.Add(rise);
+
+        if (HeaderTitlePanel != null)
+        {
+            var titleFade = new DoubleAnimation { From = 0.35, To = 1.0, Duration = TimeSpan.FromMilliseconds(180), EasingFunction = ease };
+            Storyboard.SetTarget(titleFade, HeaderTitlePanel);
+            Storyboard.SetTargetProperty(titleFade, "Opacity");
+            sb.Children.Add(titleFade);
+        }
+
+        sb.Completed += (s, e) =>
+        {
+            if (!ReferenceEquals(_viewSwitchStoryboard, sb)) return;
+            ClipsHost.Opacity = 1.0;
+            ClipsHostTranslate.Y = 0.0;
+            if (HeaderTitlePanel != null) HeaderTitlePanel.Opacity = 1.0;
+        };
+
+        _viewSwitchStoryboard = sb;
+        sb.Begin();
+    }
+
+    public void OnReturnedFromViewer()
+    {
         _activeGroupWrapGrids.RemoveWhere(wg => wg.XamlRoot == null);
         FindAndRegisterGroupWrapGrids(ClipsGridView);
 
@@ -476,7 +525,6 @@ public sealed partial class HomePage : Page
     {
         if (btn == null || icon == null || text == null) return;
 
-        btn.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
         bool isLight = (ActualTheme == ElementTheme.Light);
         double targetOpacity = isSelected ? 1.0 : 0.0;
 
@@ -501,31 +549,23 @@ public sealed partial class HomePage : Page
                 sb.Children.Add(anim);
                 Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(anim, selBg);
                 Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(anim, "Opacity");
-                sb.Begin();
+                Helpers.Motion.Begin(sb);
             }
         }
 
-        if (isSelected)
-        {
-            Brush selectedBrush = isLight
-                ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 20, 20, 20))
-                : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255));
+        Brush foreground = isSelected
+            ? (isLight ? NavSelectedLightBrush : NavSelectedDarkBrush)
+            : (isLight ? NavIdleLightBrush : NavIdleDarkBrush);
 
-            icon.Foreground = selectedBrush;
-            text.Foreground = selectedBrush;
-            text.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
-        }
-        else
-        {
-            var defaultTextBrush = isLight
-                ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 70, 70, 75))
-                : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 210, 210, 210));
-
-            icon.Foreground = defaultTextBrush;
-            text.Foreground = defaultTextBrush;
-            text.FontWeight = Microsoft.UI.Text.FontWeights.Normal;
-        }
+        icon.Foreground = foreground;
+        text.Foreground = foreground;
+        text.FontWeight = isSelected ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
     }
+
+    private static readonly SolidColorBrush NavSelectedLightBrush = new(Windows.UI.Color.FromArgb(255, 20, 20, 20));
+    private static readonly SolidColorBrush NavSelectedDarkBrush = new(Windows.UI.Color.FromArgb(255, 255, 255, 255));
+    private static readonly SolidColorBrush NavIdleLightBrush = new(Windows.UI.Color.FromArgb(255, 70, 70, 75));
+    private static readonly SolidColorBrush NavIdleDarkBrush = new(Windows.UI.Color.FromArgb(255, 210, 210, 210));
 
     private double _currentIndicatorY = 48;
     private double _targetIndicatorY = 48;
@@ -541,10 +581,7 @@ public sealed partial class HomePage : Page
     }
     private ActiveSectionKind _currentActiveSection = ActiveSectionKind.TopNav;
 
-    private bool IsReduceMotionEnabled()
-    {
-        return App.GetService<Services.ILocalStorageService>()?.CurrentSettings.ReduceMotion == true;
-    }
+    private bool IsReduceMotionEnabled() => Helpers.Motion.IsReduced;
 
     private void UpdateActiveIndicator(bool animate = true)
     {
@@ -720,11 +757,11 @@ public sealed partial class HomePage : Page
             };
 
             _indicatorStoryboard = fadeInSb;
-            fadeInSb.Begin();
+            Helpers.Motion.Begin(fadeInSb);
         };
 
         _indicatorStoryboard = fadeOutSb;
-        fadeOutSb.Begin();
+        Helpers.Motion.Begin(fadeOutSb);
     }
 
     private bool IsNodeVisibleInTree(DirectoryNode target)
@@ -1041,7 +1078,7 @@ public sealed partial class HomePage : Page
             };
 
             _indicatorStoryboard = sb;
-            sb.Begin();
+            Helpers.Motion.Begin(sb);
             _isIndicatorVisible = true;
             return;
         }
@@ -1127,7 +1164,7 @@ public sealed partial class HomePage : Page
 
         _currentIndicatorY = targetY;
         _indicatorStoryboard = moveSb;
-        moveSb.Begin();
+        Helpers.Motion.Begin(moveSb);
     }
 
     private void AnimateIndicatorVisibility(bool isVisible, bool animate)
@@ -1188,7 +1225,7 @@ public sealed partial class HomePage : Page
         };
 
         _indicatorStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
         _isIndicatorVisible = isVisible;
     }
 
@@ -1239,237 +1276,92 @@ public sealed partial class HomePage : Page
         _sidebarStoryboard?.Stop();
         _sidebarStoryboard = null;
 
-        double targetWidth = isOpen ? _sidebarWidth : 0.0;
-        double targetTranslateX = isOpen ? 0.0 : -_sidebarWidth;
-        double targetOpacity = isOpen ? 1.0 : 0.0;
+        double width = _sidebarWidth;
+        SidebarContainer.Width = width;
+        SidebarContentBorder.Width = width;
 
-        double targetBtnWidth = isOpen ? 0.0 : 42.0;
-        double targetBtnOpacity = isOpen ? 0.0 : 1.0;
+        if (App.Window is MainWindow mw)
+        {
+            if (isOpen && animate) mw.EnsureWidthForSidebar(width);
+            mw.SetSidebarOpen(isOpen);
+        }
+
+        // Where things are on screen right now, so an interrupted toggle continues from there
+        double fromSidebarX = SidebarContainer.Visibility == Visibility.Visible ? SidebarTranslate.X : -width;
+        double contentVisualX = SidebarSpacer.Width + MainContentTranslate.X;
+
+        // Layout changes exactly once, up front: the spacer snaps to its final width and the clip grid
+        // reflows to its final column count immediately. Everything that moves afterwards is a
+        // render transform, which the compositor animates without any layout work.
+        double targetSpacer = isOpen ? width : 0.0;
+        SidebarSpacer.Width = targetSpacer;
+        _lastCalculatedWidth = -1;
+        _lastColumnCount = -1;
+        UpdateGridResponsiveLayout(forcedGridWidth: Math.Max(0, ActualWidth - targetSpacer));
+
+        double targetSidebarX = isOpen ? 0.0 : -width;
+        SidebarContainer.Visibility = Visibility.Visible;
+
+        if (ShowSidebarContainer != null)
+        {
+            ShowSidebarContainer.Width = isOpen ? 0.0 : 42.0;
+            ShowSidebarContainer.Visibility = isOpen ? Visibility.Collapsed : Visibility.Visible;
+        }
 
         if (!animate)
         {
+            SidebarTranslate.X = targetSidebarX;
+            MainContentTranslate.X = 0.0;
+            SidebarContentBorder.Opacity = 1.0;
+            if (ShowSidebarContainer != null) ShowSidebarContainer.Opacity = isOpen ? 0.0 : 1.0;
             SidebarContainer.Visibility = isOpen ? Visibility.Visible : Visibility.Collapsed;
-            SidebarContainer.Width = targetWidth;
-            SidebarContentBorder.Width = _sidebarWidth;
-            SidebarTranslate.X = targetTranslateX;
-            SidebarContentBorder.Opacity = targetOpacity;
-
-            if (ShowSidebarContainer != null)
-            {
-                ShowSidebarContainer.Visibility = isOpen ? Visibility.Collapsed : Visibility.Visible;
-                ShowSidebarContainer.Width = targetBtnWidth;
-                ShowSidebarContainer.Opacity = targetBtnOpacity;
-            }
-            UpdateGridResponsiveLayout();
             return;
         }
 
-        _sidebarStoryboard?.Stop();
-        _sidebarStoryboard = null;
+        // Keep the content visually where it was, then let it glide into its new slot with the sidebar
+        MainContentTranslate.X = contentVisualX - targetSpacer;
+        SidebarTranslate.X = fromSidebarX;
 
-        // Determine starting values before launching storyboard
-        double startWidth;
-        double startTranslateX;
-        double startOpacity;
-
-        double startBtnWidth;
-        double startBtnOpacity;
-
-        if (isOpen)
-        {
-            if (App.Window is MainWindow mw)
-            {
-                mw.EnsureWidthForSidebar(_sidebarWidth);
-                mw.SetSidebarOpen(true);
-            }
-
-            SidebarContainer.Visibility = Visibility.Visible;
-            SidebarContainer.MaxWidth = 500.0;
-            SidebarContentBorder.Width = _sidebarWidth;
-
-            // Pre-align target columns to prevent intermediate double wrapping when sidebar expands
-            double availableWidth = GetClipsAvailableWidth();
-            double targetAvailableWidth = availableWidth - (_sidebarWidth - (SidebarContainer.ActualWidth > 0 ? SidebarContainer.ActualWidth : 0.0));
-            if (targetAvailableWidth > 50)
-            {
-                int targetCols = CalculateResponsiveColumns(targetAvailableWidth, _lastColumnCount);
-                double calcW = Math.Floor((targetAvailableWidth - 2.0) / targetCols);
-                double calcH = Math.Round(calcW * 9.0 / 16.0);
-
-                _currentCardWidth = calcW;
-                _currentCardHeight = calcH;
-                _lastCalculatedWidth = calcW;
-                _lastColumnCount = targetCols;
-
-                if (ClipsGridView?.ItemsPanelRoot is ItemsWrapGrid fg)
-                {
-                    fg.ItemWidth = calcW;
-                    fg.ItemHeight = calcH;
-                    fg.MaximumRowsOrColumns = targetCols;
-                }
-                if (SkeletonItemsControl?.ItemsPanelRoot is ItemsWrapGrid sg)
-                {
-                    sg.ItemWidth = calcW;
-                    sg.ItemHeight = calcH;
-                    sg.MaximumRowsOrColumns = -1;
-                }
-                UpdateGroupWrapGrids(calcW, calcH, -1);
-            }
-
-            startWidth = (SidebarContainer.ActualWidth > 0 && SidebarContainer.ActualWidth < _sidebarWidth)
-                ? SidebarContainer.ActualWidth
-                : 0.0;
-            startTranslateX = (SidebarTranslate.X < 0 && SidebarTranslate.X > -_sidebarWidth)
-                ? SidebarTranslate.X
-                : -_sidebarWidth;
-            startOpacity = (SidebarContentBorder.Opacity > 0 && SidebarContentBorder.Opacity < 1.0)
-                ? SidebarContentBorder.Opacity
-                : 0.0;
-
-            SidebarContainer.Width = startWidth;
-            SidebarTranslate.X = startTranslateX;
-            SidebarContentBorder.Opacity = startOpacity;
-
-            startBtnWidth = ShowSidebarContainer != null && ShowSidebarContainer.ActualWidth > 0
-                ? ShowSidebarContainer.ActualWidth
-                : 42.0;
-            startBtnOpacity = ShowSidebarContainer != null ? ShowSidebarContainer.Opacity : 1.0;
-        }
-        else
-        {
-            if (App.Window is MainWindow mw)
-            {
-                mw.SetSidebarOpen(false);
-            }
-
-            startWidth = SidebarContainer.ActualWidth > 0 ? SidebarContainer.ActualWidth : _sidebarWidth;
-            startTranslateX = SidebarTranslate.X;
-            startOpacity = SidebarContentBorder.Opacity;
-
-            if (ShowSidebarContainer != null)
-            {
-                ShowSidebarContainer.Visibility = Visibility.Visible;
-                startBtnWidth = (ShowSidebarContainer.ActualWidth > 0 && ShowSidebarContainer.ActualWidth < 42.0)
-                    ? ShowSidebarContainer.ActualWidth
-                    : 0.0;
-                startBtnOpacity = (ShowSidebarContainer.Opacity > 0 && ShowSidebarContainer.Opacity < 1.0)
-                    ? ShowSidebarContainer.Opacity
-                    : 0.0;
-                ShowSidebarContainer.Width = startBtnWidth;
-                ShowSidebarContainer.Opacity = startBtnOpacity;
-            }
-            else
-            {
-                startBtnWidth = 0.0;
-                startBtnOpacity = 0.0;
-            }
-        }
+        var duration = TimeSpan.FromMilliseconds(isOpen ? 260 : 220);
+        EasingFunctionBase ease = isOpen
+            ? new ExponentialEase { EasingMode = EasingMode.EaseOut, Exponent = 6 }
+            : new CubicEase { EasingMode = EasingMode.EaseInOut };
 
         var sb = new Storyboard();
-        var openEase = new Microsoft.UI.Xaml.Media.Animation.QuarticEase
-        {
-            EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut
-        };
-        var closeEase = new Microsoft.UI.Xaml.Media.Animation.QuarticEase
-        {
-            EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseInOut
-        };
 
-        Microsoft.UI.Xaml.Media.Animation.EasingFunctionBase ease = isOpen
-            ? openEase
-            : closeEase;
+        var slide = new DoubleAnimation { To = targetSidebarX, Duration = duration, EasingFunction = ease };
+        Storyboard.SetTarget(slide, SidebarTranslate);
+        Storyboard.SetTargetProperty(slide, "X");
+        sb.Children.Add(slide);
 
-        var duration = TimeSpan.FromMilliseconds(isOpen ? 380 : 320);
+        var contentSlide = new DoubleAnimation { To = 0.0, Duration = duration, EasingFunction = ease };
+        Storyboard.SetTarget(contentSlide, MainContentTranslate);
+        Storyboard.SetTargetProperty(contentSlide, "X");
+        sb.Children.Add(contentSlide);
 
-        // 1. Width animation on container with EnableDependentAnimation = true
-        var animWidth = new DoubleAnimation
-        {
-            From = startWidth,
-            To = targetWidth,
-            Duration = duration,
-            EasingFunction = ease,
-            EnableDependentAnimation = true
-        };
-        Storyboard.SetTarget(animWidth, SidebarContainer);
-        Storyboard.SetTargetProperty(animWidth, "Width");
-
-        // 2. Translation animation on content border so it glides smoothly
-        var animTranslate = new DoubleAnimation
-        {
-            From = startTranslateX,
-            To = targetTranslateX,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(animTranslate, SidebarTranslate);
-        Storyboard.SetTargetProperty(animTranslate, "X");
-
-        // 3. Subtle Opacity fade in and fade out
-        var animOpacity = new DoubleAnimation
-        {
-            From = startOpacity,
-            To = targetOpacity,
-            Duration = TimeSpan.FromMilliseconds(isOpen ? 340 : 260),
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(animOpacity, SidebarContentBorder);
-        Storyboard.SetTargetProperty(animOpacity, "Opacity");
-
-        sb.Children.Add(animWidth);
-        sb.Children.Add(animTranslate);
-        sb.Children.Add(animOpacity);
-
-        // 4. Synchronized Sidebar Button Container width & opacity animation
         if (ShowSidebarContainer != null)
         {
-            var animBtnWidth = new DoubleAnimation
+            var buttonFade = new DoubleAnimation
             {
-                From = startBtnWidth,
-                To = targetBtnWidth,
-                Duration = duration,
-                EasingFunction = ease,
-                EnableDependentAnimation = true
-            };
-            Storyboard.SetTarget(animBtnWidth, ShowSidebarContainer);
-            Storyboard.SetTargetProperty(animBtnWidth, "Width");
-
-            var animBtnOpacity = new DoubleAnimation
-            {
-                From = startBtnOpacity,
-                To = targetBtnOpacity,
-                Duration = TimeSpan.FromMilliseconds(isOpen ? 260 : 300),
+                To = isOpen ? 0.0 : 1.0,
+                Duration = TimeSpan.FromMilliseconds(isOpen ? 120 : 200),
                 EasingFunction = ease
             };
-            Storyboard.SetTarget(animBtnOpacity, ShowSidebarContainer);
-            Storyboard.SetTargetProperty(animBtnOpacity, "Opacity");
-
-            sb.Children.Add(animBtnWidth);
-            sb.Children.Add(animBtnOpacity);
+            Storyboard.SetTarget(buttonFade, ShowSidebarContainer);
+            Storyboard.SetTargetProperty(buttonFade, "Opacity");
+            sb.Children.Add(buttonFade);
         }
 
         sb.Completed += (s, e) =>
         {
             if (!ReferenceEquals(_sidebarStoryboard, sb)) return;
             _sidebarStoryboard = null;
-            SidebarContainer.Width = targetWidth;
-            SidebarTranslate.X = targetTranslateX;
-            SidebarContentBorder.Opacity = targetOpacity;
+            SidebarTranslate.X = targetSidebarX;
+            MainContentTranslate.X = 0.0;
             if (!isOpen)
             {
                 SidebarContainer.Visibility = Visibility.Collapsed;
             }
-            if (ShowSidebarContainer != null)
-            {
-                ShowSidebarContainer.Width = targetBtnWidth;
-                ShowSidebarContainer.Opacity = targetBtnOpacity;
-                if (isOpen)
-                {
-                    ShowSidebarContainer.Visibility = Visibility.Collapsed;
-                }
-            }
-            _lastCalculatedWidth = -1;
-            _lastColumnCount = -1;
-            UpdateGridResponsiveLayout();
         };
 
         _sidebarStoryboard = sb;
@@ -1531,6 +1423,7 @@ public sealed partial class HomePage : Page
             double newWidth = Math.Clamp(_resizeStartWidth + delta, 220.0, 500.0);
 
             _sidebarWidth = newWidth;
+            SidebarSpacer.Width = newWidth;
             SidebarContainer.Width = newWidth;
             SidebarContentBorder.Width = newWidth;
             ViewModel.SidebarWidth = newWidth;
@@ -1569,7 +1462,6 @@ public sealed partial class HomePage : Page
     private int _lastColumnCount = -1;
     private readonly System.Collections.Generic.HashSet<FrameworkElement> _activeCardGrids = new();
     private readonly System.Collections.Generic.HashSet<ItemsWrapGrid> _activeGroupWrapGrids = new();
-    private readonly DispatcherTimer _resizeThrottleTimer = new() { Interval = TimeSpan.FromMilliseconds(16) };
 
     private bool _isAutoscrolling;
     private Windows.Foundation.Point _autoscrollOrigin;
@@ -1805,6 +1697,13 @@ public sealed partial class HomePage : Page
     {
         if (sender is FrameworkElement elem && !_skeletonStoryboards.ContainsKey(elem))
         {
+            if (IsReduceMotionEnabled())
+            {
+                // A static placeholder instead of a looping shimmer
+                elem.Opacity = 0.6;
+                return;
+            }
+
             var anim = new DoubleAnimation
             {
                 From = 0.35,
@@ -1975,14 +1874,9 @@ public sealed partial class HomePage : Page
         return Math.Max(1, columns);
     }
 
-    private void UpdateGridResponsiveLayout(bool isThrottled = false, double forcedGridWidth = -1)
+    private void UpdateGridResponsiveLayout(double forcedGridWidth = -1)
     {
         if (ClipsGridView == null) return;
-        if (_sidebarStoryboard != null)
-        {
-            // Do not churn grid calculations while the sidebar storyboard is actively animating.
-            return;
-        }
 
         EnsureScrollViewerHooked();
         bool wasAtTop = _clipsScrollViewer == null || _clipsScrollViewer.VerticalOffset <= 2.0;
@@ -1996,25 +1890,12 @@ public sealed partial class HomePage : Page
         double calculatedWidth = Math.Floor((availableWidth - 2.0) / columns);
         double calculatedHeight = Math.Round(calculatedWidth * 9.0 / 16.0);
 
-        bool columnChanged = columns != _lastColumnCount;
-
-        // When columns change, apply immediately so items wrap/unwrap without hesitation and RepositionThemeTransition glides them!
-        // When columns stay identical during window resizing, throttle width updates to 60fps (16ms).
-        // This ensures the window border and top header never suffer input delay, while cards continuously resize in real-time!
-        if (!columnChanged && !isThrottled && !_isResizingSidebar && _lastColumnCount > 0)
+        // Apply in the same layout pass as the size change. Setting ItemWidth only re-arranges the
+        // realized cards, and deferring it (the old 16ms throttle) is what made cards trail the window edge.
+        if (columns == _lastColumnCount && Math.Abs(calculatedWidth - _lastCalculatedWidth) <= 0.5)
         {
-            bool widthChanged = Math.Abs(calculatedWidth - _lastCalculatedWidth) > 0.5;
-            if (widthChanged)
-            {
-                if (!_resizeThrottleTimer.IsEnabled)
-                {
-                    _resizeThrottleTimer.Start();
-                }
-                return;
-            }
+            return;
         }
-
-        _resizeThrottleTimer.Stop();
 
         _lastColumnCount = columns;
         _lastCalculatedWidth = calculatedWidth;
@@ -2103,14 +1984,6 @@ public sealed partial class HomePage : Page
             if (gvi.RequestedTheme != ActualTheme)
             {
                 gvi.RequestedTheme = ActualTheme;
-            }
-
-            if (gvi.Transitions == null || gvi.Transitions.Count == 0)
-            {
-                gvi.Transitions = new TransitionCollection
-                {
-                    new RepositionThemeTransition { IsStaggeringEnabled = false }
-                };
             }
 
             if (FindParent<ItemsWrapGrid>(gvi) is ItemsWrapGrid wrapGrid)
@@ -2204,7 +2077,9 @@ public sealed partial class HomePage : Page
         var easeOut = new CubicEase { EasingMode = EasingMode.EaseOut };
         var easeInOut = new CubicEase { EasingMode = EasingMode.EaseInOut };
         var activeEase = isHovered ? (EasingFunctionBase)easeOut : easeInOut;
-        var duration = IsReduceMotionEnabled() ? TimeSpan.FromMilliseconds(1) : TimeSpan.FromMilliseconds(isHovered ? 260 : 220);
+        var duration = Helpers.Motion.Duration(isHovered ? 260 : 220);
+        // Reduced motion keeps the outline and overlay feedback but drops the lift
+        double hoverScale = IsReduceMotionEnabled() ? 1.0 : 1.02;
 
         // 1. Elevate Z-Index so hovered card rests above neighbor cards
         if (FindParent<GridViewItem>(card) is GridViewItem hoveredGvi)
@@ -2265,14 +2140,14 @@ public sealed partial class HomePage : Page
             var animScaleX = new DoubleAnimation
             {
                 From = currentScaleX,
-                To = isHovered ? 1.02 : 1.0,
+                To = isHovered ? hoverScale : 1.0,
                 Duration = duration,
                 EasingFunction = activeEase
             };
             var animScaleY = new DoubleAnimation
             {
                 From = currentScaleY,
-                To = isHovered ? 1.02 : 1.0,
+                To = isHovered ? hoverScale : 1.0,
                 Duration = duration,
                 EasingFunction = activeEase
             };
@@ -2380,7 +2255,7 @@ public sealed partial class HomePage : Page
                     card.Tag = null;
                 }
             };
-            sb.Begin();
+            Helpers.Motion.Begin(sb);
         }
     }
 
@@ -2754,7 +2629,7 @@ public sealed partial class HomePage : Page
         }
 
         _activeSpaceStoryboards[dirNode] = spaceSb;
-        spaceSb.Begin();
+        Helpers.Motion.Begin(spaceSb);
 
         try
         {
@@ -2976,7 +2851,7 @@ public sealed partial class HomePage : Page
             }
 
             _activeSpaceStoryboards[dirNode] = spaceSb;
-            spaceSb.Begin();
+            Helpers.Motion.Begin(spaceSb);
 
             try
             {
@@ -3137,7 +3012,7 @@ public sealed partial class HomePage : Page
             }
         };
 
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private void AnimateCascadeExit(FrameworkElement element, int index)
@@ -3228,7 +3103,7 @@ public sealed partial class HomePage : Page
             }
         };
 
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private void OnFolderRowPointerPressed(object sender, PointerRoutedEventArgs e)
@@ -3351,7 +3226,7 @@ public sealed partial class HomePage : Page
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animX, "ScaleX");
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, scale);
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "ScaleY");
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private static void ResetElementScale(UIElement element)
@@ -3401,7 +3276,7 @@ public sealed partial class HomePage : Page
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animX, "ScaleX");
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, scale);
         Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "ScaleY");
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private async void OnDirectoryTreeItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
@@ -3593,7 +3468,7 @@ public sealed partial class HomePage : Page
             }
         }
 
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private static T? FindVisualParentOrChild<T>(FrameworkElement element, string name) where T : FrameworkElement

@@ -390,7 +390,7 @@ public sealed partial class SettingsPage : Page
         Storyboard.SetTargetProperty(animY, "ScaleY");
         sb.Children.Add(animX);
         sb.Children.Add(animY);
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private void ScrollToSection(string sectionName)
@@ -493,7 +493,7 @@ public sealed partial class SettingsPage : Page
                     Storyboard.SetTarget(anim, selectedBorder);
                     Storyboard.SetTargetProperty(anim, "Opacity");
                     sb.Children.Add(anim);
-                    sb.Begin();
+                    Helpers.Motion.Begin(sb);
                 }
                 else
                 {
@@ -549,7 +549,7 @@ public sealed partial class SettingsPage : Page
             }
 
             var storage = App.GetService<ILocalStorageService>();
-            bool reduceMotion = storage?.CurrentSettings.ReduceMotion == true;
+            bool reduceMotion = Helpers.Motion.IsReduced;
 
             if (!animate || reduceMotion)
             {
@@ -570,9 +570,9 @@ public sealed partial class SettingsPage : Page
                         sbIn.Children.Add(fadeIn);
                         Storyboard.SetTarget(fadeIn, ActiveIndicatorPill);
                         Storyboard.SetTargetProperty(fadeIn, "Opacity");
-                        sbIn.Begin();
+                        Helpers.Motion.Begin(sbIn);
                     };
-                    sb.Begin();
+                    Helpers.Motion.Begin(sb);
                     return;
                 }
 
@@ -639,7 +639,7 @@ public sealed partial class SettingsPage : Page
 
             _currentIndicatorY = targetY;
             _indicatorStoryboard = moveSb;
-            moveSb.Begin();
+            Helpers.Motion.Begin(moveSb);
         }
         catch { }
     }
@@ -720,7 +720,7 @@ public sealed partial class SettingsPage : Page
             trans.Y = 0.0;
         };
 
-        openSb.Begin();
+        Helpers.Motion.Begin(openSb);
 
         // Auto-collapse after 3.5s with graceful, gentle reverse animation at the same speed (240ms)
         var collapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(3500) };
@@ -771,7 +771,7 @@ public sealed partial class SettingsPage : Page
                 trans.Y = -6.0;
             };
 
-            closeSb.Begin();
+            Helpers.Motion.Begin(closeSb);
         };
         timer = collapseTimer;
         collapseTimer.Start();
@@ -924,7 +924,7 @@ public sealed partial class SettingsPage : Page
 
         if (open) UpdateAvailableBorder.IsHitTestVisible = true;
         _updateCardStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private void AnimateDownloadStateTransition(bool isDownloading)
@@ -1049,7 +1049,7 @@ public sealed partial class SettingsPage : Page
         }
 
         _downloadTransitionStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private async void OnPatchNotesClick(object sender, RoutedEventArgs e)

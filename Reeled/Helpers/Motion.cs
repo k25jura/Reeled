@@ -36,11 +36,20 @@ public static class Motion
     /// </summary>
     public static void Begin(Microsoft.UI.Xaml.Media.Animation.Storyboard storyboard)
     {
+        storyboard.Begin();
         if (IsReduced)
         {
-            storyboard.SpeedRatio = 1000;
+            // Jump straight to the end values; Completed still fires. (Setting a large SpeedRatio
+            // instead crashes inside Microsoft.UI.Xaml with a stowed exception.)
+            try
+            {
+                storyboard.SkipToFill();
+            }
+            catch
+            {
+                // A storyboard that already finished or was stopped synchronously has nothing to skip
+            }
         }
-        storyboard.Begin();
     }
 
     /// <summary>Returns the duration to use, or a near-zero duration when motion is reduced.</summary>

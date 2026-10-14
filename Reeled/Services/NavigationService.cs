@@ -7,12 +7,7 @@ namespace Reeled.Services;
 
 public class NavigationService : INavigationService
 {
-    private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v", ".wmv", ".flv", ".ts", ".3gp"
-    };
-
-    public static IReadOnlyCollection<string> SupportedVideoExtensions => VideoExtensions;
+    public static IReadOnlyCollection<string> SupportedVideoExtensions => Helpers.PathUtil.VideoExtensions;
 
     private readonly IClipMetadataService _metadataService;
 
@@ -21,12 +16,7 @@ public class NavigationService : INavigationService
         _metadataService = metadataService;
     }
 
-    public static bool IsVideoFilePath(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path)) return false;
-        var ext = System.IO.Path.GetExtension(path);
-        return !string.IsNullOrEmpty(ext) && VideoExtensions.Contains(ext);
-    }
+    public static bool IsVideoFilePath(string path) => Helpers.PathUtil.IsVideoFile(path);
 
     public event Action<GameClip, List<GameClip>>? NavigatedToPlayer;
     public event Action? NavigatedToHome;
@@ -52,6 +42,8 @@ public class NavigationService : INavigationService
         var validPaths = filePaths.Where(IsVideoFilePath).ToList();
         if (validPaths.Count == 0) return;
 
+        // Reuse the library's instance when the file is already indexed so favorites and moments stay in sync
+        var library = App.GetService<ViewModels.HomeViewModel>();
         var clips = new List<GameClip>();
         foreach (var path in validPaths)
         {
@@ -59,16 +51,7 @@ public class NavigationService : INavigationService
             {
                 var fi = new System.IO.FileInfo(path);
                 if (!fi.Exists) continue;
-                var clip = new GameClip
-                {
-                    FilePath = fi.FullName,
-                    FileName = fi.Name,
-                    DirectoryPath = fi.DirectoryName ?? string.Empty,
-                    ModifiedDate = fi.LastWriteTimeUtc,
-                    CreatedDate = fi.CreationTimeUtc,
-                    FileSizeBytes = fi.Length
-                };
-                clips.Add(clip);
+                clips.Add(library.ResolveOrCreateClip(fi));
             }
             catch { }
         }
@@ -82,6 +65,7 @@ public class NavigationService : INavigationService
         {
             foreach (var clip in clips)
             {
+                if (clip.Duration > TimeSpan.Zero) continue;
                 try
                 {
                     await _metadataService.PopulateMetadataAsync(clip);

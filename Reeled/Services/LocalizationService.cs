@@ -88,7 +88,7 @@ public class LocalizationService : ILocalizationService
                     }
                     catch (Exception ex)
                     {
-                        try { File.AppendAllText("reeled_crash.log", $"[Localization.Load Error {file}] {ex}\n"); } catch { }
+                        Helpers.Log.Error($"Localization.Load Error {file}", ex);
                     }
                 }
             }

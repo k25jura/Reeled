@@ -70,6 +70,16 @@ public partial class GameClip : ObservableObject
 
     public ObservableCollection<ClipBookmark> Bookmarks { get; set; } = new();
 
+    public static GameClip FromFileInfo(FileInfo fileInfo) => new()
+    {
+        FilePath = fileInfo.FullName,
+        FileName = fileInfo.Name,
+        DirectoryPath = fileInfo.DirectoryName ?? string.Empty,
+        ModifiedDate = fileInfo.LastWriteTimeUtc,
+        CreatedDate = fileInfo.CreationTimeUtc,
+        FileSizeBytes = fileInfo.Length
+    };
+
     public GameClip()
     {
         Bookmarks.CollectionChanged += (s, e) =>

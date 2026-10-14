@@ -14,6 +14,9 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
     private Media? _currentMedia;
     private DispatcherQueue? _dispatcherQueue;
     private string? _pendingFilePath;
+    private long _pendingStartTimeMs;
+    private readonly SemaphoreSlim _mediaLock = new(1, 1);
+    private int _playGeneration;
     private string? _currentFilePath;
     private string[]? _currentSwapChainOptions;
     private bool _isDisposed;
@@ -40,6 +43,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
     public bool IsMuted => _mediaPlayer != null ? _mediaPlayer.Mute : _storedMute;
     public float PlaybackRate => _mediaPlayer != null ? _mediaPlayer.Rate : _storedPlaybackRate;
     public int CurrentAudioTrack => _mediaPlayer?.AudioTrack ?? -1;
+    public float Fps => _mediaPlayer?.Fps ?? 0f;
 
     private readonly List<MediaPlayer> _secondaryAudioPlayers = new();
     private readonly Dictionary<int, MediaPlayer> _secondaryPlayersByTrack = new();
@@ -275,7 +279,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
                 }
                 catch (Exception ex)
                 {
-                    try { File.AppendAllText("reeled_crash.log", $"[SecondaryAudio Error] {ex}\n"); } catch { }
+                    Helpers.Log.Error("SecondaryAudio Error", ex);
                 }
             }
         }
@@ -367,7 +371,8 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
             if (_coreInitialized) return;
             try
             {
-                string libvlcDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "libvlc", "win-x64");
+                string arch = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
+                string libvlcDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "libvlc", $"win-{arch}");
                 if (Directory.Exists(libvlcDir))
                 {
                     Core.Initialize(libvlcDir);
@@ -380,7 +385,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
             }
             catch (Exception ex)
             {
-                try { File.AppendAllText("reeled_crash.log", $"[Core.Initialize Error] {ex}\n"); } catch { }
+                Helpers.Log.Error("Core.Initialize Error", ex);
             }
         }
     }
@@ -404,7 +409,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
             }
             catch (Exception ex)
             {
-                try { File.AppendAllText("reeled_crash.log", $"[LibVLC Prewarm Error] {ex}\n"); } catch { }
+                Helpers.Log.Error("LibVLC Prewarm Error", ex);
             }
         });
     }
@@ -446,7 +451,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         }
         catch (Exception ex)
         {
-            try { File.AppendAllText("reeled_crash.log", $"[InitializeEngine Error] {ex}\n"); } catch { }
+            Helpers.Log.Error("InitializeEngine Error", ex);
             _libVLC = new LibVLC(
                 "--no-osd",
                 "--no-sub-autodetect",
@@ -491,8 +496,9 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
             if (!string.IsNullOrEmpty(_pendingFilePath))
             {
                 string path = _pendingFilePath;
+                long startMs = _pendingStartTimeMs;
                 _pendingFilePath = null;
-                _ = PlayMediaAsync(path);
+                _ = PlayMediaAsync(path, startMs);
             }
         }
     }
@@ -505,7 +511,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         }
         catch (Exception ex)
         {
-            try { File.AppendAllText("reeled_crash.log", $"[DisposeEngine Error] {ex}\n"); } catch { }
+            Helpers.Log.Error("DisposeEngine Error", ex);
         }
     }
 
@@ -618,10 +624,12 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         }
     }
 
-    public async Task PlayMediaAsync(string filePath)
+    public async Task PlayMediaAsync(string filePath, long startTimeMs = 0)
     {
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
             return;
+
+        int generation = Interlocked.Increment(ref _playGeneration);
 
         StopSecondaryAudio();
         lock (_secondaryAudioPlayers)
@@ -634,36 +642,93 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         if (_libVLC == null || _mediaPlayer == null || _currentSwapChainOptions == null)
         {
             _pendingFilePath = filePath;
+            _pendingStartTimeMs = startTimeMs;
             return;
         }
 
-        await Task.Run(() =>
+        // Serialize media swaps: rapid next/previous presses must not stop and dispose media concurrently
+        await _mediaLock.WaitAsync();
+        try
         {
-            try
-            {
-                if (_mediaPlayer.IsPlaying || _mediaPlayer.State == VLCState.Playing || _mediaPlayer.State == VLCState.Paused)
-                {
-                    _mediaPlayer.Stop();
-                }
+            // A newer request arrived while waiting; let it win
+            if (generation != Volatile.Read(ref _playGeneration)) return;
 
-                var oldMedia = _currentMedia;
-                _currentMedia = null;
-                if (oldMedia != null)
-                {
-                    try { oldMedia.Dispose(); } catch { }
-                }
-
-                var newMedia = new Media(_libVLC, filePath, FromType.FromPath);
-                newMedia.AddOption(":no-sub-autodetect-file");
-                newMedia.AddOption(":file-caching=150");
-                _currentMedia = newMedia;
-                _mediaPlayer.Play(newMedia);
-            }
-            catch (Exception ex)
+            var player = _mediaPlayer;
+            var libVlc = _libVLC;
+            await Task.Run(() =>
             {
-                try { File.AppendAllText("reeled_crash.log", $"[PlayMediaAsync Error] {ex}\n"); } catch { }
+                try
+                {
+                    if (player.IsPlaying || player.State == VLCState.Playing || player.State == VLCState.Paused)
+                    {
+                        player.Stop();
+                    }
+
+                    var oldMedia = _currentMedia;
+                    _currentMedia = null;
+                    if (oldMedia != null)
+                    {
+                        try { oldMedia.Dispose(); } catch { }
+                    }
+
+                    var newMedia = new Media(libVlc, filePath, FromType.FromPath);
+                    newMedia.AddOption(":no-sub-autodetect-file");
+                    newMedia.AddOption(":file-caching=150");
+                    if (startTimeMs > 0)
+                    {
+                        newMedia.AddOption(FormattableString.Invariant($":start-time={startTimeMs / 1000.0:0.###}"));
+                    }
+                    _currentMedia = newMedia;
+                    player.Play(newMedia);
+                }
+                catch (Exception ex)
+                {
+                    Helpers.Log.Error("PlayMediaAsync Error", ex);
+                }
+            });
+        }
+        finally
+        {
+            _mediaLock.Release();
+        }
+    }
+
+    public async Task StopAsync()
+    {
+        _pendingFilePath = null;
+        Interlocked.Increment(ref _playGeneration);
+        StopSecondaryAudio();
+
+        var player = _mediaPlayer;
+        if (player == null) return;
+
+        // MediaPlayer.Stop blocks while the video output tears down; keep it off the UI thread
+        await _mediaLock.WaitAsync();
+        try
+        {
+            await Task.Run(() =>
+            {
+                try { player.Stop(); }
+                catch (Exception ex) { Helpers.Log.Error("StopAsync Error", ex); }
+            });
+        }
+        finally
+        {
+            _mediaLock.Release();
+        }
+    }
+
+    public void NextFrame()
+    {
+        if (_mediaPlayer == null) return;
+        lock (_secondaryAudioPlayers)
+        {
+            foreach (var p in _secondaryAudioPlayers)
+            {
+                p.SetPause(true);
             }
-        });
+        }
+        _mediaPlayer.NextFrame();
     }
 
     public void Play()
@@ -706,6 +771,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
     public void Stop()
     {
         _pendingFilePath = null;
+        Interlocked.Increment(ref _playGeneration);
         StopSecondaryAudio();
         try
         {
@@ -713,7 +779,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         }
         catch (Exception ex)
         {
-            try { File.AppendAllText("reeled_crash.log", $"[Stop Error] {ex}\n"); } catch { }
+            Helpers.Log.Error("Stop Error", ex);
         }
     }
 

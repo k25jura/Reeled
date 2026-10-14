@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Reeled.Models;
@@ -37,6 +38,10 @@ public class AppSettings
     public int SortIndex { get; set; } = 0;
     public bool ReduceMotion { get; set; } = false;
     public string? GitHubToken { get; set; }
+    public DateTime? LastUpdateCheckUtc { get; set; }
+    public bool ResumePlayback { get; set; } = true;
+    /// <summary>Last playback position (ms) per clip path, for resuming long clips.</summary>
+    public Dictionary<string, long> ResumePositions { get; set; } = new();
 }
 
 public enum RepeatMode

@@ -179,21 +179,33 @@ public class UpdateService : IUpdateService
         }
 
         // Look for release assets
+        // Pick the setup executable. payload.zip is the installer's raw payload, not a usable update.
         if (element.TryGetProperty("assets", out var assetsProp) && assetsProp.ValueKind == JsonValueKind.Array)
         {
+            int bestRank = int.MaxValue;
             foreach (var asset in assetsProp.EnumerateArray())
             {
                 string assetName = asset.TryGetProperty("name", out var aName) ? aName.GetString() ?? "" : "";
                 string downloadUrl = asset.TryGetProperty("browser_download_url", out var aUrl) ? aUrl.GetString() ?? "" : "";
                 long size = asset.TryGetProperty("size", out var aSize) ? aSize.GetInt64() : 0;
+                if (string.IsNullOrEmpty(downloadUrl)) continue;
 
                 string ext = Path.GetExtension(assetName).ToLowerInvariant();
-                if (ext is ".msix" or ".msixbundle" or ".exe" or ".zip")
+                int rank = ext switch
                 {
+                    ".exe" when assetName.Equals("ReeledSetup.exe", StringComparison.OrdinalIgnoreCase) => 0,
+                    ".exe" when assetName.StartsWith("ReeledSetup", StringComparison.OrdinalIgnoreCase) => 1,
+                    ".exe" => 2,
+                    ".msix" or ".msixbundle" => 3,
+                    _ => int.MaxValue
+                };
+
+                if (rank < bestRank)
+                {
+                    bestRank = rank;
                     info.AssetName = assetName;
                     info.AssetDownloadUrl = downloadUrl;
                     info.AssetSize = size;
-                    break;
                 }
             }
         }
@@ -212,11 +224,15 @@ public class UpdateService : IUpdateService
         string downloadDir = Path.Combine(localAppData, "Reeled", "Updates");
         Directory.CreateDirectory(downloadDir);
 
-        string fileName = !string.IsNullOrWhiteSpace(updateInfo.AssetName)
-            ? updateInfo.AssetName
-            : $"Reeled-{updateInfo.LatestVersionTag}.zip";
+        // The asset name comes from the network: strip any directory components
+        string fileName = Path.GetFileName(updateInfo.AssetName ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            fileName = $"ReeledSetup-{updateInfo.LatestVersionTag}.exe";
+        }
 
         string filePath = Path.Combine(downloadDir, fileName);
+        string partialPath = filePath + ".part";
 
         using var request = new HttpRequestMessage(HttpMethod.Get, updateInfo.AssetDownloadUrl);
         request.Headers.UserAgent.Add(new ProductInfoHeaderValue("ReeledApp", CurrentVersion.ToString()));
@@ -228,39 +244,51 @@ public class UpdateService : IUpdateService
         if (totalBytes <= 0) totalBytes = 1;
 
         await using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
-
-        byte[] buffer = new byte[81920];
+        var fileStream = new FileStream(partialPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
         long totalRead = 0;
-        int bytesRead;
-        var stopwatch = Stopwatch.StartNew();
-        long lastReportedBytes = 0;
-        var lastReportedTime = stopwatch.Elapsed;
-
-        while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
+        try
         {
-            await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken);
-            totalRead += bytesRead;
+            byte[] buffer = new byte[81920];
+            int bytesRead;
+            var stopwatch = Stopwatch.StartNew();
+            long lastReportedBytes = 0;
+            var lastReportedTime = stopwatch.Elapsed;
 
-            var elapsed = stopwatch.Elapsed;
-            if (elapsed - lastReportedTime > TimeSpan.FromMilliseconds(100))
+            while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
             {
-                double timeDeltaSec = (elapsed - lastReportedTime).TotalSeconds;
-                long bytesDelta = totalRead - lastReportedBytes;
-                double speedMbSec = timeDeltaSec > 0 ? (bytesDelta / (1024.0 * 1024.0)) / timeDeltaSec : 0.0;
+                await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken);
+                totalRead += bytesRead;
 
-                progress?.Report(new DownloadProgressReport
+                var elapsed = stopwatch.Elapsed;
+                if (elapsed - lastReportedTime > TimeSpan.FromMilliseconds(100))
                 {
-                    BytesDownloaded = totalRead,
-                    TotalBytes = totalBytes,
-                    Percent = Math.Clamp((double)totalRead / totalBytes * 100.0, 0.0, 100.0),
-                    SpeedMbPerSec = speedMbSec
-                });
+                    double timeDeltaSec = (elapsed - lastReportedTime).TotalSeconds;
+                    long bytesDelta = totalRead - lastReportedBytes;
+                    double speedMbSec = timeDeltaSec > 0 ? (bytesDelta / (1024.0 * 1024.0)) / timeDeltaSec : 0.0;
 
-                lastReportedBytes = totalRead;
-                lastReportedTime = elapsed;
+                    progress?.Report(new DownloadProgressReport
+                    {
+                        BytesDownloaded = totalRead,
+                        TotalBytes = totalBytes,
+                        Percent = Math.Clamp((double)totalRead / totalBytes * 100.0, 0.0, 100.0),
+                        SpeedMbPerSec = speedMbSec
+                    });
+
+                    lastReportedBytes = totalRead;
+                    lastReportedTime = elapsed;
+                }
             }
         }
+        catch
+        {
+            await fileStream.DisposeAsync();
+            try { File.Delete(partialPath); } catch { }
+            throw;
+        }
+
+        await fileStream.DisposeAsync();
+        // Only expose a complete download under the final name, so a half-written installer is never launched
+        File.Move(partialPath, filePath, overwrite: true);
 
         progress?.Report(new DownloadProgressReport
         {

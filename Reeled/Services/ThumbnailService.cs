@@ -17,14 +17,15 @@ namespace Reeled.Services;
 public class ThumbnailService : IThumbnailService
 {
     private readonly string _cacheDirectory;
-    private readonly ConcurrentDictionary<string, Task<BitmapImage?>> _inFlightThumbnails = new();
+    private readonly ConcurrentDictionary<string, Lazy<Task<BitmapImage?>>> _inFlightThumbnails = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _diskExtractionThrottler = new(4, 4);
 
-    // Bounded LRU in-memory cache for BitmapImages (max 96 items, approx 40 to 60 MB RAM)
+    // Bounded LRU in-memory cache for BitmapImages (~290 KB each at 360px decode width, ~45 MB max).
+    // Grid cards release their bitmap when recycled, so this is the only long-lived owner.
     private readonly object _cacheLock = new();
-    private readonly Dictionary<string, LinkedListNode<CacheEntry>> _memoryCache = new();
+    private readonly Dictionary<string, LinkedListNode<CacheEntry>> _memoryCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly LinkedList<CacheEntry> _lruList = new();
-    private const int MaxMemoryCacheEntries = 96;
+    private const int MaxMemoryCacheEntries = 160;
 
     private record CacheEntry(string Key, BitmapImage Bitmap);
 
@@ -157,37 +158,41 @@ public class ThumbnailService : IThumbnailService
             return Task.FromResult<BitmapImage?>(cachedBitmap);
         }
 
-        return _inFlightThumbnails.GetOrAdd(videoPath, async path =>
+        // Lazy guarantees a single load per path. The entry is removed only after the load has been
+        // published, so a synchronously completing load can't leave a stale entry behind.
+        var lazy = _inFlightThumbnails.GetOrAdd(videoPath, path => new Lazy<Task<BitmapImage?>>(() => LoadThumbnailAsync(path)));
+        var task = lazy.Value;
+        _ = task.ContinueWith(_ => _inFlightThumbnails.TryRemove(new KeyValuePair<string, Lazy<Task<BitmapImage?>>>(videoPath, lazy)),
+            TaskScheduler.Default);
+        return task;
+    }
+
+    private async Task<BitmapImage?> LoadThumbnailAsync(string path)
+    {
+        try
         {
-            try
+            if (TryGetFromMemoryCache(path, out var doubleCheckBitmap))
             {
-                if (TryGetFromMemoryCache(path, out var doubleCheckBitmap))
-                {
-                    return doubleCheckBitmap;
-                }
-
-                string? cacheFile = await EnsureThumbnailOnDiskAsync(path);
-                if (cacheFile != null && File.Exists(cacheFile))
-                {
-                    var bmp = await LoadBitmapFromDiskAsync(cacheFile);
-                    if (bmp != null)
-                    {
-                        AddToMemoryCache(path, bmp);
-                    }
-                    return bmp;
-                }
-            }
-            catch (Exception)
-            {
-                // Fallback gracefully on shell thumbnail failure
-            }
-            finally
-            {
-                _inFlightThumbnails.TryRemove(videoPath, out _);
+                return doubleCheckBitmap;
             }
 
-            return null;
-        });
+            string? cacheFile = await EnsureThumbnailOnDiskAsync(path);
+            if (cacheFile != null && File.Exists(cacheFile))
+            {
+                var bmp = await LoadBitmapFromDiskAsync(cacheFile);
+                if (bmp != null)
+                {
+                    AddToMemoryCache(path, bmp);
+                }
+                return bmp;
+            }
+        }
+        catch (Exception)
+        {
+            // Fallback gracefully on shell thumbnail failure
+        }
+
+        return null;
     }
 
     private static string ComputeCacheKey(string path)
@@ -251,7 +256,7 @@ public class ThumbnailService : IThumbnailService
                 }
                 catch (Exception ex)
                 {
-                    try { File.AppendAllText("reeled_crash.log", $"[LoadBitmap Error] {filePath}: {ex.Message}\n"); } catch { }
+                    Helpers.Log.Error("LoadBitmap Error", $"{filePath}: {ex.Message}");
                     tcs.TrySetResult(null);
                 }
             });
@@ -263,7 +268,7 @@ public class ThumbnailService : IThumbnailService
         }
         catch (Exception ex)
         {
-            try { File.AppendAllText("reeled_crash.log", $"[LoadBitmap Outer Error] {filePath}: {ex.Message}\n"); } catch { }
+            Helpers.Log.Error("LoadBitmap Outer Error", $"{filePath}: {ex.Message}");
             return null;
         }
     }

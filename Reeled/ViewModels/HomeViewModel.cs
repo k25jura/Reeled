@@ -31,6 +31,7 @@ public partial class HomeViewModel : ObservableObject
     private readonly ILocalStorageService _storageService;
     private readonly INavigationService _navigationService;
     private readonly ILocalizationService _localizationService;
+    private readonly IClipMetadataService _metadataService;
     private readonly DispatcherQueue _dispatcherQueue;
 
     public ObservableRangeCollection<DirectoryNode> Directories { get; } = new();
@@ -325,12 +326,14 @@ public partial class HomeViewModel : ObservableObject
         IClipIndexerService indexerService,
         ILocalStorageService storageService,
         INavigationService navigationService,
-        ILocalizationService localizationService)
+        ILocalizationService localizationService,
+        IClipMetadataService metadataService)
     {
         _indexerService = indexerService;
         _storageService = storageService;
         _navigationService = navigationService;
         _localizationService = localizationService;
+        _metadataService = metadataService;
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
         var settings = _storageService.CurrentSettings;
@@ -348,6 +351,15 @@ public partial class HomeViewModel : ObservableObject
         _indexerService.ClipAdded += OnClipAdded;
         _indexerService.ClipDeleted += OnClipDeleted;
         _indexerService.ClipRenamed += OnClipRenamed;
+        _indexerService.LibraryChanged += () => _dispatcherQueue.TryEnqueue(async () => await SyncDirectoriesAsync(forceReload: true));
+        _indexerService.MetadataBatchCompleted += () => _dispatcherQueue.TryEnqueue(() =>
+        {
+            // Durations arrive in the background; re-sort once they're known so "Duration" ordering is correct
+            if (SortIndex == 4)
+            {
+                ApplyFilterAndSort();
+            }
+        });
 
         _localizationService.LanguageChanged += (s, e) =>
         {
@@ -435,7 +447,42 @@ public partial class HomeViewModel : ObservableObject
         }
     }
 
+    private Task? _syncTask;
+    private bool _resyncRequested;
+
     public async Task SyncDirectoriesAsync(bool forceReload = false)
+    {
+        // Coalesce overlapping requests (watcher events, folder adds) into one follow-up rescan.
+        // Callers still await completion so they can rely on the refreshed tree.
+        if (_syncTask != null)
+        {
+            _resyncRequested = true;
+            await _syncTask;
+            return;
+        }
+
+        _syncTask = RunSyncLoopAsync(forceReload);
+        try
+        {
+            await _syncTask;
+        }
+        finally
+        {
+            _syncTask = null;
+        }
+    }
+
+    private async Task RunSyncLoopAsync(bool forceReload)
+    {
+        await SyncDirectoriesCoreAsync(forceReload);
+        while (_resyncRequested)
+        {
+            _resyncRequested = false;
+            await SyncDirectoriesCoreAsync(forceReload: true);
+        }
+    }
+
+    private async Task SyncDirectoriesCoreAsync(bool forceReload)
     {
         var settings = await _storageService.LoadSettingsAsync();
         EnableSkeletonLoading = settings.EnableSkeletonLoading;
@@ -502,25 +549,7 @@ public partial class HomeViewModel : ObservableObject
             foreach (var clip in allClipsList)
             {
                 if (!seenPaths.Add(clip.FilePath)) continue;
-
-                if (settings.Favorites.Contains(clip.FilePath))
-                {
-                    clip.IsFavorite = true;
-                }
-
-                if (settings.Bookmarks.TryGetValue(clip.FilePath, out var bms))
-                {
-                    foreach (var bm in bms)
-                    {
-                        clip.Bookmarks.Add(bm);
-                    }
-                }
-
-                if (settings.CustomClipTitles.TryGetValue(clip.FilePath, out var customTitle) && !string.IsNullOrWhiteSpace(customTitle))
-                {
-                    clip.CustomTitle = customTitle;
-                }
-
+                ApplyPersistedState(clip, settings);
                 list.Add(clip);
             }
 
@@ -531,15 +560,7 @@ public partial class HomeViewModel : ObservableObject
                     UpdateNodeClipCounts(sub);
                 }
 
-                if (node.IsWatchRoot)
-                {
-                    node.ClipCount = list.Count(c => c.FilePath.StartsWith(node.FullPath, StringComparison.OrdinalIgnoreCase));
-                }
-                else
-                {
-                    node.ClipCount = list.Count(c => string.Equals(c.DirectoryPath, node.FullPath, StringComparison.OrdinalIgnoreCase)
-                                                  || c.FilePath.StartsWith(node.FullPath + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
-                }
+                node.ClipCount = list.Count(c => PathUtil.IsUnder(c.FilePath, node.FullPath));
             }
 
             foreach (var tree in trees)
@@ -615,10 +636,9 @@ public partial class HomeViewModel : ObservableObject
             case NavigationSection.Folder:
                 if (SelectedDirectory != null)
                 {
-                    targetClips = (SelectedDirectory.IsWatchRoot
-                        ? AllClips.Where(c => c.FilePath.StartsWith(SelectedDirectory.FullPath, StringComparison.OrdinalIgnoreCase))
-                        : AllClips.Where(c => string.Equals(c.DirectoryPath, SelectedDirectory.FullPath, StringComparison.OrdinalIgnoreCase)))
-                        .ToList();
+                    // Every folder shows its whole subtree, matching the count shown next to it in the sidebar
+                    var folderPath = SelectedDirectory.FullPath;
+                    targetClips = AllClips.Where(c => PathUtil.IsUnder(c.FilePath, folderPath)).ToList();
 
                     SelectedDirectory.ClipCount = targetClips.Count;
                     StatusMessage = targetClips.Count > 0 ? $"{targetClips.Count} clips loaded" : "No clips in this folder";
@@ -667,20 +687,7 @@ public partial class HomeViewModel : ObservableObject
             var folder = await picker.PickSingleFolderAsync();
             if (folder != null)
             {
-                string path = folder.Path;
-                var settings = _storageService.CurrentSettings;
-                if (!settings.WatchDirectories.Contains(path))
-                {
-                    settings.WatchDirectories.Add(path);
-                    await _storageService.SaveSettingsAsync(settings);
-                    await SyncDirectoriesAsync();
-
-                    var newNode = FindNodeByPath(Directories, path);
-                    if (newNode != null)
-                    {
-                        await SelectDirectoryAsync(newNode);
-                    }
-                }
+                await AddDirectoryPathAsync(folder.Path);
             }
         }
         catch (Exception ex)
@@ -695,17 +702,19 @@ public partial class HomeViewModel : ObservableObject
         try
         {
             var settings = _storageService.CurrentSettings;
-            if (!settings.WatchDirectories.Contains(path, StringComparer.OrdinalIgnoreCase))
+
+            // A folder inside an existing watch folder is already indexed: just open it
+            if (!settings.WatchDirectories.Any(root => PathUtil.IsUnder(path, root)))
             {
                 settings.WatchDirectories.Add(path);
                 await _storageService.SaveSettingsAsync(settings);
                 await SyncDirectoriesAsync();
+            }
 
-                var newNode = FindNodeByPath(Directories, path);
-                if (newNode != null)
-                {
-                    await SelectDirectoryAsync(newNode);
-                }
+            var node = FindNodeByPath(Directories, path);
+            if (node != null)
+            {
+                await SelectDirectoryAsync(node);
             }
         }
         catch (Exception ex)
@@ -749,50 +758,173 @@ public partial class HomeViewModel : ObservableObject
         _navigationService.NavigateToPlayer(clip, FilteredClips);
     }
 
-    [RelayCommand]
-    public void DeleteClip(GameClip clip)
+    public bool DeleteClip(GameClip clip)
     {
-        if (clip == null) return;
+        if (clip == null) return false;
 
-        bool success = _indexerService.DeleteClipToRecycleBin(clip.FilePath);
+        string path = clip.FilePath;
+        bool success = _indexerService.DeleteClipToRecycleBin(path);
         if (success)
         {
-            AllClips.Remove(clip);
-            Clips.Remove(clip);
-            FilteredClips.Remove(clip);
-            if (SelectedDirectory != null)
-            {
-                SelectedDirectory.ClipCount = Clips.Count;
-            }
-            UpdateCounts();
+            RemoveClipFromLibrary(path);
+            ForgetClipState(path);
             StatusMessage = $"Deleted {clip.FileName} to Recycle Bin";
         }
         else
         {
             StatusMessage = $"Failed to delete {clip.FileName}";
         }
-    }
-
-    [RelayCommand]
-    public void RenameClip(GameClip clip)
-    {
-        // View code-behind or dialog will prompt for new name then call RenameClipInternal
+        return success;
     }
 
     public bool RenameClipInternal(GameClip clip, string newName)
     {
         if (clip == null || string.IsNullOrWhiteSpace(newName)) return false;
 
-        if (_indexerService.RenameClip(clip.FilePath, newName, out string newPath))
+        string oldPath = clip.FilePath;
+        if (_indexerService.RenameClip(oldPath, newName, out string newPath))
         {
-            clip.FilePath = newPath;
-            clip.FileName = Path.GetFileName(newPath);
+            ApplyRename(oldPath, newPath);
             StatusMessage = $"Renamed to {clip.FileName}";
             return true;
         }
         StatusMessage = "Failed to rename clip";
         return false;
     }
+
+    /// <summary>
+    /// Returns the library's instance for a file (so favorites and moments stay shared with the player),
+    /// or a new clip carrying the persisted favorite/moments/title state.
+    /// </summary>
+    public GameClip ResolveOrCreateClip(FileInfo fileInfo)
+    {
+        var existing = FindClip(fileInfo.FullName);
+        if (existing != null) return existing;
+
+        var clip = GameClip.FromFileInfo(fileInfo);
+        ApplyPersistedState(clip, _storageService.CurrentSettings);
+        return clip;
+    }
+
+    private GameClip? FindClip(string path) =>
+        AllClips.FirstOrDefault(c => string.Equals(c.FilePath, path, StringComparison.OrdinalIgnoreCase));
+
+    private static void ApplyPersistedState(GameClip clip, AppSettings settings)
+    {
+        if (settings.Favorites.Contains(clip.FilePath))
+        {
+            clip.IsFavorite = true;
+        }
+
+        if (settings.Bookmarks.TryGetValue(clip.FilePath, out var bms))
+        {
+            foreach (var bm in bms)
+            {
+                clip.Bookmarks.Add(bm);
+            }
+        }
+
+        if (settings.CustomClipTitles.TryGetValue(clip.FilePath, out var customTitle) && !string.IsNullOrWhiteSpace(customTitle))
+        {
+            clip.CustomTitle = customTitle;
+        }
+    }
+
+    /// <summary>Moves per-clip settings (favorite, moments, custom title, resume position) to a new path.</summary>
+    private void MigrateClipState(string oldPath, string newPath)
+    {
+        var settings = _storageService.CurrentSettings;
+        bool changed = false;
+
+        if (settings.Favorites.Remove(oldPath))
+        {
+            settings.Favorites.Add(newPath);
+            changed = true;
+        }
+        if (settings.Bookmarks.Remove(oldPath, out var bookmarks))
+        {
+            settings.Bookmarks[newPath] = bookmarks;
+            changed = true;
+        }
+        if (settings.CustomClipTitles.Remove(oldPath, out var title))
+        {
+            settings.CustomClipTitles[newPath] = title;
+            changed = true;
+        }
+        if (settings.ResumePositions.Remove(oldPath, out var position))
+        {
+            settings.ResumePositions[newPath] = position;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    private void ForgetClipState(string path)
+    {
+        var settings = _storageService.CurrentSettings;
+        bool changed = settings.Favorites.Remove(path);
+        changed |= settings.Bookmarks.Remove(path);
+        changed |= settings.CustomClipTitles.Remove(path);
+        changed |= settings.ResumePositions.Remove(path);
+        if (changed)
+        {
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    private void ApplyRename(string oldPath, string newPath)
+    {
+        MigrateClipState(oldPath, newPath);
+
+        var clip = FindClip(oldPath);
+        if (clip == null) return;
+
+        clip.FilePath = newPath;
+        clip.FileName = Path.GetFileName(newPath);
+        clip.DirectoryPath = Path.GetDirectoryName(newPath) ?? clip.DirectoryPath;
+        ApplyFilterAndSort();
+    }
+
+    private void RemoveClipFromLibrary(string path)
+    {
+        var clip = FindClip(path);
+        if (clip == null) return;
+
+        AllClips.Remove(clip);
+        Clips.Remove(clip);
+        AdjustFolderCounts(path, -1);
+        ApplyFilterAndSort();
+        UpdateCounts();
+    }
+
+    private void AdjustFolderCounts(string filePath, int delta)
+    {
+        void Visit(IEnumerable<DirectoryNode> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                if (PathUtil.IsUnder(filePath, node.FullPath))
+                {
+                    node.ClipCount = Math.Max(0, node.ClipCount + delta);
+                    Visit(node.SubDirectories);
+                }
+            }
+        }
+        Visit(Directories);
+    }
+
+    private bool ClipBelongsToCurrentView(GameClip clip) => CurrentSection switch
+    {
+        NavigationSection.Home => true,
+        NavigationSection.Favorites => clip.IsFavorite,
+        NavigationSection.SavedMoments => clip.Bookmarks.Count > 0,
+        NavigationSection.Folder => SelectedDirectory != null && PathUtil.IsUnder(clip.FilePath, SelectedDirectory.FullPath),
+        _ => false
+    };
 
     [RelayCommand]
     public void OpenInExplorer(GameClip clip)
@@ -952,8 +1084,11 @@ public partial class HomeViewModel : ObservableObject
 
         if (!string.IsNullOrWhiteSpace(SearchQuery))
         {
-            query = query.Where(c => c.FileName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
-                                     c.DisplayName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
+            string term = SearchQuery.Trim();
+            query = query.Where(c => c.FileName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                                     c.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                                     Path.GetFileName(c.DirectoryPath).Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                                     c.Bookmarks.Any(b => b.Label.Contains(term, StringComparison.OrdinalIgnoreCase)));
         }
 
         query = SortIndex switch
@@ -998,9 +1133,10 @@ public partial class HomeViewModel : ObservableObject
 
         IEnumerable<IGrouping<string, GameClip>> groups = DateGrouping switch
         {
-            DateGroupingMode.Day => FilteredClips.GroupBy(c => c.EffectiveDate.Date.ToString("yyyy-MM-dd")),
-            DateGroupingMode.Month => FilteredClips.GroupBy(c => c.EffectiveDate.ToString("yyyy-MM")),
-            DateGroupingMode.Year => FilteredClips.GroupBy(c => c.EffectiveDate.ToString("yyyy")),
+            // Dates are stored in UTC; bucket by local date so clips near midnight land under the right heading
+            DateGroupingMode.Day => FilteredClips.GroupBy(c => c.EffectiveDate.ToLocalTime().ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)),
+            DateGroupingMode.Month => FilteredClips.GroupBy(c => c.EffectiveDate.ToLocalTime().ToString("yyyy-MM", System.Globalization.CultureInfo.InvariantCulture)),
+            DateGroupingMode.Year => FilteredClips.GroupBy(c => c.EffectiveDate.ToLocalTime().ToString("yyyy", System.Globalization.CultureInfo.InvariantCulture)),
             _ => FilteredClips.GroupBy(c => "all")
         };
 
@@ -1111,61 +1247,60 @@ public partial class HomeViewModel : ObservableObject
 
     private void OnClipAdded(string filePath)
     {
-        _dispatcherQueue.TryEnqueue(async () =>
+        _dispatcherQueue.TryEnqueue(() =>
         {
-            await SyncDirectoriesAsync();
+            // A full rescan would be skipped (watch folders unchanged), so add the new clip directly
+            if (_syncTask != null)
+            {
+                _ = SyncDirectoriesAsync(forceReload: true);
+                return;
+            }
+            if (FindClip(filePath) != null) return;
+            if (!_loadedWatchDirectories.Any(root => PathUtil.IsUnder(filePath, root))) return;
+
+            FileInfo fileInfo;
+            try
+            {
+                fileInfo = new FileInfo(filePath);
+                if (!fileInfo.Exists) return;
+            }
+            catch
+            {
+                return;
+            }
+
+            var clip = GameClip.FromFileInfo(fileInfo);
+            ApplyPersistedState(clip, _storageService.CurrentSettings);
+            AllClips.Insert(0, clip);
+            AdjustFolderCounts(filePath, +1);
+
+            if (ClipBelongsToCurrentView(clip))
+            {
+                Clips.Insert(0, clip);
+                ApplyFilterAndSort();
+            }
+            UpdateCounts();
+
+            _ = Task.Run(() => _metadataService.PopulateMetadataAsync(clip));
         });
     }
 
     private void OnClipDeleted(string filePath)
     {
-        _dispatcherQueue.TryEnqueue(() =>
-        {
-            var existingAll = AllClips.FirstOrDefault(c => string.Equals(c.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
-            if (existingAll != null)
-            {
-                AllClips.Remove(existingAll);
-            }
-
-            var existing = Clips.FirstOrDefault(c => string.Equals(c.FilePath, filePath, StringComparison.OrdinalIgnoreCase));
-            if (existing != null)
-            {
-                Clips.Remove(existing);
-                FilteredClips.Remove(existing);
-                if (SelectedDirectory != null)
-                {
-                    SelectedDirectory.ClipCount = Clips.Count;
-                }
-            }
-            UpdateCounts();
-        });
+        // External deletes keep favorites/moments in settings, so a file restored from the Recycle Bin gets them back
+        _dispatcherQueue.TryEnqueue(() => RemoveClipFromLibrary(filePath));
     }
 
     private void OnClipRenamed(string oldPath, string newPath)
     {
-        _dispatcherQueue.TryEnqueue(() =>
-        {
-            var existingAll = AllClips.FirstOrDefault(c => string.Equals(c.FilePath, oldPath, StringComparison.OrdinalIgnoreCase));
-            if (existingAll != null)
-            {
-                existingAll.FilePath = newPath;
-                existingAll.FileName = Path.GetFileName(newPath);
-            }
-
-            var existing = Clips.FirstOrDefault(c => string.Equals(c.FilePath, oldPath, StringComparison.OrdinalIgnoreCase));
-            if (existing != null)
-            {
-                existing.FilePath = newPath;
-                existing.FileName = Path.GetFileName(newPath);
-            }
-        });
+        _dispatcherQueue.TryEnqueue(() => ApplyRename(oldPath, newPath));
     }
 
     public static DirectoryNode? FindNodeByPath(IEnumerable<DirectoryNode> nodes, string path)
     {
         foreach (var n in nodes)
         {
-            if (string.Equals(n.FullPath, path, StringComparison.OrdinalIgnoreCase))
+            if (PathUtil.PathEquals(n.FullPath, path))
                 return n;
 
             var sub = FindNodeByPath(n.SubDirectories, path);

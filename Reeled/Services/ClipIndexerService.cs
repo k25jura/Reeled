@@ -1,28 +1,36 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
+using Reeled.Helpers;
 using Reeled.Models;
 
 namespace Reeled.Services;
 
 public class ClipIndexerService : IClipIndexerService
 {
-    private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v", ".wmv"
-    };
+    private static readonly TimeSpan ReadyPollInterval = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan LibraryChangedDebounce = TimeSpan.FromMilliseconds(800);
 
     private readonly IClipMetadataService _metadataService;
     private readonly IClipMetadataCacheService _cacheService;
     private readonly List<FileSystemWatcher> _watchers = new();
     private readonly object _lock = new();
 
+    // Paths waiting for the recorder to release the file, so each new clip is announced exactly once
+    private readonly ConcurrentDictionary<string, byte> _pendingAdds = new(StringComparer.OrdinalIgnoreCase);
+    private CancellationTokenSource _watcherCts = new();
+    private Timer? _libraryChangedTimer;
+
     public event Action<string>? ClipAdded;
     public event Action<string>? ClipDeleted;
     public event Action<string, string>? ClipRenamed;
+    public event Action? LibraryChanged;
+    public event Action? MetadataBatchCompleted;
 
     public ClipIndexerService(IClipMetadataService metadataService, IClipMetadataCacheService cacheService)
     {
@@ -36,14 +44,19 @@ public class ClipIndexerService : IClipIndexerService
         if (string.IsNullOrEmpty(directoryPath) || !Directory.Exists(directoryPath))
             return clips;
 
-        await Task.Run(async () =>
+        await Task.Run(() =>
         {
             try
             {
                 var dirInfo = new DirectoryInfo(directoryPath);
-                var searchOption = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-                var fileInfos = dirInfo.EnumerateFiles("*.*", searchOption)
-                    .Where(fi => VideoExtensions.Contains(fi.Extension))
+                var options = new EnumerationOptions
+                {
+                    RecurseSubdirectories = recursive,
+                    IgnoreInaccessible = true,
+                    AttributesToSkip = FileAttributes.System
+                };
+                var fileInfos = dirInfo.EnumerateFiles("*", options)
+                    .Where(fi => PathUtil.VideoExtensions.Contains(fi.Extension))
                     .OrderByDescending(fi => fi.LastWriteTimeUtc)
                     .ToList();
 
@@ -52,15 +65,7 @@ public class ClipIndexerService : IClipIndexerService
                 {
                     try
                     {
-                        var clip = new GameClip
-                        {
-                            FilePath = fileInfo.FullName,
-                            FileName = fileInfo.Name,
-                            DirectoryPath = fileInfo.DirectoryName ?? string.Empty,
-                            ModifiedDate = fileInfo.LastWriteTimeUtc,
-                            CreatedDate = fileInfo.CreationTimeUtc,
-                            FileSizeBytes = fileInfo.Length
-                        };
+                        var clip = GameClip.FromFileInfo(fileInfo);
 
                         if (_cacheService.TryGet(clip.FilePath, fileInfo.Length, fileInfo.LastWriteTimeUtc.Ticks, out var cached) && cached != null)
                         {
@@ -90,16 +95,14 @@ public class ClipIndexerService : IClipIndexerService
                             }
                             catch { }
                         }
-                        _ = _cacheService.SaveAsync();
+                        await _cacheService.SaveAsync();
+                        MetadataBatchCompleted?.Invoke();
                     });
                 }
-                else
-                {
-                    _ = _cacheService.SaveAsync();
-                }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Log.Error("ScanDirectoryClips", ex);
             }
         });
 
@@ -147,14 +150,17 @@ public class ClipIndexerService : IClipIndexerService
         {
             int directClips = 0;
             var dirInfo = new DirectoryInfo(path);
-            foreach (var fi in dirInfo.EnumerateFiles("*.*", SearchOption.TopDirectoryOnly))
+            foreach (var fi in dirInfo.EnumerateFiles("*", SearchOption.TopDirectoryOnly))
             {
-                if (VideoExtensions.Contains(fi.Extension))
+                if (PathUtil.VideoExtensions.Contains(fi.Extension))
                     directClips++;
             }
 
             foreach (var subDir in dirInfo.EnumerateDirectories())
             {
+                if ((subDir.Attributes & (FileAttributes.System | FileAttributes.ReparsePoint)) != 0)
+                    continue;
+
                 try
                 {
                     var subNode = CreateDirectoryNode(subDir.FullName, isWatchRoot: false);
@@ -183,57 +189,172 @@ public class ClipIndexerService : IClipIndexerService
     {
         lock (_lock)
         {
-            foreach (var watcher in _watchers)
-            {
-                watcher.EnableRaisingEvents = false;
-                watcher.Dispose();
-            }
-            _watchers.Clear();
+            DisposeWatchers();
+            _watcherCts = new CancellationTokenSource();
 
-            foreach (var root in watchRoots)
-            {
-                if (!Directory.Exists(root)) continue;
+            // Watch only the outermost roots: nested roots (e.g. Videos + Videos\Captures) would otherwise
+            // report every event twice.
+            var distinctRoots = watchRoots
+                .Where(r => !string.IsNullOrWhiteSpace(r) && Directory.Exists(r))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var outermostRoots = distinctRoots
+                .Where(r => !distinctRoots.Any(other => !PathUtil.PathEquals(other, r) && PathUtil.IsUnder(r, other)))
+                .ToList();
 
+            foreach (var root in outermostRoots)
+            {
                 try
                 {
                     var watcher = new FileSystemWatcher(root)
                     {
-                        NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+                        NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName,
                         IncludeSubdirectories = true,
-                        EnableRaisingEvents = true
+                        InternalBufferSize = 64 * 1024
                     };
 
-                    watcher.Created += (s, e) =>
+                    watcher.Created += OnWatcherCreated;
+                    watcher.Deleted += OnWatcherDeleted;
+                    watcher.Renamed += OnWatcherRenamed;
+                    watcher.Error += (s, e) =>
                     {
-                        if (VideoExtensions.Contains(Path.GetExtension(e.FullPath)))
-                        {
-                            // Debounce for write completion
-                            Task.Delay(1000).ContinueWith(_ => ClipAdded?.Invoke(e.FullPath));
-                        }
+                        Log.Error("FileSystemWatcher", e.GetException());
+                        RaiseLibraryChangedDebounced();
                     };
-
-                    watcher.Deleted += (s, e) =>
-                    {
-                        if (VideoExtensions.Contains(Path.GetExtension(e.FullPath)))
-                        {
-                            ClipDeleted?.Invoke(e.FullPath);
-                        }
-                    };
-
-                    watcher.Renamed += (s, e) =>
-                    {
-                        if (VideoExtensions.Contains(Path.GetExtension(e.FullPath)))
-                        {
-                            ClipRenamed?.Invoke(e.OldFullPath, e.FullPath);
-                        }
-                    };
+                    watcher.EnableRaisingEvents = true;
 
                     _watchers.Add(watcher);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    Log.Error("UpdateWatchers", ex);
                 }
             }
+        }
+    }
+
+    private void OnWatcherCreated(object sender, FileSystemEventArgs e)
+    {
+        if (PathUtil.IsVideoFile(e.FullPath))
+        {
+            QueueClipAdded(e.FullPath);
+        }
+        else if (Directory.Exists(e.FullPath))
+        {
+            RaiseLibraryChangedDebounced();
+        }
+    }
+
+    private void OnWatcherDeleted(object sender, FileSystemEventArgs e)
+    {
+        if (PathUtil.IsVideoFile(e.FullPath))
+        {
+            _pendingAdds.TryRemove(e.FullPath, out _);
+            ClipDeleted?.Invoke(e.FullPath);
+        }
+        else if (string.IsNullOrEmpty(Path.GetExtension(e.FullPath)))
+        {
+            // Most likely a directory: its clips disappear without individual events
+            RaiseLibraryChangedDebounced();
+        }
+    }
+
+    private void OnWatcherRenamed(object sender, RenamedEventArgs e)
+    {
+        bool wasVideo = PathUtil.IsVideoFile(e.OldFullPath);
+        bool isVideo = PathUtil.IsVideoFile(e.FullPath);
+
+        if (wasVideo && isVideo)
+        {
+            if (_pendingAdds.TryRemove(e.OldFullPath, out _))
+            {
+                QueueClipAdded(e.FullPath);
+            }
+            else
+            {
+                ClipRenamed?.Invoke(e.OldFullPath, e.FullPath);
+            }
+        }
+        else if (isVideo)
+        {
+            // Recorders often write to a temp name then rename to the final .mp4
+            QueueClipAdded(e.FullPath);
+        }
+        else if (wasVideo)
+        {
+            _pendingAdds.TryRemove(e.OldFullPath, out _);
+            ClipDeleted?.Invoke(e.OldFullPath);
+        }
+        else if (Directory.Exists(e.FullPath))
+        {
+            RaiseLibraryChangedDebounced();
+        }
+    }
+
+    private void QueueClipAdded(string path)
+    {
+        if (!_pendingAdds.TryAdd(path, 0)) return;
+        var token = _watcherCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // Wait until the recorder has finished writing: the file must be openable exclusively
+                // and its size stable between two polls.
+                long lastSize = -1;
+                while (!token.IsCancellationRequested && _pendingAdds.ContainsKey(path))
+                {
+                    await Task.Delay(ReadyPollInterval, token);
+                    if (!File.Exists(path)) return;
+
+                    long size = new FileInfo(path).Length;
+                    if (size > 0 && size == lastSize && CanOpenExclusively(path))
+                    {
+                        if (_pendingAdds.TryRemove(path, out _))
+                        {
+                            ClipAdded?.Invoke(path);
+                        }
+                        return;
+                    }
+                    lastSize = size;
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                Log.Error("QueueClipAdded", ex);
+            }
+            finally
+            {
+                _pendingAdds.TryRemove(path, out _);
+            }
+        }, token);
+    }
+
+    private static bool CanOpenExclusively(string path)
+    {
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private void RaiseLibraryChangedDebounced()
+    {
+        lock (_lock)
+        {
+            _libraryChangedTimer?.Dispose();
+            _libraryChangedTimer = new Timer(_ => LibraryChanged?.Invoke(), null, LibraryChangedDebounce, Timeout.InfiniteTimeSpan);
         }
     }
 
@@ -248,23 +369,17 @@ public class ClipIndexerService : IClipIndexerService
             {
                 wFunc = FO_DELETE,
                 pFrom = filePath + '\0' + '\0',
-                fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT
+                fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI
             };
 
             int result = SHFileOperation(ref shf);
-            return result == 0;
+            return result == 0 && !shf.fAnyOperationsAborted;
         }
-        catch
+        catch (Exception ex)
         {
-            try
-            {
-                File.Delete(filePath);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            // Never fall back to a permanent delete: the user asked for the Recycle Bin
+            Log.Error("DeleteClipToRecycleBin", ex);
+            return false;
         }
     }
 
@@ -272,6 +387,10 @@ public class ClipIndexerService : IClipIndexerService
     {
         newPath = filePath;
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath) || string.IsNullOrWhiteSpace(newFileName))
+            return false;
+
+        newFileName = newFileName.Trim();
+        if (newFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
             return false;
 
         try
@@ -293,22 +412,32 @@ public class ClipIndexerService : IClipIndexerService
             newPath = target;
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Error("RenameClip", ex);
             return false;
         }
+    }
+
+    private void DisposeWatchers()
+    {
+        try { _watcherCts.Cancel(); } catch { }
+        _pendingAdds.Clear();
+        foreach (var watcher in _watchers)
+        {
+            watcher.EnableRaisingEvents = false;
+            watcher.Dispose();
+        }
+        _watchers.Clear();
     }
 
     public void Dispose()
     {
         lock (_lock)
         {
-            foreach (var watcher in _watchers)
-            {
-                watcher.EnableRaisingEvents = false;
-                watcher.Dispose();
-            }
-            _watchers.Clear();
+            DisposeWatchers();
+            _libraryChangedTimer?.Dispose();
+            _libraryChangedTimer = null;
         }
     }
 
@@ -317,6 +446,7 @@ public class ClipIndexerService : IClipIndexerService
     private const ushort FOF_SILENT = 0x0004;
     private const ushort FOF_NOCONFIRMATION = 0x0010;
     private const ushort FOF_ALLOWUNDO = 0x0040;
+    private const ushort FOF_NOERRORUI = 0x0400;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
     private struct SHFILEOPSTRUCT

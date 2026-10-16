@@ -278,6 +278,9 @@ public partial class SettingsViewModel : ObservableObject
             _ => 0
         };
         AutoHideCursor = _storageService.CurrentSettings.AutoHideCursor;
+        SelectedSkipIntervalIndex = Math.Max(0, Array.IndexOf(SkipIntervals, _storageService.CurrentSettings.SkipSeconds));
+        SelectedWheelActionIndex = (int)_storageService.CurrentSettings.PlayerWheelAction;
+        HardwareDecoding = _storageService.CurrentSettings.HardwareDecoding;
         EnableOsdNotifications = _storageService.CurrentSettings.EnableOsdNotifications;
         EnableClipCache = _storageService.CurrentSettings.EnableClipCache;
         ShowMomentsBadges = _storageService.CurrentSettings.ShowMomentsBadges;
@@ -445,6 +448,49 @@ public partial class SettingsViewModel : ObservableObject
             settings.StartMuted = value;
             _ = _storageService.SaveSettingsAsync(settings);
         }
+    }
+
+    public static readonly int[] SkipIntervals = { 5, 10, 15, 30 };
+
+    [ObservableProperty]
+    private int _selectedSkipIntervalIndex;
+
+    public void SetSkipInterval(int index)
+    {
+        SelectedSkipIntervalIndex = index;
+        var settings = _storageService.CurrentSettings;
+        int seconds = SkipIntervals[Math.Clamp(index, 0, SkipIntervals.Length - 1)];
+        if (settings.SkipSeconds != seconds)
+        {
+            settings.SkipSeconds = seconds;
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    [ObservableProperty]
+    private int _selectedWheelActionIndex;
+
+    public void SetWheelAction(int index)
+    {
+        SelectedWheelActionIndex = index;
+        var settings = _storageService.CurrentSettings;
+        var action = (WheelAction)Math.Clamp(index, 0, 2);
+        if (settings.PlayerWheelAction != action)
+        {
+            settings.PlayerWheelAction = action;
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+    }
+
+    [ObservableProperty]
+    private bool _hardwareDecoding = true;
+
+    partial void OnHardwareDecodingChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.HardwareDecoding == value) return;
+        settings.HardwareDecoding = value;
+        _ = _storageService.SaveSettingsAsync(settings);
     }
 
     public void SetRepeatMode(int index)

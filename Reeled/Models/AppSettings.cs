@@ -48,8 +48,20 @@ public class AppSettings
     /// <summary>Version that ran last, to greet the user after an update.</summary>
     public string? LastRunVersion { get; set; }
     public bool ResumePlayback { get; set; } = true;
+    /// <summary>Seconds the skip buttons and arrow keys jump.</summary>
+    public int SkipSeconds { get; set; } = 5;
+    public WheelAction PlayerWheelAction { get; set; } = WheelAction.Volume;
+    /// <summary>GPU video decoding; turning it off helps with files that show artifacts or green frames.</summary>
+    public bool HardwareDecoding { get; set; } = true;
     /// <summary>Last playback position (ms) per clip path, for resuming long clips.</summary>
     public Dictionary<string, long> ResumePositions { get; set; } = new();
+}
+
+public enum WheelAction
+{
+    Volume = 0,
+    Seek = 1,
+    None = 2
 }
 
 public enum RepeatMode

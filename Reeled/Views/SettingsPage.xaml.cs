@@ -139,6 +139,8 @@ public sealed partial class SettingsPage : Page
         if (DefaultVolumeSlider != null) DefaultVolumeSlider.Value = ViewModel.Volume;
         if (MaxVolumeSlider != null) MaxVolumeSlider.Value = ViewModel.MaxVolume;
         if (DefaultRepeatComboBox != null) DefaultRepeatComboBox.SelectedIndex = ViewModel.SelectedRepeatModeIndex;
+        if (SkipIntervalComboBox != null) SkipIntervalComboBox.SelectedIndex = ViewModel.SelectedSkipIntervalIndex;
+        if (WheelActionComboBox != null) WheelActionComboBox.SelectedIndex = ViewModel.SelectedWheelActionIndex;
         if (AutoHideTimeoutComboBox != null) AutoHideTimeoutComboBox.SelectedIndex = ViewModel.SelectedAutoHideIndex;
         if (ThemeComboBox != null) ThemeComboBox.SelectedIndex = ViewModel.SelectedThemeIndex;
         if (LanguageComboBox != null) LanguageComboBox.SelectedIndex = ViewModel.SelectedLanguageIndex;
@@ -303,6 +305,24 @@ public sealed partial class SettingsPage : Page
         if (DefaultRepeatComboBox.SelectedIndex >= 0 && DefaultRepeatComboBox.SelectedIndex != ViewModel.SelectedRepeatModeIndex)
         {
             ViewModel.SetRepeatMode(DefaultRepeatComboBox.SelectedIndex);
+        }
+    }
+
+    private void OnSkipIntervalSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+        if (SkipIntervalComboBox.SelectedIndex >= 0 && SkipIntervalComboBox.SelectedIndex != ViewModel.SelectedSkipIntervalIndex)
+        {
+            ViewModel.SetSkipInterval(SkipIntervalComboBox.SelectedIndex);
+        }
+    }
+
+    private void OnWheelActionSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+        if (WheelActionComboBox.SelectedIndex >= 0 && WheelActionComboBox.SelectedIndex != ViewModel.SelectedWheelActionIndex)
+        {
+            ViewModel.SetWheelAction(WheelActionComboBox.SelectedIndex);
         }
     }
 
@@ -1177,6 +1197,12 @@ public sealed partial class SettingsPage : Page
         if (ResumePlaybackSubtitleText != null) ResumePlaybackSubtitleText.Text = loc["Playback_ResumeSubtitle"];
         if (DefaultRepeatTitleText != null) DefaultRepeatTitleText.Text = loc["Playback_RepeatModeTitle"];
         if (DefaultRepeatSubtitleText != null) DefaultRepeatSubtitleText.Text = loc["Playback_RepeatModeSubtitle"];
+        if (SkipIntervalTitleText != null) SkipIntervalTitleText.Text = loc["Playback_SkipIntervalTitle"];
+        if (SkipIntervalSubtitleText != null) SkipIntervalSubtitleText.Text = loc["Playback_SkipIntervalSubtitle"];
+        if (WheelActionTitleText != null) WheelActionTitleText.Text = loc["Playback_WheelTitle"];
+        if (WheelActionSubtitleText != null) WheelActionSubtitleText.Text = loc["Playback_WheelSubtitle"];
+        if (HardwareDecodingTitleText != null) HardwareDecodingTitleText.Text = loc["Playback_HwDecodingTitle"];
+        if (HardwareDecodingSubtitleText != null) HardwareDecodingSubtitleText.Text = loc["Playback_HwDecodingSubtitle"];
         if (AutoHideTitleText != null) AutoHideTitleText.Text = loc["Playback_AutoHideTitle"];
         if (AutoHideSubtitleText != null) AutoHideSubtitleText.Text = loc["Playback_AutoHideSubtitle"];
         if (AutoHideCursorTitleText != null) AutoHideCursorTitleText.Text = loc["Playback_AutoHideCursorTitle"];
@@ -1254,6 +1280,26 @@ public sealed partial class SettingsPage : Page
                     loc["Playback_RepeatAll"]
                 };
                 DefaultRepeatComboBox.SelectedIndex = repIdx;
+            }
+
+            if (SkipIntervalComboBox != null)
+            {
+                int skipIdx = ViewModel.SelectedSkipIntervalIndex;
+                var unit = loc["Playback_SecondsFormat"];
+                SkipIntervalComboBox.ItemsSource = Array.ConvertAll(ViewModels.SettingsViewModel.SkipIntervals, v => string.Format(unit, v));
+                SkipIntervalComboBox.SelectedIndex = skipIdx;
+            }
+
+            if (WheelActionComboBox != null)
+            {
+                int wheelIdx = ViewModel.SelectedWheelActionIndex;
+                WheelActionComboBox.ItemsSource = new string[]
+                {
+                    loc["Playback_WheelVolume"],
+                    loc["Playback_WheelSeek"],
+                    loc["Playback_WheelNone"]
+                };
+                WheelActionComboBox.SelectedIndex = wheelIdx;
             }
 
             if (AutoHideTimeoutComboBox != null)

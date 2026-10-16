@@ -673,6 +673,10 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
 
                     var newMedia = new Media(libVlc, filePath, FromType.FromPath);
                     newMedia.AddOption(":no-sub-autodetect-file");
+                    if (!App.GetService<ILocalStorageService>().CurrentSettings.HardwareDecoding)
+                    {
+                        newMedia.AddOption(":avcodec-hw=none");
+                    }
                     newMedia.AddOption(":file-caching=150");
                     if (startTimeMs > 0)
                     {

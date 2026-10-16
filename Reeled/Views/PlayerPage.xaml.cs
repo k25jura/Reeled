@@ -230,6 +230,14 @@ public sealed partial class PlayerPage : Page
         DispatcherQueue.TryEnqueue(ApplyLocalization);
     }
 
+    /// <summary>The skip step is a setting, so the tooltips name the current value.</summary>
+    private void UpdateSkipTooltips(Services.ILocalizationService loc)
+    {
+        int step = ViewModel.SkipStepSeconds;
+        if (SkipBackwardButton != null) ToolTipService.SetToolTip(SkipBackwardButton, string.Format(loc["Player_Tooltip_SkipBackward"], step));
+        if (SkipForwardButton != null) ToolTipService.SetToolTip(SkipForwardButton, string.Format(loc["Player_Tooltip_SkipForward"], step));
+    }
+
     private void ApplyLocalization()
     {
         try
@@ -247,8 +255,7 @@ public sealed partial class PlayerPage : Page
             if (StopClipButton != null) ToolTipService.SetToolTip(StopClipButton, loc["Player_Tooltip_Stop"]);
             if (NextClipButton != null) ToolTipService.SetToolTip(NextClipButton, loc["Player_Tooltip_NextClip"]);
             if (RepeatButton != null) ToolTipService.SetToolTip(RepeatButton, ViewModel.RepeatTooltip);
-            if (SkipBackwardButton != null) ToolTipService.SetToolTip(SkipBackwardButton, loc["Player_Tooltip_SkipBackward"]);
-            if (SkipForwardButton != null) ToolTipService.SetToolTip(SkipForwardButton, loc["Player_Tooltip_SkipForward"]);
+            UpdateSkipTooltips(loc);
             if (MarkMomentButton != null) ToolTipService.SetToolTip(MarkMomentButton, loc["Player_Tooltip_MarkMoment"]);
             if (MomentsFlyoutButton != null) ToolTipService.SetToolTip(MomentsFlyoutButton, loc["Player_Tooltip_TimelineBookmarks"]);
             if (ClipQueueButton != null) ToolTipService.SetToolTip(ClipQueueButton, loc["Player_Tooltip_ClipQueue"]);
@@ -513,6 +520,7 @@ public sealed partial class PlayerPage : Page
         CheckAndShowMomentsPrompt();
         DispatcherQueue.TryEnqueue(RenderTimelineMarkers);
         UpdateBackdropBlur();
+        UpdateSkipTooltips(App.GetService<Services.ILocalizationService>());
 
         _isActive = true;
         _videoGlass?.SetActive(true);
@@ -2497,11 +2505,22 @@ public sealed partial class PlayerPage : Page
     {
         var pointerPoint = e.GetCurrentPoint(this);
         int delta = pointerPoint.Properties.MouseWheelDelta;
-        if (delta != 0)
+        if (delta == 0) return;
+
+        switch (App.GetService<Services.ILocalStorageService>().CurrentSettings.PlayerWheelAction)
         {
-            int step = delta > 0 ? 5 : -5;
-            ViewModel.SetVolume(ViewModel.Volume + step);
-            e.Handled = true;
+            case Models.WheelAction.Seek:
+                if (delta > 0) ViewModel.SkipForward();
+                else ViewModel.SkipBackward();
+                e.Handled = true;
+                break;
+            case Models.WheelAction.None:
+                break;
+            default:
+                ViewModel.SetVolume(ViewModel.Volume + (delta > 0 ? 5 : -5));
+                AnimateVolumeIconPop();
+                e.Handled = true;
+                break;
         }
     }
 

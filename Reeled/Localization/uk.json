@@ -348,8 +348,8 @@
   "Player_Tooltip_PreviousClip": "Попередній кліп",
   "Player_Tooltip_Stop": "Зупинити (S)",
   "Player_Tooltip_NextClip": "Наступний кліп",
-  "Player_Tooltip_SkipBackward": "Перемотати на 5с назад (Стрілка вліво)",
-  "Player_Tooltip_SkipForward": "Перемотати на 5с вперед (Стрілка вправо)",
+  "Player_Tooltip_SkipBackward": "Перемотати на {0}с назад (Стрілка вліво)",
+  "Player_Tooltip_SkipForward": "Перемотати на {0}с вперед (Стрілка вправо)",
   "Player_Tooltip_MarkMoment": "Позначити момент (B)",
   "Player_Tooltip_TimelineBookmarks": "Закладки таймлайну / Моменти",
   "Player_Tooltip_MarkMomentCurrentTime": "Позначити момент на поточній секунді (B)",
@@ -421,5 +421,15 @@
   "Update_Updated_Notes": "Що нового",
   "Update_Failed_Title": "Оновлення не встановлено",
   "Update_Failed_Body": "Reeled досі на версії {0}. Спробуйте ще раз у Налаштування > Оновлення.",
-  "Update_Prompt_Close": "Закрити"
+  "Update_Prompt_Close": "Закрити",
+  "Playback_SkipIntervalTitle": "Крок перемотування",
+  "Playback_SkipIntervalSubtitle": "На скільки перемотують кнопки та клавіші зі стрілками",
+  "Playback_SecondsFormat": "{0} секунд",
+  "Playback_WheelTitle": "Коліщатко миші над відео",
+  "Playback_WheelSubtitle": "Що робить прокручування під час відтворення",
+  "Playback_WheelVolume": "Змінювати гучність",
+  "Playback_WheelSeek": "Перемотувати назад / вперед",
+  "Playback_WheelNone": "Нічого",
+  "Playback_HwDecodingTitle": "Апаратне декодування",
+  "Playback_HwDecodingSubtitle": "Декодувати відео на GPU. Вимкніть, якщо в кліпі з'являються артефакти чи зелені кадри"
 }

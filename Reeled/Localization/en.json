@@ -348,8 +348,8 @@
   "Player_Tooltip_PreviousClip": "Previous Clip",
   "Player_Tooltip_Stop": "Stop (S)",
   "Player_Tooltip_NextClip": "Next Clip",
-  "Player_Tooltip_SkipBackward": "Skip 5s Back (Left Arrow)",
-  "Player_Tooltip_SkipForward": "Skip 5s Forward (Right Arrow)",
+  "Player_Tooltip_SkipBackward": "Skip {0}s back (Left Arrow)",
+  "Player_Tooltip_SkipForward": "Skip {0}s forward (Right Arrow)",
   "Player_Tooltip_MarkMoment": "Mark Moment (B)",
   "Player_Tooltip_TimelineBookmarks": "Timeline Bookmarks / Moments",
   "Player_Tooltip_MarkMomentCurrentTime": "Mark Moment at Current Time (B)",
@@ -421,5 +421,15 @@
   "Update_Updated_Notes": "What's new",
   "Update_Failed_Title": "Update didn't install",
   "Update_Failed_Body": "Reeled is still on {0}. Try again from Settings > Updates.",
-  "Update_Prompt_Close": "Close"
+  "Update_Prompt_Close": "Close",
+  "Playback_SkipIntervalTitle": "Skip interval",
+  "Playback_SkipIntervalSubtitle": "How far the skip buttons and arrow keys jump",
+  "Playback_SecondsFormat": "{0} seconds",
+  "Playback_WheelTitle": "Mouse wheel over video",
+  "Playback_WheelSubtitle": "What scrolling does while a clip is playing",
+  "Playback_WheelVolume": "Change volume",
+  "Playback_WheelSeek": "Skip back / forward",
+  "Playback_WheelNone": "Do nothing",
+  "Playback_HwDecodingTitle": "Hardware-accelerated decoding",
+  "Playback_HwDecodingSubtitle": "Decode video on the GPU. Turn off if a clip shows artifacts or green frames"
 }

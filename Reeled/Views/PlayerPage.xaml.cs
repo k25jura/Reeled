@@ -541,6 +541,7 @@ public sealed partial class PlayerPage : Page
     /// </summary>
     private void UpdateTimelineRendering()
     {
+        if (_videoGlass != null) _videoGlass.IsVideoPlaying = ViewModel.IsPlaying;
         if (_isActive && ViewModel.IsPlaying)
         {
             StartTimelineRendering();

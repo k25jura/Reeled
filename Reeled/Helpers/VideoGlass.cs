@@ -178,9 +178,17 @@ public sealed class VideoGlass
         }
     }
 
+    /// <summary>Set while the video is playing; a paused frame only needs refreshing a few times a second (seeks).</summary>
+    public bool IsVideoPlaying { get; set; } = true;
+
+    private long _lastCopyTick;
+
     private void OnFrameTick(Microsoft.UI.Dispatching.DispatcherQueueTimer sender, object args)
     {
         if (_mirror == null) return;
+        long now = Environment.TickCount64;
+        if (!IsVideoPlaying && _mirror.Surface != null && now - _lastCopyTick < 250) return;
+        _lastCopyTick = now;
         // Nothing to copy while every glass layer is hidden (controls auto-hidden, no flyout open)
         bool anyShown = false;
         foreach (var pane in _panes)

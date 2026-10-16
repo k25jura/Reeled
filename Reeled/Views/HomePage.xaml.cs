@@ -54,6 +54,7 @@ public sealed partial class HomePage : Page
             {
                 UpdateGridResponsiveLayout();
             });
+            UpdateUpdateIndicator(animate: false);
 
             // The page is cached, so Loaded fires again every time we come back from Settings.
             // Everything below subscribes handlers and must only run once.
@@ -61,6 +62,7 @@ public sealed partial class HomePage : Page
             _isWired = true;
 
             RegisterLibraryShortcuts();
+            WireUpdateNotifications();
 
             if (ClipsGridView != null)
             {
@@ -3193,6 +3195,198 @@ public sealed partial class HomePage : Page
         if (sender is UIElement el)
         {
             ResetElementScale(el);
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Update indicator & prompt
+    // ---------------------------------------------------------------------------------------------
+
+    private enum UpdateTipKind { Available, Ready, Updated, Failed }
+
+    private UpdateTipKind _updateTipKind;
+    private bool _isUpdateIndicatorShown;
+    private Storyboard? _updateIndicatorStoryboard;
+
+    private static ViewModels.SettingsViewModel SettingsVM => App.GetService<ViewModels.SettingsViewModel>();
+
+    private void WireUpdateNotifications()
+    {
+        var vm = SettingsVM;
+        vm.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName is nameof(ViewModels.SettingsViewModel.IsUpdateAvailable)
+                or nameof(ViewModels.SettingsViewModel.IsUpdateReadyToInstall)
+                or nameof(ViewModels.SettingsViewModel.UpdateAvailableVersion))
+            {
+                DispatcherQueue.TryEnqueue(() => UpdateUpdateIndicator(animate: true));
+            }
+
+            // A background download finished: offer the restart once
+            if (e.PropertyName == nameof(ViewModels.SettingsViewModel.IsUpdateReadyToInstall) && vm.IsUpdateReadyToInstall &&
+                vm.CanSelfUpdate && !vm.IsUpdatePromptDismissed(ready: true))
+            {
+                DispatcherQueue.TryEnqueue(() => ShowUpdateTip(UpdateTipKind.Ready));
+            }
+        };
+        vm.UpdatePromptRequested += (s, e) => DispatcherQueue.TryEnqueue(() =>
+        {
+            // When it downloads on its own, wait and offer the restart instead of two prompts in a row
+            if (vm.AutoDownloadUpdates && vm.CanSelfUpdate) return;
+            ShowUpdateTip(UpdateTipKind.Available);
+        });
+
+        UpdateUpdateIndicator(animate: false);
+
+        // Greet after an update (or report a failed one) once the library has settled
+        string? notice = vm.TakeLaunchUpdateNotice();
+        UpdateTipKind? launchTip = notice switch
+        {
+            "updated" => UpdateTipKind.Updated,
+            "failed" => UpdateTipKind.Failed,
+            _ => vm.IsUpdateReadyToInstall && vm.CanSelfUpdate && !vm.IsUpdatePromptDismissed(ready: true) ? UpdateTipKind.Ready : null
+        };
+        if (launchTip is UpdateTipKind kind)
+        {
+            var timer = DispatcherQueue.CreateTimer();
+            timer.Interval = TimeSpan.FromMilliseconds(1200);
+            timer.IsRepeating = false;
+            timer.Tick += (t, _) => ShowUpdateTip(kind);
+            timer.Start();
+        }
+    }
+
+    private void UpdateUpdateIndicator(bool animate)
+    {
+        if (UpdateAvailableButton == null) return;
+        var vm = SettingsVM;
+        bool show = vm.IsUpdateAvailable;
+
+        var loc = App.GetService<Services.ILocalizationService>();
+        ToolTipService.SetToolTip(UpdateAvailableButton, string.Format(loc["Update_Sidebar_Tooltip"], vm.UpdateAvailableVersion));
+        if (UpdateButtonIcon != null)
+        {
+            // Download arrow while it's on the server, restart arrow once it's ready
+            UpdateButtonIcon.Glyph = vm.IsUpdateReadyToInstall && vm.CanSelfUpdate ? "\uE777" : "\uE896";
+        }
+
+        if (show == _isUpdateIndicatorShown && animate) return;
+        _isUpdateIndicatorShown = show;
+        _updateIndicatorStoryboard?.Stop();
+
+        if (!animate || Helpers.Motion.IsReduced)
+        {
+            UpdateAvailableButton.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            UpdateAvailableButton.Opacity = show ? 1 : 0;
+            UpdateButtonScale.ScaleX = UpdateButtonScale.ScaleY = show ? 1 : 0.6;
+            return;
+        }
+
+        UpdateAvailableButton.Visibility = Visibility.Visible;
+        var sb = new Storyboard();
+        var duration = TimeSpan.FromMilliseconds(show ? 360 : 160);
+        EasingFunctionBase ease = show
+            ? new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.35 }
+            : new CubicEase { EasingMode = EasingMode.EaseIn };
+
+        var fade = new DoubleAnimation { To = show ? 1 : 0, Duration = TimeSpan.FromMilliseconds(show ? 200 : 160) };
+        Storyboard.SetTarget(fade, UpdateAvailableButton);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+        sb.Children.Add(fade);
+        foreach (var axis in new[] { "ScaleX", "ScaleY" })
+        {
+            var scale = new DoubleAnimation { To = show ? 1 : 0.6, Duration = duration, EasingFunction = ease };
+            Storyboard.SetTarget(scale, UpdateButtonScale);
+            Storyboard.SetTargetProperty(scale, axis);
+            sb.Children.Add(scale);
+        }
+        sb.Completed += (s, e) =>
+        {
+            if (!_isUpdateIndicatorShown) UpdateAvailableButton.Visibility = Visibility.Collapsed;
+        };
+        _updateIndicatorStoryboard = sb;
+        sb.Begin();
+    }
+
+    private void ShowUpdateTip(UpdateTipKind kind)
+    {
+        if (UpdateTeachingTip == null) return;
+        var vm = SettingsVM;
+        var loc = App.GetService<Services.ILocalizationService>();
+        _updateTipKind = kind;
+
+        string version = vm.UpdateAvailableVersion;
+        switch (kind)
+        {
+            case UpdateTipKind.Available:
+                UpdateTeachingTip.Title = loc["Update_Prompt_Title"];
+                UpdateTeachingTip.Subtitle = string.Format(loc["Update_Prompt_Body"], version);
+                UpdateTeachingTip.ActionButtonContent = loc["Update_Prompt_View"];
+                UpdateTeachingTip.CloseButtonContent = loc["Update_Prompt_Later"];
+                break;
+            case UpdateTipKind.Ready:
+                UpdateTeachingTip.Title = loc["Update_Prompt_Title"];
+                UpdateTeachingTip.Subtitle = string.Format(loc["Update_Prompt_BodyReady"], version);
+                UpdateTeachingTip.ActionButtonContent = loc["Update_Prompt_Restart"];
+                UpdateTeachingTip.CloseButtonContent = loc["Update_Prompt_Later"];
+                break;
+            case UpdateTipKind.Updated:
+                UpdateTeachingTip.Title = loc["Update_Updated_Title"];
+                UpdateTeachingTip.Subtitle = string.Format(loc["Update_Updated_Body"], vm.CurrentVersionTag);
+                UpdateTeachingTip.ActionButtonContent = loc["Update_Updated_Notes"];
+                UpdateTeachingTip.CloseButtonContent = loc["Update_Prompt_Close"];
+                break;
+            case UpdateTipKind.Failed:
+                UpdateTeachingTip.Title = loc["Update_Failed_Title"];
+                UpdateTeachingTip.Subtitle = string.Format(loc["Update_Failed_Body"], vm.CurrentVersionTag);
+                UpdateTeachingTip.ActionButtonContent = loc["Update_Prompt_View"];
+                UpdateTeachingTip.CloseButtonContent = loc["Update_Prompt_Close"];
+                break;
+        }
+
+        // Point at the sidebar icon when it's on screen, otherwise float in the corner
+        FrameworkElement? target = null;
+        if (ViewModel.IsSidebarOpen)
+        {
+            if (UpdateAvailableButton.Visibility == Visibility.Visible) target = UpdateAvailableButton;
+            else if (kind is UpdateTipKind.Updated or UpdateTipKind.Failed) target = SettingsNavButton;
+        }
+        UpdateTeachingTip.Target = target;
+        UpdateTeachingTip.PreferredPlacement = target != null ? TeachingTipPlacementMode.RightBottom : TeachingTipPlacementMode.BottomRight;
+        UpdateTeachingTip.IsOpen = true;
+    }
+
+    private void OnUpdateAvailableButtonClick(object sender, RoutedEventArgs e)
+    {
+        var vm = SettingsVM;
+        ShowUpdateTip(vm.IsUpdateReadyToInstall && vm.CanSelfUpdate ? UpdateTipKind.Ready : UpdateTipKind.Available);
+    }
+
+    private async void OnUpdateTipActionClick(TeachingTip sender, object args)
+    {
+        sender.IsOpen = false;
+        var vm = SettingsVM;
+        switch (_updateTipKind)
+        {
+            case UpdateTipKind.Ready:
+                await vm.InstallUpdateAsync();
+                break;
+            case UpdateTipKind.Updated:
+                await Windows.System.Launcher.LaunchUriAsync(new Uri($"https://github.com/k25jura/Reeled/releases/tag/{vm.CurrentVersionTag}"));
+                break;
+            default:
+                vm.PendingSection = "UpdateSection";
+                ViewModel.OpenSettings();
+                break;
+        }
+    }
+
+    private void OnUpdateTipCloseClick(TeachingTip sender, object args)
+    {
+        sender.IsOpen = false;
+        if (_updateTipKind is UpdateTipKind.Available or UpdateTipKind.Ready)
+        {
+            SettingsVM.DismissUpdatePrompt(ready: _updateTipKind == UpdateTipKind.Ready);
         }
     }
 

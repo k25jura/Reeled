@@ -41,6 +41,12 @@ public class AppSettings
     public bool ReduceMotion { get; set; } = false;
     public string? GitHubToken { get; set; }
     public DateTime? LastUpdateCheckUtc { get; set; }
+    /// <summary>Download updates in the background; they install when Reeled closes.</summary>
+    public bool AutoDownloadUpdates { get; set; } = true;
+    /// <summary>Release tag whose "update available" prompt was already shown.</summary>
+    public string? DismissedUpdateVersion { get; set; }
+    /// <summary>Version that ran last, to greet the user after an update.</summary>
+    public string? LastRunVersion { get; set; }
     public bool ResumePlayback { get; set; } = true;
     /// <summary>Last playback position (ms) per clip path, for resuming long clips.</summary>
     public Dictionary<string, long> ResumePositions { get; set; } = new();

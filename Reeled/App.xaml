@@ -16,6 +16,8 @@
                 <ResourceDictionary>
                     <ResourceDictionary.ThemeDictionaries>
                         <ResourceDictionary x:Key="Default">
+                            <!-- Update indicator: always Windows blue, independent of the accent colour -->
+                            <SolidColorBrush x:Key="UpdateAccentBrush" Color="#4CC2FF" />
                             <Color x:Key="SolidBackgroundFillColorBase">#101010</Color>
                             <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
 
@@ -68,6 +70,8 @@
                         </ResourceDictionary>
 
                         <ResourceDictionary x:Key="Dark">
+                            <!-- Update indicator: always Windows blue, independent of the accent colour -->
+                            <SolidColorBrush x:Key="UpdateAccentBrush" Color="#4CC2FF" />
                             <Color x:Key="SolidBackgroundFillColorBase">#101010</Color>
                             <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
 
@@ -120,6 +124,8 @@
                         </ResourceDictionary>
 
                         <ResourceDictionary x:Key="Light">
+                            <!-- Update indicator: always Windows blue, independent of the accent colour -->
+                            <SolidColorBrush x:Key="UpdateAccentBrush" Color="#005FB8" />
                             <Color x:Key="SolidBackgroundFillColorBase">#F0F0F3</Color>
                             <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
 

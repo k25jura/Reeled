@@ -57,7 +57,11 @@ public sealed partial class SettingsPage : Page
             }
             else if (e.PropertyName == nameof(SettingsViewModel.IsUpdateAvailable))
             {
-                AnimateUpdateCard(ViewModel.IsUpdateAvailable);
+                if (IsLoaded) AnimateUpdateCard(ViewModel.IsUpdateAvailable);
+            }
+            else if (e.PropertyName == nameof(SettingsViewModel.UpdateAvailableNotes))
+            {
+                RenderUpdateNotes();
             }
             else if (e.PropertyName == nameof(SettingsViewModel.IsDownloadingUpdate))
             {
@@ -68,11 +72,15 @@ public sealed partial class SettingsPage : Page
         Loaded += (s, e) =>
         {
             ApplyLocalization(ViewModel.Loc);
+            // An update may have been found in the background while this page wasn't shown
+            RenderUpdateNotes();
+            SetUpdateCardState(ViewModel.IsUpdateAvailable);
             UpdateThemeVisuals(ActualTheme);
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
                 _isInitializing = false;
-                string targetCategory = string.IsNullOrEmpty(_activeSectionTag) ? "FoldersSection" : _activeSectionTag;
+                string targetCategory = ViewModel.ConsumePendingSection()
+                    ?? (string.IsNullOrEmpty(_activeSectionTag) ? "FoldersSection" : _activeSectionTag);
                 SetActiveCategory(targetCategory, animate: false);
                 UpdateTitleBarDragArea();
             });
@@ -851,6 +859,36 @@ public sealed partial class SettingsPage : Page
         }
     }
 
+    private void RenderUpdateNotes()
+    {
+        if (UpdateNotesBlock == null) return;
+        Helpers.ReleaseNotes.Render(UpdateNotesBlock, ViewModel.UpdateAvailableNotes);
+        if (UpdateNotesScroller != null)
+        {
+            UpdateNotesScroller.Visibility = UpdateNotesBlock.Blocks.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
+    private void SetUpdateCardState(bool open)
+    {
+        if (UpdateAvailableBorder == null || UpdateAvailableTranslation == null) return;
+        _updateCardStoryboard?.Stop();
+        UpdateAvailableBorder.Height = open ? double.NaN : 0;
+        UpdateAvailableBorder.Opacity = open ? 1.0 : 0.0;
+        UpdateAvailableTranslation.Y = open ? 0.0 : -8.0;
+        UpdateAvailableBorder.IsHitTestVisible = open;
+        if (UpdateActionButtonsContainer != null && UpdateProgressContainer != null)
+        {
+            bool busy = ViewModel.IsDownloadingUpdate;
+            UpdateActionButtonsContainer.Visibility = busy ? Visibility.Collapsed : Visibility.Visible;
+            UpdateActionButtonsContainer.Opacity = busy ? 0.0 : 1.0;
+            UpdateProgressContainer.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+            UpdateProgressContainer.Opacity = busy ? 1.0 : 0.0;
+            if (ProgressTranslation != null) ProgressTranslation.Y = 0;
+            if (ActionButtonsTranslation != null) ActionButtonsTranslation.Y = 0;
+        }
+    }
+
     private void AnimateUpdateCard(bool open)
     {
         if (UpdateAvailableBorder == null || UpdateAvailableTranslation == null) return;
@@ -863,7 +901,16 @@ public sealed partial class SettingsPage : Page
 
         const double durationMs = 240.0;
         double startHeight = open ? 0.0 : UpdateAvailableBorder.ActualHeight;
-        double targetHeight = open ? 134.0 : 0.0;
+        // Measure the real content height (release notes vary in length) instead of guessing
+        double targetHeight = 0.0;
+        if (open)
+        {
+            double width = UpdateAvailableBorder.ActualWidth > 0 ? UpdateAvailableBorder.ActualWidth : (UpdateSection?.ActualWidth ?? 600);
+            UpdateAvailableBorder.Height = double.NaN;
+            UpdateAvailableBorder.Measure(new Windows.Foundation.Size(width, double.PositiveInfinity));
+            targetHeight = UpdateAvailableBorder.DesiredSize.Height;
+            UpdateAvailableBorder.Height = startHeight;
+        }
         double targetOpacity = open ? 1.0 : 0.0;
         double targetY = open ? 0.0 : -8.0;
 
@@ -1250,12 +1297,13 @@ public sealed partial class SettingsPage : Page
         if (CheckUpdatesButtonText != null) CheckUpdatesButtonText.Text = loc["Updates_CheckButton"];
         if (AutoCheckUpdatesTitleText != null) AutoCheckUpdatesTitleText.Text = loc["Updates_AutoCheckTitle"];
         if (AutoCheckUpdatesSubtitleText != null) AutoCheckUpdatesSubtitleText.Text = loc["Updates_AutoCheckSubtitle"];
+        if (AutoDownloadUpdatesTitleText != null) AutoDownloadUpdatesTitleText.Text = loc["Updates_AutoDownloadTitle"];
+        if (AutoDownloadUpdatesSubtitleText != null) AutoDownloadUpdatesSubtitleText.Text = loc["Updates_AutoDownloadSubtitle"];
         if (GitHubTokenTitleText != null) GitHubTokenTitleText.Text = loc["Updates_GitHubTokenTitle"];
         if (GitHubTokenSubtitleText != null) GitHubTokenSubtitleText.Text = loc["Updates_GitHubTokenSubtitle"];
-        if (UpdateAvailableNotes != null && string.IsNullOrEmpty(ViewModel.UpdateAvailableNotes)) UpdateAvailableNotes.Text = loc["Updates_AvailableNotes"];
         if (PatchNotesText != null) PatchNotesText.Text = loc["Updates_PatchNotes"];
         if (DownloadUpdateButton != null) DownloadUpdateButton.Content = loc["Updates_DownloadButton"];
-        if (InstallUpdateButton != null) InstallUpdateButton.Content = loc["Updates_InstallButton"];
+        if (InstallUpdateButton != null) InstallUpdateButton.Content = loc[ViewModel.CanSelfUpdate ? "Updates_InstallButton" : "Updates_RunInstallerButton"];
 
         // 7. About Section
         if (AboutSectionTitle != null) AboutSectionTitle.Text = loc["Cat_About"];

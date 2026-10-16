@@ -50,7 +50,10 @@ jobs:
       - name: Generate SHA256 Checksums
         shell: pwsh
         run: |
-          Get-FileHash -Path artifacts\ReeledSetup.exe -Algorithm SHA256 | Out-File -FilePath artifacts\checksums.txt
+          # "HASH  file" lines; the in-app updater verifies payload.zip against this file
+          Get-FileHash -Path artifacts\ReeledSetup.exe, artifacts\payload.zip -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash)  $(Split-Path $_.Path -Leaf)" } |
+            Out-File -FilePath artifacts\checksums.txt -Encoding ascii
           Get-Content artifacts\checksums.txt
 
       - name: Create GitHub Release

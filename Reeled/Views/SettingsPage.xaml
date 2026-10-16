@@ -1442,6 +1442,11 @@
                                                    FontWeight="SemiBold" 
                                                    VerticalAlignment="Center" 
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock Text="{x:Bind ViewModel.UpdateAssetSizeFormatted, Mode=OneWay}"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,2,0,0"
+                                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                                     </StackPanel>
 
                                     <!-- Patch Notes Link (Redirects to GitHub release page) -->
@@ -1464,12 +1469,19 @@
                                     </HyperlinkButton>
                                 </Grid>
 
-                                <!-- Release Notes / Summary -->
-                                <TextBlock x:Name="UpdateAvailableNotes"
-                                           Text="{x:Bind ViewModel.UpdateAvailableNotes, Mode=OneWay}" 
-                                           Style="{ThemeResource CaptionTextBlockStyle}" 
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                           TextWrapping="Wrap" />
+                                <!-- Release notes, rendered from the GitHub Markdown (Helpers.ReleaseNotes) -->
+                                <ScrollViewer x:Name="UpdateNotesScroller"
+                                              MaxHeight="260"
+                                              Padding="0,0,12,0"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <RichTextBlock x:Name="UpdateNotesBlock"
+                                                   FontSize="13"
+                                                   LineHeight="20"
+                                                   IsTextSelectionEnabled="False"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                </ScrollViewer>
 
                                 <!-- Action / Progress Transition Host -->
                                 <Grid x:Name="UpdateTransitionHost" MinHeight="36">
@@ -1515,7 +1527,7 @@
                                                     Command="{x:Bind ViewModel.DownloadUpdateCommand}"
                                                     Visibility="{x:Bind ViewModel.CanDownloadUpdate, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                                     Style="{ThemeResource AccentButtonStyle}"
-                                                    Content="Download &amp; Install"
+                                                    Content="Download update"
                                                     HorizontalAlignment="Center"
                                                     Padding="32,7"
                                                     CornerRadius="6" />
@@ -1524,7 +1536,7 @@
                                                     Command="{x:Bind ViewModel.InstallUpdateCommand}"
                                                     Visibility="{x:Bind ViewModel.IsUpdateReadyToInstall, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                                     Style="{ThemeResource AccentButtonStyle}"
-                                                    Content="Install and Restart"
+                                                    Content="Restart to update"
                                                     HorizontalAlignment="Center"
                                                     Padding="32,7"
                                                     CornerRadius="6" />
@@ -1558,6 +1570,40 @@
 
                                 <ToggleSwitch Grid.Column="2" 
                                               IsOn="{x:Bind ViewModel.AutoCheckUpdates, Mode=TwoWay}" 
+                                              OnContent="" 
+                                              OffContent="" 
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 3b: Background download (installs when Reeled closes) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE896;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="AutoDownloadUpdatesTitleText" Text="Download updates automatically" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="AutoDownloadUpdatesSubtitleText" Text="Updates download in the background and install the next time you close Reeled" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               TextWrapping="Wrap"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2" 
+                                              IsOn="{x:Bind ViewModel.AutoDownloadUpdates, Mode=TwoWay}" 
+                                              IsEnabled="{x:Bind ViewModel.AutoCheckUpdates, Mode=OneWay}"
                                               OnContent="" 
                                               OffContent="" 
                                               MinWidth="0"

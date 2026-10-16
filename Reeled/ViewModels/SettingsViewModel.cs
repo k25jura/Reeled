@@ -131,7 +131,37 @@ public partial class SettingsViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanDownloadUpdate))]
     private bool _isUpdateReadyToInstall;
 
+    /// <summary>Download finished; the package is being verified and unpacked.</summary>
+    [ObservableProperty]
+    private bool _isPreparingUpdate;
+
     public bool CanDownloadUpdate => !IsDownloadingUpdate && !IsUpdateReadyToInstall;
+
+    /// <summary>Whether this copy can install updates itself (installed copies) or only download the setup.</summary>
+    public bool CanSelfUpdate => _updateService.CanSelfUpdate;
+
+    [ObservableProperty]
+    private bool _autoDownloadUpdates = true;
+
+    partial void OnAutoDownloadUpdatesChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.AutoDownloadUpdates == value) return;
+        settings.AutoDownloadUpdates = value;
+        _ = _storageService.SaveSettingsAsync(settings);
+        if (value && IsUpdateAvailable && !IsUpdateReadyToInstall && !IsDownloadingUpdate)
+        {
+            _ = DownloadUpdateCoreAsync(silent: true);
+        }
+    }
+
+    /// <summary>Raised when a background check finds a version the user hasn't been told about yet.</summary>
+    public event EventHandler? UpdatePromptRequested;
+
+    private StagedUpdate? _stagedUpdate;
+    private bool _isApplyingUpdate;
+    private bool _checkedThisSession;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _updateTimer;
 
     [ObservableProperty]
     private double _downloadProgress;
@@ -265,6 +295,7 @@ public partial class SettingsViewModel : ObservableObject
             _ => 0
         };
         AutoCheckUpdates = _storageService.CurrentSettings.AutoCheckUpdates;
+        AutoDownloadUpdates = _storageService.CurrentSettings.AutoDownloadUpdates;
         ReduceMotion = _storageService.CurrentSettings.ReduceMotion;
         ResumePlayback = _storageService.CurrentSettings.ResumePlayback;
         BackdropBlurLevel = _storageService.CurrentSettings.BackdropBlurLevel;
@@ -319,13 +350,30 @@ public partial class SettingsViewModel : ObservableObject
         CalculateClipCacheSize();
         UpdateDiagnostics();
         UpdateLastCheckedText();
-        if (IsUpdateAvailable)
+        RefreshUpdateStatusText();
+    }
+
+    private void RefreshUpdateStatusText()
+    {
+        if (IsCheckingForUpdates)
         {
-            UpdateStatusFormatted = _localizationService["Updates_StatusAvailable"];
+            UpdateStatusFormatted = _localizationService["Updates_StatusChecking"];
         }
         else if (IsUpdateReadyToInstall)
         {
-            UpdateStatusFormatted = _localizationService["Updates_StatusReady"];
+            UpdateStatusFormatted = string.Format(_localizationService["Updates_StatusReadyFormat"], UpdateAvailableVersion);
+        }
+        else if (IsPreparingUpdate)
+        {
+            UpdateStatusFormatted = _localizationService["Updates_StatusPreparing"];
+        }
+        else if (IsDownloadingUpdate)
+        {
+            UpdateStatusFormatted = _localizationService["Updates_StatusDownloading"];
+        }
+        else if (IsUpdateAvailable)
+        {
+            UpdateStatusFormatted = string.Format(_localizationService["Updates_StatusAvailableFormat"], UpdateAvailableVersion);
         }
         else
         {
@@ -750,50 +798,58 @@ public partial class SettingsViewModel : ObservableObject
 
     private async Task CheckForUpdatesCoreAsync(bool silent)
     {
-        if (IsCheckingForUpdates || IsDownloadingUpdate) return;
+        if (IsCheckingForUpdates || IsDownloadingUpdate || IsPreparingUpdate || _isApplyingUpdate) return;
 
         IsCheckingForUpdates = true;
-        UpdateStatusFormatted = _localizationService["Updates_StatusChecking"];
-        IsUpdateAvailable = false;
-        IsDownloadingUpdate = false;
-        IsUpdateReadyToInstall = false;
+        RefreshUpdateStatusText();
 
         try
         {
             var info = await _updateService.CheckForUpdatesAsync(GitHubToken);
-            _currentUpdateInfo = info;
 
             if (info.IsUpdateAvailable)
             {
-                IsUpdateAvailable = true;
-                UpdateAvailableVersion = !string.IsNullOrEmpty(info.LatestVersionTag) ? info.LatestVersionTag : $"v{info.LatestVersion}";
-                UpdateAvailableNotes = !string.IsNullOrWhiteSpace(info.ReleaseNotes)
-                    ? info.ReleaseNotes
-                    : (!string.IsNullOrWhiteSpace(info.ReleaseName) ? info.ReleaseName : _localizationService["Updates_AvailableNotes"]);
+                _currentUpdateInfo = info;
+                string tag = !string.IsNullOrEmpty(info.LatestVersionTag) ? info.LatestVersionTag : $"v{info.LatestVersion}";
+                bool isNewVersion = UpdateAvailableVersion != tag;
+                UpdateAvailableVersion = tag;
+                UpdateAvailableNotes = info.ReleaseNotes;
                 UpdateReleaseUrl = info.ReleaseHtmlUrl;
                 UpdateAssetSizeFormatted = info.AssetSizeFormatted;
-                UpdateStatusFormatted = _localizationService["Updates_StatusAvailable"];
-                UpdatesStatusMessage = string.Format(_localizationService["Updates_StatusAvailable"]);
+
+                // A newer release than the one already staged replaces it
+                if (_stagedUpdate != null && info.LatestVersion != null && info.LatestVersion > _stagedUpdate.Version)
+                {
+                    _stagedUpdate = null;
+                    IsUpdateReadyToInstall = false;
+                }
+                IsUpdateAvailable = true;
+
+                if (!silent)
+                {
+                    UpdatesStatusMessage = string.Format(_localizationService["Updates_StatusAvailableFormat"], tag);
+                }
+
+                if (silent && isNewVersion && !IsUpdatePromptDismissed(ready: false))
+                {
+                    UpdatePromptRequested?.Invoke(this, EventArgs.Empty);
+                }
+
+                if (silent && AutoDownloadUpdates && CanSelfUpdate && !IsUpdateReadyToInstall)
+                {
+                    _ = DownloadUpdateCoreAsync(silent: true);
+                }
             }
-            else
+            else if (!string.IsNullOrEmpty(info.ErrorMessage))
             {
-                IsUpdateAvailable = false;
-                if (!string.IsNullOrEmpty(info.ErrorMessage))
+                if (!silent)
                 {
-                    UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
-                    if (!silent)
-                    {
-                        UpdatesStatusMessage = string.Format(_localizationService["Updates_ErrorCheck"], info.ErrorMessage);
-                    }
+                    UpdatesStatusMessage = string.Format(_localizationService["Updates_ErrorCheck"], info.ErrorMessage);
                 }
-                else
-                {
-                    UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
-                    if (!silent)
-                    {
-                        UpdatesStatusMessage = string.Format(_localizationService["Updates_NoUpdates"], info.CurrentVersion);
-                    }
-                }
+            }
+            else if (!silent && !IsUpdateAvailable)
+            {
+                UpdatesStatusMessage = string.Format(_localizationService["Updates_NoUpdates"], info.CurrentVersion);
             }
 
             if (string.IsNullOrEmpty(info.ErrorMessage))
@@ -806,8 +862,6 @@ public partial class SettingsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            IsUpdateAvailable = false;
-            UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
             if (!silent)
             {
                 UpdatesStatusMessage = string.Format(_localizationService["Updates_ErrorCheck"], ex.Message);
@@ -816,17 +870,21 @@ public partial class SettingsViewModel : ObservableObject
         finally
         {
             IsCheckingForUpdates = false;
+            RefreshUpdateStatusText();
         }
     }
 
     [RelayCommand]
-    public async Task DownloadUpdateAsync()
-    {
-        if (IsDownloadingUpdate || _currentUpdateInfo == null) return;
+    public Task DownloadUpdateAsync() => DownloadUpdateCoreAsync(silent: false);
 
-        if (string.IsNullOrWhiteSpace(_currentUpdateInfo.AssetDownloadUrl))
+    private async Task DownloadUpdateCoreAsync(bool silent)
+    {
+        if (IsDownloadingUpdate || IsPreparingUpdate || _currentUpdateInfo == null) return;
+
+        bool selfUpdate = CanSelfUpdate && !string.IsNullOrWhiteSpace(_currentUpdateInfo.PackageDownloadUrl);
+        if (!selfUpdate && string.IsNullOrWhiteSpace(_currentUpdateInfo.InstallerDownloadUrl))
         {
-            if (!string.IsNullOrWhiteSpace(_currentUpdateInfo.ReleaseHtmlUrl))
+            if (!silent && !string.IsNullOrWhiteSpace(_currentUpdateInfo.ReleaseHtmlUrl))
             {
                 await Windows.System.Launcher.LaunchUriAsync(new Uri(_currentUpdateInfo.ReleaseHtmlUrl));
             }
@@ -836,9 +894,20 @@ public partial class SettingsViewModel : ObservableObject
         IsDownloadingUpdate = true;
         DownloadProgress = 0;
         DownloadProgressFormatted = $"{_localizationService["Updates_StatusDownloading"]} 0%";
+        DownloadProgressDetailed = string.Empty;
+        RefreshUpdateStatusText();
 
         var progress = new Progress<DownloadProgressReport>(report =>
         {
+            if (report.IsPreparing)
+            {
+                IsPreparingUpdate = true;
+                DownloadProgress = 100;
+                DownloadProgressFormatted = _localizationService["Updates_StatusPreparing"];
+                DownloadProgressDetailed = string.Empty;
+                RefreshUpdateStatusText();
+                return;
+            }
             DownloadProgress = report.Percent;
             DownloadProgressFormatted = $"{_localizationService["Updates_StatusDownloading"]} {(int)report.Percent}%";
             DownloadProgressDetailed = string.Format(_localizationService["Updates_Progress_Format"], report.DownloadedMbFormatted, report.TotalMbFormatted, (int)report.Percent, report.SpeedFormatted);
@@ -846,40 +915,180 @@ public partial class SettingsViewModel : ObservableObject
 
         try
         {
-            DownloadedFilePath = await _updateService.DownloadUpdateAssetAsync(_currentUpdateInfo, progress);
+            if (selfUpdate)
+            {
+                _stagedUpdate = await _updateService.DownloadAndStageAsync(_currentUpdateInfo, progress);
+            }
+            else
+            {
+                DownloadedFilePath = await _updateService.DownloadInstallerAsync(_currentUpdateInfo, progress);
+            }
             IsDownloadingUpdate = false;
+            IsPreparingUpdate = false;
             IsUpdateReadyToInstall = true;
-            UpdateStatusFormatted = _localizationService["Updates_StatusReady"];
         }
         catch (Exception ex)
         {
+            Helpers.Log.Error("Update.Download", ex);
             IsDownloadingUpdate = false;
-            UpdatesStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
-            UpdateStatusFormatted = _localizationService["Updates_StatusAvailable"];
+            IsPreparingUpdate = false;
+            if (!silent)
+            {
+                UpdatesStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
+            }
+        }
+        finally
+        {
+            RefreshUpdateStatusText();
         }
     }
 
     [RelayCommand]
     public async Task InstallUpdateAsync()
     {
-        if (string.IsNullOrEmpty(DownloadedFilePath) || !File.Exists(DownloadedFilePath))
+        if (_stagedUpdate != null && CanSelfUpdate)
         {
-            if (!string.IsNullOrEmpty(_currentUpdateInfo?.ReleaseHtmlUrl))
+            try
             {
-                await Windows.System.Launcher.LaunchUriAsync(new Uri(_currentUpdateInfo.ReleaseHtmlUrl));
+                _isApplyingUpdate = true;
+                _updateService.ApplyStagedUpdate(_stagedUpdate, restart: true);
+                // The helper waits for this process to exit before swapping files
+                App.Window?.Close();
+            }
+            catch (Exception ex)
+            {
+                // Declined elevation prompt or a missing helper: keep running
+                _isApplyingUpdate = false;
+                UpdatesStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
             }
             return;
         }
 
+        if (!string.IsNullOrEmpty(DownloadedFilePath) && File.Exists(DownloadedFilePath))
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(DownloadedFilePath) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                UpdatesStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
+            }
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(_currentUpdateInfo?.ReleaseHtmlUrl))
+        {
+            await Windows.System.Launcher.LaunchUriAsync(new Uri(_currentUpdateInfo.ReleaseHtmlUrl));
+        }
+    }
+
+    /// <summary>Section the Settings page should open on next (e.g. "UpdateSection" from the update prompt).</summary>
+    public string? PendingSection { get; set; }
+
+    public string? ConsumePendingSection()
+    {
+        var section = PendingSection;
+        PendingSection = null;
+        return section;
+    }
+
+    private bool _launchNoticeTaken;
+
+    /// <summary>
+    /// Once per launch: "updated" right after an update was installed, "failed" when the updater reported a
+    /// failure, otherwise null. Also records the running version for the next launch.
+    /// </summary>
+    public string? TakeLaunchUpdateNotice()
+    {
+        if (_launchNoticeTaken) return null;
+        _launchNoticeTaken = true;
+
+        var args = Environment.GetCommandLineArgs();
+        bool failed = Array.Exists(args, a => string.Equals(a, "--update-failed", StringComparison.OrdinalIgnoreCase));
+
+        var settings = _storageService.CurrentSettings;
+        string current = _updateService.CurrentVersion.ToString();
+        bool updated = Version.TryParse(settings.LastRunVersion, out var lastRun) && _updateService.CurrentVersion > lastRun;
+        if (settings.LastRunVersion != current)
+        {
+            settings.LastRunVersion = current;
+            _ = _storageService.SaveSettingsAsync(settings);
+        }
+
+        if (failed) return "failed";
+        return updated ? "updated" : null;
+    }
+
+    public string CurrentVersionTag => $"v{_updateService.CurrentVersion}";
+
+    private string PromptKey(bool ready) => ready ? UpdateAvailableVersion + ":ready" : UpdateAvailableVersion;
+
+    /// <summary>Whether the prompt for the current update state was already shown and dismissed.</summary>
+    public bool IsUpdatePromptDismissed(bool ready) => _storageService.CurrentSettings.DismissedUpdateVersion == PromptKey(ready);
+
+    /// <summary>Remembers that the user saw the prompt for this version (and stage) so it doesn't pop up again.</summary>
+    public void DismissUpdatePrompt(bool ready)
+    {
+        var settings = _storageService.CurrentSettings;
+        string key = PromptKey(ready);
+        if (settings.DismissedUpdateVersion == key) return;
+        settings.DismissedUpdateVersion = key;
+        _ = _storageService.SaveSettingsAsync(settings);
+    }
+
+    /// <summary>
+    /// Called while the app closes: a downloaded update is swapped in silently, so the next launch is
+    /// already on the new version.
+    /// </summary>
+    public void ApplyPendingUpdateOnExit()
+    {
+        if (_isApplyingUpdate || _stagedUpdate == null || !CanSelfUpdate) return;
         try
         {
-            await _updateService.LaunchInstallerAsync(DownloadedFilePath);
-            UpdatesStatusMessage = _localizationService["Updates_Status_Installed"];
+            _isApplyingUpdate = true;
+            _updateService.ApplyStagedUpdate(_stagedUpdate, restart: false);
         }
         catch (Exception ex)
         {
-            UpdatesStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
+            Helpers.Log.Error("Update.ApplyOnExit", ex);
         }
+    }
+
+    /// <summary>
+    /// Startup: tidies old downloads, restores an update staged in an earlier session and starts the
+    /// periodic background check (the app often stays open for days, so checking once at launch isn't enough).
+    /// </summary>
+    public void StartUpdateMonitoring(Microsoft.UI.Dispatching.DispatcherQueue dispatcher)
+    {
+        _updateService.CleanupOldUpdates();
+
+        var staged = _updateService.GetStagedUpdate();
+        if (staged != null && CanSelfUpdate)
+        {
+            _stagedUpdate = staged;
+            UpdateAvailableVersion = staged.Tag;
+            IsUpdateAvailable = true;
+            IsUpdateReadyToInstall = true;
+            RefreshUpdateStatusText();
+        }
+
+        _updateTimer = dispatcher.CreateTimer();
+        _updateTimer.Interval = TimeSpan.FromSeconds(10);
+        _updateTimer.Tick += async (t, _) =>
+        {
+            // First tick waits for the library's first scan, later ones run hourly
+            t.Interval = TimeSpan.FromHours(1);
+            try
+            {
+                await AutoCheckForUpdatesAsync();
+            }
+            catch (Exception ex)
+            {
+                Helpers.Log.Error("AutoUpdateCheck", ex);
+            }
+        };
+        _updateTimer.Start();
     }
 
     partial void OnAutoCheckUpdatesChanged(bool value)
@@ -888,6 +1097,9 @@ public partial class SettingsViewModel : ObservableObject
         settings.AutoCheckUpdates = value;
         _ = _storageService.SaveSettingsAsync(settings);
     }
+
+    partial void OnIsUpdateReadyToInstallChanged(bool value) => RefreshUpdateStatusText();
+    partial void OnIsUpdateAvailableChanged(bool value) => RefreshUpdateStatusText();
 
     partial void OnResumePlaybackChanged(bool value)
     {
@@ -920,14 +1132,18 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Background check run shortly after launch when "Check for updates automatically" is on.
-    /// Throttled to once a day; results only surface in the Updates section.
+    /// Background check while "Check for updates automatically" is on, at most every 6 hours (the GitHub
+    /// API allows 60 anonymous requests an hour). A found update shows in the sidebar and as a prompt.
     /// </summary>
     public async Task AutoCheckForUpdatesAsync()
     {
         var settings = _storageService.CurrentSettings;
         if (!settings.AutoCheckUpdates) return;
-        if (settings.LastUpdateCheckUtc is DateTime last && DateTime.UtcNow - last < TimeSpan.FromHours(20)) return;
+        // Hourly ticks check at most every 6 hours; right after launch a shorter gap is enough, so an
+        // update found in an earlier session shows up again without waiting
+        var minGap = _checkedThisSession ? TimeSpan.FromHours(6) : TimeSpan.FromMinutes(30);
+        if (settings.LastUpdateCheckUtc is DateTime last && DateTime.UtcNow - last < minGap) return;
+        _checkedThisSession = true;
 
         await CheckForUpdatesCoreAsync(silent: true);
     }

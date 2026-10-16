@@ -411,6 +411,9 @@ public sealed partial class MainWindow : Window
             storage.SaveSettingsSync(storage.CurrentSettings);
         }
         catch { }
+
+        // A downloaded update installs once the app has closed
+        try { App.GetService<ViewModels.SettingsViewModel>().ApplyPendingUpdateOnExit(); } catch { }
     }
 
     private void OnWindowGlobalKeyDown(object sender, KeyRoutedEventArgs e)

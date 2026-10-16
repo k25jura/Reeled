@@ -685,13 +685,15 @@
                         BorderThickness="0,1,0,0" 
                         Background="{ThemeResource LayerFillColorDefaultBrush}"
                         Padding="14,10">
-                    <Grid ColumnSpacing="8">
+                    <Grid ColumnSpacing="4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
                         <Button Grid.Column="0" 
+                                x:Name="SettingsNavButton"
                                 HorizontalAlignment="Left" 
                                 HorizontalContentAlignment="Left"
                                 Command="{x:Bind ViewModel.OpenSettingsCommand}"
@@ -705,7 +707,30 @@
                             </StackPanel>
                         </Button>
 
-                        <Button Grid.Column="1" 
+                        <!-- Update available: accent icon that pops in when a new version is found -->
+                        <Button Grid.Column="1"
+                                x:Name="UpdateAvailableButton"
+                                Visibility="Collapsed"
+                                Opacity="0"
+                                RenderTransformOrigin="0.5,0.5"
+                                Click="OnUpdateAvailableButtonClick"
+                                Style="{ThemeResource SubtleButtonStyle}"
+                                PointerPressed="OnItemPointerPressed"
+                                PointerReleased="OnItemPointerReleased"
+                                PointerCanceled="OnItemPointerCanceled">
+                            <Button.RenderTransform>
+                                <ScaleTransform x:Name="UpdateButtonScale" ScaleX="0.6" ScaleY="0.6" />
+                            </Button.RenderTransform>
+                            <Grid>
+                                <FontIcon x:Name="UpdateButtonIcon" Glyph="&#xE896;" FontSize="14" Foreground="{ThemeResource UpdateAccentBrush}" />
+                                <Ellipse Width="6" Height="6"
+                                         HorizontalAlignment="Right" VerticalAlignment="Top"
+                                         Margin="0,-3,-4,0"
+                                         Fill="{ThemeResource UpdateAccentBrush}" />
+                            </Grid>
+                        </Button>
+
+                        <Button Grid.Column="2" 
                                 x:Name="RefreshClipsButton"
                                 ToolTipService.ToolTip="Refresh Clips"
                                 Command="{x:Bind ViewModel.RefreshClipsCommand}"
@@ -1399,5 +1424,18 @@
                 <FontIcon Glyph="&#xE70D;" FontSize="10" Foreground="#C0C0C0" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,4" />
             </Grid>
         </Canvas>
-    </Grid>
+    
+    <!-- Update prompt: anchored to the sidebar update icon (falls back to a corner when the sidebar is hidden) -->
+    <TeachingTip x:Name="UpdateTeachingTip"
+                 Grid.ColumnSpan="2"
+                 PreferredPlacement="RightBottom"
+                 IsLightDismissEnabled="True"
+                 ActionButtonStyle="{ThemeResource AccentButtonStyle}"
+                 ActionButtonClick="OnUpdateTipActionClick"
+                 CloseButtonClick="OnUpdateTipCloseClick">
+        <TeachingTip.IconSource>
+            <FontIconSource Glyph="&#xE896;" Foreground="{ThemeResource UpdateAccentBrush}" />
+        </TeachingTip.IconSource>
+    </TeachingTip>
+</Grid>
 </Page>

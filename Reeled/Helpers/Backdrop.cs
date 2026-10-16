@@ -36,14 +36,26 @@ public static class Backdrop
         (_, _) => (0.35, 0.62)
     };
 
+    /// <summary>Gaussian blur radius for the video glass (Helpers.VideoGlass).</summary>
+    public static float GetBlurAmount() => Level switch
+    {
+        0 => 16f,
+        2 => 48f,
+        _ => 30f
+    };
+
     /// <summary>Updates an existing acrylic brush in place so every element using it follows the setting.</summary>
-    public static void Apply(AcrylicBrush brush, Color tintColor, Surface surface)
+    /// <param name="overVideo">
+    /// Acrylic can't sample the video swap chain (it turns black), so surfaces over the video always use the
+    /// fallback colour and get their blur from <see cref="VideoGlass"/> instead.
+    /// </param>
+    public static void Apply(AcrylicBrush brush, Color tintColor, Surface surface, bool overVideo = false)
     {
         var (tint, luminosity) = GetTint(surface);
         brush.TintColor = tintColor;
         brush.TintOpacity = tint;
         brush.TintLuminosityOpacity = luminosity;
-        brush.AlwaysUseFallback = !IsEnabled;
+        brush.AlwaysUseFallback = overVideo || !IsEnabled;
         // Without blur the surface must stay readable over bright video
         brush.FallbackColor = Color.FromArgb(IsEnabled ? (byte)0xD9 : (byte)0xF5, tintColor.R, tintColor.G, tintColor.B);
     }

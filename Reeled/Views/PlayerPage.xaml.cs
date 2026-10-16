@@ -59,6 +59,19 @@ public sealed partial class PlayerPage : Page
         ViewModel = App.GetService<PlayerViewModel>();
         InitializeComponent();
 
+        // Frosted glass over the video: acrylic can't sample the video swap chain, see Helpers.VideoGlass
+        _videoGlass = Helpers.VideoGlass.Create(PlayerVideoView);
+        Helpers.VideoGlass.Wrap(TopHeaderBar, "Bar");
+        Helpers.VideoGlass.Wrap(BottomControlBar, "Bar");
+        Helpers.VideoGlass.Wrap(PlaylistQueueSidebar, "Bar");
+        Helpers.VideoGlass.Wrap(MomentsJumpPopup, "Flyout");
+        Helpers.VideoGlass.Wrap(ActiveMomentPromptBadge, "Flyout");
+        Helpers.VideoGlass.Wrap(TimelinePickerPromptBadge, "Flyout");
+        foreach (var flyout in new[] { MarkMomentFlyout, CustomColorFlyout, MomentsFlyout, PlaybackSpeedFlyout, AudioTracksFlyout, SubtitlesFlyout })
+        {
+            Helpers.VideoGlass.Wrap(flyout, 7);
+        }
+
         VolumeSlider.Resources["SliderTrackValueFill"] = _volumeDynamicBrush;
         VolumeSlider.Resources["SliderTrackValueFillPointerOver"] = _volumeDynamicBrush;
         VolumeSlider.Resources["SliderTrackValueFillPressed"] = _volumeDynamicBrush;
@@ -330,6 +343,7 @@ public sealed partial class PlayerPage : Page
 
     private void AnimateSidebar(bool open, bool animate = true)
     {
+        _videoGlass?.Track(450);
         _sidebarStoryboard?.Stop();
 
         if (!animate)
@@ -501,6 +515,7 @@ public sealed partial class PlayerPage : Page
         UpdateBackdropBlur();
 
         _isActive = true;
+        _videoGlass?.SetActive(true);
         UpdateTimelineRendering();
     }
 
@@ -510,6 +525,7 @@ public sealed partial class PlayerPage : Page
     }
 
     private bool _isActive;
+    private Helpers.VideoGlass? _videoGlass;
 
     /// <summary>
     /// The per-frame timeline interpolation keeps the compositor rendering every frame, so it only
@@ -561,6 +577,7 @@ public sealed partial class PlayerPage : Page
 
     public void Deactivate()
     {
+        _videoGlass?.SetActive(false);
         PlayerVideoView.Visibility = Visibility.Collapsed;
         _isActive = false;
         StopTimelineRendering();
@@ -664,6 +681,7 @@ public sealed partial class PlayerPage : Page
     private void OnVideoViewInitialized(object? sender, LibVLCSharp.Platforms.Windows.InitializedEventArgs e)
     {
         ViewModel.AttachVideoView(PlayerVideoView, e.SwapChainOptions);
+        _videoGlass?.SetSwapChain(e.SwapChainOptions);
     }
 
     private void OnPagePointerExited(object sender, PointerRoutedEventArgs e)
@@ -1061,12 +1079,13 @@ public sealed partial class PlayerPage : Page
             // flyout, popup and badge that uses them
             if (Resources.TryGetValue("PlayerFlyoutBackdropBrush", out var flyoutObj) && flyoutObj is AcrylicBrush flyoutBrush)
             {
-                Helpers.Backdrop.Apply(flyoutBrush, Windows.UI.Color.FromArgb(255, 26, 26, 26), Helpers.Backdrop.Surface.Flyout);
+                Helpers.Backdrop.Apply(flyoutBrush, Windows.UI.Color.FromArgb(255, 26, 26, 26), Helpers.Backdrop.Surface.Flyout, overVideo: true);
             }
             if (Resources.TryGetValue("PlayerBarBackdropBrush", out var barObj) && barObj is AcrylicBrush barBrush)
             {
-                Helpers.Backdrop.Apply(barBrush, Windows.UI.Color.FromArgb(255, 18, 18, 18), Helpers.Backdrop.Surface.Bar);
+                Helpers.Backdrop.Apply(barBrush, Windows.UI.Color.FromArgb(255, 18, 18, 18), Helpers.Backdrop.Surface.Bar, overVideo: true);
             }
+            _videoGlass?.Refresh();
         }
         catch (Exception ex)
         {
@@ -1432,6 +1451,7 @@ public sealed partial class PlayerPage : Page
 
     private void UpdateControlsVisibility(bool visible, bool animate = true, bool forceCursor = false)
     {
+        _videoGlass?.Track(450);
         if (!visible && AreFlyoutsOrPopupsOpen)
         {
             return;
@@ -2286,6 +2306,7 @@ public sealed partial class PlayerPage : Page
 
     private void ShowMomentsPopup(GameClip clip)
     {
+        _videoGlass?.Track(450);
         // Show a sorted snapshot: binding the clip's live collection let the card stay up empty when
         // moments were removed or re-sorted while it was visible.
         var moments = clip.Bookmarks.OrderBy(b => b.Timestamp).ToList();
@@ -2359,6 +2380,7 @@ public sealed partial class PlayerPage : Page
 
     private void HideMomentsPopup(bool animate = true)
     {
+        _videoGlass?.Track(450);
         _momentsDismissTimer?.Stop();
         _momentsPopupStoryboard?.Stop();
 

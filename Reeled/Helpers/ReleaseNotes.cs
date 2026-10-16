@@ -66,6 +66,7 @@ public static partial class ReleaseNotes
                 {
                     FontSize = 14,
                     FontWeight = FontWeights.SemiBold,
+                    Foreground = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"],
                     Margin = new Thickness(0, target.Blocks.Count == 0 ? 0 : 12, 0, 4)
                 };
                 AppendInline(heading.Inlines, headingText);
@@ -94,6 +95,7 @@ public static partial class ReleaseNotes
                 var group = new Paragraph
                 {
                     FontWeight = FontWeights.SemiBold,
+                    Foreground = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"],
                     Margin = new Thickness(0, Math.Max(top, 6), 0, 2)
                 };
                 group.Inlines.Add(new Run { Text = trimmed[2..^2] });

@@ -431,5 +431,16 @@
   "Playback_WheelSeek": "Skip back / forward",
   "Playback_WheelNone": "Do nothing",
   "Playback_HwDecodingTitle": "Hardware-accelerated decoding",
-  "Playback_HwDecodingSubtitle": "Decode video on the GPU. Turn off if a clip shows artifacts or green frames"
+  "Playback_HwDecodingSubtitle": "Decode video on the GPU. Turn off if a clip shows artifacts or green frames",
+  "FolderMenu_Open": "Open",
+  "FolderMenu_Expand": "Expand",
+  "FolderMenu_Collapse": "Collapse",
+  "FolderMenu_RevealExplorer": "Open in File Explorer",
+  "FolderMenu_CopyPath": "Copy folder path",
+  "FolderMenu_Move": "Move",
+  "FolderMenu_MoveUp": "Move up",
+  "FolderMenu_MoveDown": "Move down",
+  "FolderMenu_MoveTop": "Move to top",
+  "FolderMenu_MoveBottom": "Move to bottom",
+  "FolderMenu_Remove": "Remove from library"
 }

@@ -748,6 +748,60 @@ public partial class HomeViewModel : ObservableObject
         await SyncDirectoriesAsync();
     }
 
+    /// <summary>
+    /// Moves a watch folder to a new position in the sidebar. The order is the order of
+    /// <c>WatchDirectories</c>, which the tree is rebuilt from, so it survives restarts.
+    /// </summary>
+    public async Task MoveWatchRootAsync(DirectoryNode node, int targetIndex)
+    {
+        int from = Directories.IndexOf(node);
+        if (from < 0) return;
+        targetIndex = Math.Clamp(targetIndex, 0, Directories.Count - 1);
+        if (from == targetIndex) return;
+
+        // TreeView ignores Move notifications, so re-insert the node
+        Directories.RemoveAt(from);
+        Directories.Insert(targetIndex, node);
+
+        var settings = _storageService.CurrentSettings;
+        var ordered = new List<string>();
+        foreach (var dir in Directories)
+        {
+            var match = settings.WatchDirectories.FirstOrDefault(w => PathUtil.PathEquals(w, dir.FullPath));
+            if (match != null) ordered.Add(match);
+        }
+        // Folders that are missing on disk aren't in the tree; keep them after the rest
+        ordered.AddRange(settings.WatchDirectories.Where(w => !ordered.Contains(w)));
+        settings.WatchDirectories = ordered;
+        await _storageService.SaveSettingsAsync(settings);
+    }
+
+    public void OpenFolderInExplorer(DirectoryNode node)
+    {
+        if (node == null || !Directory.Exists(node.FullPath)) return;
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"\"{node.FullPath}\"",
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error opening Explorer: {ex.Message}";
+        }
+    }
+
+    public void CopyFolderPath(DirectoryNode node)
+    {
+        if (node == null) return;
+        var package = new DataPackage();
+        package.SetText(node.FullPath);
+        Clipboard.SetContent(package);
+    }
+
     [RelayCommand]
     public async Task RefreshClipsAsync()
     {
@@ -1345,7 +1399,10 @@ public partial class HomeViewModel : ObservableObject
 
             if (existingIndex != i && i < target.Count)
             {
-                target.Move(existingIndex, i);
+                // TreeView ignores Move notifications, so re-insert the node
+                var moved = target[existingIndex];
+                target.RemoveAt(existingIndex);
+                target.Insert(i, moved);
             }
 
             var node = target[i];

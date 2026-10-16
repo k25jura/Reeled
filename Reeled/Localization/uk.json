@@ -431,5 +431,16 @@
   "Playback_WheelSeek": "Перемотувати назад / вперед",
   "Playback_WheelNone": "Нічого",
   "Playback_HwDecodingTitle": "Апаратне декодування",
-  "Playback_HwDecodingSubtitle": "Декодувати відео на GPU. Вимкніть, якщо в кліпі з'являються артефакти чи зелені кадри"
+  "Playback_HwDecodingSubtitle": "Декодувати відео на GPU. Вимкніть, якщо в кліпі з'являються артефакти чи зелені кадри",
+  "FolderMenu_Open": "Відкрити",
+  "FolderMenu_Expand": "Розгорнути",
+  "FolderMenu_Collapse": "Згорнути",
+  "FolderMenu_RevealExplorer": "Відкрити у Провіднику",
+  "FolderMenu_CopyPath": "Копіювати шлях до папки",
+  "FolderMenu_Move": "Перемістити",
+  "FolderMenu_MoveUp": "Вгору",
+  "FolderMenu_MoveDown": "Вниз",
+  "FolderMenu_MoveTop": "На початок",
+  "FolderMenu_MoveBottom": "В кінець",
+  "FolderMenu_Remove": "Прибрати з бібліотеки"
 }

@@ -377,7 +377,7 @@ public sealed partial class HomePage : Page
         };
 
         _viewSwitchStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     public void OnReturnedFromViewer()
@@ -956,6 +956,8 @@ public sealed partial class HomePage : Page
 
         // Containers are recycled: never let one keep the faded state of a row it showed before
         ResetFolderRow(tvi);
+        SuspendRowGlide(tvi);
+        HookTreeListRecycling();
 
         if (!IsReduceMotionEnabled() && IsInsideExpandingBranch(node))
         {
@@ -1509,8 +1511,13 @@ public sealed partial class HomePage : Page
 
             var currentTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme;
 
+            // Stay inside the window: a windowed popup keeps whatever cursor was showing when it opened
+            // (resize arrows from the sidebar edge, the busy cursor), until the mouse moves
+            menuFlyout.ShouldConstrainToRootBounds = true;
+            ProtectedCursor = null;
+
             Style? baseStyle = null;
-            if (Application.Current.Resources.TryGetValue("DefaultMenuFlyoutPresenterStyle", out var ds1) && ds1 is Style s1)
+            if (Application.Current.Resources.TryGetValue("ReeledMenuFlyoutPresenterStyle", out var ds1) && ds1 is Style s1)
             {
                 baseStyle = s1;
             }
@@ -2530,8 +2537,56 @@ public sealed partial class HomePage : Page
     private void EnsureFolderEasings(Microsoft.UI.Composition.Compositor compositor)
     {
         // Windows 11 motion curves: fast-out for entrances, accelerate for exits
-        _folderEaseOut ??= compositor.CreateCubicBezierEasingFunction(new System.Numerics.Vector2(0.1f, 0.9f), new System.Numerics.Vector2(0.2f, 1f));
-        _folderEaseIn ??= compositor.CreateCubicBezierEasingFunction(new System.Numerics.Vector2(0.7f, 0f), new System.Numerics.Vector2(1f, 0.5f));
+        _folderEaseOut ??= Helpers.Motion.DecelerateCurve(compositor);
+        _folderEaseIn ??= Helpers.Motion.AccelerateCurve(compositor);
+    }
+
+    private Microsoft.UI.Composition.ImplicitAnimationCollection? _rowOffsetAnimations;
+
+    /// <summary>
+    /// Rows glide to their new place whenever the tree's layout moves them (a branch opening or closing,
+    /// a folder being moved), so space opens and closes smoothly instead of rows jumping.
+    /// </summary>
+    private void EnableRowGlide(UIElement row)
+    {
+        if (IsReduceMotionEnabled()) return;
+        var visual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(row);
+        if (_rowOffsetAnimations == null)
+        {
+            var compositor = visual.Compositor;
+            var glide = compositor.CreateVector3KeyFrameAnimation();
+            glide.Target = "Offset";
+            glide.InsertExpressionKeyFrame(1f, "this.FinalValue", Helpers.Motion.DecelerateCurve(compositor));
+            glide.Duration = TimeSpan.FromMilliseconds(Helpers.Motion.Long);
+            _rowOffsetAnimations = compositor.CreateImplicitAnimationCollection();
+            _rowOffsetAnimations["Offset"] = glide;
+        }
+        visual.ImplicitAnimations = _rowOffsetAnimations;
+    }
+
+    /// <summary>
+    /// A recycled or freshly realized row gets its first position without gliding (it would otherwise fly
+    /// in from wherever its container was before); the glide comes back once it has been laid out.
+    /// </summary>
+    private void SuspendRowGlide(UIElement row)
+    {
+        Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(row).ImplicitAnimations = null;
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => EnableRowGlide(row));
+    }
+
+    private bool _isTreeListHooked;
+
+    /// <summary>The TreeView's inner list recycles containers while scrolling; suspend the glide for those.</summary>
+    private void HookTreeListRecycling()
+    {
+        if (_isTreeListHooked || DirectoriesTreeView == null) return;
+        var list = FindVisualChild<ListViewBase>(DirectoriesTreeView);
+        if (list == null) return;
+        _isTreeListHooked = true;
+        list.ContainerContentChanging += (s, args) =>
+        {
+            if (args.ItemContainer != null) SuspendRowGlide(args.ItemContainer);
+        };
     }
 
     private static void ResetFolderRow(UIElement row)
@@ -2552,8 +2607,10 @@ public sealed partial class HomePage : Page
         var compositor = visual.Compositor;
         EnsureFolderEasings(compositor);
 
-        var delay = TimeSpan.FromMilliseconds(Math.Min(index, 8) * 18);
-        var duration = TimeSpan.FromMilliseconds(220);
+        // The rows below glide down first (implicit Offset animation), so the new rows come in a beat
+        // later, into space that is already opening
+        var delay = TimeSpan.FromMilliseconds(90 + Math.Min(index, 8) * 24);
+        var duration = TimeSpan.FromMilliseconds(Helpers.Motion.Medium);
 
         var fade = compositor.CreateScalarKeyFrameAnimation();
         fade.InsertKeyFrame(0f, 0f);
@@ -2580,8 +2637,8 @@ public sealed partial class HomePage : Page
         var compositor = visual.Compositor;
         EnsureFolderEasings(compositor);
 
-        var delay = TimeSpan.FromMilliseconds(Math.Min(reverseIndex, 6) * 10);
-        var duration = TimeSpan.FromMilliseconds(110);
+        var delay = TimeSpan.FromMilliseconds(Math.Min(reverseIndex, 6) * 14);
+        var duration = TimeSpan.FromMilliseconds(170);
 
         var fade = compositor.CreateScalarKeyFrameAnimation();
         fade.InsertKeyFrame(1f, 0f, _folderEaseIn);
@@ -3023,7 +3080,7 @@ public sealed partial class HomePage : Page
             if (!_isUpdateIndicatorShown) UpdateAvailableButton.Visibility = Visibility.Collapsed;
         };
         _updateIndicatorStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     private void ShowUpdateTip(UpdateTipKind kind)

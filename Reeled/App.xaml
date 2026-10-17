@@ -239,6 +239,34 @@
             <Style TargetType="RichTextBlock">
                 <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
             </Style>
+
+            <!-- One menu look everywhere (sort, view, context, text-box menus): app font, roomy rows,
+                 Windows 11 radii. Code-built presenter styles derive from ReeledMenuFlyoutPresenterStyle. -->
+            <Style x:Key="ReeledMenuFlyoutPresenterStyle" TargetType="MenuFlyoutPresenter" BasedOn="{StaticResource DefaultMenuFlyoutPresenterStyle}">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Padding" Value="4" />
+                <Setter Property="MinWidth" Value="180" />
+            </Style>
+            <Style TargetType="MenuFlyoutPresenter" BasedOn="{StaticResource ReeledMenuFlyoutPresenterStyle}" />
+            <Style TargetType="MenuFlyoutItem" BasedOn="{StaticResource DefaultMenuFlyoutItemStyle}">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Padding" Value="11,8,11,9" />
+                <Setter Property="CornerRadius" Value="4" />
+            </Style>
+            <Style TargetType="ToggleMenuFlyoutItem" BasedOn="{StaticResource DefaultToggleMenuFlyoutItemStyle}">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Padding" Value="11,8,11,9" />
+                <Setter Property="CornerRadius" Value="4" />
+            </Style>
+            <Style TargetType="MenuFlyoutSubItem" BasedOn="{StaticResource DefaultMenuFlyoutSubItemStyle}">
+                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Padding" Value="11,8,11,9" />
+                <Setter Property="CornerRadius" Value="4" />
+            </Style>
             
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
             <converters:BoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" Invert="True" />

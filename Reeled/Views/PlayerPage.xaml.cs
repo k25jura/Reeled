@@ -59,6 +59,19 @@ public sealed partial class PlayerPage : Page
         ViewModel = App.GetService<PlayerViewModel>();
         InitializeComponent();
 
+        // Frosted glass over the video: acrylic can't sample the video swap chain, see Helpers.VideoGlass
+        _videoGlass = Helpers.VideoGlass.Create(PlayerVideoView);
+        Helpers.VideoGlass.Wrap(TopHeaderBar, "Bar");
+        Helpers.VideoGlass.Wrap(BottomControlBar, "Bar");
+        Helpers.VideoGlass.Wrap(PlaylistQueueSidebar, "Bar");
+        Helpers.VideoGlass.Wrap(MomentsJumpPopup, "Flyout");
+        Helpers.VideoGlass.Wrap(ActiveMomentPromptBadge, "Flyout");
+        Helpers.VideoGlass.Wrap(TimelinePickerPromptBadge, "Flyout");
+        foreach (var flyout in new[] { MarkMomentFlyout, CustomColorFlyout, MomentsFlyout, PlaybackSpeedFlyout, AudioTracksFlyout, SubtitlesFlyout })
+        {
+            Helpers.VideoGlass.Wrap(flyout, 7);
+        }
+
         VolumeSlider.Resources["SliderTrackValueFill"] = _volumeDynamicBrush;
         VolumeSlider.Resources["SliderTrackValueFillPointerOver"] = _volumeDynamicBrush;
         VolumeSlider.Resources["SliderTrackValueFillPressed"] = _volumeDynamicBrush;
@@ -217,6 +230,14 @@ public sealed partial class PlayerPage : Page
         DispatcherQueue.TryEnqueue(ApplyLocalization);
     }
 
+    /// <summary>The skip step is a setting, so the tooltips name the current value.</summary>
+    private void UpdateSkipTooltips(Services.ILocalizationService loc)
+    {
+        int step = ViewModel.SkipStepSeconds;
+        if (SkipBackwardButton != null) ToolTipService.SetToolTip(SkipBackwardButton, string.Format(loc["Player_Tooltip_SkipBackward"], step));
+        if (SkipForwardButton != null) ToolTipService.SetToolTip(SkipForwardButton, string.Format(loc["Player_Tooltip_SkipForward"], step));
+    }
+
     private void ApplyLocalization()
     {
         try
@@ -234,8 +255,7 @@ public sealed partial class PlayerPage : Page
             if (StopClipButton != null) ToolTipService.SetToolTip(StopClipButton, loc["Player_Tooltip_Stop"]);
             if (NextClipButton != null) ToolTipService.SetToolTip(NextClipButton, loc["Player_Tooltip_NextClip"]);
             if (RepeatButton != null) ToolTipService.SetToolTip(RepeatButton, ViewModel.RepeatTooltip);
-            if (SkipBackwardButton != null) ToolTipService.SetToolTip(SkipBackwardButton, loc["Player_Tooltip_SkipBackward"]);
-            if (SkipForwardButton != null) ToolTipService.SetToolTip(SkipForwardButton, loc["Player_Tooltip_SkipForward"]);
+            UpdateSkipTooltips(loc);
             if (MarkMomentButton != null) ToolTipService.SetToolTip(MarkMomentButton, loc["Player_Tooltip_MarkMoment"]);
             if (MomentsFlyoutButton != null) ToolTipService.SetToolTip(MomentsFlyoutButton, loc["Player_Tooltip_TimelineBookmarks"]);
             if (ClipQueueButton != null) ToolTipService.SetToolTip(ClipQueueButton, loc["Player_Tooltip_ClipQueue"]);
@@ -330,6 +350,7 @@ public sealed partial class PlayerPage : Page
 
     private void AnimateSidebar(bool open, bool animate = true)
     {
+        _videoGlass?.Track(450);
         _sidebarStoryboard?.Stop();
 
         if (!animate)
@@ -499,8 +520,10 @@ public sealed partial class PlayerPage : Page
         CheckAndShowMomentsPrompt();
         DispatcherQueue.TryEnqueue(RenderTimelineMarkers);
         UpdateBackdropBlur();
+        UpdateSkipTooltips(App.GetService<Services.ILocalizationService>());
 
         _isActive = true;
+        _videoGlass?.SetActive(true);
         UpdateTimelineRendering();
     }
 
@@ -510,6 +533,7 @@ public sealed partial class PlayerPage : Page
     }
 
     private bool _isActive;
+    private Helpers.VideoGlass? _videoGlass;
 
     /// <summary>
     /// The per-frame timeline interpolation keeps the compositor rendering every frame, so it only
@@ -517,6 +541,7 @@ public sealed partial class PlayerPage : Page
     /// </summary>
     private void UpdateTimelineRendering()
     {
+        if (_videoGlass != null) _videoGlass.IsVideoPlaying = ViewModel.IsPlaying;
         if (_isActive && ViewModel.IsPlaying)
         {
             StartTimelineRendering();
@@ -561,6 +586,7 @@ public sealed partial class PlayerPage : Page
 
     public void Deactivate()
     {
+        _videoGlass?.SetActive(false);
         PlayerVideoView.Visibility = Visibility.Collapsed;
         _isActive = false;
         StopTimelineRendering();
@@ -664,6 +690,7 @@ public sealed partial class PlayerPage : Page
     private void OnVideoViewInitialized(object? sender, LibVLCSharp.Platforms.Windows.InitializedEventArgs e)
     {
         ViewModel.AttachVideoView(PlayerVideoView, e.SwapChainOptions);
+        _videoGlass?.SetSwapChain(e.SwapChainOptions);
     }
 
     private void OnPagePointerExited(object sender, PointerRoutedEventArgs e)
@@ -1061,12 +1088,13 @@ public sealed partial class PlayerPage : Page
             // flyout, popup and badge that uses them
             if (Resources.TryGetValue("PlayerFlyoutBackdropBrush", out var flyoutObj) && flyoutObj is AcrylicBrush flyoutBrush)
             {
-                Helpers.Backdrop.Apply(flyoutBrush, Windows.UI.Color.FromArgb(255, 26, 26, 26), Helpers.Backdrop.Surface.Flyout);
+                Helpers.Backdrop.Apply(flyoutBrush, Windows.UI.Color.FromArgb(255, 26, 26, 26), Helpers.Backdrop.Surface.Flyout, overVideo: true);
             }
             if (Resources.TryGetValue("PlayerBarBackdropBrush", out var barObj) && barObj is AcrylicBrush barBrush)
             {
-                Helpers.Backdrop.Apply(barBrush, Windows.UI.Color.FromArgb(255, 18, 18, 18), Helpers.Backdrop.Surface.Bar);
+                Helpers.Backdrop.Apply(barBrush, Windows.UI.Color.FromArgb(255, 18, 18, 18), Helpers.Backdrop.Surface.Bar, overVideo: true);
             }
+            _videoGlass?.Refresh();
         }
         catch (Exception ex)
         {
@@ -1432,6 +1460,7 @@ public sealed partial class PlayerPage : Page
 
     private void UpdateControlsVisibility(bool visible, bool animate = true, bool forceCursor = false)
     {
+        _videoGlass?.Track(450);
         if (!visible && AreFlyoutsOrPopupsOpen)
         {
             return;
@@ -2286,6 +2315,7 @@ public sealed partial class PlayerPage : Page
 
     private void ShowMomentsPopup(GameClip clip)
     {
+        _videoGlass?.Track(450);
         // Show a sorted snapshot: binding the clip's live collection let the card stay up empty when
         // moments were removed or re-sorted while it was visible.
         var moments = clip.Bookmarks.OrderBy(b => b.Timestamp).ToList();
@@ -2359,6 +2389,7 @@ public sealed partial class PlayerPage : Page
 
     private void HideMomentsPopup(bool animate = true)
     {
+        _videoGlass?.Track(450);
         _momentsDismissTimer?.Stop();
         _momentsPopupStoryboard?.Stop();
 
@@ -2475,11 +2506,22 @@ public sealed partial class PlayerPage : Page
     {
         var pointerPoint = e.GetCurrentPoint(this);
         int delta = pointerPoint.Properties.MouseWheelDelta;
-        if (delta != 0)
+        if (delta == 0) return;
+
+        switch (App.GetService<Services.ILocalStorageService>().CurrentSettings.PlayerWheelAction)
         {
-            int step = delta > 0 ? 5 : -5;
-            ViewModel.SetVolume(ViewModel.Volume + step);
-            e.Handled = true;
+            case Models.WheelAction.Seek:
+                if (delta > 0) ViewModel.SkipForward();
+                else ViewModel.SkipBackward();
+                e.Handled = true;
+                break;
+            case Models.WheelAction.None:
+                break;
+            default:
+                ViewModel.SetVolume(ViewModel.Volume + (delta > 0 ? 5 : -5));
+                AnimateVolumeIconPop();
+                e.Handled = true;
+                break;
         }
     }
 

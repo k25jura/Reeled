@@ -1,36 +1,55 @@
 name: Feature Request
-description: Suggest an idea or feature improvement for Reeled.
+description: Suggest an idea or improvement for Reeled.
+title: "[Idea] "
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Have an idea or feature that would improve your workflow with game clips? Let us know below!
+        Have an idea that would improve your workflow with game clips? Let us know below.
+        You can also use **Send feedback** in the app.
 
-  - type: textarea
-    id: problem
+  - type: dropdown
+    id: area
     attributes:
-      label: Is your feature request related to a problem?
-      description: A clear description of what the problem or missing functionality is.
+      label: Which part of Reeled?
+      options:
+        - Library (clips, folders, search)
+        - Player
+        - Moments
+        - Settings
+        - Updates
+        - Something new
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: solution
     attributes:
-      label: Describe the solution you'd like
-      description: A clear and concise description of what you want to happen.
+      label: What would you like Reeled to do?
+      description: Describe the feature and how you would use it.
     validations:
       required: true
 
   - type: textarea
+    id: problem
+    attributes:
+      label: What problem does it solve?
+      description: What is hard or missing today?
+    validations:
+      required: false
+
+  - type: textarea
     id: alternatives
     attributes:
-      label: Describe alternatives you've considered
-      description: Any alternative solutions or features you've evaluated.
+      label: Alternatives you've considered
+    validations:
+      required: false
 
   - type: textarea
     id: context
     attributes:
       label: Additional context
-      description: Add any mockups, screenshots, or references.
+      description: Mockups, screenshots, or references from other apps.
+    validations:
+      required: false

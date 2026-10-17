@@ -10,6 +10,15 @@
     NavigationCacheMode="Required">
 
     <Page.Resources>
+        <!-- Group label inside a settings section; the left navigation lists these as sub-categories -->
+        <Style x:Key="SettingsSubheaderStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            <Setter Property="Margin" Value="2,2,0,0" />
+        </Style>
+
         <!-- Category Navigation Rail Button Style with Smooth Transitions -->
         <Style x:Key="SettingsCategoryButtonStyle" TargetType="Button">
             <Setter Property="Height" Value="42" />
@@ -454,8 +463,12 @@
                                 </StackPanel>
 
                                 <!-- Populated Directories List -->
-                                <ListView ItemsSource="{x:Bind ViewModel.WatchFolders, Mode=OneWay}" 
+                                <ListView ItemsSource="{x:Bind ViewModel.WatchFolders, Mode=OneWay}"
                                           SelectionMode="None"
+                                          CanReorderItems="True"
+                                          CanDragItems="True"
+                                          AllowDrop="True"
+                                          DragItemsCompleted="OnWatchFoldersReordered"
                                           Visibility="{x:Bind ViewModel.WatchFolders.Count, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <ListView.ItemContainerStyle>
                                         <Style TargetType="ListViewItem">
@@ -466,14 +479,19 @@
                                     </ListView.ItemContainerStyle>
                                     <ListView.ItemTemplate>
                                         <DataTemplate x:DataType="x:String">
-                                            <Grid Margin="0,1" ColumnSpacing="6">
+                                            <Grid Margin="0,1" ColumnSpacing="6" Background="Transparent" Tag="{x:Bind}" RightTapped="OnWatchFolderRightTapped">
                                                 <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
 
+                                                <!-- Drag handle: rows can be dragged to reorder -->
+                                                <FontIcon Grid.Column="0" Glyph="&#xE76F;" FontSize="12" Margin="2,0,0,0"
+                                                          Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
+
                                                 <!-- Clickable Directory Anchor Link (Navigates to folder on HomePage) -->
-                                                <Button Grid.Column="0" 
+                                                <Button Grid.Column="1" 
                                                         Click="OnDirectoryAnchorClick" 
                                                         Loaded="OnDirectoryAnchorLoaded"
                                                         Tag="{x:Bind}" 
@@ -490,16 +508,16 @@
                                                     </Grid>
                                                 </Button>
 
-                                                <!-- Remove Watch Folder Button -->
-                                                <Button Grid.Column="1" 
-                                                        Click="OnRemoveFolderClick" 
+                                                <!-- More: move, open in Explorer, remove (same menu as right-click) -->
+                                                <Button Grid.Column="2"
+                                                        Click="OnWatchFolderMoreClick"
                                                         Loaded="OnRemoveFolderLoaded"
                                                         Tag="{x:Bind}"
                                                         Style="{ThemeResource SubtleButtonStyle}"
                                                         Padding="8"
                                                         VerticalAlignment="Center"
                                                         CornerRadius="6">
-                                                    <FontIcon Glyph="&#xE74D;" FontSize="13" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
+                                                    <FontIcon Glyph="&#xE712;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                                 </Button>
                                             </Grid>
                                         </DataTemplate>
@@ -543,6 +561,8 @@
                                    FontWeight="SemiBold"
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                    Margin="2,0,0,2" />
+
+                        <TextBlock x:Name="SubPlaybackSpeed" Style="{StaticResource SettingsSubheaderStyle}" Text="Speed &amp; volume" />
 
                         <!-- Card 1: Default Playback Speed -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
@@ -737,6 +757,8 @@
                             </Grid>
                         </Border>
 
+                        <TextBlock x:Name="SubPlaybackBehavior" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Playback behavior" />
+
                         <!-- Card: Resume Playback -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -798,6 +820,70 @@
                                           VerticalAlignment="Center" />
                             </Grid>
                         </Border>
+
+                        <!-- Card: Skip interval -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE893;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="SkipIntervalTitleText" Text="Skip interval" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="SkipIntervalSubtitleText" Text="How far the skip buttons and arrow keys jump"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               TextWrapping="Wrap"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ComboBox Grid.Column="2"
+                                          x:Name="SkipIntervalComboBox"
+                                          SelectionChanged="OnSkipIntervalSelectionChanged"
+                                          MinWidth="180"
+                                          VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card: Mouse wheel over the video -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE962;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="WheelActionTitleText" Text="Mouse wheel over video" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="WheelActionSubtitleText" Text="What scrolling does while a clip is playing"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               TextWrapping="Wrap"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ComboBox Grid.Column="2"
+                                          x:Name="WheelActionComboBox"
+                                          SelectionChanged="OnWheelActionSelectionChanged"
+                                          MinWidth="180"
+                                          VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <TextBlock x:Name="SubPlaybackControls" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Player controls" />
 
                         <!-- Card 6: Auto-Hide Controls Timeout -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
@@ -892,6 +978,41 @@
                                               VerticalAlignment="Center" />
                             </Grid>
                         </Border>
+                        <TextBlock x:Name="SubPlaybackDecoding" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Decoding" />
+
+                        <!-- Card: Hardware decoding -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE950;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="HardwareDecodingTitleText" Text="Hardware-accelerated decoding" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="HardwareDecodingSubtitleText" Text="Decode video on the GPU. Turn off if a clip shows artifacts or green frames"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               TextWrapping="Wrap"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2"
+                                              IsOn="{x:Bind ViewModel.HardwareDecoding, Mode=TwoWay}"
+                                              OnContent=""
+                                              OffContent=""
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
                     </StackPanel>
 
                     <!-- ========================================== -->
@@ -904,6 +1025,8 @@
                                    FontWeight="SemiBold"
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                    Margin="2,0,0,2" />
+
+                        <TextBlock x:Name="SubAppearanceTheme" Style="{StaticResource SettingsSubheaderStyle}" Text="Theme" />
 
                         <!-- Card 1: App Theme -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
@@ -936,6 +1059,8 @@
                             </Grid>
                         </Border>
 
+                        <TextBlock x:Name="SubAppearanceLibrary" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Library" />
+
                         <!-- Card 2: Saved Moments Badges -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
@@ -967,6 +1092,8 @@
                                               VerticalAlignment="Center" />
                             </Grid>
                         </Border>
+
+                        <TextBlock x:Name="SubAppearanceEffects" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Effects &amp; motion" />
 
                         <!-- Card 3: Enable Backdrop Blur -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
@@ -1152,6 +1279,8 @@
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                    Margin="2,0,0,2" />
 
+                        <TextBlock x:Name="SubStoragePerformance" Style="{StaticResource SettingsSubheaderStyle}" Text="Performance" />
+
                         <!-- Card 1: Skeleton Loading -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
@@ -1216,6 +1345,8 @@
                                               VerticalAlignment="Center" />
                             </Grid>
                         </Border>
+
+                        <TextBlock x:Name="SubStorageCaches" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Caches &amp; data" />
 
                         <!-- Card 3: Thumbnail Cache -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
@@ -1367,6 +1498,8 @@
                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                    Margin="2,0,0,2" />
 
+                        <TextBlock x:Name="SubUpdatesStatus" Style="{StaticResource SettingsSubheaderStyle}" Text="Status" />
+
                         <!-- Card 1: Main Update Status Card -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
@@ -1442,6 +1575,11 @@
                                                    FontWeight="SemiBold" 
                                                    VerticalAlignment="Center" 
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock Text="{x:Bind ViewModel.UpdateAssetSizeFormatted, Mode=OneWay}"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,2,0,0"
+                                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                                     </StackPanel>
 
                                     <!-- Patch Notes Link (Redirects to GitHub release page) -->
@@ -1464,12 +1602,19 @@
                                     </HyperlinkButton>
                                 </Grid>
 
-                                <!-- Release Notes / Summary -->
-                                <TextBlock x:Name="UpdateAvailableNotes"
-                                           Text="{x:Bind ViewModel.UpdateAvailableNotes, Mode=OneWay}" 
-                                           Style="{ThemeResource CaptionTextBlockStyle}" 
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                           TextWrapping="Wrap" />
+                                <!-- Release notes, rendered from the GitHub Markdown (Helpers.ReleaseNotes) -->
+                                <ScrollViewer x:Name="UpdateNotesScroller"
+                                              MaxHeight="260"
+                                              Padding="0,0,12,0"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <RichTextBlock x:Name="UpdateNotesBlock"
+                                                   FontSize="13"
+                                                   LineHeight="20"
+                                                   IsTextSelectionEnabled="False"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                </ScrollViewer>
 
                                 <!-- Action / Progress Transition Host -->
                                 <Grid x:Name="UpdateTransitionHost" MinHeight="36">
@@ -1515,7 +1660,7 @@
                                                     Command="{x:Bind ViewModel.DownloadUpdateCommand}"
                                                     Visibility="{x:Bind ViewModel.CanDownloadUpdate, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                                     Style="{ThemeResource AccentButtonStyle}"
-                                                    Content="Download &amp; Install"
+                                                    Content="Download update"
                                                     HorizontalAlignment="Center"
                                                     Padding="32,7"
                                                     CornerRadius="6" />
@@ -1524,7 +1669,7 @@
                                                     Command="{x:Bind ViewModel.InstallUpdateCommand}"
                                                     Visibility="{x:Bind ViewModel.IsUpdateReadyToInstall, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
                                                     Style="{ThemeResource AccentButtonStyle}"
-                                                    Content="Install and Restart"
+                                                    Content="Restart to update"
                                                     HorizontalAlignment="Center"
                                                     Padding="32,7"
                                                     CornerRadius="6" />
@@ -1533,6 +1678,8 @@
                                 </Grid>
                             </StackPanel>
                         </Border>
+
+                        <TextBlock x:Name="SubUpdatesPreferences" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Preferences" />
 
                         <!-- Card 3: Auto-check Toggle Card -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
@@ -1558,6 +1705,40 @@
 
                                 <ToggleSwitch Grid.Column="2" 
                                               IsOn="{x:Bind ViewModel.AutoCheckUpdates, Mode=TwoWay}" 
+                                              OnContent="" 
+                                              OffContent="" 
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 3b: Background download (installs when Reeled closes) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="8" 
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE896;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="AutoDownloadUpdatesTitleText" Text="Download updates automatically" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="AutoDownloadUpdatesSubtitleText" Text="Updates download in the background and install the next time you close Reeled" 
+                                               Style="{ThemeResource CaptionTextBlockStyle}" 
+                                               TextWrapping="Wrap"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2" 
+                                              IsOn="{x:Bind ViewModel.AutoDownloadUpdates, Mode=TwoWay}" 
+                                              IsEnabled="{x:Bind ViewModel.AutoCheckUpdates, Mode=OneWay}"
                                               OnContent="" 
                                               OffContent="" 
                                               MinWidth="0"
@@ -1628,7 +1809,7 @@
                     <!-- ========================================== -->
                     <!-- 7. Full-Width About Hero Section           -->
                     <!-- ========================================== -->
-                    <StackPanel x:Name="AboutSection" HorizontalAlignment="Stretch" Margin="0,32,0,0" Spacing="8">
+                    <StackPanel x:Name="AboutSection" HorizontalAlignment="Stretch" MaxWidth="760" Margin="0,22,0,0" Spacing="8">
                         <TextBlock x:Name="AboutSectionTitle"
                                    Text="About Reeled"
                                    FontSize="15"
@@ -1752,9 +1933,10 @@
                                             </Grid>
                                         </Border>
 
-                                        <!-- Diagnostics 2x2 Grid -->
-                                        <Grid RowSpacing="10" ColumnSpacing="20">
+                                        <!-- Diagnostics details: hidden until asked for (Show details below) -->
+                                        <Grid x:Name="DiagnosticsDetails" RowSpacing="10" ColumnSpacing="20" Visibility="Collapsed" Opacity="0">
                                             <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
@@ -1790,7 +1972,34 @@
                                                 <TextBlock x:Name="DiagLibraryLabel" Text="Library Stats" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                                 <TextBlock Text="{x:Bind ViewModel.LibraryStatsFormatted, Mode=OneWay}" FontSize="12.5" FontWeight="SemiBold" />
                                             </StackPanel>
+
+                                            <!-- Row 2: Display & video engine -->
+                                            <StackPanel Grid.Row="2" Grid.Column="0" Spacing="2">
+                                                <TextBlock x:Name="DiagDisplayLabel" Text="Display" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                <TextBlock Text="{x:Bind ViewModel.DisplayFormatted, Mode=OneWay}" FontSize="12.5" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="2" Grid.Column="1" Spacing="2">
+                                                <TextBlock x:Name="DiagEngineLabel" Text="Video engine" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                <TextBlock Text="{x:Bind ViewModel.VideoEngineFormatted, Mode=OneWay}" FontSize="12.5" FontWeight="SemiBold" />
+                                            </StackPanel>
                                         </Grid>
+
+                                        <Button x:Name="DiagnosticsToggleButton"
+                                                Click="OnDiagnosticsToggleClick"
+                                                Style="{ThemeResource SubtleButtonStyle}"
+                                                HorizontalAlignment="Left"
+                                                Padding="8,4"
+                                                Margin="-8,-4,0,-6"
+                                                CornerRadius="6">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock x:Name="DiagnosticsToggleText" Text="Show details" FontSize="12.5" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                                <FontIcon Glyph="&#xE70D;" FontSize="10" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                                                    <FontIcon.RenderTransform>
+                                                        <RotateTransform x:Name="DiagnosticsChevronRotation" Angle="0" />
+                                                    </FontIcon.RenderTransform>
+                                                </FontIcon>
+                                            </StackPanel>
+                                        </Button>
                                     </StackPanel>
                                 </Border>
 
@@ -1871,7 +2080,7 @@
                                     <!-- License Badge / Text -->
                                     <TextBlock Grid.Column="1"
                                                x:Name="AboutLicenseText"
-                                               Text="GPL-3.0 Public License • Open Source"
+                                               Text="GPL-3.0 License"
                                                Style="{ThemeResource CaptionTextBlockStyle}"
                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                                VerticalAlignment="Center" />
@@ -1882,5 +2091,33 @@
                 </StackPanel>
             </ScrollViewer>
         </Grid>
+        <!-- Status toast: confirmations (cache cleared, folder added, ...) rise from the bottom of the page
+             instead of appearing at the end of a long section, out of sight -->
+        <Border x:Name="SettingsToast"
+                Grid.Row="1"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom"
+                Margin="0,0,0,28"
+                Padding="16,11,18,12"
+                MaxWidth="560"
+                CornerRadius="8"
+                Background="{ThemeResource SolidBackgroundFillColorQuarternaryBrush}"
+                BorderBrush="{ThemeResource SurfaceStrokeColorFlyoutBrush}"
+                BorderThickness="1"
+                Opacity="0"
+                Visibility="Collapsed"
+                IsHitTestVisible="False">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="SettingsToastTranslation" Y="16" />
+            </Border.RenderTransform>
+            <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <FontIcon x:Name="SettingsToastIcon" Glyph="&#xE73E;" FontSize="14" VerticalAlignment="Center" />
+                <TextBlock x:Name="SettingsToastText" Grid.Column="1" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" />
+            </Grid>
+        </Border>
     </Grid>
 </Page>

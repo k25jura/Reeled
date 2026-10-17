@@ -579,15 +579,20 @@ public partial class PlayerViewModel : ObservableObject
     [RelayCommand]
     public void SkipForward()
     {
-        SkipBySeconds(5);
-        ShowToast("+5s");
+        int step = SkipStepSeconds;
+        SkipBySeconds(step);
+        ShowToast($"+{step}s");
     }
+
+    /// <summary>Jump size from Settings (5, 10, 15 or 30 seconds).</summary>
+    public int SkipStepSeconds => Math.Clamp(_storageService.CurrentSettings.SkipSeconds, 1, 60);
 
     [RelayCommand]
     public void SkipBackward()
     {
-        SkipBySeconds(-5);
-        ShowToast("-5s");
+        int step = SkipStepSeconds;
+        SkipBySeconds(-step);
+        ShowToast($"-{step}s");
     }
 
     [RelayCommand]

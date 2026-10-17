@@ -93,20 +93,13 @@ public partial class App : Application
             await nav.OpenVideoFilesAsync(videoFiles);
         }
 
-        _ = RunStartupUpdateCheckAsync();
-    }
-
-    private static async System.Threading.Tasks.Task RunStartupUpdateCheckAsync()
-    {
         try
         {
-            // Let the library finish its first scan before touching the network
-            await System.Threading.Tasks.Task.Delay(TimeSpan.FromSeconds(10));
-            await GetService<SettingsViewModel>().AutoCheckForUpdatesAsync();
+            GetService<SettingsViewModel>().StartUpdateMonitoring(DispatcherQueue);
         }
         catch (Exception ex)
         {
-            Helpers.Log.Error("AutoUpdateCheck", ex);
+            Helpers.Log.Error("UpdateMonitoring", ex);
         }
     }
 

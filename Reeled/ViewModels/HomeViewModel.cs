@@ -254,6 +254,9 @@ public partial class HomeViewModel : ObservableObject
         OnPropertyChanged(nameof(ClipsUnitLabel));
         OnPropertyChanged(nameof(SavedMomentsCount));
         OnPropertyChanged(nameof(TotalStorageUsedFormatted));
+        OnPropertyChanged(nameof(TotalStorageDecimals));
+        OnPropertyChanged(nameof(TotalStorageUnit));
+        OnPropertyChanged(nameof(TotalStorageScaled));
         foreach (var clip in AllClips)
         {
             clip.RefreshFormattedStrings();
@@ -310,6 +313,29 @@ public partial class HomeViewModel : ObservableObject
                 });
             }
             catch { }
+        }
+    }
+
+    /// <summary>Library size as a scaled integer for the rolling counter (see the Decimals/Unit pair).</summary>
+    public int TotalStorageScaled
+    {
+        get
+        {
+            long total = Clips.Sum(c => c.FileSizeBytes);
+            double mb = total / (1024.0 * 1024.0);
+            return mb < 1024 ? (int)Math.Round(mb * 10) : (int)Math.Round(mb / 1024.0 * 100);
+        }
+    }
+
+    public int TotalStorageDecimals => Clips.Sum(c => c.FileSizeBytes) / (1024.0 * 1024.0) < 1024 ? 1 : 2;
+
+    public string TotalStorageUnit
+    {
+        get
+        {
+            var loc = _localizationService ?? App.GetService<ILocalizationService>();
+            bool gb = Clips.Sum(c => c.FileSizeBytes) / (1024.0 * 1024.0) >= 1024;
+            return gb ? (loc?["Unit_GB"] ?? "GB") : (loc?["Unit_MB"] ?? "MB");
         }
     }
 
@@ -683,6 +709,9 @@ public partial class HomeViewModel : ObservableObject
         OnPropertyChanged(nameof(ClipsCountSummary));
         OnPropertyChanged(nameof(ClipsUnitLabel));
         OnPropertyChanged(nameof(TotalStorageUsedFormatted));
+        OnPropertyChanged(nameof(TotalStorageDecimals));
+        OnPropertyChanged(nameof(TotalStorageUnit));
+        OnPropertyChanged(nameof(TotalStorageScaled));
         OnPropertyChanged(nameof(CurrentDirectoryPath));
         OnPropertyChanged(nameof(HasClips));
         OnPropertyChanged(nameof(ShowEmptyState));
@@ -746,6 +775,84 @@ public partial class HomeViewModel : ObservableObject
         settings.WatchDirectories.Remove(node.FullPath);
         await _storageService.SaveSettingsAsync(settings);
         await SyncDirectoriesAsync();
+    }
+
+    /// <summary>
+    /// Moves a watch folder to a new position in the sidebar. The order is the order of
+    /// <c>WatchDirectories</c>, which the tree is rebuilt from, so it survives restarts.
+    /// </summary>
+    public async Task MoveWatchRootAsync(DirectoryNode node, int targetIndex)
+    {
+        int from = Directories.IndexOf(node);
+        if (from < 0) return;
+        targetIndex = Math.Clamp(targetIndex, 0, Directories.Count - 1);
+        if (from == targetIndex) return;
+
+        // TreeView ignores Move notifications, so re-insert the node
+        Directories.RemoveAt(from);
+        Directories.Insert(targetIndex, node);
+
+        var settings = _storageService.CurrentSettings;
+        var ordered = new List<string>();
+        foreach (var dir in Directories)
+        {
+            var match = settings.WatchDirectories.FirstOrDefault(w => PathUtil.PathEquals(w, dir.FullPath));
+            if (match != null) ordered.Add(match);
+        }
+        // Folders that are missing on disk aren't in the tree; keep them after the rest
+        ordered.AddRange(settings.WatchDirectories.Where(w => !ordered.Contains(w)));
+        settings.WatchDirectories = ordered;
+        await _storageService.SaveSettingsAsync(settings);
+    }
+
+    /// <summary>Re-orders the sidebar's watch folders to match the saved list (after a move in Settings).</summary>
+    public void ApplyWatchFolderOrder()
+    {
+        var order = _storageService.CurrentSettings.WatchDirectories;
+        int target = 0;
+        foreach (var path in order)
+        {
+            int current = -1;
+            for (int i = 0; i < Directories.Count; i++)
+            {
+                if (PathUtil.PathEquals(Directories[i].FullPath, path)) { current = i; break; }
+            }
+            if (current < 0) continue;
+            if (current != target)
+            {
+                // TreeView ignores Move notifications, so re-insert the node
+                var node = Directories[current];
+                Directories.RemoveAt(current);
+                Directories.Insert(target, node);
+            }
+            target++;
+        }
+    }
+
+    public void OpenFolderInExplorer(DirectoryNode node)
+    {
+        if (node == null || !Directory.Exists(node.FullPath)) return;
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"\"{node.FullPath}\"",
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error opening Explorer: {ex.Message}";
+        }
+    }
+
+    public void CopyFolderPath(DirectoryNode node)
+    {
+        if (node == null) return;
+        var package = new DataPackage();
+        package.SetText(node.FullPath);
+        Clipboard.SetContent(package);
     }
 
     [RelayCommand]
@@ -1174,19 +1281,12 @@ public partial class HomeViewModel : ObservableObject
 
             if (DateGrouping == DateGroupingMode.Day)
             {
+                // One format for every day (Google Photos style): Today, Yesterday, "Thu, October 15",
+                // and the year only once it isn't the current one
                 var diff = now - dt.Date;
-                if (diff.TotalDays == 0)
-                {
-                    title = $"{todayStr} • {FormatGroupDate(dt, culture, includeDayOfWeek: false)}";
-                }
-                else if (diff.TotalDays == 1)
-                {
-                    title = $"{yesterdayStr} • {FormatGroupDate(dt, culture, includeDayOfWeek: false)}";
-                }
-                else
-                {
-                    title = FormatGroupDate(dt, culture, includeDayOfWeek: true);
-                }
+                if (diff.TotalDays == 0) title = todayStr;
+                else if (diff.TotalDays == 1) title = yesterdayStr;
+                else title = FormatGroupDate(dt, culture, includeYear: dt.Year != now.Year);
             }
             else if (DateGrouping == DateGroupingMode.Month)
             {
@@ -1201,7 +1301,7 @@ public partial class HomeViewModel : ObservableObject
             long totalBytes = group.Sum(c => c.FileSizeBytes);
             string sizeFormatted = FormatBytes(totalBytes, loc, culture);
             string pluralClip = loc != null ? loc.FormatPlural("Plural_Clip", count) : (count == 1 ? "clip" : "clips");
-            string subtitle = $"{count} {pluralClip} • {sizeFormatted}";
+            string subtitle = $"{count} {pluralClip} · {sizeFormatted}";
 
             var clipGroup = new ClipGroup(group.Key, title, subtitle, group, isHeaderVisible: true)
             {
@@ -1214,18 +1314,12 @@ public partial class HomeViewModel : ObservableObject
         GroupedClips.ReplaceRange(newGroups);
     }
 
-    private static string FormatGroupDate(DateTime dt, System.Globalization.CultureInfo culture, bool includeDayOfWeek)
+    private static string FormatGroupDate(DateTime dt, System.Globalization.CultureInfo culture, bool includeYear)
     {
         bool dayFirst = culture.DateTimeFormat.LongDatePattern.IndexOf('d') < culture.DateTimeFormat.LongDatePattern.IndexOf('M');
-        string pattern;
-        if (includeDayOfWeek)
-        {
-            pattern = dayFirst ? "dddd, d MMMM yyyy" : "dddd, MMMM d, yyyy";
-        }
-        else
-        {
-            pattern = dayFirst ? "d MMMM yyyy" : "MMMM d, yyyy";
-        }
+        string pattern = dayFirst
+            ? (includeYear ? "ddd, d MMMM yyyy" : "ddd, d MMMM")
+            : (includeYear ? "ddd, MMMM d, yyyy" : "ddd, MMMM d");
 
         string result = dt.ToString(pattern, culture);
         if (!string.IsNullOrEmpty(result) && char.IsLower(result[0]))
@@ -1345,7 +1439,10 @@ public partial class HomeViewModel : ObservableObject
 
             if (existingIndex != i && i < target.Count)
             {
-                target.Move(existingIndex, i);
+                // TreeView ignores Move notifications, so re-insert the node
+                var moved = target[existingIndex];
+                target.RemoveAt(existingIndex);
+                target.Insert(i, moved);
             }
 
             var node = target[i];

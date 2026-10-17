@@ -54,6 +54,8 @@ public sealed partial class HomePage : Page
             {
                 UpdateGridResponsiveLayout();
             });
+            UpdateUpdateIndicator(animate: false);
+            if (!string.IsNullOrEmpty(ViewModel.SearchQuery)) SetSearchOpen(true, animate: false);
 
             // The page is cached, so Loaded fires again every time we come back from Settings.
             // Everything below subscribes handlers and must only run once.
@@ -61,6 +63,7 @@ public sealed partial class HomePage : Page
             _isWired = true;
 
             RegisterLibraryShortcuts();
+            WireUpdateNotifications();
 
             if (ClipsGridView != null)
             {
@@ -375,7 +378,7 @@ public sealed partial class HomePage : Page
         };
 
         _viewSwitchStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.Begin(sb);
     }
 
     public void OnReturnedFromViewer()
@@ -416,6 +419,7 @@ public sealed partial class HomePage : Page
             if (AddWatchFolderButton != null) ToolTipService.SetToolTip(AddWatchFolderButton, loc["Tooltip_AddWatchFolder"]);
             if (OpenFileNavButton != null) ToolTipService.SetToolTip(OpenFileNavButton, loc["Tooltip_OpenFile"]);
             if (RefreshClipsButton != null) ToolTipService.SetToolTip(RefreshClipsButton, loc["Tooltip_RefreshClips"]);
+            if (FeedbackButton != null) ToolTipService.SetToolTip(FeedbackButton, loc["Feedback_Tooltip"]);
             if (ExplorerHyperlinkButton != null) ToolTipService.SetToolTip(ExplorerHyperlinkButton, loc["Tooltip_OpenInExplorer"]);
 
             // Search Box Placeholder
@@ -950,53 +954,21 @@ public sealed partial class HomePage : Page
     {
         var tvi = sender as TreeViewItem;
         var node = (tvi?.DataContext as DirectoryNode) ?? (tvi?.Content as DirectoryNode);
-        if (node != null && tvi != null)
+        if (node == null || tvi == null) return;
+
+        // Containers are recycled: never let one keep the faded state of a row it showed before
+        ResetFolderRow(tvi);
+        SuspendRowGlide(tvi);
+        HookTreeListRecycling();
+
+        if (!IsReduceMotionEnabled() && IsInsideExpandingBranch(node))
         {
-            if (IsReduceMotionEnabled() || node.IsWatchRoot)
-            {
-                tvi.Opacity = 1.0;
-                tvi.Height = double.NaN;
-                if (tvi.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
-                {
-                    tt.Y = 0.0;
-                }
-            }
-            else
-            {
-                bool isExpanding = false;
-                foreach (var kv in _folderAnimationTokens)
-                {
-                    if (node != kv.Key && node.FullPath.StartsWith(kv.Key.FullPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        isExpanding = true;
-                        break;
-                    }
-                }
+            AnimateFolderRowIn(tvi, _expandOrder.TryGetValue(node, out int order) ? order : 0);
+        }
 
-                if (isExpanding)
-                {
-                    tvi.Opacity = 0.0;
-                    tvi.Height = 0.0;
-                    if (tvi.RenderTransform is not Microsoft.UI.Xaml.Media.TranslateTransform)
-                    {
-                        tvi.RenderTransform = new Microsoft.UI.Xaml.Media.TranslateTransform { Y = -10.0 };
-                    }
-                }
-                else
-                {
-                    tvi.Opacity = 1.0;
-                    tvi.Height = double.NaN;
-                    if (tvi.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
-                    {
-                        tt.Y = 0.0;
-                    }
-                }
-            }
-
-            if (node.HasSubDirectories)
-            {
-                VisualStateManager.GoToState(tvi, node.IsExpanded ? "Expanded" : "Collapsed", false);
-            }
+        if (node.HasSubDirectories)
+        {
+            VisualStateManager.GoToState(tvi, node.IsExpanded ? "Expanded" : "Collapsed", false);
         }
     }
 
@@ -1304,54 +1276,48 @@ public sealed partial class HomePage : Page
         double targetSidebarX = isOpen ? 0.0 : -width;
         SidebarContainer.Visibility = Visibility.Visible;
 
-        if (ShowSidebarContainer != null)
-        {
-            ShowSidebarContainer.Width = isOpen ? 0.0 : 42.0;
-            ShowSidebarContainer.Visibility = isOpen ? Visibility.Collapsed : Visibility.Visible;
-        }
-
         if (!animate)
         {
             SidebarTranslate.X = targetSidebarX;
             MainContentTranslate.X = 0.0;
+            HeaderToolbarTranslate.X = 0.0;
             SidebarContentBorder.Opacity = 1.0;
-            if (ShowSidebarContainer != null) ShowSidebarContainer.Opacity = isOpen ? 0.0 : 1.0;
+            if (ShowSidebarContainer != null)
+            {
+                ShowSidebarContainer.Width = isOpen ? 0.0 : 44.0;
+                ShowSidebarContainer.Opacity = isOpen ? 0.0 : 1.0;
+                ShowSidebarContainer.Visibility = isOpen ? Visibility.Collapsed : Visibility.Visible;
+            }
             SidebarContainer.Visibility = isOpen ? Visibility.Visible : Visibility.Collapsed;
             return;
         }
 
-        // Keep the content visually where it was, then let it glide into its new slot with the sidebar
-        MainContentTranslate.X = contentVisualX - targetSpacer;
+        // Keep the content visually where it was, then let it glide into its new slot with the sidebar.
+        // The toolbar is counter-translated by the same amount, so it stays pinned to the window's right edge
+        // instead of riding along with the content.
+        double contentFrom = contentVisualX - targetSpacer;
+        MainContentTranslate.X = contentFrom;
+        HeaderToolbarTranslate.X = -contentFrom;
         SidebarTranslate.X = fromSidebarX;
 
-        var duration = TimeSpan.FromMilliseconds(isOpen ? 260 : 220);
-        EasingFunctionBase ease = isOpen
-            ? new ExponentialEase { EasingMode = EasingMode.EaseOut, Exponent = 6 }
-            : new CubicEase { EasingMode = EasingMode.EaseInOut };
-
+        double duration = isOpen ? Helpers.Motion.Long + 60 : Helpers.Motion.Long;
         var sb = new Storyboard();
-
-        var slide = new DoubleAnimation { To = targetSidebarX, Duration = duration, EasingFunction = ease };
-        Storyboard.SetTarget(slide, SidebarTranslate);
-        Storyboard.SetTargetProperty(slide, "X");
-        sb.Children.Add(slide);
-
-        var contentSlide = new DoubleAnimation { To = 0.0, Duration = duration, EasingFunction = ease };
-        Storyboard.SetTarget(contentSlide, MainContentTranslate);
-        Storyboard.SetTargetProperty(contentSlide, "X");
-        sb.Children.Add(contentSlide);
+        sb.Children.Add(Helpers.Motion.Spline(SidebarTranslate, "X", targetSidebarX, duration));
+        sb.Children.Add(Helpers.Motion.Spline(MainContentTranslate, "X", 0.0, duration));
+        sb.Children.Add(Helpers.Motion.Spline(HeaderToolbarTranslate, "X", 0.0, duration));
+        // The sidebar's contents settle a moment after the panel, so it reads as one soft motion
+        sb.Children.Add(isOpen
+            ? Helpers.Motion.Spline(SidebarContentBorder, "Opacity", 1.0, duration, from: 0.4)
+            : Helpers.Motion.Spline(SidebarContentBorder, "Opacity", 0.5, duration * 0.8, accelerate: true));
 
         if (ShowSidebarContainer != null)
         {
-            var buttonFade = new DoubleAnimation
-            {
-                To = isOpen ? 0.0 : 1.0,
-                Duration = TimeSpan.FromMilliseconds(isOpen ? 120 : 200),
-                EasingFunction = ease
-            };
-            Storyboard.SetTarget(buttonFade, ShowSidebarContainer);
-            Storyboard.SetTargetProperty(buttonFade, "Opacity");
-            sb.Children.Add(buttonFade);
+            // The hamburger opens its own space (title glides aside) and fades in, never popping
+            ShowSidebarContainer.Visibility = Visibility.Visible;
+            sb.Children.Add(Helpers.Motion.Spline(ShowSidebarContainer, "Width", isOpen ? 0.0 : 44.0, duration,
+                from: ShowSidebarContainer.ActualWidth, dependent: true));
+            sb.Children.Add(Helpers.Motion.Spline(ShowSidebarContainer, "Opacity", isOpen ? 0.0 : 1.0,
+                isOpen ? Helpers.Motion.Short : Helpers.Motion.Medium, delayMs: isOpen ? 0 : 120));
         }
 
         sb.Completed += (s, e) =>
@@ -1360,14 +1326,108 @@ public sealed partial class HomePage : Page
             _sidebarStoryboard = null;
             SidebarTranslate.X = targetSidebarX;
             MainContentTranslate.X = 0.0;
+            HeaderToolbarTranslate.X = 0.0;
+            SidebarContentBorder.Opacity = 1.0;
             if (!isOpen)
             {
                 SidebarContainer.Visibility = Visibility.Collapsed;
             }
+            else if (ShowSidebarContainer != null)
+            {
+                ShowSidebarContainer.Visibility = Visibility.Collapsed;
+            }
         };
 
         _sidebarStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.BeginExact(sb);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Search: a button that morphs into a field
+    // ---------------------------------------------------------------------------------------------
+
+    private bool _isSearchOpen;
+    private Storyboard? _searchStoryboard;
+    private double SearchClosedWidth = 32;
+    private const double SearchOpenWidth = 248;
+
+    private void SetSearchOpen(bool open, bool focus = false, bool animate = true)
+    {
+        if (SearchHost == null) return;
+        if (_isSearchOpen == open)
+        {
+            if (open && focus) ClipsSearchBox.Focus(FocusState.Keyboard);
+            return;
+        }
+        _isSearchOpen = open;
+        _searchStoryboard?.Stop();
+
+        ClipsSearchBox.IsHitTestVisible = open;
+        ClipsSearchBox.IsTabStop = open;
+        ToolTipService.SetToolTip(SearchToggleButton, open ? null : App.GetService<Services.ILocalizationService>()["Search_Placeholder"]);
+
+        if (!animate || IsReduceMotionEnabled())
+        {
+            SearchHost.Width = open ? SearchOpenWidth : SearchClosedWidth;
+            ClipsSearchBox.Opacity = open ? 1 : 0;
+            if (open && focus) ClipsSearchBox.Focus(FocusState.Keyboard);
+            return;
+        }
+
+        var sb = new Storyboard();
+        if (open)
+        {
+            // Space first, then the text field fades into it
+            sb.Children.Add(Helpers.Motion.Spline(SearchHost, "Width", SearchOpenWidth, Helpers.Motion.Long, from: SearchHost.ActualWidth, dependent: true));
+            sb.Children.Add(Helpers.Motion.Spline(ClipsSearchBox, "Opacity", 1, Helpers.Motion.Medium, from: 0, delayMs: 110));
+        }
+        else
+        {
+            sb.Children.Add(Helpers.Motion.Spline(ClipsSearchBox, "Opacity", 0, 140, accelerate: true));
+            sb.Children.Add(Helpers.Motion.Spline(SearchHost, "Width", SearchClosedWidth, Helpers.Motion.Medium, from: SearchHost.ActualWidth, delayMs: 60, dependent: true));
+        }
+        _searchStoryboard = sb;
+        Helpers.Motion.BeginExact(sb);
+        if (open && focus) ClipsSearchBox.Focus(FocusState.Keyboard);
+    }
+
+    /// <summary>The search button matches the dropdown buttons' real height and is square when closed.</summary>
+    private void OnSortButtonSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        double h = Math.Round(e.NewSize.Height);
+        if (h <= 0 || SearchHost == null) return;
+        SearchHost.Height = h;
+        SearchToggleButton.Height = h - 2;
+        SearchToggleButton.Width = h - 2;
+        SearchClosedWidth = h;
+        if (!_isSearchOpen) SearchHost.Width = h;
+    }
+
+    private void OnSearchToggleClick(object sender, RoutedEventArgs e)
+    {
+        if (_isSearchOpen && string.IsNullOrEmpty(ClipsSearchBox.Text)) SetSearchOpen(false);
+        else SetSearchOpen(true, focus: true);
+    }
+
+    private void OnSearchKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != Windows.System.VirtualKey.Escape) return;
+        if (!string.IsNullOrEmpty(ClipsSearchBox.Text))
+        {
+            ViewModel.SearchQuery = string.Empty;
+        }
+        else
+        {
+            SetSearchOpen(false);
+            SearchToggleButton.Focus(FocusState.Programmatic);
+        }
+        e.Handled = true;
+    }
+
+    private void OnSearchLostFocus(object sender, RoutedEventArgs e)
+    {
+        // An empty field folds back into the button once the user moves on
+        if (string.IsNullOrEmpty(ClipsSearchBox.Text)) SetSearchOpen(false);
     }
 
     private void OnToggleSidebarClick(object sender, RoutedEventArgs e)
@@ -1541,8 +1601,10 @@ public sealed partial class HomePage : Page
 
             var currentTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme;
 
+            ProtectedCursor = null;
+
             Style? baseStyle = null;
-            if (Application.Current.Resources.TryGetValue("DefaultMenuFlyoutPresenterStyle", out var ds1) && ds1 is Style s1)
+            if (Application.Current.Resources.TryGetValue("ReeledMenuFlyoutPresenterStyle", out var ds1) && ds1 is Style s1)
             {
                 baseStyle = s1;
             }
@@ -1576,6 +1638,9 @@ public sealed partial class HomePage : Page
 
     private void OnFlyoutOpened(object? sender, object e)
     {
+        // The menu is its own popup window and keeps whatever cursor was showing when it opened
+        // (resize arrows, the busy cursor) until the mouse moves; reset it to the arrow right away
+        Helpers.CursorHelper.ShowArrowNow();
         if (sender is MenuFlyout menuFlyout)
         {
             var currentTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme;
@@ -2120,6 +2185,17 @@ public sealed partial class HomePage : Page
         double currentScaleX = scale?.ScaleX ?? (isHovered ? 1.0 : 1.02);
         double currentScaleY = scale?.ScaleY ?? (isHovered ? 1.0 : 1.02);
 
+        // Favorite button: revealed on hover, stays for favorites
+        if (card.FindName("FavoriteHost") is UIElement favoriteHost && card.DataContext is GameClip hoveredClip)
+        {
+            var favSb = new Storyboard();
+            var favFade = new DoubleAnimation { To = isHovered || hoveredClip.IsFavorite ? 1.0 : 0.0, Duration = duration, EasingFunction = activeEase };
+            Storyboard.SetTarget(favFade, favoriteHost);
+            Storyboard.SetTargetProperty(favFade, "Opacity");
+            favSb.Children.Add(favFade);
+            Helpers.Motion.Begin(favSb);
+        }
+
         var playOverlay = card.FindName("PlayOverlay") as UIElement;
         double currentPlayOpacity = playOverlay?.Opacity ?? (isHovered ? 0.0 : 1.0);
 
@@ -2406,7 +2482,7 @@ public sealed partial class HomePage : Page
 
         Add(Windows.System.VirtualKey.F, Windows.System.VirtualKeyModifiers.Control, () =>
         {
-            ClipsSearchBox?.Focus(FocusState.Keyboard);
+            SetSearchOpen(true, focus: true);
             return true;
         });
 
@@ -2511,21 +2587,24 @@ public sealed partial class HomePage : Page
         UpdateActiveIndicator(animate: true);
     }
 
-    private readonly System.Collections.Generic.Dictionary<FrameworkElement, Storyboard> _folderStoryboards = new();
 
-    private void StopFolderStoryboard(FrameworkElement element)
-    {
-        if (_folderStoryboards.TryGetValue(element, out var oldSb))
-        {
-            _folderStoryboards.Remove(element);
-            oldSb.Stop();
-            element.Opacity = 0.0;
-            if (element.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
-            {
-                tt.Y = -12.0;
-            }
-        }
-    }
+    // ---------------------------------------------------------------------------------------------
+    // Folder tree expand / collapse
+    //
+    // The tree itself expands and collapses immediately (like File Explorer's navigation pane); only the
+    // child rows animate, on the compositor: a short staggered fade + slide in, and a quick fade out before
+    // a branch closes. Nothing touches the rows' XAML Height/Opacity, so an interrupted animation can never
+    // leave a folder invisible, and a recycled row is reset before it is shown again.
+    // ---------------------------------------------------------------------------------------------
+
+    private readonly System.Collections.Generic.Dictionary<DirectoryNode, long> _expandingNodes = new();
+    private readonly System.Collections.Generic.HashSet<DirectoryNode> _collapsingNodes = new();
+    private readonly System.Collections.Generic.Dictionary<DirectoryNode, Microsoft.UI.Composition.CompositionScopedBatch> _collapseBatches = new();
+    private Microsoft.UI.Composition.CompositionEasingFunction? _folderEaseOut;
+    private Microsoft.UI.Composition.CompositionEasingFunction? _folderEaseIn;
+
+    /// <summary>How long after an expand newly realized rows still play the entrance animation.</summary>
+    private const int ExpandWindowMs = 400;
 
     private static void CollectVisibleDescendants(DirectoryNode parent, System.Collections.Generic.List<DirectoryNode> list)
     {
@@ -2539,242 +2618,238 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private int _expandingGeneration;
-    private readonly System.Collections.Generic.Dictionary<DirectoryNode, System.Threading.CancellationTokenSource> _folderAnimationTokens = new();
-    private readonly System.Collections.Generic.Dictionary<DirectoryNode, Microsoft.UI.Xaml.Media.Animation.Storyboard> _activeSpaceStoryboards = new();
-    private readonly System.Collections.Generic.HashSet<DirectoryNode> _collapsingNodes = new();
-
-    private async void OnDirectoryExpanding(TreeView sender, TreeViewExpandingEventArgs args)
+    private bool IsInsideExpandingBranch(DirectoryNode node)
     {
-        int currentGen = ++_expandingGeneration;
+        long now = Environment.TickCount64;
+        foreach (var kv in _expandingNodes)
+        {
+            if (now <= kv.Value && node != kv.Key &&
+                node.FullPath.StartsWith(kv.Key.FullPath.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>Position of each row in the branch being opened, for the stagger.</summary>
+    private readonly System.Collections.Generic.Dictionary<DirectoryNode, int> _expandOrder = new();
+
+    private void EnsureFolderEasings(Microsoft.UI.Composition.Compositor compositor)
+    {
+        // Windows 11 motion curves: fast-out for entrances, accelerate for exits
+        _folderEaseOut ??= Helpers.Motion.DecelerateCurve(compositor);
+        _folderEaseIn ??= Helpers.Motion.AccelerateCurve(compositor);
+    }
+
+    private Microsoft.UI.Composition.ImplicitAnimationCollection? _rowOffsetAnimations;
+
+    /// <summary>
+    /// Rows glide to their new place whenever the tree's layout moves them (a branch opening or closing,
+    /// a folder being moved), so space opens and closes smoothly instead of rows jumping.
+    /// </summary>
+    private void EnableRowGlide(UIElement row)
+    {
+        if (IsReduceMotionEnabled()) return;
+        var visual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(row);
+        if (_rowOffsetAnimations == null)
+        {
+            var compositor = visual.Compositor;
+            var glide = compositor.CreateVector3KeyFrameAnimation();
+            glide.Target = "Offset";
+            glide.InsertExpressionKeyFrame(1f, "this.FinalValue", Helpers.Motion.DecelerateCurve(compositor));
+            glide.Duration = TimeSpan.FromMilliseconds(Helpers.Motion.Long);
+            _rowOffsetAnimations = compositor.CreateImplicitAnimationCollection();
+            _rowOffsetAnimations["Offset"] = glide;
+        }
+        visual.ImplicitAnimations = _rowOffsetAnimations;
+    }
+
+    /// <summary>
+    /// A recycled or freshly realized row gets its first position without gliding (it would otherwise fly
+    /// in from wherever its container was before); the glide comes back once it has been laid out.
+    /// </summary>
+    private void SuspendRowGlide(UIElement row)
+    {
+        Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(row).ImplicitAnimations = null;
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => EnableRowGlide(row));
+    }
+
+    private bool _isTreeListHooked;
+
+    /// <summary>The TreeView's inner list recycles containers while scrolling; suspend the glide for those.</summary>
+    private void HookTreeListRecycling()
+    {
+        if (_isTreeListHooked || DirectoriesTreeView == null) return;
+        var list = FindVisualChild<ListViewBase>(DirectoriesTreeView);
+        if (list == null) return;
+        _isTreeListHooked = true;
+        list.ContainerContentChanging += (s, args) =>
+        {
+            if (args.ItemContainer != null) SuspendRowGlide(args.ItemContainer);
+        };
+    }
+
+    private static void ResetFolderRow(UIElement row)
+    {
+        // Translation must be enabled before it can be stopped or set
+        Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.SetIsTranslationEnabled(row, true);
+        var visual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(row);
+        visual.StopAnimation("Opacity");
+        visual.StopAnimation("Translation");
+        visual.Opacity = 1f;
+        visual.Properties.InsertVector3("Translation", System.Numerics.Vector3.Zero);
+    }
+
+    private void AnimateFolderRowIn(UIElement row, int index)
+    {
+        Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.SetIsTranslationEnabled(row, true);
+        var visual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(row);
+        var compositor = visual.Compositor;
+        EnsureFolderEasings(compositor);
+
+        // The rows below glide down first (implicit Offset animation), so the new rows come in a beat
+        // later, into space that is already opening
+        var delay = TimeSpan.FromMilliseconds(90 + Math.Min(index, 8) * 24);
+        var duration = TimeSpan.FromMilliseconds(Helpers.Motion.Medium);
+
+        var fade = compositor.CreateScalarKeyFrameAnimation();
+        fade.InsertKeyFrame(0f, 0f);
+        fade.InsertKeyFrame(1f, 1f, _folderEaseOut);
+        fade.Duration = duration;
+        fade.DelayTime = delay;
+        fade.DelayBehavior = Microsoft.UI.Composition.AnimationDelayBehavior.SetInitialValueBeforeDelay;
+
+        var slide = compositor.CreateVector3KeyFrameAnimation();
+        slide.InsertKeyFrame(0f, new System.Numerics.Vector3(0f, -8f, 0f));
+        slide.InsertKeyFrame(1f, System.Numerics.Vector3.Zero, _folderEaseOut);
+        slide.Duration = duration;
+        slide.DelayTime = delay;
+        slide.DelayBehavior = Microsoft.UI.Composition.AnimationDelayBehavior.SetInitialValueBeforeDelay;
+
+        visual.StartAnimation("Opacity", fade);
+        visual.StartAnimation("Translation", slide);
+    }
+
+    private void AnimateFolderRowOut(UIElement row, int reverseIndex)
+    {
+        Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.SetIsTranslationEnabled(row, true);
+        var visual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(row);
+        var compositor = visual.Compositor;
+        EnsureFolderEasings(compositor);
+
+        var delay = TimeSpan.FromMilliseconds(Math.Min(reverseIndex, 6) * 14);
+        var duration = TimeSpan.FromMilliseconds(170);
+
+        var fade = compositor.CreateScalarKeyFrameAnimation();
+        fade.InsertKeyFrame(1f, 0f, _folderEaseIn);
+        fade.Duration = duration;
+        fade.DelayTime = delay;
+
+        var slide = compositor.CreateVector3KeyFrameAnimation();
+        slide.InsertKeyFrame(1f, new System.Numerics.Vector3(0f, -6f, 0f), _folderEaseIn);
+        slide.Duration = duration;
+        slide.DelayTime = delay;
+
+        visual.StartAnimation("Opacity", fade);
+        visual.StartAnimation("Translation", slide);
+    }
+
+    /// <summary>Animates the rows of a branch that just opened (rows realized later animate from OnTreeViewItemLoading).</summary>
+    private void BeginExpandAnimation(DirectoryNode dirNode)
+    {
+        if (IsReduceMotionEnabled()) return;
+        _expandingNodes[dirNode] = Environment.TickCount64 + ExpandWindowMs;
+        var branch = new System.Collections.Generic.List<DirectoryNode>();
+        CollectVisibleDescendants(dirNode, branch);
+        _expandOrder.Clear();
+        for (int i = 0; i < branch.Count; i++) _expandOrder[branch[i]] = i;
+
+        // Rows that already exist (re-expanding a cached branch) don't raise Loading again, so animate them
+        // once the tree has laid the branch out
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
+        {
+            if (DirectoriesTreeView == null || !dirNode.IsExpanded) return;
+            var rows = new System.Collections.Generic.List<DirectoryNode>();
+            CollectVisibleDescendants(dirNode, rows);
+            for (int i = 0; i < rows.Count; i++)
+            {
+                if (DirectoriesTreeView.ContainerFromItem(rows[i]) is TreeViewItem container && container.IsLoaded)
+                {
+                    AnimateFolderRowIn(container, i);
+                }
+            }
+            UpdateActiveIndicator(animate: true);
+        });
+    }
+
+    private void CancelCollapse(DirectoryNode dirNode)
+    {
+        if (!_collapsingNodes.Remove(dirNode)) return;
+        _collapseBatches.Remove(dirNode);
+        if (DirectoriesTreeView == null) return;
+        var rows = new System.Collections.Generic.List<DirectoryNode>();
+        CollectVisibleDescendants(dirNode, rows);
+        foreach (var row in rows)
+        {
+            if (DirectoriesTreeView.ContainerFromItem(row) is TreeViewItem container)
+            {
+                ResetFolderRow(container);
+            }
+        }
+    }
+
+    private void OnDirectoryExpanding(TreeView sender, TreeViewExpandingEventArgs args)
+    {
         var dirNode = args.Item as DirectoryNode ?? (args.Node?.Content as DirectoryNode);
         if (dirNode == null) return;
-        _collapsingNodes.Remove(dirNode);
+
+        CancelCollapse(dirNode);
         dirNode.IsExpanded = true;
-
-        if (sender.ContainerFromItem(dirNode) is TreeViewItem expandingParentTvi)
+        if (sender.ContainerFromItem(dirNode) is TreeViewItem parentTvi)
         {
-            VisualStateManager.GoToState(expandingParentTvi, "Expanded", !IsReduceMotionEnabled());
+            VisualStateManager.GoToState(parentTvi, "Expanded", !IsReduceMotionEnabled());
         }
 
-        if (_activeSpaceStoryboards.TryGetValue(dirNode, out var runningSpaceSb))
+        if (!_expandingNodes.TryGetValue(dirNode, out long until) || Environment.TickCount64 > until)
         {
-            runningSpaceSb.Stop();
-            _activeSpaceStoryboards.Remove(dirNode);
+            BeginExpandAnimation(dirNode);
         }
-
-        CancellationTokenSource cts;
-        if (_folderAnimationTokens.TryGetValue(dirNode, out var existingCts) && !existingCts.IsCancellationRequested)
-        {
-            cts = existingCts;
-        }
-        else
-        {
-            cts = new System.Threading.CancellationTokenSource();
-            _folderAnimationTokens[dirNode] = cts;
-        }
-        var token = cts.Token;
-
-        var itemsToAnimate = new System.Collections.Generic.List<DirectoryNode>();
-        CollectVisibleDescendants(dirNode, itemsToAnimate);
-
-        if (itemsToAnimate.Count == 0) return;
-
         if (IsReduceMotionEnabled())
         {
-            _folderAnimationTokens.Remove(dirNode);
-            foreach (var node in itemsToAnimate)
-            {
-                if (sender.ContainerFromItem(node) is TreeViewItem container)
-                {
-                    StopFolderStoryboard(container);
-                    container.Opacity = 1.0;
-                    container.Height = double.NaN;
-                    if (container.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
-                    {
-                        tt.Y = 0.0;
-                    }
-                }
-            }
             UpdateActiveIndicator(animate: false);
-            return;
         }
-
-        // Zero out opacity and height on any already-materialized containers
-        foreach (var node in itemsToAnimate)
-        {
-            if (sender.ContainerFromItem(node) is TreeViewItem container)
-            {
-                StopFolderStoryboard(container);
-                container.Opacity = 0.0;
-                container.Height = 0.0;
-                if (container.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
-                {
-                    tt.Y = -10.0;
-                }
-            }
-        }
-
-        // Fast polling to ensure containers are realized (instant on cached items, reliable on first load)
-        var targetContainers = new System.Collections.Generic.List<(TreeViewItem Container, int Index)>();
-        for (int attempt = 0; attempt < 6; attempt++)
-        {
-            targetContainers.Clear();
-            for (int i = 0; i < itemsToAnimate.Count; i++)
-            {
-                var node = itemsToAnimate[i];
-                if (sender.ContainerFromItem(node) is TreeViewItem container)
-                {
-                    container.Opacity = 0.0;
-                    container.Height = 0.0;
-                    targetContainers.Add((container, i));
-                }
-            }
-
-            if (targetContainers.Count >= itemsToAnimate.Count)
-                break;
-
-            try
-            {
-                await System.Threading.Tasks.Task.Delay(10, token);
-            }
-            catch (System.Threading.Tasks.TaskCanceledException)
-            {
-                return;
-            }
-        }
-
-        if (token.IsCancellationRequested || currentGen != _expandingGeneration || !dirNode.IsExpanded) return;
-        if (targetContainers.Count == 0) return;
-
-        if (IsReduceMotionEnabled())
-        {
-            foreach (var (container, _) in targetContainers)
-            {
-                StopFolderStoryboard(container);
-                container.Height = double.NaN;
-                container.Opacity = 1.0;
-                if (container.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
-                {
-                    tt.Y = 0.0;
-                }
-                var innerGrid = FindVisualChild<Grid>(container);
-                if (innerGrid != null) innerGrid.Opacity = 1.0;
-            }
-            _folderAnimationTokens.Remove(dirNode);
-            UpdateActiveIndicator(animate: false);
-            return;
-        }
-
-        // Phase 1: Accordion Space Extension (invisible space extends downwards using Apple QuarticEase)
-        var spaceSb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
-        var easeOut = new Microsoft.UI.Xaml.Media.Animation.QuarticEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
-        var spaceDuration = TimeSpan.FromMilliseconds(190);
-
-        foreach (var (container, _) in targetContainers)
-        {
-            var animHeight = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
-            {
-                From = 0.0,
-                To = 36.0,
-                Duration = spaceDuration,
-                EasingFunction = easeOut,
-                EnableDependentAnimation = true
-            };
-            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animHeight, container);
-            Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animHeight, "Height");
-            spaceSb.Children.Add(animHeight);
-        }
-
-        _activeSpaceStoryboards[dirNode] = spaceSb;
-        Helpers.Motion.Begin(spaceSb);
-
-        try
-        {
-            await System.Threading.Tasks.Task.Delay(195, token);
-        }
-        catch (System.Threading.Tasks.TaskCanceledException)
-        {
-            spaceSb.Stop();
-            _activeSpaceStoryboards.Remove(dirNode);
-            return;
-        }
-
-        _activeSpaceStoryboards.Remove(dirNode);
-
-        if (token.IsCancellationRequested || currentGen != _expandingGeneration || !dirNode.IsExpanded) return;
-
-        // Restore standard auto-sizing
-        foreach (var (container, _) in targetContainers)
-        {
-            container.Height = double.NaN;
-        }
-
-        // Phase 2: Cascading Folder Animation (top to bottom slide down and fade in)
-        foreach (var (container, index) in targetContainers)
-        {
-            AnimateCascadeEntrance(container, index);
-        }
-
-        _folderAnimationTokens.Remove(dirNode);
-        UpdateActiveIndicator(animate: true);
     }
 
     private void OnDirectoryCollapsed(TreeView sender, TreeViewCollapsedEventArgs args)
     {
-        _expandingGeneration++;
         var dirNode = args.Item as DirectoryNode ?? (args.Node?.Content as DirectoryNode);
         if (dirNode != null)
         {
             dirNode.IsExpanded = false;
+            _expandingNodes.Remove(dirNode);
             _collapsingNodes.Remove(dirNode);
-            if (_activeSpaceStoryboards.TryGetValue(dirNode, out var runningSpaceSb))
+            _collapseBatches.Remove(dirNode);
+            if (sender.ContainerFromItem(dirNode) is TreeViewItem parentTvi)
             {
-                runningSpaceSb.Stop();
-                _activeSpaceStoryboards.Remove(dirNode);
+                VisualStateManager.GoToState(parentTvi, "Collapsed", !IsReduceMotionEnabled());
             }
         }
-        UpdateActiveIndicator(animate: true);
+        UpdateActiveIndicator(animate: !IsReduceMotionEnabled());
     }
 
     private void ExpandDirectoryWithAnimation(DirectoryNode node)
     {
-        _collapsingNodes.Remove(node);
-
+        CancelCollapse(node);
+        BeginExpandAnimation(node);
+        node.IsExpanded = true;
+        if (DirectoriesTreeView?.ContainerFromItem(node) is TreeViewItem parentTvi)
+        {
+            VisualStateManager.GoToState(parentTvi, "Expanded", !IsReduceMotionEnabled());
+        }
         if (IsReduceMotionEnabled())
         {
-            node.IsExpanded = true;
-            if (DirectoriesTreeView?.ContainerFromItem(node) is TreeViewItem parentTvi)
-            {
-                VisualStateManager.GoToState(parentTvi, "Expanded", false);
-            }
             UpdateActiveIndicator(animate: false);
-            return;
-        }
-
-        // Pre-hide any already materialized child containers so they never flash or blink on screen
-        var visibleDescendants = new System.Collections.Generic.List<DirectoryNode>();
-        CollectVisibleDescendants(node, visibleDescendants);
-        foreach (var childNode in visibleDescendants)
-        {
-            if (DirectoriesTreeView?.ContainerFromItem(childNode) is TreeViewItem container)
-            {
-                StopFolderStoryboard(container);
-                container.Opacity = 0.0;
-                container.Height = 0.0;
-            }
-        }
-
-        // Register animation token before flipping IsExpanded so OnTreeViewItemLoading immediately knows this branch is expanding
-        if (!_folderAnimationTokens.ContainsKey(node))
-        {
-            _folderAnimationTokens[node] = new System.Threading.CancellationTokenSource();
-        }
-
-        node.IsExpanded = true;
-        if (DirectoriesTreeView?.ContainerFromItem(node) is TreeViewItem pTvi)
-        {
-            VisualStateManager.GoToState(pTvi, "Expanded", true);
         }
     }
 
@@ -2795,159 +2870,69 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private async System.Threading.Tasks.Task CollapseDirectoryWithAnimationAsync(DirectoryNode dirNode)
+    private System.Threading.Tasks.Task CollapseDirectoryWithAnimationAsync(DirectoryNode dirNode)
     {
-        _collapsingNodes.Add(dirNode);
+        if (_collapsingNodes.Contains(dirNode)) return System.Threading.Tasks.Task.CompletedTask;
+        _expandingNodes.Remove(dirNode);
 
-        if (_folderAnimationTokens.TryGetValue(dirNode, out var oldCts))
-        {
-            oldCts.Cancel();
-        }
+        var rows = new System.Collections.Generic.List<DirectoryNode>();
+        CollectVisibleDescendants(dirNode, rows);
 
-        if (_activeSpaceStoryboards.TryGetValue(dirNode, out var activeSpaceSb))
-        {
-            activeSpaceSb.Stop();
-            _activeSpaceStoryboards.Remove(dirNode);
-        }
-
-        var cts = new System.Threading.CancellationTokenSource();
-        _folderAnimationTokens[dirNode] = cts;
-        var token = cts.Token;
-
-        var itemsToAnimate = new System.Collections.Generic.List<DirectoryNode>();
-        CollectVisibleDescendants(dirNode, itemsToAnimate);
-
-        var targetContainers = new System.Collections.Generic.List<TreeViewItem>();
-        if (DirectoriesTreeView != null)
-        {
-            foreach (var node in itemsToAnimate)
-            {
-                if (DirectoriesTreeView.ContainerFromItem(node) is TreeViewItem container)
-                {
-                    targetContainers.Add(container);
-                }
-            }
-        }
-
-        // Immediately rotate parent chevron to collapsed state
+        // Chevron turns right away; the selection pill hides if it sits inside the closing branch
         if (DirectoriesTreeView?.ContainerFromItem(dirNode) is TreeViewItem parentTvi)
         {
             VisualStateManager.GoToState(parentTvi, "Collapsed", !IsReduceMotionEnabled());
         }
-
-        // If selected item is inside this collapsing branch, hide indicator immediately
-        if (ViewModel.SelectedDirectory != null && itemsToAnimate.Contains(ViewModel.SelectedDirectory))
+        if (ViewModel.SelectedDirectory != null && rows.Contains(ViewModel.SelectedDirectory))
         {
             AnimateIndicatorVisibility(false, animate: !IsReduceMotionEnabled());
         }
 
-        if (IsReduceMotionEnabled())
+        var containers = new System.Collections.Generic.List<TreeViewItem>();
+        if (DirectoriesTreeView != null && !IsReduceMotionEnabled())
         {
-            dirNode.IsExpanded = false;
-            _collapsingNodes.Remove(dirNode);
-            _folderAnimationTokens.Remove(dirNode);
-
-            foreach (var container in targetContainers)
+            foreach (var row in rows)
             {
-                StopFolderStoryboard(container);
-                container.Opacity = 0.0;
-                container.Height = 0.0;
-                if (container.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
+                if (DirectoriesTreeView.ContainerFromItem(row) is TreeViewItem container && container.IsLoaded)
                 {
-                    tt.Y = 0.0;
+                    containers.Add(container);
                 }
             }
-            UpdateActiveIndicator(animate: false);
-            return;
         }
 
-        if (targetContainers.Count > 0 && DirectoriesTreeView != null)
+        if (containers.Count == 0)
         {
-            // Phase 1: Cascading Folder Exit in REVERSE order (bottom to top)
-            int count = targetContainers.Count;
-            for (int i = 0; i < count; i++)
-            {
-                int reverseIndex = count - 1 - i; // Bottom item has reverseIndex = 0
-                AnimateCascadeExit(targetContainers[i], reverseIndex);
-            }
-
-            int exitWaitMs = Math.Min((count - 1) * 18 + 140, 260);
-            try
-            {
-                await System.Threading.Tasks.Task.Delay(exitWaitMs, token);
-            }
-            catch (System.Threading.Tasks.TaskCanceledException)
-            {
-                _collapsingNodes.Remove(dirNode);
-                return;
-            }
-
-            if (token.IsCancellationRequested)
-            {
-                _collapsingNodes.Remove(dirNode);
-                return;
-            }
-
-            // Phase 2: Accordion Space Collapse (space shrinks upward from 36 to 0 using Apple QuarticEase)
-            var spaceSb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
-            var easeInOut = new Microsoft.UI.Xaml.Media.Animation.QuarticEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseInOut };
-            var spaceDuration = TimeSpan.FromMilliseconds(180);
-
-            foreach (var container in targetContainers)
-            {
-                var animHeight = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimation
-                {
-                    From = container.ActualHeight > 0 ? container.ActualHeight : 36.0,
-                    To = 0.0,
-                    Duration = spaceDuration,
-                    EasingFunction = easeInOut,
-                    EnableDependentAnimation = true
-                };
-                Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animHeight, container);
-                Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animHeight, "Height");
-                spaceSb.Children.Add(animHeight);
-            }
-
-            _activeSpaceStoryboards[dirNode] = spaceSb;
-            Helpers.Motion.Begin(spaceSb);
-
-            try
-            {
-                await System.Threading.Tasks.Task.Delay(185, token);
-            }
-            catch (System.Threading.Tasks.TaskCanceledException)
-            {
-                spaceSb.Stop();
-                _activeSpaceStoryboards.Remove(dirNode);
-                _collapsingNodes.Remove(dirNode);
-                return;
-            }
-
-            _activeSpaceStoryboards.Remove(dirNode);
-
-            if (token.IsCancellationRequested)
-            {
-                _collapsingNodes.Remove(dirNode);
-                return;
-            }
+            dirNode.IsExpanded = false;
+            UpdateActiveIndicator(animate: !IsReduceMotionEnabled());
+            return System.Threading.Tasks.Task.CompletedTask;
         }
 
-        dirNode.IsExpanded = false;
-        _collapsingNodes.Remove(dirNode);
-        _folderAnimationTokens.Remove(dirNode);
-
-        foreach (var container in targetContainers)
+        _collapsingNodes.Add(dirNode);
+        var compositor = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(DirectoriesTreeView).Compositor;
+        var batch = compositor.CreateScopedBatch(Microsoft.UI.Composition.CompositionBatchTypes.Animation);
+        for (int i = 0; i < containers.Count; i++)
         {
-            StopFolderStoryboard(container);
-            container.Opacity = 0.0;
-            container.Height = 0.0;
-            if (container.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform tt)
-            {
-                tt.Y = -10.0;
-            }
+            AnimateFolderRowOut(containers[i], containers.Count - 1 - i);
         }
+        batch.End();
+        _collapseBatches[dirNode] = batch;
 
-        UpdateActiveIndicator(animate: true);
+        batch.Completed += (s, e) =>
+        {
+            // Re-expanded (or collapsed elsewhere) while fading out: that path already restored the rows
+            if (!_collapseBatches.TryGetValue(dirNode, out var current) || current != batch) return;
+            _collapseBatches.Remove(dirNode);
+            _collapsingNodes.Remove(dirNode);
+
+            dirNode.IsExpanded = false;
+            // The rows leave the tree now; reset them so their containers come back fully visible
+            foreach (var container in containers)
+            {
+                ResetFolderRow(container);
+            }
+            UpdateActiveIndicator(animate: true);
+        };
+        return System.Threading.Tasks.Task.CompletedTask;
     }
 
     private void OnFolderItemGridLoaded(object sender, RoutedEventArgs e)
@@ -2962,206 +2947,99 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private void AnimateCascadeEntrance(FrameworkElement element, int index)
+    private void OnFolderRowRightTapped(object sender, RightTappedRoutedEventArgs e)
     {
-        StopFolderStoryboard(element);
+        if (sender is not TreeViewItem row) return;
+        var node = (row.DataContext as DirectoryNode) ?? (row.Content as DirectoryNode);
+        if (node == null) return;
+        e.Handled = true;
 
-        Microsoft.UI.Xaml.Media.TranslateTransform trans;
-        if (element.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform existingTt)
+        var loc = App.GetService<Services.ILocalizationService>();
+        var flyout = new MenuFlyout();
+        if (XamlRoot != null) flyout.XamlRoot = XamlRoot;
+        flyout.Opening += OnFlyoutOpening;
+        flyout.Opened += OnFlyoutOpened;
+
+        MenuFlyoutItem Item(string key, string glyph, Action onClick, bool enabled = true)
         {
-            trans = existingTt;
-        }
-        else
-        {
-            trans = new Microsoft.UI.Xaml.Media.TranslateTransform();
-            element.RenderTransform = trans;
+            var item = new MenuFlyoutItem { Text = loc[key], Icon = new FontIcon { Glyph = glyph }, IsEnabled = enabled };
+            item.Click += (s, args) => onClick();
+            flyout.Items.Add(item);
+            return item;
         }
 
-        if (IsReduceMotionEnabled())
+        Item("FolderMenu_Open", "\uE8E5", () => SelectFolderFromMenu(node));
+        if (node.HasSubDirectories)
         {
-            trans.Y = 0.0;
-            element.Opacity = 1.0;
-            element.Height = double.NaN;
-            if (element is TreeViewItem tvi)
+            bool expanded = node.IsExpanded && !_collapsingNodes.Contains(node);
+            Item(expanded ? "FolderMenu_Collapse" : "FolderMenu_Expand", expanded ? "\uE70E" : "\uE70D", () =>
             {
-                var innerGrid = FindVisualChild<Grid>(tvi);
-                if (innerGrid != null) innerGrid.Opacity = 1.0;
-            }
-            return;
-        }
-
-        double slideDistance = -(10.0 + Math.Min(index * 0.8, 6.0));
-        trans.Y = slideDistance;
-        element.Opacity = 0.0;
-
-        var delay = TimeSpan.FromMilliseconds(Math.Min(index, 10) * 20);
-        var duration = TimeSpan.FromMilliseconds(180);
-        var easeOut = new Microsoft.UI.Xaml.Media.Animation.QuarticEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseOut };
-
-        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
-
-        // 1. Y translation using Apple QuarticEase decelerate curve
-        var animY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
-        animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
-        {
-            Value = slideDistance,
-            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)
-        });
-        if (delay > TimeSpan.Zero)
-        {
-            animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
-            {
-                Value = slideDistance,
-                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay)
+                if (expanded) _ = CollapseDirectoryWithAnimationAsync(node);
+                else ExpandDirectoryWithAnimation(node);
             });
         }
-        animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
-        {
-            Value = 0.0,
-            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay + duration),
-            EasingFunction = easeOut
-        });
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, trans);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "Y");
 
-        // 2. Opacity fade in using Apple QuarticEase
-        var animOp = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
-        animOp.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
+        flyout.Items.Add(new MenuFlyoutSeparator());
+        Item("FolderMenu_RevealExplorer", "\uEC50", () => ViewModel.OpenFolderInExplorer(node));
+        Item("FolderMenu_CopyPath", "\uE8C8", () => ViewModel.CopyFolderPath(node));
+
+        // Watch folders can be reordered; subfolders follow the file system order
+        int index = ViewModel.Directories.IndexOf(node);
+        if (node.IsWatchRoot && index >= 0 && ViewModel.Directories.Count > 1)
         {
-            Value = 0.0,
-            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)
-        });
-        if (delay > TimeSpan.Zero)
-        {
-            animOp.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
+            int last = ViewModel.Directories.Count - 1;
+            flyout.Items.Add(new MenuFlyoutSeparator());
+            var moveItem = new MenuFlyoutSubItem { Text = loc["FolderMenu_Move"], Icon = new FontIcon { Glyph = "\uE8CB" } };
+            void MoveItem(string key, string glyph, int target, bool enabled)
             {
-                Value = 0.0,
-                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay)
-            });
-        }
-        animOp.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
-        {
-            Value = 1.0,
-            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay + TimeSpan.FromMilliseconds(160)),
-            EasingFunction = easeOut
-        });
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOp, element);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animOp, "Opacity");
-
-        sb.Children.Add(animY);
-        sb.Children.Add(animOp);
-
-        _folderStoryboards[element] = sb;
-
-        sb.Completed += (s, e) =>
-        {
-            if (_folderStoryboards.TryGetValue(element, out var currentSb) && currentSb == sb)
-            {
-                _folderStoryboards.Remove(element);
-                sb.Stop();
-                element.Opacity = 1.0;
-                trans.Y = 0.0;
-                element.Height = double.NaN;
-                if (element is TreeViewItem tvi)
-                {
-                    var innerGrid = FindVisualChild<Grid>(tvi);
-                    if (innerGrid != null) innerGrid.Opacity = 1.0;
-                }
+                var item = new MenuFlyoutItem { Text = loc[key], Icon = new FontIcon { Glyph = glyph }, IsEnabled = enabled };
+                item.Click += (s, args) => MoveWatchFolder(node, target);
+                moveItem.Items.Add(item);
             }
-        };
+            MoveItem("FolderMenu_MoveUp", "\uE74A", index - 1, index > 0);
+            MoveItem("FolderMenu_MoveDown", "\uE74B", index + 1, index < last);
+            moveItem.Items.Add(new MenuFlyoutSeparator());
+            MoveItem("FolderMenu_MoveTop", "\uEDDB", 0, index > 0);
+            MoveItem("FolderMenu_MoveBottom", "\uEDDC", last, index < last);
+            flyout.Items.Add(moveItem);
+        }
 
-        Helpers.Motion.Begin(sb);
+        if (node.IsWatchRoot)
+        {
+            flyout.Items.Add(new MenuFlyoutSeparator());
+            Item("FolderMenu_Remove", "\uE74D", () => _ = ViewModel.RemoveDirectoryAsync(node));
+        }
+
+        flyout.ShowAt(row, e.GetPosition(row));
     }
 
-    private void AnimateCascadeExit(FrameworkElement element, int index)
+    private async void SelectFolderFromMenu(DirectoryNode node)
     {
-        StopFolderStoryboard(element);
+        if (DirectoriesTreeView != null) DirectoriesTreeView.SelectedItem = node;
+        await ViewModel.SelectDirectoryAsync(node);
+        ScrollClipsToTop();
+        UpdateActiveIndicator(animate: true);
+    }
 
-        Microsoft.UI.Xaml.Media.TranslateTransform trans;
-        if (element.RenderTransform is Microsoft.UI.Xaml.Media.TranslateTransform existingTt)
+    private async void MoveWatchFolder(DirectoryNode node, int targetIndex)
+    {
+        await ViewModel.MoveWatchRootAsync(node, targetIndex);
+
+        // The tree re-creates the moved row: restore the selection and give the row a short entrance so
+        // the eye can follow where it went
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
-            trans = existingTt;
-        }
-        else
-        {
-            trans = new Microsoft.UI.Xaml.Media.TranslateTransform();
-            element.RenderTransform = trans;
-        }
-
-        trans.Y = 0.0;
-        element.Opacity = 1.0;
-
-        var delay = TimeSpan.FromMilliseconds(Math.Min(index, 10) * 18);
-        var duration = TimeSpan.FromMilliseconds(140);
-        var easeInOut = new Microsoft.UI.Xaml.Media.Animation.QuarticEase { EasingMode = Microsoft.UI.Xaml.Media.Animation.EasingMode.EaseInOut };
-
-        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
-
-        // 1. Y translation upward slide using QuarticEase EaseInOut
-        var animY = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
-        animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
-        {
-            Value = 0.0,
-            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)
-        });
-        if (delay > TimeSpan.Zero)
-        {
-            animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
+            if (DirectoriesTreeView == null) return;
+            if (ViewModel.SelectedDirectory != null && ViewModel.CurrentSection == NavigationSection.Folder)
             {
-                Value = 0.0,
-                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay)
-            });
-        }
-        animY.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
-        {
-            Value = -10.0,
-            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay + duration),
-            EasingFunction = easeInOut
-        });
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animY, trans);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animY, "Y");
-
-        // 2. Opacity fade out using QuarticEase EaseInOut
-        var animOp = new Microsoft.UI.Xaml.Media.Animation.DoubleAnimationUsingKeyFrames();
-        animOp.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
-        {
-            Value = 1.0,
-            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)
-        });
-        if (delay > TimeSpan.Zero)
-        {
-            animOp.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.DiscreteDoubleKeyFrame
-            {
-                Value = 1.0,
-                KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay)
-            });
-        }
-        animOp.KeyFrames.Add(new Microsoft.UI.Xaml.Media.Animation.EasingDoubleKeyFrame
-        {
-            Value = 0.0,
-            KeyTime = Microsoft.UI.Xaml.Media.Animation.KeyTime.FromTimeSpan(delay + duration),
-            EasingFunction = easeInOut
-        });
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTarget(animOp, element);
-        Microsoft.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animOp, "Opacity");
-
-        sb.Children.Add(animY);
-        sb.Children.Add(animOp);
-
-        _folderStoryboards[element] = sb;
-
-        sb.Completed += (s, e) =>
-        {
-            if (_folderStoryboards.TryGetValue(element, out var currentSb) && currentSb == sb)
-            {
-                _folderStoryboards.Remove(element);
-                sb.Stop();
-                element.Opacity = 0.0;
-                trans.Y = -10.0;
+                DirectoriesTreeView.SelectedItem = ViewModel.SelectedDirectory;
             }
-        };
-
-        Helpers.Motion.Begin(sb);
+            if (!IsReduceMotionEnabled() && DirectoriesTreeView.ContainerFromItem(node) is TreeViewItem moved)
+            {
+                AnimateFolderRowIn(moved, 0);
+            }
+            UpdateActiveIndicator(animate: !IsReduceMotionEnabled());
+        });
     }
 
     private void OnFolderRowPointerPressed(object sender, PointerRoutedEventArgs e)
@@ -3193,6 +3071,198 @@ public sealed partial class HomePage : Page
         if (sender is UIElement el)
         {
             ResetElementScale(el);
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Update indicator & prompt
+    // ---------------------------------------------------------------------------------------------
+
+    private enum UpdateTipKind { Available, Ready, Updated, Failed }
+
+    private UpdateTipKind _updateTipKind;
+    private bool _isUpdateIndicatorShown;
+    private Storyboard? _updateIndicatorStoryboard;
+
+    private static ViewModels.SettingsViewModel SettingsVM => App.GetService<ViewModels.SettingsViewModel>();
+
+    private void WireUpdateNotifications()
+    {
+        var vm = SettingsVM;
+        vm.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName is nameof(ViewModels.SettingsViewModel.IsUpdateAvailable)
+                or nameof(ViewModels.SettingsViewModel.IsUpdateReadyToInstall)
+                or nameof(ViewModels.SettingsViewModel.UpdateAvailableVersion))
+            {
+                DispatcherQueue.TryEnqueue(() => UpdateUpdateIndicator(animate: true));
+            }
+
+            // A background download finished: offer the restart once
+            if (e.PropertyName == nameof(ViewModels.SettingsViewModel.IsUpdateReadyToInstall) && vm.IsUpdateReadyToInstall &&
+                vm.CanSelfUpdate && !vm.IsUpdatePromptDismissed(ready: true))
+            {
+                DispatcherQueue.TryEnqueue(() => ShowUpdateTip(UpdateTipKind.Ready));
+            }
+        };
+        vm.UpdatePromptRequested += (s, e) => DispatcherQueue.TryEnqueue(() =>
+        {
+            // When it downloads on its own, wait and offer the restart instead of two prompts in a row
+            if (vm.AutoDownloadUpdates && vm.CanSelfUpdate) return;
+            ShowUpdateTip(UpdateTipKind.Available);
+        });
+
+        UpdateUpdateIndicator(animate: false);
+
+        // Greet after an update (or report a failed one) once the library has settled
+        string? notice = vm.TakeLaunchUpdateNotice();
+        UpdateTipKind? launchTip = notice switch
+        {
+            "updated" => UpdateTipKind.Updated,
+            "failed" => UpdateTipKind.Failed,
+            _ => vm.IsUpdateReadyToInstall && vm.CanSelfUpdate && !vm.IsUpdatePromptDismissed(ready: true) ? UpdateTipKind.Ready : null
+        };
+        if (launchTip is UpdateTipKind kind)
+        {
+            var timer = DispatcherQueue.CreateTimer();
+            timer.Interval = TimeSpan.FromMilliseconds(1200);
+            timer.IsRepeating = false;
+            timer.Tick += (t, _) => ShowUpdateTip(kind);
+            timer.Start();
+        }
+    }
+
+    private void UpdateUpdateIndicator(bool animate)
+    {
+        if (UpdateAvailableButton == null) return;
+        var vm = SettingsVM;
+        bool show = vm.IsUpdateAvailable;
+
+        var loc = App.GetService<Services.ILocalizationService>();
+        ToolTipService.SetToolTip(UpdateAvailableButton, string.Format(loc["Update_Sidebar_Tooltip"], vm.UpdateAvailableVersion));
+        if (UpdateButtonIcon != null)
+        {
+            // Download arrow while it's on the server, restart arrow once it's ready
+            UpdateButtonIcon.Glyph = vm.IsUpdateReadyToInstall && vm.CanSelfUpdate ? "\uE777" : "\uE896";
+        }
+
+        if (show == _isUpdateIndicatorShown && animate) return;
+        _isUpdateIndicatorShown = show;
+        _updateIndicatorStoryboard?.Stop();
+
+        if (!animate || Helpers.Motion.IsReduced)
+        {
+            UpdateAvailableButton.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            UpdateAvailableButton.Opacity = show ? 1 : 0;
+            UpdateButtonScale.ScaleX = UpdateButtonScale.ScaleY = show ? 1 : 0.6;
+            return;
+        }
+
+        UpdateAvailableButton.Visibility = Visibility.Visible;
+        var sb = new Storyboard();
+        var duration = TimeSpan.FromMilliseconds(show ? 360 : 160);
+        EasingFunctionBase ease = show
+            ? new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.35 }
+            : new CubicEase { EasingMode = EasingMode.EaseIn };
+
+        var fade = new DoubleAnimation { To = show ? 1 : 0, Duration = TimeSpan.FromMilliseconds(show ? 200 : 160) };
+        Storyboard.SetTarget(fade, UpdateAvailableButton);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+        sb.Children.Add(fade);
+        foreach (var axis in new[] { "ScaleX", "ScaleY" })
+        {
+            var scale = new DoubleAnimation { To = show ? 1 : 0.6, Duration = duration, EasingFunction = ease };
+            Storyboard.SetTarget(scale, UpdateButtonScale);
+            Storyboard.SetTargetProperty(scale, axis);
+            sb.Children.Add(scale);
+        }
+        sb.Completed += (s, e) =>
+        {
+            if (!_isUpdateIndicatorShown) UpdateAvailableButton.Visibility = Visibility.Collapsed;
+        };
+        _updateIndicatorStoryboard = sb;
+        Helpers.Motion.Begin(sb);
+    }
+
+    private void ShowUpdateTip(UpdateTipKind kind)
+    {
+        if (UpdateTeachingTip == null) return;
+        var vm = SettingsVM;
+        var loc = App.GetService<Services.ILocalizationService>();
+        _updateTipKind = kind;
+
+        string version = vm.UpdateAvailableVersion;
+        switch (kind)
+        {
+            case UpdateTipKind.Available:
+                UpdateTeachingTip.Title = loc["Update_Prompt_Title"];
+                UpdateTeachingTip.Subtitle = string.Format(loc["Update_Prompt_Body"], version);
+                UpdateTeachingTip.ActionButtonContent = loc["Update_Prompt_View"];
+                UpdateTeachingTip.CloseButtonContent = loc["Update_Prompt_Later"];
+                break;
+            case UpdateTipKind.Ready:
+                UpdateTeachingTip.Title = loc["Update_Prompt_Title"];
+                UpdateTeachingTip.Subtitle = string.Format(loc["Update_Prompt_BodyReady"], version);
+                UpdateTeachingTip.ActionButtonContent = loc["Update_Prompt_Restart"];
+                UpdateTeachingTip.CloseButtonContent = loc["Update_Prompt_Later"];
+                break;
+            case UpdateTipKind.Updated:
+                UpdateTeachingTip.Title = loc["Update_Updated_Title"];
+                UpdateTeachingTip.Subtitle = string.Format(loc["Update_Updated_Body"], vm.CurrentVersionTag);
+                UpdateTeachingTip.ActionButtonContent = loc["Update_Updated_Notes"];
+                UpdateTeachingTip.CloseButtonContent = loc["Update_Prompt_Close"];
+                break;
+            case UpdateTipKind.Failed:
+                UpdateTeachingTip.Title = loc["Update_Failed_Title"];
+                UpdateTeachingTip.Subtitle = string.Format(loc["Update_Failed_Body"], vm.CurrentVersionTag);
+                UpdateTeachingTip.ActionButtonContent = loc["Update_Prompt_View"];
+                UpdateTeachingTip.CloseButtonContent = loc["Update_Prompt_Close"];
+                break;
+        }
+
+        // Point at the sidebar icon when it's on screen, otherwise float in the corner
+        FrameworkElement? target = null;
+        if (ViewModel.IsSidebarOpen)
+        {
+            if (UpdateAvailableButton.Visibility == Visibility.Visible) target = UpdateAvailableButton;
+            else if (kind is UpdateTipKind.Updated or UpdateTipKind.Failed) target = SettingsNavButton;
+        }
+        UpdateTeachingTip.Target = target;
+        UpdateTeachingTip.PreferredPlacement = target != null ? TeachingTipPlacementMode.RightBottom : TeachingTipPlacementMode.BottomRight;
+        UpdateTeachingTip.IsOpen = true;
+    }
+
+    private void OnUpdateAvailableButtonClick(object sender, RoutedEventArgs e)
+    {
+        var vm = SettingsVM;
+        ShowUpdateTip(vm.IsUpdateReadyToInstall && vm.CanSelfUpdate ? UpdateTipKind.Ready : UpdateTipKind.Available);
+    }
+
+    private async void OnUpdateTipActionClick(TeachingTip sender, object args)
+    {
+        sender.IsOpen = false;
+        var vm = SettingsVM;
+        switch (_updateTipKind)
+        {
+            case UpdateTipKind.Ready:
+                await vm.InstallUpdateAsync();
+                break;
+            case UpdateTipKind.Updated:
+                await Windows.System.Launcher.LaunchUriAsync(new Uri($"https://github.com/k25jura/Reeled/releases/tag/{vm.CurrentVersionTag}"));
+                break;
+            default:
+                vm.PendingSection = "UpdateSection";
+                ViewModel.OpenSettings();
+                break;
+        }
+    }
+
+    private void OnUpdateTipCloseClick(TeachingTip sender, object args)
+    {
+        sender.IsOpen = false;
+        if (_updateTipKind is UpdateTipKind.Available or UpdateTipKind.Ready)
+        {
+            SettingsVM.DismissUpdatePrompt(ready: _updateTipKind == UpdateTipKind.Ready);
         }
     }
 
@@ -3390,6 +3460,11 @@ public sealed partial class HomePage : Page
         }
     }
 
+    private async void OnFeedbackClick(object sender, RoutedEventArgs e)
+    {
+        if (XamlRoot != null) await Helpers.FeedbackDialog.ShowAsync(XamlRoot);
+    }
+
     private async void OnAddFolderClick(object sender, RoutedEventArgs e)
     {
         await ViewModel.AddDirectoryAsync(App.WindowHandle);
@@ -3446,7 +3521,22 @@ public sealed partial class HomePage : Page
             bool willBeFavorite = !clip.IsFavorite;
             _ = ViewModel.ToggleFavoriteAsync(clip);
             AnimateFavoriteClick(btn, willBeFavorite);
+            SetFavoriteTooltip(btn, willBeFavorite);
         }
+    }
+
+    private void OnFavoriteButtonLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is GameClip clip)
+        {
+            SetFavoriteTooltip(btn, clip.IsFavorite);
+        }
+    }
+
+    private static void SetFavoriteTooltip(Button btn, bool isFavorite)
+    {
+        var loc = App.GetService<Services.ILocalizationService>();
+        ToolTipService.SetToolTip(btn, loc[isFavorite ? "ContextMenu_RemoveFromFavorites" : "ContextMenu_AddToFavorites"]);
     }
 
     private void AnimateFavoriteClick(Button btn, bool isFavorited)

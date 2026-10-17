@@ -26,7 +26,7 @@
     <AssemblyTitle>Reeled Setup</AssemblyTitle>
     <Copyright>Copyright © 2026 k25jura</Copyright>
     <Description>Reeled Setup and Installation Bootstrapper</Description>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <EnableMsixTooling>true</EnableMsixTooling>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>

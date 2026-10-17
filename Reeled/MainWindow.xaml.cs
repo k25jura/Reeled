@@ -207,11 +207,16 @@ public sealed partial class MainWindow : Window
         uint dpi = GetDpiForWindow(hwnd);
         double scale = (dpi > 0 ? dpi : 96) / 96.0;
 
-        // Ensure window starts with a comfortable initial size (e.g. 1100x720)
-        if (AppWindow.Size.Width < (int)(MinWindowWidth * scale) || AppWindow.Size.Height < (int)(MinWindowHeight * scale))
+        // Reopen where the window was last time; first launch gets a comfortable 1100x720
+        if (!RestoreWindowBounds(scale) &&
+            (AppWindow.Size.Width < (int)(MinWindowWidth * scale) || AppWindow.Size.Height < (int)(MinWindowHeight * scale)))
         {
             AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(1100 * scale), (int)(720 * scale)));
         }
+        AppWindow.Changed += (s, e) =>
+        {
+            if (e.DidSizeChange || e.DidPositionChange || e.DidPresenterChange) RememberWindowBounds();
+        };
 
         _navigationService = App.GetService<INavigationService>();
         _navigationService.NavigatedToPlayer += OnNavigatedToPlayer;
@@ -385,6 +390,65 @@ public sealed partial class MainWindow : Window
 
     private bool _stateFlushed;
 
+    /// <summary>Restores the saved bounds when they still land on a connected display.</summary>
+    private bool RestoreWindowBounds(double scale)
+    {
+        try
+        {
+            var settings = App.GetService<ILocalStorageService>().CurrentSettings;
+            if (settings.WindowWidth < MinWindowWidth * scale || settings.WindowHeight < MinWindowHeight * scale) return false;
+
+            var rect = new Windows.Graphics.RectInt32(settings.WindowX, settings.WindowY, settings.WindowWidth, settings.WindowHeight);
+            // A monitor that was unplugged must not leave the window off-screen
+            var area = Microsoft.UI.Windowing.DisplayArea.GetFromRect(rect, Microsoft.UI.Windowing.DisplayAreaFallback.None);
+            if (area == null) return false;
+            var work = area.WorkArea;
+            int width = Math.Min(rect.Width, work.Width);
+            int height = Math.Min(rect.Height, work.Height);
+            int x = Math.Clamp(rect.X, work.X - width / 2, work.X + work.Width - width / 2);
+            int y = Math.Clamp(rect.Y, work.Y, work.Y + work.Height - 48);
+            AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, width, height));
+
+            if (settings.WindowMaximized && AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
+            {
+                presenter.Maximize();
+            }
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Helpers.Log.Error("RestoreWindowBounds", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Keeps the last normal bounds up to date (maximize and the player's full screen don't overwrite
+    /// them), so the next launch reopens at the same size and place.
+    /// </summary>
+    private void RememberWindowBounds()
+    {
+        try
+        {
+            if (AppWindow.Presenter is not Microsoft.UI.Windowing.OverlappedPresenter presenter) return;
+            var settings = App.GetService<ILocalStorageService>().CurrentSettings;
+            switch (presenter.State)
+            {
+                case Microsoft.UI.Windowing.OverlappedPresenterState.Maximized:
+                    settings.WindowMaximized = true;
+                    break;
+                case Microsoft.UI.Windowing.OverlappedPresenterState.Restored:
+                    settings.WindowMaximized = false;
+                    settings.WindowX = AppWindow.Position.X;
+                    settings.WindowY = AppWindow.Position.Y;
+                    settings.WindowWidth = AppWindow.Size.Width;
+                    settings.WindowHeight = AppWindow.Size.Height;
+                    break;
+            }
+        }
+        catch { }
+    }
+
     /// <summary>
     /// Settings and the metadata cache are saved in the background during normal use; persist them
     /// synchronously before the process exits so the last changes aren't lost.
@@ -411,6 +475,9 @@ public sealed partial class MainWindow : Window
             storage.SaveSettingsSync(storage.CurrentSettings);
         }
         catch { }
+
+        // A downloaded update installs once the app has closed
+        try { App.GetService<ViewModels.SettingsViewModel>().ApplyPendingUpdateOnExit(); } catch { }
     }
 
     private void OnWindowGlobalKeyDown(object sender, KeyRoutedEventArgs e)

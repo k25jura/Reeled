@@ -419,6 +419,7 @@ public sealed partial class HomePage : Page
             if (AddWatchFolderButton != null) ToolTipService.SetToolTip(AddWatchFolderButton, loc["Tooltip_AddWatchFolder"]);
             if (OpenFileNavButton != null) ToolTipService.SetToolTip(OpenFileNavButton, loc["Tooltip_OpenFile"]);
             if (RefreshClipsButton != null) ToolTipService.SetToolTip(RefreshClipsButton, loc["Tooltip_RefreshClips"]);
+            if (FeedbackButton != null) ToolTipService.SetToolTip(FeedbackButton, loc["Feedback_Tooltip"]);
             if (ExplorerHyperlinkButton != null) ToolTipService.SetToolTip(ExplorerHyperlinkButton, loc["Tooltip_OpenInExplorer"]);
 
             // Search Box Placeholder
@@ -3445,6 +3446,11 @@ public sealed partial class HomePage : Page
             }
             UpdateActiveIndicator(animate: true);
         }
+    }
+
+    private async void OnFeedbackClick(object sender, RoutedEventArgs e)
+    {
+        if (XamlRoot != null) await Helpers.FeedbackDialog.ShowAsync(XamlRoot);
     }
 
     private async void OnAddFolderClick(object sender, RoutedEventArgs e)

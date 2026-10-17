@@ -1,0 +1,21 @@
+name: Feedback
+description: Share general feedback, impressions or questions about Reeled.
+title: "[Feedback] "
+labels: ["feedback"]
+body:
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Your feedback
+      description: What do you like, what feels off, what would you change?
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics (optional)
+      description: Added automatically when you send feedback from the app.
+      render: text
+    validations:
+      required: false

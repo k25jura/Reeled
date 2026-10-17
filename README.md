@@ -46,7 +46,7 @@ Built with unpackaged WinUI 3 (Windows App SDK), .NET 8, and LibVLC 3.0.
 | Input | Action |
 | --- | --- |
 | `Space` | Play / Pause |
-| `Left` / `Right Arrow` | Seek backward / forward 5 seconds |
+| `Left` / `Right Arrow` | Seek backward / forward 5 seconds (5, 10, 15 or 30 in Settings) |
 | `Shift + Left` / `Right Arrow` | Fine seek backward / forward 1 second |
 | `,` / `.` | Step one frame backward / forward (pauses) |
 | `Home` / `End` | Jump to start / end |
@@ -55,7 +55,7 @@ Built with unpackaged WinUI 3 (Windows App SDK), .NET 8, and LibVLC 3.0.
 | `[` / `]` | Playback speed down / up 0.25x |
 | `\` | Reset playback speed |
 | `Up` / `Down Arrow` | Volume up / down 5% |
-| `Mouse Scroll Wheel` | Volume adjust (over canvas or volume slider) |
+| `Mouse Scroll Wheel` | Volume adjust (over canvas or volume slider); can skip or do nothing instead |
 | `M` | Toggle mute |
 | `B` | Mark moment bookmark at current timestamp |
 | `Q` | Toggle Clip Queue drawer |
@@ -69,8 +69,9 @@ Built with unpackaged WinUI 3 (Windows App SDK), .NET 8, and LibVLC 3.0.
 
 | Input | Action |
 | --- | --- |
-| `Ctrl + F` | Focus search |
-| `Escape` (in search) | Clear search |
+| `Ctrl + F` | Open search |
+| `Escape` (in search) | Clear search, press again to close it |
+| `Right Click` (folder) | Open, reveal in File Explorer, reorder or remove watch folders |
 | `F5` | Rescan watch folders |
 | `F2` | Rename the clip under the cursor (in app) |
 | `Delete` | Move the clip under the cursor to the Recycle Bin (asks first) |
@@ -112,6 +113,14 @@ Built with unpackaged WinUI 3 (Windows App SDK), .NET 8, and LibVLC 3.0.
    ```bash
    dotnet run --project Reeled\Reeled.csproj
    ```
+
+---
+
+## Feedback & Contributing
+
+Found a bug or have an idea? Use **Send feedback** in the app (sidebar or Settings › About): it opens a pre-filled
+[GitHub issue form](https://github.com/k25jura/Reeled/issues/new/choose) with your version and diagnostics.
+See [CONTRIBUTING.md](CONTRIBUTING.md) to build Reeled and send changes, and [SECURITY.md](SECURITY.md) to report security issues privately.
 
 ---
 

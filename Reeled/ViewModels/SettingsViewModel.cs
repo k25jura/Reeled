@@ -680,30 +680,39 @@ public partial class SettingsViewModel : ObservableObject
         }
     }
 
+    /// <summary>Plain-text environment report (copied from About, attached to feedback).</summary>
+    public string BuildDiagnosticsReport(bool includeLogPath)
+    {
+        UpdateDiagnostics();
+        var settings = _storageService.CurrentSettings;
+        var uptime = DateTime.Now - System.Diagnostics.Process.GetCurrentProcess().StartTime;
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("--- Reeled Diagnostics ---");
+        sb.AppendLine($"Version: {_updateService.CurrentVersion} ({(_updateService.CanSelfUpdate ? "installed" : "portable/dev")})");
+        sb.AppendLine($"OS: {OsVersionFormatted} ({System.Runtime.InteropServices.RuntimeInformation.OSDescription})");
+        sb.AppendLine($"Architecture: {ArchitectureFormatted}");
+        sb.AppendLine($"Runtime: {RuntimeFormatted}");
+        sb.AppendLine($"Windows App SDK: {typeof(Microsoft.UI.Xaml.Application).Assembly.GetName().Version}");
+        sb.AppendLine($"Video engine: {VideoEngineFormatted}");
+        sb.AppendLine($"Display: {DisplayFormatted}");
+        sb.AppendLine($"Process Memory: {MemoryUsageFormatted}");
+        sb.AppendLine($"Uptime: {(int)uptime.TotalHours}h {uptime.Minutes}m");
+        sb.AppendLine($"Library: {LibraryStatsFormatted}");
+        sb.AppendLine($"Theme: {settings.AppTheme}, Reduce motion: {settings.ReduceMotion}, Blur: {settings.EnableBackdropBlur} (level {settings.BackdropBlurLevel})");
+        sb.AppendLine($"Playback: HW decoding {settings.HardwareDecoding}, skip {settings.SkipSeconds}s, wheel {settings.PlayerWheelAction}");
+        sb.AppendLine($"Updates: auto-check {settings.AutoCheckUpdates}, auto-download {settings.AutoDownloadUpdates}");
+        sb.AppendLine($"Language: {_localizationService.CurrentLanguage} (Effective: {_localizationService.EffectiveLanguage})");
+        if (includeLogPath) sb.AppendLine($"Log: {Helpers.Log.LogFilePath}");
+        sb.Append("--------------------------");
+        return sb.ToString();
+    }
+
     [RelayCommand]
     public Task CopyDiagnosticsAsync()
     {
         try
         {
-            UpdateDiagnostics();
-            var settings = _storageService.CurrentSettings;
-            var uptime = DateTime.Now - System.Diagnostics.Process.GetCurrentProcess().StartTime;
-            var text = "--- Reeled Diagnostics ---\n" +
-                       $"Version: {_updateService.CurrentVersion} ({(_updateService.CanSelfUpdate ? "installed" : "portable/dev")})\n" +
-                       $"OS: {OsVersionFormatted} ({System.Runtime.InteropServices.RuntimeInformation.OSDescription})\n" +
-                       $"Architecture: {ArchitectureFormatted}\n" +
-                       $"Runtime: {RuntimeFormatted}\n" +
-                       $"Windows App SDK: {typeof(Microsoft.UI.Xaml.Application).Assembly.GetName().Version}\n" +
-                       $"Video engine: {VideoEngineFormatted}\n" +
-                       $"Display: {DisplayFormatted}\n" +
-                       $"Process Memory: {MemoryUsageFormatted}\n" +
-                       $"Uptime: {(int)uptime.TotalHours}h {uptime.Minutes}m\n" +
-                       $"Library: {LibraryStatsFormatted}\n" +
-                       $"Theme: {settings.AppTheme}, Reduce motion: {settings.ReduceMotion}, Blur: {settings.EnableBackdropBlur} (level {settings.BackdropBlurLevel})\n" +
-                       $"Updates: auto-check {settings.AutoCheckUpdates}, auto-download {settings.AutoDownloadUpdates}\n" +
-                       $"Language: {_localizationService.CurrentLanguage} (Effective: {_localizationService.EffectiveLanguage})\n" +
-                       $"Log: {Helpers.Log.LogFilePath}\n" +
-                       "--------------------------";
+            var text = BuildDiagnosticsReport(includeLogPath: true);
 
             var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
             dataPackage.SetText(text);

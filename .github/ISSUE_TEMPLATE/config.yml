@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Download the latest release
+    url: https://github.com/k25jura/Reeled/releases/latest
+    about: Check whether the problem is already fixed in the newest version.
+  - name: Security vulnerability
+    url: https://github.com/k25jura/Reeled/security/advisories/new
+    about: Please report security issues privately instead of opening a public issue.

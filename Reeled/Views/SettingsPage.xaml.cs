@@ -1282,8 +1282,7 @@ public sealed partial class SettingsPage : Page
     {
         try
         {
-            var uri = new Uri("https://github.com/k25jura/Reeled/issues");
-            await Windows.System.Launcher.LaunchUriAsync(uri);
+            await Helpers.FeedbackDialog.ShowAsync(XamlRoot);
         }
         catch { }
     }

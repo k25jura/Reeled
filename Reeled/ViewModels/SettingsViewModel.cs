@@ -761,6 +761,15 @@ public partial class SettingsViewModel : ObservableObject
         }
     }
 
+    /// <summary>Saves the current WatchFolders order (after a drag) and mirrors it in the library sidebar.</summary>
+    public async Task SaveFolderOrderAsync()
+    {
+        var settings = _storageService.CurrentSettings;
+        settings.WatchDirectories = new System.Collections.Generic.List<string>(WatchFolders);
+        await _storageService.SaveSettingsAsync(settings);
+        _homeViewModel.ApplyWatchFolderOrder();
+    }
+
     /// <summary>Moves a watch folder in the list; the library sidebar follows the same order.</summary>
     public async Task MoveFolderAsync(string folder, int targetIndex)
     {

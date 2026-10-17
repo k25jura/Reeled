@@ -474,5 +474,7 @@
   "Feedback_IncludeDiagnostics": "Include diagnostics (app version, Windows, display and settings; no file names)",
   "Feedback_Note": "Opens the matching GitHub form with everything filled in. Review it and submit with your GitHub account.",
   "Feedback_Send": "Continue on GitHub",
-  "Feedback_Cancel": "Cancel"
+  "Feedback_Cancel": "Cancel",
+  "About_DiagnosticsShow": "Show details",
+  "About_DiagnosticsHide": "Hide details"
 }

@@ -19,6 +19,18 @@ internal interface IInputCursorStaticsInterop
 
 public static class CursorHelper
 {
+    [DllImport("user32.dll")]
+    private static extern IntPtr LoadCursorW(IntPtr hInstance, IntPtr cursorName);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetCursor(IntPtr hCursor);
+
+    /// <summary>Shows the normal arrow immediately (a freshly opened popup otherwise keeps the previous cursor).</summary>
+    public static void ShowArrowNow()
+    {
+        try { SetCursor(LoadCursorW(IntPtr.Zero, new IntPtr(32512))); } catch { }
+    }
+
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr CreateCursor(IntPtr hInst, int xHotSpot, int yHotSpot, int nWidth, int nHeight, byte[] pvANDPlane, byte[] pvXORPlane);
 

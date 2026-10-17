@@ -39,21 +39,29 @@ public sealed partial class SettingsPage : Page
             {
                 bool isError = ViewModel.FolderStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || ViewModel.FolderStatusMessage.StartsWith("Помилка", StringComparison.OrdinalIgnoreCase);
                 ShowStatusBanner(FoldersStatusBorder, FoldersStatusTranslation, FoldersStatusText, FoldersStatusIcon, ViewModel.FolderStatusMessage, isError, ref _foldersStatusTimer);
+                // Clear it so the same message (e.g. "up to date" twice) shows again
+                ViewModel.FolderStatusMessage = string.Empty;
             }
             else if (e.PropertyName == nameof(SettingsViewModel.StorageStatusMessage) && !string.IsNullOrEmpty(ViewModel.StorageStatusMessage))
             {
                 bool isError = ViewModel.StorageStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || ViewModel.StorageStatusMessage.StartsWith("Помилка", StringComparison.OrdinalIgnoreCase);
                 ShowStatusBanner(StorageStatusBorder, StorageStatusTranslation, StorageStatusText, StorageStatusIcon, ViewModel.StorageStatusMessage, isError, ref _storageStatusTimer);
+                // Clear it so the same message (e.g. "up to date" twice) shows again
+                ViewModel.StorageStatusMessage = string.Empty;
             }
             else if (e.PropertyName == nameof(SettingsViewModel.UpdatesStatusMessage) && !string.IsNullOrEmpty(ViewModel.UpdatesStatusMessage))
             {
                 bool isError = ViewModel.UpdatesStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || ViewModel.UpdatesStatusMessage.StartsWith("Помилка", StringComparison.OrdinalIgnoreCase);
                 ShowStatusBanner(UpdatesStatusBorder, UpdatesStatusTranslation, UpdatesStatusText, UpdatesStatusIcon, ViewModel.UpdatesStatusMessage, isError, ref _updatesStatusTimer);
+                // Clear it so the same message (e.g. "up to date" twice) shows again
+                ViewModel.UpdatesStatusMessage = string.Empty;
             }
             else if (e.PropertyName == nameof(SettingsViewModel.AboutStatusMessage) && !string.IsNullOrEmpty(ViewModel.AboutStatusMessage))
             {
                 bool isError = ViewModel.AboutStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || ViewModel.AboutStatusMessage.StartsWith("Помилка", StringComparison.OrdinalIgnoreCase);
                 ShowStatusBanner(AboutStatusBorder, AboutStatusTranslation, AboutStatusText, AboutStatusIcon, ViewModel.AboutStatusMessage, isError, ref _aboutStatusTimer);
+                // Clear it so the same message (e.g. "up to date" twice) shows again
+                ViewModel.AboutStatusMessage = string.Empty;
             }
             else if (e.PropertyName == nameof(SettingsViewModel.IsUpdateAvailable))
             {
@@ -341,6 +349,26 @@ public sealed partial class SettingsPage : Page
         await ViewModel.AddFolderAsync(App.WindowHandle);
     }
 
+    private async void OnWatchFoldersReordered(ListViewBase sender, DragItemsCompletedEventArgs args)
+    {
+        // The ListView already moved the item in WatchFolders; persist and mirror it in the library
+        await ViewModel.SaveFolderOrderAsync();
+    }
+
+    private bool _isDiagnosticsOpen;
+
+    private void OnDiagnosticsToggleClick(object sender, RoutedEventArgs e)
+    {
+        _isDiagnosticsOpen = !_isDiagnosticsOpen;
+        if (_isDiagnosticsOpen) ViewModel.UpdateDiagnostics();
+        Helpers.Motion.Reveal(DiagnosticsDetails, _isDiagnosticsOpen);
+        DiagnosticsToggleText.Text = ViewModel.Loc[_isDiagnosticsOpen ? "About_DiagnosticsHide" : "About_DiagnosticsShow"];
+
+        var sb = new Storyboard();
+        sb.Children.Add(Helpers.Motion.Spline(DiagnosticsChevronRotation, "Angle", _isDiagnosticsOpen ? 180 : 0, Helpers.Motion.Medium));
+        Helpers.Motion.BeginExact(sb);
+    }
+
     private void OnWatchFolderMoreClick(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string folder)
@@ -362,7 +390,8 @@ public sealed partial class SettingsPage : Page
     private void ShowWatchFolderMenu(string folder, FrameworkElement anchor, Windows.Foundation.Point? at)
     {
         var loc = ViewModel.Loc;
-        var menu = new MenuFlyout { ShouldConstrainToRootBounds = true, Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedRight };
+        var menu = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedRight };
+        menu.Opened += (s, e) => Helpers.CursorHelper.ShowArrowNow();
         if (XamlRoot != null) menu.XamlRoot = XamlRoot;
 
         void Add(MenuFlyoutItemBase item) => menu.Items.Add(item);
@@ -598,8 +627,81 @@ public sealed partial class SettingsPage : Page
         }
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // Indicator follower: the category buttons move while sub-lists open and close, so a fixed
+    // from/to animation aims at a position that is already stale. Instead the pill eases toward the
+    // button's live position every frame until it settles.
+    // ---------------------------------------------------------------------------------------------
+
+    private Button? _indicatorFollowTarget;
+    private bool _isIndicatorFollowing;
+    private long _indicatorFollowUntil;
+    private long _lastFollowTick;
+
+    private void FollowIndicatorTo(Button targetBtn)
+    {
+        _indicatorFollowTarget = targetBtn;
+        _indicatorFollowUntil = Environment.TickCount64 + (long)Helpers.Motion.Long + 200;
+        _indicatorStoryboard?.Stop();
+        _indicatorStoryboard = null;
+        if (IndicatorScale != null) IndicatorScale.ScaleY = 1.0;
+        if (_isIndicatorFollowing) return;
+        _isIndicatorFollowing = true;
+        _lastFollowTick = Environment.TickCount64;
+        CompositionTarget.Rendering += OnIndicatorFollowFrame;
+    }
+
+    private void OnIndicatorFollowFrame(object? sender, object e)
+    {
+        if (_indicatorFollowTarget == null || CategoriesNavRoot == null || IndicatorTranslation == null)
+        {
+            StopIndicatorFollow();
+            return;
+        }
+
+        long now = Environment.TickCount64;
+        double dt = Math.Clamp(now - _lastFollowTick, 1, 50);
+        _lastFollowTick = now;
+
+        double target;
+        try
+        {
+            var pt = _indicatorFollowTarget.TransformToVisual(CategoriesNavRoot).TransformPoint(new Windows.Foundation.Point(0, 0));
+            target = pt.Y + (_indicatorFollowTarget.ActualHeight - 18.0) / 2.0;
+        }
+        catch
+        {
+            StopIndicatorFollow();
+            return;
+        }
+
+        // Critically damped approach: frame-rate independent, decelerating like the rest of the app
+        double k = 1 - Math.Exp(-dt / 70.0);
+        double y = _currentIndicatorY + (target - _currentIndicatorY) * k;
+        if (Math.Abs(target - y) < 0.3) y = target;
+        _currentIndicatorY = y;
+        _targetIndicatorY = target;
+        IndicatorTranslation.Y = y;
+
+        if (y == target && now > _indicatorFollowUntil) StopIndicatorFollow();
+    }
+
+    private void StopIndicatorFollow()
+    {
+        if (!_isIndicatorFollowing) return;
+        _isIndicatorFollowing = false;
+        CompositionTarget.Rendering -= OnIndicatorFollowFrame;
+    }
+
     private void AnimateIndicatorTo(Button targetBtn, bool animate)
     {
+        if (animate && _isIndicatorVisible && !Helpers.Motion.IsReduced)
+        {
+            FollowIndicatorTo(targetBtn);
+            return;
+        }
+        StopIndicatorFollow();
+
         if (ActiveIndicatorPill == null || CategoriesNavRoot == null || IndicatorTranslation == null)
             return;
 
@@ -1493,6 +1595,7 @@ public sealed partial class SettingsPage : Page
         if (CopyDiagnosticsButtonText != null) CopyDiagnosticsButtonText.Text = loc["About_DiagnosticsCopy"];
         if (CopyDiagnosticsButton != null) ToolTipService.SetToolTip(CopyDiagnosticsButton, loc["About_DiagnosticsCopy"]);
         if (DiagOsLabel != null) DiagOsLabel.Text = loc["About_DiagOS"];
+        if (DiagnosticsToggleText != null) DiagnosticsToggleText.Text = loc[_isDiagnosticsOpen ? "About_DiagnosticsHide" : "About_DiagnosticsShow"];
         if (DiagDisplayLabel != null) DiagDisplayLabel.Text = loc["About_DiagDisplay"];
         if (DiagEngineLabel != null) DiagEngineLabel.Text = loc["About_DiagEngine"];
         if (DiagArchLabel != null) DiagArchLabel.Text = $"{loc["About_DiagArch"]} & {loc["About_DiagRuntime"]}";

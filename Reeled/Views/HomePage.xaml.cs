@@ -1348,7 +1348,7 @@ public sealed partial class HomePage : Page
 
     private bool _isSearchOpen;
     private Storyboard? _searchStoryboard;
-    private const double SearchClosedWidth = 34;
+    private double SearchClosedWidth = 32;
     private const double SearchOpenWidth = 248;
 
     private void SetSearchOpen(bool open, bool focus = false, bool animate = true)
@@ -1389,6 +1389,18 @@ public sealed partial class HomePage : Page
         _searchStoryboard = sb;
         Helpers.Motion.BeginExact(sb);
         if (open && focus) ClipsSearchBox.Focus(FocusState.Keyboard);
+    }
+
+    /// <summary>The search button matches the dropdown buttons' real height and is square when closed.</summary>
+    private void OnSortButtonSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        double h = Math.Round(e.NewSize.Height);
+        if (h <= 0 || SearchHost == null) return;
+        SearchHost.Height = h;
+        SearchToggleButton.Height = h - 2;
+        SearchToggleButton.Width = h - 2;
+        SearchClosedWidth = h;
+        if (!_isSearchOpen) SearchHost.Width = h;
     }
 
     private void OnSearchToggleClick(object sender, RoutedEventArgs e)
@@ -1589,9 +1601,6 @@ public sealed partial class HomePage : Page
 
             var currentTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme;
 
-            // Stay inside the window: a windowed popup keeps whatever cursor was showing when it opened
-            // (resize arrows from the sidebar edge, the busy cursor), until the mouse moves
-            menuFlyout.ShouldConstrainToRootBounds = true;
             ProtectedCursor = null;
 
             Style? baseStyle = null;
@@ -1629,6 +1638,9 @@ public sealed partial class HomePage : Page
 
     private void OnFlyoutOpened(object? sender, object e)
     {
+        // The menu is its own popup window and keeps whatever cursor was showing when it opened
+        // (resize arrows, the busy cursor) until the mouse moves; reset it to the arrow right away
+        Helpers.CursorHelper.ShowArrowNow();
         if (sender is MenuFlyout menuFlyout)
         {
             var currentTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme;

@@ -474,5 +474,7 @@
   "Feedback_IncludeDiagnostics": "Додати діагностику (версія застосунку, Windows, дисплей і налаштування; без назв файлів)",
   "Feedback_Note": "Відкриє відповідну форму GitHub із заповненими полями. Перегляньте її та надішліть зі свого облікового запису GitHub.",
   "Feedback_Send": "Продовжити на GitHub",
-  "Feedback_Cancel": "Скасувати"
+  "Feedback_Cancel": "Скасувати",
+  "About_DiagnosticsShow": "Показати подробиці",
+  "About_DiagnosticsHide": "Сховати подробиці"
 }

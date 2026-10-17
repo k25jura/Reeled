@@ -463,8 +463,12 @@
                                 </StackPanel>
 
                                 <!-- Populated Directories List -->
-                                <ListView ItemsSource="{x:Bind ViewModel.WatchFolders, Mode=OneWay}" 
+                                <ListView ItemsSource="{x:Bind ViewModel.WatchFolders, Mode=OneWay}"
                                           SelectionMode="None"
+                                          CanReorderItems="True"
+                                          CanDragItems="True"
+                                          AllowDrop="True"
+                                          DragItemsCompleted="OnWatchFoldersReordered"
                                           Visibility="{x:Bind ViewModel.WatchFolders.Count, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <ListView.ItemContainerStyle>
                                         <Style TargetType="ListViewItem">
@@ -477,12 +481,17 @@
                                         <DataTemplate x:DataType="x:String">
                                             <Grid Margin="0,1" ColumnSpacing="6" Background="Transparent" Tag="{x:Bind}" RightTapped="OnWatchFolderRightTapped">
                                                 <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
 
+                                                <!-- Drag handle: rows can be dragged to reorder -->
+                                                <FontIcon Grid.Column="0" Glyph="&#xE76F;" FontSize="12" Margin="2,0,0,0"
+                                                          Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
+
                                                 <!-- Clickable Directory Anchor Link (Navigates to folder on HomePage) -->
-                                                <Button Grid.Column="0" 
+                                                <Button Grid.Column="1" 
                                                         Click="OnDirectoryAnchorClick" 
                                                         Loaded="OnDirectoryAnchorLoaded"
                                                         Tag="{x:Bind}" 
@@ -500,7 +509,7 @@
                                                 </Button>
 
                                                 <!-- More: move, open in Explorer, remove (same menu as right-click) -->
-                                                <Button Grid.Column="1"
+                                                <Button Grid.Column="2"
                                                         Click="OnWatchFolderMoreClick"
                                                         Loaded="OnRemoveFolderLoaded"
                                                         Tag="{x:Bind}"
@@ -1924,8 +1933,8 @@
                                             </Grid>
                                         </Border>
 
-                                        <!-- Diagnostics 2x2 Grid -->
-                                        <Grid RowSpacing="10" ColumnSpacing="20">
+                                        <!-- Diagnostics details: hidden until asked for (Show details below) -->
+                                        <Grid x:Name="DiagnosticsDetails" RowSpacing="10" ColumnSpacing="20" Visibility="Collapsed" Opacity="0">
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
@@ -1974,6 +1983,23 @@
                                                 <TextBlock Text="{x:Bind ViewModel.VideoEngineFormatted, Mode=OneWay}" FontSize="12.5" FontWeight="SemiBold" />
                                             </StackPanel>
                                         </Grid>
+
+                                        <Button x:Name="DiagnosticsToggleButton"
+                                                Click="OnDiagnosticsToggleClick"
+                                                Style="{ThemeResource SubtleButtonStyle}"
+                                                HorizontalAlignment="Left"
+                                                Padding="8,4"
+                                                Margin="-8,-4,0,-6"
+                                                CornerRadius="6">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock x:Name="DiagnosticsToggleText" Text="Show details" FontSize="12.5" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                                <FontIcon Glyph="&#xE70D;" FontSize="10" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                                                    <FontIcon.RenderTransform>
+                                                        <RotateTransform x:Name="DiagnosticsChevronRotation" Angle="0" />
+                                                    </FontIcon.RenderTransform>
+                                                </FontIcon>
+                                            </StackPanel>
+                                        </Button>
                                     </StackPanel>
                                 </Border>
 
@@ -2075,7 +2101,7 @@
                 Padding="16,11,18,12"
                 MaxWidth="560"
                 CornerRadius="8"
-                Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+                Background="{ThemeResource SolidBackgroundFillColorQuarternaryBrush}"
                 BorderBrush="{ThemeResource SurfaceStrokeColorFlyoutBrush}"
                 BorderThickness="1"
                 Opacity="0"

@@ -277,6 +277,7 @@
             <converters:FavoriteGlyphConverter x:Key="FavoriteGlyphConverter" />
             <converters:FavoriteOpacityConverter x:Key="FavoriteOpacityConverter" />
             <converters:FavoriteForegroundConverter x:Key="FavoriteForegroundConverter" />
+            <converters:FavoriteHostOpacityConverter x:Key="FavoriteHostOpacityConverter" />
             <converters:SectionActiveBackgroundConverter x:Key="SectionActiveBackgroundConverter" />
             <converters:SectionActiveForegroundConverter x:Key="SectionActiveForegroundConverter" />
             <converters:SectionActiveFontWeightConverter x:Key="SectionActiveFontWeightConverter" />

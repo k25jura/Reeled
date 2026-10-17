@@ -801,102 +801,134 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- Top Header & Search / Sort Toolbar -->
-            <Border Grid.Row="0" 
-                    Padding="24,36,24,12" 
-                    BorderThickness="0">
-                <Grid ColumnSpacing="16" RowSpacing="12">
+            <!-- Header: title with live library stats on the left, search / sort / view on the right -->
+            <Border Grid.Row="0" Padding="24,32,24,10" BorderThickness="0">
+                <Grid ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" MinWidth="180" />
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" MinWidth="160" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- Sidebar Expand Button Container with Smooth Width and Opacity Interpolation -->
-                    <Grid Grid.Column="0" 
-                          x:Name="ShowSidebarContainer" 
-                          Width="0" 
-                          Opacity="0" 
-                          Visibility="Collapsed" 
+                    <!-- Sidebar expand button; its width animates with the sidebar so the title glides instead of jumping -->
+                    <Grid Grid.Column="0"
+                          x:Name="ShowSidebarContainer"
+                          Width="0"
+                          Opacity="0"
+                          Visibility="Collapsed"
+                          Margin="0,0,-12,0"
                           VerticalAlignment="Center">
                         <Button x:Name="ShowSidebarButton"
                                 Click="OnToggleSidebarClick"
                                 ToolTipService.ToolTip="Show Sidebar"
                                 Style="{ThemeResource SubtleButtonStyle}"
-                                Padding="6" 
-                                Margin="0,0,8,0"
+                                Padding="6"
+                                HorizontalAlignment="Left"
                                 VerticalAlignment="Center">
                             <FontIcon Glyph="&#xE700;" FontSize="16" />
                         </Button>
                     </Grid>
 
-                    <!-- Folder Title and Count Info -->
-                    <StackPanel Grid.Column="1" x:Name="HeaderTitlePanel" Spacing="3" VerticalAlignment="Center">
-                        <TextBlock Text="{x:Bind ViewModel.CurrentDirectoryTitle, Mode=OneWay}" 
-                                   Style="{ThemeResource TitleTextBlockStyle}" 
-                                   FontSize="22" 
-                                   FontWeight="SemiBold" 
+                    <!-- Title and stats -->
+                    <StackPanel Grid.Column="1" x:Name="HeaderTitlePanel" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="{x:Bind ViewModel.CurrentDirectoryTitle, Mode=OneWay}"
+                                   Style="{ThemeResource TitleTextBlockStyle}"
+                                   FontSize="24"
+                                   FontWeight="SemiBold"
                                    TextTrimming="CharacterEllipsis" />
-                        
-                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <controls:RollingCounter Value="{x:Bind ViewModel.TotalClipsCount, Mode=OneWay}"
+                                                     FontSize="12.5"
+                                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                     VerticalAlignment="Center" />
+                            <TextBlock Text="{x:Bind ViewModel.ClipsUnitLabel, Mode=OneWay}" FontSize="12.5"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="·" FontSize="12.5" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
                             <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                <controls:RollingCounter Value="{x:Bind ViewModel.TotalClipsCount, Mode=OneWay}" 
-                                                         FontSize="12" 
-                                                         Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
+                                <controls:RollingCounter Value="{x:Bind ViewModel.TotalStorageScaled, Mode=OneWay}"
+                                                         DecimalPlaces="{x:Bind ViewModel.TotalStorageDecimals, Mode=OneWay}"
+                                                         FontSize="12.5"
+                                                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                          VerticalAlignment="Center" />
-                                <TextBlock Text="{x:Bind ViewModel.ClipsUnitLabel, Mode=OneWay}" 
-                                           Style="{ThemeResource CaptionTextBlockStyle}" 
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                           VerticalAlignment="Center" />
+                                <TextBlock Text="{x:Bind ViewModel.TotalStorageUnit, Mode=OneWay}" FontSize="12.5"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
                             </StackPanel>
-                            <TextBlock Text="•" 
-                                       Style="{ThemeResource CaptionTextBlockStyle}" 
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                            <TextBlock Text="{x:Bind ViewModel.TotalStorageUsedFormatted, Mode=OneWay}" 
-                                       Style="{ThemeResource CaptionTextBlockStyle}" 
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <TextBlock Text="•" 
-                                       Style="{ThemeResource CaptionTextBlockStyle}" 
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            <TextBlock Text="·" FontSize="12.5" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"
                                        Visibility="{x:Bind ViewModel.CurrentDirectoryPath, Mode=OneWay, Converter={StaticResource NullToVisibilityConverter}}" />
-                            
-                            <!-- Clickable Breadcrumb Path to Open in File Explorer (when Folder section) -->
+
+                            <!-- Folder path opens File Explorer (folder views) -->
                             <HyperlinkButton x:Name="ExplorerHyperlinkButton"
                                              Padding="0" Margin="0" MinHeight="0" MinWidth="0"
                                              Command="{x:Bind ViewModel.OpenCurrentDirectoryCommand}"
                                              ToolTipService.ToolTip="Open folder in File Explorer"
                                              Visibility="{x:Bind ViewModel.CanOpenDirectoryInExplorer, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                    <FontIcon Glyph="&#xEC50;" FontSize="11" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                    <TextBlock Text="{x:Bind ViewModel.CurrentDirectoryPath, Mode=OneWay}" 
-                                               Style="{ThemeResource CaptionTextBlockStyle}" 
-                                               Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                    <FontIcon Glyph="&#xE8B7;" FontSize="11.5" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <TextBlock Text="{x:Bind ViewModel.CurrentDirectoryPath, Mode=OneWay}"
+                                               FontSize="12.5"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                TextTrimming="CharacterEllipsis"
-                                               MaxWidth="450" />
+                                               MaxWidth="420" />
                                 </StackPanel>
                             </HyperlinkButton>
 
-                            <!-- Informational subtitle (when Home, Favorites, or Saved Moments) -->
-                            <TextBlock Text="{x:Bind ViewModel.CurrentDirectoryPath, Mode=OneWay}" 
-                                       Style="{ThemeResource CaptionTextBlockStyle}" 
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            <!-- Informational subtitle (Home, Favorites, Saved Moments) -->
+                            <TextBlock Text="{x:Bind ViewModel.CurrentDirectoryPath, Mode=OneWay}"
+                                       FontSize="12.5"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                       VerticalAlignment="Center"
                                        Visibility="{x:Bind ViewModel.CanOpenDirectoryInExplorer, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- Search Box -->
-                    <AutoSuggestBox x:Name="ClipsSearchBox"
-                                    Grid.Column="2" 
-                                    MinWidth="130" 
-                                    MaxWidth="220" 
-                                    PlaceholderText="Search clips..." 
-                                    QueryIcon="Find"
-                                    Text="{x:Bind ViewModel.SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-                                    VerticalAlignment="Center" />
+                    <!-- Toolbar. Counter-translated during sidebar transitions so it stays pinned to the window edge -->
+                    <StackPanel Grid.Column="2" x:Name="HeaderToolbar" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <StackPanel.RenderTransform>
+                            <TranslateTransform x:Name="HeaderToolbarTranslate" X="0" />
+                        </StackPanel.RenderTransform>
 
-                    <!-- Toolbar Actions: Sort and View Options Buttons -->
-                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <!-- Search: a button that morphs into a field (width opens, then the text fades in) -->
+                        <Grid x:Name="SearchHost" Width="34" Height="32" VerticalAlignment="Center">
+                            <Border x:Name="SearchChrome"
+                                    CornerRadius="4"
+                                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                    BorderThickness="1" />
+                            <TextBox x:Name="ClipsSearchBox"
+                                     Margin="28,0,2,0"
+                                     Padding="4,5,4,5"
+                                     MinHeight="0"
+                                     MinWidth="0"
+                                     FontSize="12.5"
+                                     VerticalAlignment="Center"
+                                     BorderThickness="0"
+                                     Background="Transparent"
+                                     Opacity="0"
+                                     IsHitTestVisible="False"
+                                     IsTabStop="False"
+                                     PlaceholderText="Search clips..."
+                                     Text="{x:Bind ViewModel.SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     KeyDown="OnSearchKeyDown"
+                                     LostFocus="OnSearchLostFocus">
+                                <TextBox.Resources>
+                                    <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                                    <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+                                    <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
+                                    <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+                                    <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+                                </TextBox.Resources>
+                            </TextBox>
+                            <Button x:Name="SearchToggleButton"
+                                    HorizontalAlignment="Left"
+                                    Width="32" Height="30" Margin="1,0,0,0"
+                                    Padding="0"
+                                    Style="{ThemeResource SubtleButtonStyle}"
+                                    Click="OnSearchToggleClick">
+                                <FontIcon Glyph="&#xE721;" FontSize="13" />
+                            </Button>
+                        </Grid>
+
                         <!-- Sort DropDown Button -->
                         <DropDownButton x:Name="SortOptionsButton"
                                         VerticalAlignment="Center">
@@ -1018,14 +1050,10 @@
                             </GroupStyle.HeaderContainerStyle>
                             <GroupStyle.HeaderTemplate>
                                 <DataTemplate x:DataType="models:ClipGroup">
-                                    <StackPanel Margin="0,16,0,6">
-                                        <!-- Date Title and Stats Row -->
-                                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                            <FontIcon Glyph="&#xE787;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
-                                            <TextBlock Text="{x:Bind Title}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                            <TextBlock Text="•" FontSize="13" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
-                                            <TextBlock Text="{x:Bind Subtitle}" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
-                                        </StackPanel>
+                                    <!-- Date heading (Google Photos style): the date carries the row, the stats stay quiet -->
+                                    <StackPanel Margin="2,20,0,4" Orientation="Horizontal" Spacing="12">
+                                        <TextBlock Text="{x:Bind Title}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Bottom" />
+                                        <TextBlock Text="{x:Bind Subtitle}" FontSize="12.5" Margin="0,0,0,1.5" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Bottom" />
                                     </StackPanel>
                                 </DataTemplate>
                             </GroupStyle.HeaderTemplate>
@@ -1149,7 +1177,9 @@
                                     </Border>
 
                                     <!-- Right: Glassmorphic Favorite Button with Pulse Ring & Sparkles -->
-                                    <Grid Grid.Column="1" Width="28" Height="28" HorizontalAlignment="Right" RequestedTheme="Dark">
+                                    <!-- Shown on hover, or always once the clip is a favorite -->
+                                    <Grid Grid.Column="1" x:Name="FavoriteHost" Width="28" Height="28" HorizontalAlignment="Right" RequestedTheme="Dark"
+                                          Opacity="{x:Bind IsFavorite, Mode=OneWay, Converter={StaticResource FavoriteHostOpacityConverter}}">
                                         <!-- Pulse Expansion Ring on Favorite -->
                                         <Border x:Name="FavoritePulseRing"
                                                 x:Load="False"
@@ -1180,8 +1210,8 @@
                                                 Background="#55000000"
                                                 BorderBrush="#25FFFFFF"
                                                 BorderThickness="1"
-                                                ToolTipService.ToolTip="Toggle Favorite"
                                                 Click="OnFavoriteClick"
+                                                Loaded="OnFavoriteButtonLoaded"
                                                 Tag="{x:Bind}"
                                                 RenderTransformOrigin="0.5,0.5">
                                             <Button.RenderTransform>
@@ -1223,70 +1253,50 @@
                                     </Border.Background>
                                 </Border>
 
-                                <!-- 5. Bottom Info Content -->
-                                <Grid VerticalAlignment="Bottom" Padding="10,0,10,8">
+                                <!-- 5. Bottom info: title with the duration beside it, then a quiet date · size line -->
+                                <Grid VerticalAlignment="Bottom" Padding="11,0,10,9">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
 
-                                    <!-- Title (bound to DisplayName) with translate transform for hover slide -->
-                                    <TextBlock x:Name="ClipTitleText"
-                                               Grid.Row="0"
-                                               Text="{x:Bind DisplayName, Mode=OneWay}" 
-                                               FontSize="12.5" 
-                                               FontWeight="SemiBold" 
-                                               Foreground="White"
-                                               MaxLines="1"
-                                               TextTrimming="CharacterEllipsis" 
-                                               ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}">
-                                        <TextBlock.RenderTransform>
-                                            <TranslateTransform x:Name="TitleTransform" Y="0" />
-                                        </TextBlock.RenderTransform>
-                                    </TextBlock>
-
-                                    <!-- Subline: Duration Pill, Date, File Size -->
-                                    <Grid x:Name="MetadataRow" Grid.Row="1" Margin="0,4,0,0" Opacity="0.85">
+                                    <Grid Grid.Row="0" ColumnSpacing="8">
                                         <Grid.RenderTransform>
-                                            <TranslateTransform x:Name="MetadataTransform" Y="0" />
+                                            <TranslateTransform x:Name="TitleTransform" Y="0" />
                                         </Grid.RenderTransform>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-
-                                        <!-- Duration Capsule -->
-                                        <Border Grid.Column="0"
-                                                Background="#66000000"
-                                                BorderBrush="#25FFFFFF"
-                                                BorderThickness="1"
+                                        <TextBlock x:Name="ClipTitleText"
+                                                   Text="{x:Bind DisplayName, Mode=OneWay}"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="White"
+                                                   MaxLines="1"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}" />
+                                        <Border Grid.Column="1"
+                                                Background="#59000000"
                                                 CornerRadius="4"
-                                                Padding="4,1"
-                                                Margin="0,0,6,0"
+                                                Padding="5,1,5,2"
                                                 VerticalAlignment="Center">
-                                            <TextBlock Text="{x:Bind FormattedDuration, Mode=OneWay}" 
-                                                       FontSize="10.5" 
-                                                       FontWeight="Medium" 
+                                            <TextBlock Text="{x:Bind FormattedDuration, Mode=OneWay}"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
                                                        Foreground="White" />
                                         </Border>
-
-                                        <!-- Date -->
-                                        <TextBlock Grid.Column="1" 
-                                                   Text="{x:Bind FormattedDate, Mode=OneWay}" 
-                                                   FontSize="11" 
-                                                   Foreground="#CCFFFFFF" 
-                                                   TextTrimming="CharacterEllipsis" 
-                                                   VerticalAlignment="Center" />
-
-                                        <!-- File Size -->
-                                        <TextBlock Grid.Column="2" 
-                                                   Text="{x:Bind FormattedFileSize, Mode=OneWay}" 
-                                                   FontSize="11" 
-                                                   Foreground="#CCFFFFFF" 
-                                                   VerticalAlignment="Center"
-                                                   Margin="4,0,0,0" />
                                     </Grid>
+
+                                    <StackPanel x:Name="MetadataRow" Grid.Row="1" Orientation="Horizontal" Spacing="5" Margin="0,3,0,0" Opacity="0.85">
+                                        <StackPanel.RenderTransform>
+                                            <TranslateTransform x:Name="MetadataTransform" Y="0" />
+                                        </StackPanel.RenderTransform>
+                                        <TextBlock Text="{x:Bind FormattedDate, Mode=OneWay}" FontSize="11" Foreground="#D9FFFFFF" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="·" FontSize="11" Foreground="#80FFFFFF" />
+                                        <TextBlock Text="{x:Bind FormattedFileSize, Mode=OneWay}" FontSize="11" Foreground="#D9FFFFFF" />
+                                    </StackPanel>
                                 </Grid>
 
                                 <!-- Accent Outline on Hover -->

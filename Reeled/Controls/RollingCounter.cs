@@ -30,7 +30,35 @@ public sealed class RollingCounter : UserControl
             nameof(DurationMs),
             typeof(int),
             typeof(RollingCounter),
-            new PropertyMetadata(280));
+            new PropertyMetadata((int)Helpers.Motion.Medium));
+
+    /// <summary>
+    /// Shows <see cref="Value"/> divided by 10^DecimalPlaces with that many decimals (e.g. 20467 with 2 → 204.67),
+    /// so sizes like "204.67 GB" roll digit by digit too.
+    /// </summary>
+    public static readonly DependencyProperty DecimalPlacesProperty =
+        DependencyProperty.Register(
+            nameof(DecimalPlaces),
+            typeof(int),
+            typeof(RollingCounter),
+            new PropertyMetadata(0, (d, e) =>
+            {
+                if (d is RollingCounter c && c._hasRenderedInitial) c.RenderStaticValue(c._displayedValue);
+            }));
+
+    public int DecimalPlaces
+    {
+        get => (int)GetValue(DecimalPlacesProperty);
+        set => SetValue(DecimalPlacesProperty, value);
+    }
+
+    private string Format(int value)
+    {
+        int places = Math.Clamp(DecimalPlaces, 0, 4);
+        if (places == 0) return value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var culture = App.Services != null ? App.GetService<ILocalizationService>().CurrentCulture : System.Globalization.CultureInfo.CurrentCulture;
+        return (value / Math.Pow(10, places)).ToString("F" + places, culture);
+    }
 
     public int Value
     {
@@ -145,7 +173,7 @@ public sealed class RollingCounter : UserControl
         _columns.Clear();
 
         double digitWidth = MeasureDigitWidth();
-        string valStr = val.ToString();
+        string valStr = Format(val);
         foreach (char c in valStr)
         {
             var col = new DigitColumn(c, this.FontSize, this.FontWeight, this.Foreground, this.FontFamily, digitWidth);
@@ -168,8 +196,8 @@ public sealed class RollingCounter : UserControl
             }
         }
 
-        string fromStr = fromVal.ToString();
-        string toStr = toVal.ToString();
+        string fromStr = Format(fromVal);
+        string toStr = Format(toVal);
         bool isIncreasing = toVal >= fromVal;
 
         int maxLen = Math.Max(fromStr.Length, toStr.Length);
@@ -249,8 +277,13 @@ public sealed class RollingCounter : UserControl
         private Microsoft.UI.Xaml.Media.Animation.Storyboard? _widthStoryboard;
         private double _targetWidth;
 
+        /// <summary>Decimal separators sit in a narrow column instead of a full digit slot.</summary>
+        public bool IsSeparator { get; }
+
         public DigitColumn(char initialChar, double fontSize, Windows.UI.Text.FontWeight fontWeight, Brush foreground, FontFamily fontFamily, double digitWidth)
         {
+            IsSeparator = initialChar != ' ' && !char.IsDigit(initialChar);
+            if (IsSeparator) digitWidth = Math.Ceiling(digitWidth * 0.45);
             _targetWidth = digitWidth;
 
             Container = new Grid
@@ -290,7 +323,7 @@ public sealed class RollingCounter : UserControl
             _prevVisual.Opacity = 0.0f;
             _currVisual.Opacity = initialChar == ' ' ? 0.0f : 1.0f;
             _compositor = _currVisual.Compositor;
-            _easeOut = _compositor.CreateCubicBezierEasingFunction(new Vector2(0.1f, 0.9f), new Vector2(0.2f, 1.0f));
+            _easeOut = Helpers.Motion.DecelerateCurve(_compositor);
 
             Container.SizeChanged += (s, e) =>
             {
@@ -302,6 +335,7 @@ public sealed class RollingCounter : UserControl
 
         public void UpdateStyle(double fontSize, Windows.UI.Text.FontWeight fontWeight, Brush foreground, FontFamily fontFamily, double digitWidth)
         {
+            if (IsSeparator) digitWidth = Math.Ceiling(digitWidth * 0.45);
             _targetWidth = digitWidth;
             if (!IsRetiring && _widthStoryboard == null && Container.Width > 0)
             {

@@ -248,3 +248,13 @@ public class HexToBrushConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, string language) =>
         throw new NotImplementedException();
 }
+
+/// <summary>Favorite button on clip cards: always visible for favorites, otherwise revealed on hover.</summary>
+public class FavoriteHostOpacityConverter : Microsoft.UI.Xaml.Data.IValueConverter
+{
+    public object Convert(object value, System.Type targetType, object parameter, string language) =>
+        value is true ? 1.0 : 0.0;
+
+    public object ConvertBack(object value, System.Type targetType, object parameter, string language) =>
+        throw new System.NotSupportedException();
+}

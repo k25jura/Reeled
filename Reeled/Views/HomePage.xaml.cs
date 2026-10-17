@@ -55,6 +55,7 @@ public sealed partial class HomePage : Page
                 UpdateGridResponsiveLayout();
             });
             UpdateUpdateIndicator(animate: false);
+            if (!string.IsNullOrEmpty(ViewModel.SearchQuery)) SetSearchOpen(true, animate: false);
 
             // The page is cached, so Loaded fires again every time we come back from Settings.
             // Everything below subscribes handlers and must only run once.
@@ -1274,54 +1275,48 @@ public sealed partial class HomePage : Page
         double targetSidebarX = isOpen ? 0.0 : -width;
         SidebarContainer.Visibility = Visibility.Visible;
 
-        if (ShowSidebarContainer != null)
-        {
-            ShowSidebarContainer.Width = isOpen ? 0.0 : 42.0;
-            ShowSidebarContainer.Visibility = isOpen ? Visibility.Collapsed : Visibility.Visible;
-        }
-
         if (!animate)
         {
             SidebarTranslate.X = targetSidebarX;
             MainContentTranslate.X = 0.0;
+            HeaderToolbarTranslate.X = 0.0;
             SidebarContentBorder.Opacity = 1.0;
-            if (ShowSidebarContainer != null) ShowSidebarContainer.Opacity = isOpen ? 0.0 : 1.0;
+            if (ShowSidebarContainer != null)
+            {
+                ShowSidebarContainer.Width = isOpen ? 0.0 : 44.0;
+                ShowSidebarContainer.Opacity = isOpen ? 0.0 : 1.0;
+                ShowSidebarContainer.Visibility = isOpen ? Visibility.Collapsed : Visibility.Visible;
+            }
             SidebarContainer.Visibility = isOpen ? Visibility.Visible : Visibility.Collapsed;
             return;
         }
 
-        // Keep the content visually where it was, then let it glide into its new slot with the sidebar
-        MainContentTranslate.X = contentVisualX - targetSpacer;
+        // Keep the content visually where it was, then let it glide into its new slot with the sidebar.
+        // The toolbar is counter-translated by the same amount, so it stays pinned to the window's right edge
+        // instead of riding along with the content.
+        double contentFrom = contentVisualX - targetSpacer;
+        MainContentTranslate.X = contentFrom;
+        HeaderToolbarTranslate.X = -contentFrom;
         SidebarTranslate.X = fromSidebarX;
 
-        var duration = TimeSpan.FromMilliseconds(isOpen ? 260 : 220);
-        EasingFunctionBase ease = isOpen
-            ? new ExponentialEase { EasingMode = EasingMode.EaseOut, Exponent = 6 }
-            : new CubicEase { EasingMode = EasingMode.EaseInOut };
-
+        double duration = isOpen ? Helpers.Motion.Long + 60 : Helpers.Motion.Long;
         var sb = new Storyboard();
-
-        var slide = new DoubleAnimation { To = targetSidebarX, Duration = duration, EasingFunction = ease };
-        Storyboard.SetTarget(slide, SidebarTranslate);
-        Storyboard.SetTargetProperty(slide, "X");
-        sb.Children.Add(slide);
-
-        var contentSlide = new DoubleAnimation { To = 0.0, Duration = duration, EasingFunction = ease };
-        Storyboard.SetTarget(contentSlide, MainContentTranslate);
-        Storyboard.SetTargetProperty(contentSlide, "X");
-        sb.Children.Add(contentSlide);
+        sb.Children.Add(Helpers.Motion.Spline(SidebarTranslate, "X", targetSidebarX, duration));
+        sb.Children.Add(Helpers.Motion.Spline(MainContentTranslate, "X", 0.0, duration));
+        sb.Children.Add(Helpers.Motion.Spline(HeaderToolbarTranslate, "X", 0.0, duration));
+        // The sidebar's contents settle a moment after the panel, so it reads as one soft motion
+        sb.Children.Add(isOpen
+            ? Helpers.Motion.Spline(SidebarContentBorder, "Opacity", 1.0, duration, from: 0.4)
+            : Helpers.Motion.Spline(SidebarContentBorder, "Opacity", 0.5, duration * 0.8, accelerate: true));
 
         if (ShowSidebarContainer != null)
         {
-            var buttonFade = new DoubleAnimation
-            {
-                To = isOpen ? 0.0 : 1.0,
-                Duration = TimeSpan.FromMilliseconds(isOpen ? 120 : 200),
-                EasingFunction = ease
-            };
-            Storyboard.SetTarget(buttonFade, ShowSidebarContainer);
-            Storyboard.SetTargetProperty(buttonFade, "Opacity");
-            sb.Children.Add(buttonFade);
+            // The hamburger opens its own space (title glides aside) and fades in, never popping
+            ShowSidebarContainer.Visibility = Visibility.Visible;
+            sb.Children.Add(Helpers.Motion.Spline(ShowSidebarContainer, "Width", isOpen ? 0.0 : 44.0, duration,
+                from: ShowSidebarContainer.ActualWidth, dependent: true));
+            sb.Children.Add(Helpers.Motion.Spline(ShowSidebarContainer, "Opacity", isOpen ? 0.0 : 1.0,
+                isOpen ? Helpers.Motion.Short : Helpers.Motion.Medium, delayMs: isOpen ? 0 : 120));
         }
 
         sb.Completed += (s, e) =>
@@ -1330,14 +1325,96 @@ public sealed partial class HomePage : Page
             _sidebarStoryboard = null;
             SidebarTranslate.X = targetSidebarX;
             MainContentTranslate.X = 0.0;
+            HeaderToolbarTranslate.X = 0.0;
+            SidebarContentBorder.Opacity = 1.0;
             if (!isOpen)
             {
                 SidebarContainer.Visibility = Visibility.Collapsed;
             }
+            else if (ShowSidebarContainer != null)
+            {
+                ShowSidebarContainer.Visibility = Visibility.Collapsed;
+            }
         };
 
         _sidebarStoryboard = sb;
-        sb.Begin();
+        Helpers.Motion.BeginExact(sb);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Search: a button that morphs into a field
+    // ---------------------------------------------------------------------------------------------
+
+    private bool _isSearchOpen;
+    private Storyboard? _searchStoryboard;
+    private const double SearchClosedWidth = 34;
+    private const double SearchOpenWidth = 248;
+
+    private void SetSearchOpen(bool open, bool focus = false, bool animate = true)
+    {
+        if (SearchHost == null) return;
+        if (_isSearchOpen == open)
+        {
+            if (open && focus) ClipsSearchBox.Focus(FocusState.Keyboard);
+            return;
+        }
+        _isSearchOpen = open;
+        _searchStoryboard?.Stop();
+
+        ClipsSearchBox.IsHitTestVisible = open;
+        ClipsSearchBox.IsTabStop = open;
+        ToolTipService.SetToolTip(SearchToggleButton, open ? null : App.GetService<Services.ILocalizationService>()["Search_Placeholder"]);
+
+        if (!animate || IsReduceMotionEnabled())
+        {
+            SearchHost.Width = open ? SearchOpenWidth : SearchClosedWidth;
+            ClipsSearchBox.Opacity = open ? 1 : 0;
+            if (open && focus) ClipsSearchBox.Focus(FocusState.Keyboard);
+            return;
+        }
+
+        var sb = new Storyboard();
+        if (open)
+        {
+            // Space first, then the text field fades into it
+            sb.Children.Add(Helpers.Motion.Spline(SearchHost, "Width", SearchOpenWidth, Helpers.Motion.Long, from: SearchHost.ActualWidth, dependent: true));
+            sb.Children.Add(Helpers.Motion.Spline(ClipsSearchBox, "Opacity", 1, Helpers.Motion.Medium, from: 0, delayMs: 110));
+        }
+        else
+        {
+            sb.Children.Add(Helpers.Motion.Spline(ClipsSearchBox, "Opacity", 0, 140, accelerate: true));
+            sb.Children.Add(Helpers.Motion.Spline(SearchHost, "Width", SearchClosedWidth, Helpers.Motion.Medium, from: SearchHost.ActualWidth, delayMs: 60, dependent: true));
+        }
+        _searchStoryboard = sb;
+        Helpers.Motion.BeginExact(sb);
+        if (open && focus) ClipsSearchBox.Focus(FocusState.Keyboard);
+    }
+
+    private void OnSearchToggleClick(object sender, RoutedEventArgs e)
+    {
+        if (_isSearchOpen && string.IsNullOrEmpty(ClipsSearchBox.Text)) SetSearchOpen(false);
+        else SetSearchOpen(true, focus: true);
+    }
+
+    private void OnSearchKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != Windows.System.VirtualKey.Escape) return;
+        if (!string.IsNullOrEmpty(ClipsSearchBox.Text))
+        {
+            ViewModel.SearchQuery = string.Empty;
+        }
+        else
+        {
+            SetSearchOpen(false);
+            SearchToggleButton.Focus(FocusState.Programmatic);
+        }
+        e.Handled = true;
+    }
+
+    private void OnSearchLostFocus(object sender, RoutedEventArgs e)
+    {
+        // An empty field folds back into the button once the user moves on
+        if (string.IsNullOrEmpty(ClipsSearchBox.Text)) SetSearchOpen(false);
     }
 
     private void OnToggleSidebarClick(object sender, RoutedEventArgs e)
@@ -2095,6 +2172,17 @@ public sealed partial class HomePage : Page
         double currentScaleX = scale?.ScaleX ?? (isHovered ? 1.0 : 1.02);
         double currentScaleY = scale?.ScaleY ?? (isHovered ? 1.0 : 1.02);
 
+        // Favorite button: revealed on hover, stays for favorites
+        if (card.FindName("FavoriteHost") is UIElement favoriteHost && card.DataContext is GameClip hoveredClip)
+        {
+            var favSb = new Storyboard();
+            var favFade = new DoubleAnimation { To = isHovered || hoveredClip.IsFavorite ? 1.0 : 0.0, Duration = duration, EasingFunction = activeEase };
+            Storyboard.SetTarget(favFade, favoriteHost);
+            Storyboard.SetTargetProperty(favFade, "Opacity");
+            favSb.Children.Add(favFade);
+            Helpers.Motion.Begin(favSb);
+        }
+
         var playOverlay = card.FindName("PlayOverlay") as UIElement;
         double currentPlayOpacity = playOverlay?.Opacity ?? (isHovered ? 0.0 : 1.0);
 
@@ -2381,7 +2469,7 @@ public sealed partial class HomePage : Page
 
         Add(Windows.System.VirtualKey.F, Windows.System.VirtualKeyModifiers.Control, () =>
         {
-            ClipsSearchBox?.Focus(FocusState.Keyboard);
+            SetSearchOpen(true, focus: true);
             return true;
         });
 
@@ -3415,7 +3503,22 @@ public sealed partial class HomePage : Page
             bool willBeFavorite = !clip.IsFavorite;
             _ = ViewModel.ToggleFavoriteAsync(clip);
             AnimateFavoriteClick(btn, willBeFavorite);
+            SetFavoriteTooltip(btn, willBeFavorite);
         }
+    }
+
+    private void OnFavoriteButtonLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is GameClip clip)
+        {
+            SetFavoriteTooltip(btn, clip.IsFavorite);
+        }
+    }
+
+    private static void SetFavoriteTooltip(Button btn, bool isFavorite)
+    {
+        var loc = App.GetService<Services.ILocalizationService>();
+        ToolTipService.SetToolTip(btn, loc[isFavorite ? "ContextMenu_RemoveFromFavorites" : "ContextMenu_AddToFavorites"]);
     }
 
     private void AnimateFavoriteClick(Button btn, bool isFavorited)

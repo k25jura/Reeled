@@ -181,7 +181,7 @@
   "Updates_GitHubTokenPlaceholder": "ghp_xxxxxxxxxxxxxxxxxxxx",
 
   "About_HeroTitle": "Reeled",
-  "About_Tagline": "Modern game clips viewer & player for Windows",
+  "About_Tagline": "A local video player and library manager for gameplay clips on Windows.",
   "About_Version": "Version {0}",
   "About_Framework": "Built with WinUI 3, Windows App SDK & LibVLC",
   "About_Developer": "Everything in one app for me and others to use",
@@ -199,7 +199,7 @@
   "About_GitHub": "GitHub Repository",
   "About_Releases": "Release Notes",
   "About_Issues": "Report an Issue",
-  "About_License": "GPL-3.0 Public License • Open Source",
+  "About_License": "GPL-3.0 License",
   "About_ResetDefaults_Title": "Restore default options",
   "About_ResetDefaults_Subtitle": "Reset playback, appearance, and application preferences to default values",
   "About_ResetDefaults_Button": "Restore Defaults",
@@ -442,5 +442,19 @@
   "FolderMenu_MoveDown": "Move down",
   "FolderMenu_MoveTop": "Move to top",
   "FolderMenu_MoveBottom": "Move to bottom",
-  "FolderMenu_Remove": "Remove from library"
+  "FolderMenu_Remove": "Remove from library",
+  "SettingsSubPlaybackSpeed": "Speed & volume",
+  "SettingsSubPlaybackBehavior": "Playback behavior",
+  "SettingsSubPlaybackControls": "Player controls",
+  "SettingsSubPlaybackDecoding": "Decoding",
+  "SettingsSubAppearanceTheme": "Theme",
+  "SettingsSubAppearanceLibrary": "Library",
+  "SettingsSubAppearanceEffects": "Effects & motion",
+  "SettingsSubStoragePerformance": "Performance",
+  "SettingsSubStorageCaches": "Caches & data",
+  "SettingsSubUpdatesStatus": "Status",
+  "SettingsSubUpdatesPreferences": "Preferences",
+  "About_DiagDisplay": "Display",
+  "About_DiagEngine": "Video engine",
+  "Folders_MoreTip": "More options (or right-click the folder)"
 }

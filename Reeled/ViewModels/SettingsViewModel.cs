@@ -114,6 +114,12 @@ public partial class SettingsViewModel : ObservableObject
     private string _libraryStatsFormatted = string.Empty;
 
     [ObservableProperty]
+    private string _displayFormatted = string.Empty;
+
+    [ObservableProperty]
+    private string _videoEngineFormatted = string.Empty;
+
+    [ObservableProperty]
     private string _aboutStatusMessage = string.Empty;
 
     // Updates properties
@@ -640,7 +646,14 @@ public partial class SettingsViewModel : ObservableObject
             int clipCount = _homeViewModel.AllClips.Count;
             string folderPlural = _localizationService.FormatPlural("Plural_Folder", folderCount);
             string clipPlural = _localizationService.FormatPlural("Plural_Clip", clipCount);
-            LibraryStatsFormatted = $"{folderCount} {folderPlural}, {clipCount} {clipPlural}";
+            LibraryStatsFormatted = $"{folderCount} {folderPlural}, {clipCount} {clipPlural} • {_homeViewModel.TotalStorageUsedFormatted}";
+
+            DisplayFormatted = DescribeDisplay();
+            string engine = App.GetService<ILibVlcPlaybackService>().EngineVersion is string v
+                ? "LibVLC " + v.Split(' ')[0]
+                : "LibVLC 3.0";
+            bool hw = _storageService.CurrentSettings.HardwareDecoding;
+            VideoEngineFormatted = $"{engine} • {(hw ? "D3D11 HW" : "Software")}";
         }
         catch
         {
@@ -652,21 +665,44 @@ public partial class SettingsViewModel : ObservableObject
         }
     }
 
+    private static string DescribeDisplay()
+    {
+        try
+        {
+            if (App.Window is not MainWindow window) return string.Empty;
+            var area = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(window.AppWindow.Id, Microsoft.UI.Windowing.DisplayAreaFallback.Primary);
+            double scale = window.Content?.XamlRoot?.RasterizationScale ?? 1.0;
+            return $"{area.OuterBounds.Width}×{area.OuterBounds.Height} @ {scale * 100:0}%";
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
     [RelayCommand]
     public Task CopyDiagnosticsAsync()
     {
         try
         {
             UpdateDiagnostics();
+            var settings = _storageService.CurrentSettings;
+            var uptime = DateTime.Now - System.Diagnostics.Process.GetCurrentProcess().StartTime;
             var text = "--- Reeled Diagnostics ---\n" +
-                       $"Version: {_updateService.CurrentVersion}\n" +
-                       $"OS: {OsVersionFormatted}\n" +
+                       $"Version: {_updateService.CurrentVersion} ({(_updateService.CanSelfUpdate ? "installed" : "portable/dev")})\n" +
+                       $"OS: {OsVersionFormatted} ({System.Runtime.InteropServices.RuntimeInformation.OSDescription})\n" +
                        $"Architecture: {ArchitectureFormatted}\n" +
                        $"Runtime: {RuntimeFormatted}\n" +
+                       $"Windows App SDK: {typeof(Microsoft.UI.Xaml.Application).Assembly.GetName().Version}\n" +
+                       $"Video engine: {VideoEngineFormatted}\n" +
+                       $"Display: {DisplayFormatted}\n" +
                        $"Process Memory: {MemoryUsageFormatted}\n" +
+                       $"Uptime: {(int)uptime.TotalHours}h {uptime.Minutes}m\n" +
                        $"Library: {LibraryStatsFormatted}\n" +
-                       $"Theme: {_storageService.CurrentSettings.AppTheme}\n" +
+                       $"Theme: {settings.AppTheme}, Reduce motion: {settings.ReduceMotion}, Blur: {settings.EnableBackdropBlur} (level {settings.BackdropBlurLevel})\n" +
+                       $"Updates: auto-check {settings.AutoCheckUpdates}, auto-download {settings.AutoDownloadUpdates}\n" +
                        $"Language: {_localizationService.CurrentLanguage} (Effective: {_localizationService.EffectiveLanguage})\n" +
+                       $"Log: {Helpers.Log.LogFilePath}\n" +
                        "--------------------------";
 
             var dataPackage = new Windows.ApplicationModel.DataTransfer.DataPackage();
@@ -714,6 +750,36 @@ public partial class SettingsViewModel : ObservableObject
             FolderStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
             StatusMessage = FolderStatusMessage;
         }
+    }
+
+    /// <summary>Moves a watch folder in the list; the library sidebar follows the same order.</summary>
+    public async Task MoveFolderAsync(string folder, int targetIndex)
+    {
+        int from = WatchFolders.IndexOf(folder);
+        if (from < 0) return;
+        targetIndex = Math.Clamp(targetIndex, 0, WatchFolders.Count - 1);
+        if (from == targetIndex) return;
+
+        WatchFolders.Move(from, targetIndex);
+        var settings = _storageService.CurrentSettings;
+        settings.WatchDirectories = new System.Collections.Generic.List<string>(WatchFolders);
+        await _storageService.SaveSettingsAsync(settings);
+        _homeViewModel.ApplyWatchFolderOrder();
+    }
+
+    public void RevealFolder(string folder)
+    {
+        if (!Directory.Exists(folder)) return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"\"{folder}\"",
+                UseShellExecute = true
+            });
+        }
+        catch { }
     }
 
     [RelayCommand]

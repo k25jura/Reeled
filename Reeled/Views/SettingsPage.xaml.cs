@@ -71,6 +71,7 @@ public sealed partial class SettingsPage : Page
 
         Loaded += (s, e) =>
         {
+            BuildSubNavigation();
             ApplyLocalization(ViewModel.Loc);
             // An update may have been found in the background while this page wasn't shown
             RenderUpdateNotes();
@@ -340,6 +341,58 @@ public sealed partial class SettingsPage : Page
         await ViewModel.AddFolderAsync(App.WindowHandle);
     }
 
+    private void OnWatchFolderMoreClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string folder)
+        {
+            ShowWatchFolderMenu(folder, btn, null);
+        }
+    }
+
+    private void OnWatchFolderRightTapped(object sender, Microsoft.UI.Xaml.Input.RightTappedRoutedEventArgs e)
+    {
+        if (sender is FrameworkElement row && row.Tag is string folder)
+        {
+            ShowWatchFolderMenu(folder, row, e.GetPosition(row));
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>Same actions as the library sidebar's folder menu.</summary>
+    private void ShowWatchFolderMenu(string folder, FrameworkElement anchor, Windows.Foundation.Point? at)
+    {
+        var loc = ViewModel.Loc;
+        var menu = new MenuFlyout { ShouldConstrainToRootBounds = true, Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedRight };
+        if (XamlRoot != null) menu.XamlRoot = XamlRoot;
+
+        void Add(MenuFlyoutItemBase item) => menu.Items.Add(item);
+        MenuFlyoutItem Item(string key, string glyph, Action action, bool enabled = true)
+        {
+            var item = new MenuFlyoutItem { Text = loc[key], Icon = new FontIcon { Glyph = glyph }, IsEnabled = enabled };
+            item.Click += (s, e) => action();
+            return item;
+        }
+
+        int index = ViewModel.WatchFolders.IndexOf(folder);
+        int last = ViewModel.WatchFolders.Count - 1;
+
+        Add(Item("FolderMenu_Open", "\uE8E5", async () => await ViewModel.NavigateToDirectoryAsync(folder)));
+        Add(Item("FolderMenu_RevealExplorer", "\uEC50", () => ViewModel.RevealFolder(folder)));
+        if (last > 0)
+        {
+            Add(new MenuFlyoutSeparator());
+            Add(Item("FolderMenu_MoveUp", "\uE74A", async () => await ViewModel.MoveFolderAsync(folder, index - 1), index > 0));
+            Add(Item("FolderMenu_MoveDown", "\uE74B", async () => await ViewModel.MoveFolderAsync(folder, index + 1), index < last));
+            Add(Item("FolderMenu_MoveTop", "\uEDDB", async () => await ViewModel.MoveFolderAsync(folder, 0), index > 0));
+            Add(Item("FolderMenu_MoveBottom", "\uEDDC", async () => await ViewModel.MoveFolderAsync(folder, last), index < last));
+        }
+        Add(new MenuFlyoutSeparator());
+        Add(Item("FolderMenu_Remove", "\uE74D", async () => await ViewModel.RemoveFolderAsync(folder)));
+
+        if (at is Windows.Foundation.Point point) menu.ShowAt(anchor, point);
+        else menu.ShowAt(anchor);
+    }
+
     private async void OnRemoveFolderClick(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string folder)
@@ -368,7 +421,7 @@ public sealed partial class SettingsPage : Page
     {
         if (sender is Button btn)
         {
-            ToolTipService.SetToolTip(btn, ViewModel.Loc["Folders_RemoveTip"]);
+            ToolTipService.SetToolTip(btn, ViewModel.Loc["Folders_MoreTip"]);
         }
     }
 
@@ -537,6 +590,7 @@ public sealed partial class SettingsPage : Page
         }
 
         UpdateCategoryButtonColors(ActualTheme);
+        UpdateSubNavigation(sectionTag, animate);
 
         if (selectedBtn != null)
         {
@@ -680,136 +734,214 @@ public sealed partial class SettingsPage : Page
 
     private void ShowStatusBanner(Border border, TranslateTransform trans, TextBlock textBlock, FontIcon icon, string message, bool isError, ref DispatcherTimer? timer)
     {
-        if (border == null || trans == null || textBlock == null || icon == null) return;
-
-        timer?.Stop();
-        timer = null;
-
-        bool isLight = (ActualTheme == ElementTheme.Light);
-        textBlock.Text = message;
-        if (isError)
-        {
-            icon.Glyph = "\uE783";
-            var critBrush = new SolidColorBrush(isLight ? Windows.UI.Color.FromArgb(255, 196, 43, 28) : Windows.UI.Color.FromArgb(255, 255, 153, 164));
-            icon.Foreground = critBrush;
-            textBlock.Foreground = critBrush;
-        }
-        else
-        {
-            icon.Glyph = "\uE73E";
-            var accentBrush = isLight
-                ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 95, 184))
-                : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 96, 205, 255));
-            var textBrush = isLight
-                ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 20, 20, 20))
-                : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 240, 240, 240));
-
-            icon.Foreground = accentBrush;
-            textBlock.Foreground = textBrush;
-        }
-
-        // Gentle space-reserving expansion animation with Apple QuarticEase (240ms)
-        var openSb = new Storyboard();
-        var appleEaseOut = new QuarticEase { EasingMode = EasingMode.EaseOut };
-        const double durationMs = 240.0;
-
-        var animHeight = new DoubleAnimation
-        {
-            From = border.ActualHeight > 0 ? border.ActualHeight : 0.0,
-            To = 38.0,
-            Duration = TimeSpan.FromMilliseconds(durationMs),
-            EasingFunction = appleEaseOut,
-            EnableDependentAnimation = true
-        };
-        Storyboard.SetTarget(animHeight, border);
-        Storyboard.SetTargetProperty(animHeight, "Height");
-        openSb.Children.Add(animHeight);
-
-        var animOpacity = new DoubleAnimation
-        {
-            From = border.Opacity,
-            To = 1.0,
-            Duration = TimeSpan.FromMilliseconds(durationMs),
-            EasingFunction = appleEaseOut
-        };
-        Storyboard.SetTarget(animOpacity, border);
-        Storyboard.SetTargetProperty(animOpacity, "Opacity");
-        openSb.Children.Add(animOpacity);
-
-        var animTrans = new DoubleAnimation
-        {
-            From = trans.Y,
-            To = 0.0,
-            Duration = TimeSpan.FromMilliseconds(durationMs),
-            EasingFunction = appleEaseOut
-        };
-        Storyboard.SetTarget(animTrans, trans);
-        Storyboard.SetTargetProperty(animTrans, "Y");
-        openSb.Children.Add(animTrans);
-
-        openSb.Completed += (s, e) =>
-        {
-            border.Height = 38.0;
-            border.Opacity = 1.0;
-            trans.Y = 0.0;
-        };
-
-        Helpers.Motion.Begin(openSb);
-
-        // Auto-collapse after 3.5s with graceful, gentle reverse animation at the same speed (240ms)
-        var collapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(3500) };
-        collapseTimer.Tick += (s, e) =>
-        {
-            collapseTimer.Stop();
-            var closeSb = new Storyboard();
-            var gentleEase = new QuarticEase { EasingMode = EasingMode.EaseInOut };
-
-            var animCloseHeight = new DoubleAnimation
-            {
-                From = border.ActualHeight > 0 ? border.ActualHeight : 38.0,
-                To = 0.0,
-                Duration = TimeSpan.FromMilliseconds(durationMs),
-                EasingFunction = gentleEase,
-                EnableDependentAnimation = true
-            };
-            Storyboard.SetTarget(animCloseHeight, border);
-            Storyboard.SetTargetProperty(animCloseHeight, "Height");
-            closeSb.Children.Add(animCloseHeight);
-
-            var animCloseOpacity = new DoubleAnimation
-            {
-                From = border.Opacity,
-                To = 0.0,
-                Duration = TimeSpan.FromMilliseconds(durationMs),
-                EasingFunction = gentleEase
-            };
-            Storyboard.SetTarget(animCloseOpacity, border);
-            Storyboard.SetTargetProperty(animCloseOpacity, "Opacity");
-            closeSb.Children.Add(animCloseOpacity);
-
-            var animCloseTrans = new DoubleAnimation
-            {
-                From = trans.Y,
-                To = -6.0,
-                Duration = TimeSpan.FromMilliseconds(durationMs),
-                EasingFunction = gentleEase
-            };
-            Storyboard.SetTarget(animCloseTrans, trans);
-            Storyboard.SetTargetProperty(animCloseTrans, "Y");
-            closeSb.Children.Add(animCloseTrans);
-
-            closeSb.Completed += (s2, e2) =>
-            {
-                border.Height = 0.0;
-                border.Opacity = 0.0;
-                trans.Y = -6.0;
-            };
-
-            Helpers.Motion.Begin(closeSb);
-        };
-        timer = collapseTimer;
-        collapseTimer.Start();
+        // Section banners are replaced by one toast that is always in view
+        ShowToast(message, isError);
     }
+
+    // ---------------------------------------------------------------------------------------------
+    // Sub-categories: group labels inside each section, mirrored under the active category in the
+    // left navigation (they open with the category and follow the scroll position)
+    // ---------------------------------------------------------------------------------------------
+
+    private static readonly (string Section, string[] Headers)[] SubCategories =
+    {
+        ("PlaybackSection", new[] { "SubPlaybackSpeed", "SubPlaybackBehavior", "SubPlaybackControls", "SubPlaybackDecoding" }),
+        ("AppearanceSection", new[] { "SubAppearanceTheme", "SubAppearanceLibrary", "SubAppearanceEffects" }),
+        ("StorageSection", new[] { "SubStoragePerformance", "SubStorageCaches" }),
+        ("UpdateSection", new[] { "SubUpdatesStatus", "SubUpdatesPreferences" }),
+    };
+
+    private readonly Dictionary<string, StackPanel> _subNavPanels = new();
+    private readonly List<(Button Button, TextBlock Label, TextBlock Header, string Section)> _subNavItems = new();
+    private string? _activeSubHeader;
+    private string? _expandedSubSection;
+
+    private void BuildSubNavigation()
+    {
+        if (_subNavPanels.Count > 0 || CategoriesStackPanel == null) return;
+        var loc = ViewModel.Loc;
+
+        foreach (var (section, headers) in SubCategories)
+        {
+            int index = -1;
+            for (int i = 0; i < CategoriesStackPanel.Children.Count; i++)
+            {
+                if (CategoriesStackPanel.Children[i] is Button b && b.Tag as string == section) { index = i; break; }
+            }
+            if (index < 0) continue;
+
+            var panel = new StackPanel { Spacing = 1, Margin = new Thickness(28, 0, 0, 2), Visibility = Visibility.Collapsed, Opacity = 0 };
+            foreach (var name in headers)
+            {
+                if (FindName(name) is not TextBlock header) continue;
+                var label = new TextBlock
+                {
+                    Text = loc["Settings" + name],
+                    FontSize = 12.5,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    Foreground = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"]
+                };
+                var button = new Button
+                {
+                    Content = label,
+                    Tag = name,
+                    Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Left,
+                    Padding = new Thickness(10, 5, 10, 6),
+                    CornerRadius = new CornerRadius(4)
+                };
+                button.Click += (s, e) => OnSubCategoryClick(section, header, name);
+                panel.Children.Add(button);
+                _subNavItems.Add((button, label, header, section));
+            }
+            CategoriesStackPanel.Children.Insert(index + 1, panel);
+            _subNavPanels[section] = panel;
+        }
+    }
+
+    private void OnSubCategoryClick(string section, FrameworkElement header, string name)
+    {
+        _isProgrammaticScroll = true;
+        SetActiveCategory(section, animate: true);
+        SetActiveSubHeader(name);
+        try
+        {
+            var pt = header.TransformToVisual(SettingsContentRoot).TransformPoint(new Windows.Foundation.Point(0, 0));
+            SettingsScrollViewer.ChangeView(null, Math.Max(0, pt.Y - 14), null, false);
+        }
+        catch { }
+    }
+
+    /// <summary>Opens the active category's sub-list (space first, then the items) and closes the previous one.</summary>
+    private void UpdateSubNavigation(string sectionTag, bool animate)
+    {
+        if (_expandedSubSection == sectionTag) return;
+        string? previous = _expandedSubSection;
+        _expandedSubSection = sectionTag;
+
+        void Realign()
+        {
+            if (FindCategoryButton(_activeSectionTag) is Button active) AnimateIndicatorTo(active, animate: true);
+        }
+
+        if (previous != null && _subNavPanels.TryGetValue(previous, out var oldPanel))
+        {
+            if (animate) Helpers.Motion.Reveal(oldPanel, false, Realign);
+            else { oldPanel.Visibility = Visibility.Collapsed; oldPanel.Opacity = 0; }
+        }
+        // Start on the section's first group until the scroll position says otherwise
+        foreach (var (_, _, header, section) in _subNavItems)
+        {
+            if (section == sectionTag) { SetActiveSubHeader(header.Name); break; }
+        }
+
+        if (_subNavPanels.TryGetValue(sectionTag, out var panel))
+        {
+            if (animate) Helpers.Motion.Reveal(panel, true, Realign);
+            else { panel.Visibility = Visibility.Visible; panel.Opacity = 1; }
+        }
+        if (!animate) DispatcherQueue.TryEnqueue(Realign);
+    }
+
+    private Button? FindCategoryButton(string tag)
+    {
+        if (CategoriesStackPanel == null) return null;
+        foreach (var child in CategoriesStackPanel.Children)
+        {
+            if (child is Button b && b.Tag as string == tag) return b;
+        }
+        return null;
+    }
+
+    private void SetActiveSubHeader(string? name)
+    {
+        if (_activeSubHeader == name) return;
+        _activeSubHeader = name;
+        var primary = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+        var tertiary = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"];
+        foreach (var (_, label, header, _) in _subNavItems)
+        {
+            bool active = header.Name == name;
+            label.Foreground = active ? primary : tertiary;
+            label.FontWeight = active ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
+        }
+    }
+
+    /// <summary>The group label nearest above the focus line in the active section.</summary>
+    private void UpdateActiveSubHeaderFromScroll(string sectionTag, double focusY)
+    {
+        string? best = null;
+        foreach (var (_, _, header, section) in _subNavItems)
+        {
+            if (section != sectionTag) continue;
+            var pt = header.TransformToVisual(SettingsScrollViewer).TransformPoint(new Windows.Foundation.Point(0, 0));
+            if (best == null || pt.Y <= focusY) best = header.Name;
+        }
+        SetActiveSubHeader(best);
+    }
+
+    private void LocalizeSubCategories(Reeled.Services.ILocalizationService loc)
+    {
+        foreach (var (_, headers) in SubCategories)
+        {
+            foreach (var name in headers)
+            {
+                if (FindName(name) is TextBlock header) header.Text = loc["Settings" + name];
+            }
+        }
+        foreach (var (_, label, header, _) in _subNavItems)
+        {
+            label.Text = loc["Settings" + header.Name];
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Status toast
+    // ---------------------------------------------------------------------------------------------
+
+    private DispatcherTimer? _toastTimer;
+    private bool _isToastShown;
+
+    private void ShowToast(string message, bool isError)
+    {
+        if (SettingsToast == null) return;
+        bool isLight = ActualTheme == ElementTheme.Light;
+        SettingsToastText.Text = message;
+        SettingsToastIcon.Glyph = isError ? "\uE783" : "\uE73E";
+        SettingsToastIcon.Foreground = new SolidColorBrush(isError
+            ? (isLight ? Windows.UI.Color.FromArgb(255, 196, 43, 28) : Windows.UI.Color.FromArgb(255, 255, 153, 164))
+            : (isLight ? Windows.UI.Color.FromArgb(255, 15, 123, 15) : Windows.UI.Color.FromArgb(255, 108, 203, 95)));
+
+        _toastTimer?.Stop();
+        if (!_isToastShown)
+        {
+            _isToastShown = true;
+            SettingsToast.Visibility = Visibility.Visible;
+            var sb = new Storyboard();
+            sb.Children.Add(Helpers.Motion.Spline(SettingsToast, "Opacity", 1, Helpers.Motion.Medium, from: 0));
+            sb.Children.Add(Helpers.Motion.Spline(SettingsToastTranslation, "Y", 0, Helpers.Motion.Long, from: 16));
+            Helpers.Motion.BeginExact(sb);
+        }
+
+        _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(isError ? 5000 : 3200) };
+        _toastTimer.Tick += (s, e) =>
+        {
+            _toastTimer?.Stop();
+            var sb = new Storyboard();
+            sb.Children.Add(Helpers.Motion.Spline(SettingsToast, "Opacity", 0, Helpers.Motion.Short, accelerate: true));
+            sb.Children.Add(Helpers.Motion.Spline(SettingsToastTranslation, "Y", 10, Helpers.Motion.Short, accelerate: true));
+            sb.Completed += (s2, e2) =>
+            {
+                if (_toastTimer?.IsEnabled == true) return; // a new message arrived meanwhile
+                _isToastShown = false;
+                SettingsToast.Visibility = Visibility.Collapsed;
+            };
+            Helpers.Motion.BeginExact(sb);
+        };
+        _toastTimer.Start();
+    }
+
 
     private void OnSettingsScrollViewerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
     {
@@ -873,6 +1005,7 @@ public sealed partial class SettingsPage : Page
             }
 
             SetActiveCategory(bestTag, animate: true);
+            UpdateActiveSubHeaderFromScroll(bestTag, focusY);
         }
         catch
         {
@@ -1157,6 +1290,7 @@ public sealed partial class SettingsPage : Page
 
     private void ApplyLocalization(Reeled.Services.ILocalizationService loc)
     {
+        LocalizeSubCategories(loc);
         if (loc == null) return;
 
         // Header
@@ -1360,6 +1494,8 @@ public sealed partial class SettingsPage : Page
         if (CopyDiagnosticsButtonText != null) CopyDiagnosticsButtonText.Text = loc["About_DiagnosticsCopy"];
         if (CopyDiagnosticsButton != null) ToolTipService.SetToolTip(CopyDiagnosticsButton, loc["About_DiagnosticsCopy"]);
         if (DiagOsLabel != null) DiagOsLabel.Text = loc["About_DiagOS"];
+        if (DiagDisplayLabel != null) DiagDisplayLabel.Text = loc["About_DiagDisplay"];
+        if (DiagEngineLabel != null) DiagEngineLabel.Text = loc["About_DiagEngine"];
         if (DiagArchLabel != null) DiagArchLabel.Text = $"{loc["About_DiagArch"]} & {loc["About_DiagRuntime"]}";
         if (DiagMemoryLabel != null) DiagMemoryLabel.Text = loc["About_DiagMemory"];
         if (DiagLibraryLabel != null) DiagLibraryLabel.Text = loc["About_DiagLibrary"];

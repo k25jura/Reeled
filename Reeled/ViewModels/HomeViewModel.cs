@@ -776,6 +776,30 @@ public partial class HomeViewModel : ObservableObject
         await _storageService.SaveSettingsAsync(settings);
     }
 
+    /// <summary>Re-orders the sidebar's watch folders to match the saved list (after a move in Settings).</summary>
+    public void ApplyWatchFolderOrder()
+    {
+        var order = _storageService.CurrentSettings.WatchDirectories;
+        int target = 0;
+        foreach (var path in order)
+        {
+            int current = -1;
+            for (int i = 0; i < Directories.Count; i++)
+            {
+                if (PathUtil.PathEquals(Directories[i].FullPath, path)) { current = i; break; }
+            }
+            if (current < 0) continue;
+            if (current != target)
+            {
+                // TreeView ignores Move notifications, so re-insert the node
+                var node = Directories[current];
+                Directories.RemoveAt(current);
+                Directories.Insert(target, node);
+            }
+            target++;
+        }
+    }
+
     public void OpenFolderInExplorer(DirectoryNode node)
     {
         if (node == null || !Directory.Exists(node.FullPath)) return;

@@ -10,6 +10,8 @@ namespace Reeled.Services;
 public class LibVlcPlaybackService : ILibVlcPlaybackService
 {
     private LibVLC? _libVLC;
+
+    public string? EngineVersion => _libVLC?.Version;
     private MediaPlayer? _mediaPlayer;
     private Media? _currentMedia;
     private DispatcherQueue? _dispatcherQueue;

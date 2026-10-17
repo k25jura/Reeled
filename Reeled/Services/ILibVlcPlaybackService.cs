@@ -6,6 +6,8 @@ namespace Reeled.Services;
 
 public interface ILibVlcPlaybackService : IDisposable
 {
+    /// <summary>LibVLC version string, or null before the engine has started.</summary>
+    string? EngineVersion { get; }
     event Action<float>? PositionChanged;
     event Action<long>? TimeChanged;
     event Action<long>? LengthChanged;

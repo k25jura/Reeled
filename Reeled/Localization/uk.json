@@ -181,7 +181,7 @@
   "Updates_GitHubTokenPlaceholder": "ghp_xxxxxxxxxxxxxxxxxxxx",
 
   "About_HeroTitle": "Reeled",
-  "About_Tagline": "Сучасний переглядач та плеєр ігрових кліпів для Windows",
+  "About_Tagline": "Локальний відеоплеєр і менеджер медіатеки для ігрових кліпів на Windows.",
   "About_Version": "Версія {0}",
   "About_Framework": "Створено на WinUI 3, Windows App SDK та LibVLC",
   "About_Developer": "Все в одній програмі для власного та загального користування",
@@ -199,7 +199,7 @@
   "About_GitHub": "Репозиторій GitHub",
   "About_Releases": "Список змін",
   "About_Issues": "Повідомити про проблему",
-  "About_License": "Публічна ліцензія GPL-3.0 • Відкритий код програми",
+  "About_License": "Ліцензія GPL-3.0",
   "About_ResetDefaults_Title": "Відновити параметри за замовчуванням",
   "About_ResetDefaults_Subtitle": "Скинути налаштування відтворення, вигляду та застосунку до значень за замовчуванням",
   "About_ResetDefaults_Button": "Відновити типові",
@@ -442,5 +442,19 @@
   "FolderMenu_MoveDown": "Вниз",
   "FolderMenu_MoveTop": "На початок",
   "FolderMenu_MoveBottom": "В кінець",
-  "FolderMenu_Remove": "Прибрати з бібліотеки"
+  "FolderMenu_Remove": "Прибрати з бібліотеки",
+  "SettingsSubPlaybackSpeed": "Швидкість і гучність",
+  "SettingsSubPlaybackBehavior": "Поведінка відтворення",
+  "SettingsSubPlaybackControls": "Елементи керування",
+  "SettingsSubPlaybackDecoding": "Декодування",
+  "SettingsSubAppearanceTheme": "Тема",
+  "SettingsSubAppearanceLibrary": "Медіатека",
+  "SettingsSubAppearanceEffects": "Ефекти й анімація",
+  "SettingsSubStoragePerformance": "Швидкодія",
+  "SettingsSubStorageCaches": "Кеш і дані",
+  "SettingsSubUpdatesStatus": "Стан",
+  "SettingsSubUpdatesPreferences": "Параметри",
+  "About_DiagDisplay": "Дисплей",
+  "About_DiagEngine": "Відеорушій",
+  "Folders_MoreTip": "Більше дій (або клацніть папку правою кнопкою)"
 }

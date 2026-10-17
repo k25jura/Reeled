@@ -23,6 +23,12 @@ public class AppSettings
     public bool EnableClipCache { get; set; } = true;
     public bool EnableSkeletonLoading { get; set; } = true;
     public double SidebarWidth { get; set; } = 316;
+    /// <summary>Last normal (not maximized) window bounds in physical pixels; 0 width = never saved.</summary>
+    public int WindowX { get; set; }
+    public int WindowY { get; set; }
+    public int WindowWidth { get; set; }
+    public int WindowHeight { get; set; }
+    public bool WindowMaximized { get; set; }
     public string AppTheme { get; set; } = "Default";
     public string Language { get; set; } = "System";
     public bool AutoCheckUpdates { get; set; } = true;

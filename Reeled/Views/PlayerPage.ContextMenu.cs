@@ -181,6 +181,13 @@ public sealed partial class PlayerPage
                 Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(data);
                 vm.ShowToast(loc["Player_Menu_PathCopied"], kind: OsdKind.Tracks);
             }));
+
+            // Tags belong to library clips; a file opened from disk has none to edit
+            var home = App.GetService<HomeViewModel>();
+            if (home.FindLibraryClip(clip.FilePath) is GameClip libraryClip)
+            {
+                menu.Items.Add(Helpers.TagUi.BuildClipSubmenu(home, libraryClip, XamlRoot, ElementTheme.Dark, "Player_Menu_Tags"));
+            }
         }
         menu.Items.Add(Item(loc["Player_Menu_OpenMedia"], "", OpenMediaFromPlayer, "Ctrl+O"));
         menu.Items.Add(new MenuFlyoutSeparator());

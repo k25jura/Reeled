@@ -26,6 +26,7 @@ public sealed partial class HomePage : Page
         InitializeComponent();
         ViewModel.RequestScrollToTop += ScrollClipsToTop;
         ViewModel.ViewContentReplaced += OnViewContentReplaced;
+        WireTags();
 
         Helpers.CursorHelper.SetElementCursor(SidebarResizeHandle, Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast));
 
@@ -201,6 +202,12 @@ public sealed partial class HomePage : Page
         if (SortOptionsButton != null)
         {
             SortOptionsButton.RequestedTheme = theme;
+        }
+
+        if (TagsFilterButton != null)
+        {
+            TagsFilterButton.RequestedTheme = theme;
+            UpdateTagsFilterButton();
         }
 
         if (ViewOptionsButton != null)
@@ -466,6 +473,7 @@ public sealed partial class HomePage : Page
 
             UpdateSortButtonUI();
             UpdateViewOptionsMenuUI();
+            UpdateTagsFilterButton();
 
             // Folders Empty Fallback Prompt
             if (FoldersFallbackTitleText != null) FoldersFallbackTitleText.Text = loc["Folders_FallbackTitle"];
@@ -3748,6 +3756,8 @@ public sealed partial class HomePage : Page
             };
             renameDiskItem.Click += async (s, args) => await ShowRenameDialogAsync(clip);
             flyout.Items.Add(renameDiskItem);
+
+            flyout.Items.Add(CreateClipTagsMenu(clip));
 
             flyout.Items.Add(new MenuFlyoutSeparator());
 

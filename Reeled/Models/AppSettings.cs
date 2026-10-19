@@ -65,6 +65,7 @@ public class AppSettings
     public DateGroupingMode DateGrouping { get; set; } = DateGroupingMode.None;
     public ViewDensityMode ViewDensity { get; set; } = ViewDensityMode.Comfortable;
     public bool MetadataHoverOnly { get; set; } = false;
+    /// <summary>0 newest, 1 oldest, 2 A-Z, 3 Z-A, 4 longest, 5 largest, 6 shortest, 7 smallest.</summary>
     public int SortIndex { get; set; } = 0;
     public bool ReduceMotion { get; set; } = false;
     public string? GitHubToken { get; set; }

@@ -20,8 +20,10 @@
   "Sort_OldestDate": "Oldest Date",
   "Sort_TitleAZ": "Title (A-Z)",
   "Sort_TitleZA": "Title (Z-A)",
-  "Sort_Duration": "Duration",
-  "Sort_FileSize": "File Size",
+  "Sort_Duration": "Duration (longest)",
+  "Sort_DurationShortest": "Duration (shortest)",
+  "Sort_FileSize": "Size (largest)",
+  "Sort_FileSizeSmallest": "Size (smallest)",
 
   "Empty_NoClipsTitle": "No clips in library",
   "Empty_NoClipsSubtitle": "Add your captures folder or drop video files to start watching.",

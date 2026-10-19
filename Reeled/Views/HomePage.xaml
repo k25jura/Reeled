@@ -452,11 +452,7 @@
                             Margin="0,0,0,5"
                             Background="{ThemeResource AccentFillColorDefaultBrush}"
                             IsHitTestVisible="False"
-                            Opacity="0">
-                        <Border.RenderTransform>
-                            <TranslateTransform x:Name="HorizontalNavIndicatorTranslation" X="0" />
-                        </Border.RenderTransform>
-                    </Border>
+                            Opacity="0" />
                 </Grid>
             </ScrollViewer>
 
@@ -1053,7 +1049,14 @@
                                     <MenuFlyoutItem x:Name="SortDurationItem" Click="OnSortMenuItemClick" Tag="4">
                                         <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE916;" FontSize="14" /></MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
+                                    <MenuFlyoutItem x:Name="SortDurationShortestItem" Click="OnSortMenuItemClick" Tag="6">
+                                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE916;" FontSize="14" /></MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutSeparator />
                                     <MenuFlyoutItem x:Name="SortFileSizeItem" Click="OnSortMenuItemClick" Tag="5">
+                                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74C;" FontSize="14" /></MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutItem x:Name="SortFileSizeSmallestItem" Click="OnSortMenuItemClick" Tag="7">
                                         <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74C;" FontSize="14" /></MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
                                 </MenuFlyout>
@@ -1111,8 +1114,8 @@
                     <TranslateTransform x:Name="ClipsHostTranslate" Y="0" />
                 </Grid.RenderTransform>
                 <!-- GridView of Clips with Date Grouping and Responsive Edge-to-Edge Wrapping -->
+                <!-- Visibility of the grid, list and skeletons is driven from code (HomePage.Transitions.cs) so loading crossfades -->
                 <GridView x:Name="ClipsGridView"
-                          Visibility="{x:Bind ViewModel.ShowSkeletonLoading, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
                           ItemClick="OnClipItemClick"
                           IsItemClickEnabled="True"
                           ContainerContentChanging="OnClipContainerContentChanging"
@@ -1123,6 +1126,9 @@
                           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                           UseSystemFocusVisuals="False"
                           IsTabStop="False">
+                    <GridView.RenderTransform>
+                        <TranslateTransform x:Name="ClipsGridTranslate" Y="0" />
+                    </GridView.RenderTransform>
 
                     <!-- No item transitions: a RepositionThemeTransition on every card made each resize,
                          sidebar toggle and re-sort glide all cards ~300ms behind the layout (the "lag").
@@ -1460,7 +1466,6 @@
 
                     <ListView x:Name="ClipsListView"
                               Grid.Row="1"
-                              Visibility="{x:Bind ViewModel.ShowSkeletonLoading, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
                               ItemTemplate="{StaticResource ClipListRowTemplate}"
                               ItemClick="OnClipItemClick"
                               IsItemClickEnabled="True"
@@ -1469,6 +1474,9 @@
                               Padding="24,4,24,24"
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                               IsTabStop="False">
+                        <ListView.RenderTransform>
+                            <TranslateTransform x:Name="ClipsListTranslate" Y="0" />
+                        </ListView.RenderTransform>
                         <ListView.ItemContainerTransitions>
                             <TransitionCollection />
                         </ListView.ItemContainerTransitions>
@@ -1502,11 +1510,56 @@
                             </GroupStyle>
                         </ListView.GroupStyle>
                     </ListView>
+
+                    <!-- List skeleton: rows shaped like the list rows, same shimmer as the card skeleton -->
+                    <ScrollViewer x:Name="ListSkeletonScrollViewer"
+                                  Grid.Row="1"
+                                  Visibility="Collapsed"
+                                  Padding="24,4,24,24"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  IsHitTestVisible="False">
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.SkeletonPlaceholders, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Height="52" Margin="8,1" ColumnSpacing="14" Loaded="OnSkeletonRowLoaded" Unloaded="OnSkeletonRowUnloaded">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="64" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="180" />
+                                            <ColumnDefinition Width="150" />
+                                            <ColumnDefinition Width="88" />
+                                            <ColumnDefinition Width="84" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border Width="64" Height="36" CornerRadius="4" VerticalAlignment="Center"
+                                                Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.18" />
+
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="6">
+                                            <Border Height="12" Width="220" HorizontalAlignment="Left" CornerRadius="4"
+                                                    Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.28" />
+                                            <Border x:Name="SkeletonSubtitle" Height="9" Width="90" HorizontalAlignment="Left" CornerRadius="3" Visibility="Collapsed"
+                                                    Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.16" />
+                                        </StackPanel>
+
+                                        <Border x:Name="SkeletonFolder" Grid.Column="2" Height="10" Width="96" HorizontalAlignment="Left" VerticalAlignment="Center" CornerRadius="3"
+                                                Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.2" />
+                                        <Border x:Name="SkeletonDate" Grid.Column="3" Height="10" Width="86" HorizontalAlignment="Left" VerticalAlignment="Center" CornerRadius="3"
+                                                Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.2" />
+                                        <Border Grid.Column="4" Height="10" Width="40" HorizontalAlignment="Right" VerticalAlignment="Center" CornerRadius="3"
+                                                Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.2" />
+                                        <Border Grid.Column="5" Height="10" Width="48" HorizontalAlignment="Right" VerticalAlignment="Center" CornerRadius="3" Margin="0,0,8,0"
+                                                Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.2" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
                 </Grid>
 
                 <!-- Skeleton Loading Grid View (Shown when loading and skeleton loading enabled) -->
                 <ScrollViewer x:Name="SkeletonScrollViewer"
-                              Visibility="{x:Bind ViewModel.ShowSkeletonLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                              Visibility="Collapsed"
                               Padding="24,14,24,24"
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled"

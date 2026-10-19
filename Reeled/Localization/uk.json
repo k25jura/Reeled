@@ -20,8 +20,10 @@
   "Sort_OldestDate": "Найстаріші",
   "Sort_TitleAZ": "Назва (А-Я)",
   "Sort_TitleZA": "Назва (Я-А)",
-  "Sort_Duration": "Тривалість",
-  "Sort_FileSize": "Розмір файлу",
+  "Sort_Duration": "Тривалість (найдовші)",
+  "Sort_DurationShortest": "Тривалість (найкоротші)",
+  "Sort_FileSize": "Розмір (найбільші)",
+  "Sort_FileSizeSmallest": "Розмір (найменші)",
 
   "Empty_NoClipsTitle": "Немає кліпів у бібліотеці",
   "Empty_NoClipsSubtitle": "Додайте папку із записами або перетягніть відеофайли, щоб почати перегляд.",

@@ -440,8 +440,7 @@ public sealed partial class PlayerPage : Page
         _isActive = false;
         StopTimelineRendering();
         _inactivityTimer.Stop();
-        _osdHideTimer?.Stop();
-        _osdStoryboard?.Stop();
+        HideOsdNow();
         _controlsStoryboard?.Stop();
         StopSidePanelAnimations();
         _momentsDismissTimer?.Stop();

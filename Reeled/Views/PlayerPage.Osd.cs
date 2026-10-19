@@ -18,8 +18,13 @@ namespace Reeled.Views;
 /// </summary>
 public sealed partial class PlayerPage
 {
-    private Storyboard? _osdStoryboard;
+    private Storyboard? _osdShowStoryboard;
+    private Storyboard? _osdHideStoryboard;
     private DispatcherTimer? _osdHideTimer;
+    private DispatcherTimer? _osdSafetyTimer;
+    // Bumped by every new toast and by HideOsdNow; a late timer tick or Completed handler from an older
+    // toast sees a different value and does nothing
+    private int _osdGeneration;
     private bool _osdShadowReady;
     private OsdPosition _osdAppliedPosition = (OsdPosition)(-1);
 
@@ -39,6 +44,11 @@ public sealed partial class PlayerPage
     private void UpdateOsdToast(string message)
     {
         if (string.IsNullOrEmpty(message)) return;
+        if (!DispatcherQueue.HasThreadAccess)
+        {
+            DispatcherQueue.TryEnqueue(() => UpdateOsdToast(message));
+            return;
+        }
         var prefs = Storage.CurrentSettings.Osd ?? new OsdPreferences();
 
         ApplyOsdLayout(prefs);
@@ -55,15 +65,17 @@ public sealed partial class PlayerPage
         var tint = prefs.TintByAction ? OsdTint(ViewModel.OsdKind) : OsdTint(OsdKind.Neutral);
         bool firstShow = OsdToastContainer.Visibility != Visibility.Visible || OsdToastContainer.Opacity < 0.05;
 
-        _osdHideTimer?.Stop();
-        _osdStoryboard?.Stop();
+        // Drop everything the previous toast left running. A finished storyboard keeps holding its end value
+        // (e.g. the fade-out's 0) underneath newer ones, so each one is stopped and the state set directly.
+        int generation = CancelOsdAnimations();
         var sb = new Storyboard();
         AnimateOsdTint(sb, tint, immediate: firstShow);
 
         if (firstShow)
         {
+            OsdToastContainer.Opacity = 0;
             OsdToastContainer.Visibility = Visibility.Visible;
-            sb.Children.Add(Helpers.Motion.Spline(OsdToastContainer, "Opacity", 1, Helpers.Motion.Short, from: OsdToastContainer.Opacity));
+            sb.Children.Add(Helpers.Motion.Spline(OsdToastContainer, "Opacity", 1, Helpers.Motion.Short, from: 0));
             double rise = prefs.Position == OsdPosition.Bottom ? -10 : 10;
             sb.Children.Add(Helpers.Motion.Spline(OsdContentTranslation, "Y", 0, Helpers.Motion.Medium, from: -rise));
         }
@@ -73,9 +85,55 @@ public sealed partial class PlayerPage
             OsdToastContainer.Opacity = 1;
             sb.Children.Add(Helpers.Motion.Spline(OsdContentTranslation, "Y", 0, Helpers.Motion.Short, from: prefs.Position == OsdPosition.Bottom ? 3 : -3));
         }
-        _osdStoryboard = sb;
-        Helpers.Motion.BeginExact(sb);
-        StartOsdHideTimer(prefs.DurationMs);
+        sb.Completed += (s, e) =>
+        {
+            if (generation != _osdGeneration) return;
+            // Release the held values so a later fade-out starts from a clean slate
+            sb.Stop();
+            _osdShowStoryboard = null;
+            OsdToastContainer.Opacity = 1;
+            OsdContentTranslation.Y = 0;
+        };
+        _osdShowStoryboard = sb;
+        // The hide timer comes first: whatever the animation does, this toast will go away
+        StartOsdHideTimer(prefs.DurationMs, generation);
+        try
+        {
+            Helpers.Motion.BeginExact(sb);
+        }
+        catch (Exception ex)
+        {
+            Helpers.Log.Error("OsdShow", ex);
+            OsdToastContainer.Opacity = 1;
+        }
+    }
+
+    /// <summary>Stops the timers and storyboards of the toast on screen and returns the new generation.</summary>
+    private int CancelOsdAnimations()
+    {
+        _osdGeneration++;
+        _osdHideTimer?.Stop();
+        _osdSafetyTimer?.Stop();
+        try
+        {
+            _osdShowStoryboard?.Stop();
+            _osdHideStoryboard?.Stop();
+        }
+        catch (Exception ex)
+        {
+            Helpers.Log.Error("OsdCancel", ex);
+        }
+        _osdShowStoryboard = null;
+        _osdHideStoryboard = null;
+        return _osdGeneration;
+    }
+
+    /// <summary>Takes the toast off screen right now (leaving the player, clip changes that reset the view).</summary>
+    private void HideOsdNow()
+    {
+        CancelOsdAnimations();
+        OsdToastContainer.Opacity = 0;
+        OsdToastContainer.Visibility = Visibility.Collapsed;
     }
 
     private void AnimateOsdTint(Storyboard sb, Color tint, bool immediate)
@@ -103,25 +161,54 @@ public sealed partial class PlayerPage
         }
     }
 
-    private void StartOsdHideTimer(int durationMs)
+    private void StartOsdHideTimer(int durationMs, int generation)
     {
         _osdHideTimer?.Stop();
         _osdHideTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(Math.Clamp(durationMs, 400, 5000)) };
         _osdHideTimer.Tick += (s, e) =>
         {
-            _osdHideTimer?.Stop();
+            if (s is DispatcherTimer timer) timer.Stop();
+            if (generation != _osdGeneration) return;
+
+            _osdShowStoryboard?.Stop();
+            _osdShowStoryboard = null;
             var sbOut = new Storyboard();
-            sbOut.Children.Add(Helpers.Motion.Spline(OsdToastContainer, "Opacity", 0, Helpers.Motion.Medium, accelerate: true));
-            sbOut.Completed += (s2, e2) =>
+            sbOut.Children.Add(Helpers.Motion.Spline(OsdToastContainer, "Opacity", 0, Helpers.Motion.Medium, from: OsdToastContainer.Opacity, accelerate: true));
+            sbOut.Completed += (s2, e2) => FinishOsdHide(generation);
+            _osdHideStoryboard = sbOut;
+
+            // Completed can be skipped (the storyboard gets replaced, the app is busy), so a second timer
+            // guarantees the toast is collapsed shortly after the fade ends
+            _osdSafetyTimer?.Stop();
+            _osdSafetyTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(Helpers.Motion.Medium + 300) };
+            _osdSafetyTimer.Tick += (s3, e3) =>
             {
-                if (!ReferenceEquals(_osdStoryboard, sbOut)) return;
-                _osdStoryboard = null;
-                OsdToastContainer.Visibility = Visibility.Collapsed;
+                if (s3 is DispatcherTimer safety) safety.Stop();
+                FinishOsdHide(generation);
             };
-            _osdStoryboard = sbOut;
-            Helpers.Motion.BeginExact(sbOut);
+            _osdSafetyTimer.Start();
+
+            try
+            {
+                Helpers.Motion.BeginExact(sbOut);
+            }
+            catch (Exception ex)
+            {
+                Helpers.Log.Error("OsdHide", ex);
+                FinishOsdHide(generation);
+            }
         };
         _osdHideTimer.Start();
+    }
+
+    private void FinishOsdHide(int generation)
+    {
+        if (generation != _osdGeneration) return;
+        _osdSafetyTimer?.Stop();
+        try { _osdHideStoryboard?.Stop(); } catch { }
+        _osdHideStoryboard = null;
+        OsdToastContainer.Opacity = 0;
+        OsdToastContainer.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>Top (under the header), centre, or bottom (over the controls); the band follows.</summary>

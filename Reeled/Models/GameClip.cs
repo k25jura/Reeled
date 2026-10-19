@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -71,6 +72,17 @@ public partial class GameClip : ObservableObject
 
     [ObservableProperty]
     private bool _isActive;
+
+    /// <summary>User tags (sorted as in the tag library).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTags))]
+    [NotifyPropertyChangedFor(nameof(TagsPreview))]
+    private IReadOnlyList<string> _tags = Array.Empty<string>();
+
+    public bool HasTags => Tags.Count > 0;
+
+    /// <summary>Up to two tags, then "+N", for the small pills on cards and rows.</summary>
+    public IReadOnlyList<string> TagsPreview => Tags.Count <= 2 ? Tags : new[] { Tags[0], Tags[1], $"+{Tags.Count - 2}" };
 
     public ObservableCollection<ClipBookmark> Bookmarks { get; set; } = new();
 

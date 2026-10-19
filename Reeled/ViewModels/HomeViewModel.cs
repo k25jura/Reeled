@@ -615,6 +615,7 @@ public partial class HomeViewModel : ObservableObject
         // so folders blinked out and back in on each refresh and lost their realized containers
         MergeDirectoryNodes(Directories, processedTrees);
         OnPropertyChanged(nameof(HasDirectories));
+        RefreshGameIcons();
 
         _loadedWatchDirectories.Clear();
         foreach (var d in settings.WatchDirectories)
@@ -932,6 +933,7 @@ public partial class HomeViewModel : ObservableObject
 
     private static void ApplyPersistedState(GameClip clip, AppSettings settings)
     {
+        ApplyPersistedTags(clip, settings);
         if (settings.Favorites.Contains(clip.FilePath))
         {
             clip.IsFavorite = true;
@@ -1209,8 +1211,10 @@ public partial class HomeViewModel : ObservableObject
             query = query.Where(c => c.FileName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                                      c.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                                      Path.GetFileName(c.DirectoryPath).Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                                     c.Tags.Any(t => t.Contains(term, StringComparison.CurrentCultureIgnoreCase)) ||
                                      c.Bookmarks.Any(b => b.Label.Contains(term, StringComparison.OrdinalIgnoreCase)));
         }
+        query = ApplyTagFilters(query);
 
         query = SortIndex switch
         {

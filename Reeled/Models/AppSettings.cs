@@ -17,6 +17,14 @@ public class AppSettings
     public double DefaultPlaybackSpeed { get; set; } = 1.0;
     public bool RememberPlaybackSpeed { get; set; } = true;
     public HashSet<string> Favorites { get; set; } = new();
+    /// <summary>User tags per clip path.</summary>
+    public Dictionary<string, List<string>> ClipTags { get; set; } = new();
+    /// <summary>Every tag the user has made, in their order (kept even when no clip uses it).</summary>
+    public List<string> TagLibrary { get; set; } = new();
+    /// <summary>Game icons per folder name (lower-case), found on Steam or picked by the user.</summary>
+    public Dictionary<string, GameIconInfo> FolderGameIcons { get; set; } = new();
+    /// <summary>Look up icons for game folders on the Steam store.</summary>
+    public bool LookUpGameIcons { get; set; } = true;
     public Dictionary<string, List<ClipBookmark>> Bookmarks { get; set; } = new();
     public RepeatMode RepeatMode { get; set; } = RepeatMode.Off;
     public RepeatMode DefaultRepeatMode { get; set; } = RepeatMode.Off;
@@ -80,6 +88,29 @@ public class AppSettings
     public string? SnapshotFolder { get; set; }
     /// <summary>Last playback position (ms) per clip path, for resuming long clips.</summary>
     public Dictionary<string, long> ResumePositions { get; set; } = new();
+}
+
+public enum GameIconSource
+{
+    /// <summary>Looked up and nothing confident was found.</summary>
+    None = 0,
+    Steam = 1,
+    /// <summary>Picked by the user from Steam search results.</summary>
+    SteamManual = 2,
+    /// <summary>An image or program icon the user chose.</summary>
+    Custom = 3,
+    /// <summary>The user removed the icon; never look it up again.</summary>
+    Disabled = 4
+}
+
+public class GameIconInfo
+{
+    public GameIconSource Source { get; set; }
+    public int? AppId { get; set; }
+    public string? GameName { get; set; }
+    /// <summary>Cached image on disk.</summary>
+    public string? ImagePath { get; set; }
+    public DateTime CheckedUtc { get; set; }
 }
 
 public enum SidebarPosition

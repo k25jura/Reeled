@@ -850,7 +850,7 @@ public sealed partial class SettingsPage : Page
 
     private static readonly (string Section, string[] Headers)[] SubCategories =
     {
-        ("PlaybackSection", new[] { "SubPlaybackSpeed", "SubPlaybackBehavior", "SubPlaybackControls", "SubPlaybackDecoding" }),
+        ("PlaybackSection", new[] { "SubPlaybackSpeed", "SubPlaybackBehavior", "SubPlaybackControls", "SubPlaybackBar", "SubPlaybackOsd", "SubPlaybackDecoding" }),
         ("AppearanceSection", new[] { "SubAppearanceTheme", "SubAppearanceLayout", "SubAppearanceLibrary", "SubAppearanceEffects" }),
         ("StorageSection", new[] { "SubStoragePerformance", "SubStorageCaches" }),
         ("UpdateSection", new[] { "SubUpdatesStatus", "SubUpdatesPreferences" }),
@@ -1475,6 +1475,7 @@ public sealed partial class SettingsPage : Page
         if (NavMomentsLabel != null) NavMomentsLabel.Text = loc["Nav_SavedMoments"];
         BuildNavPositionTiles();
         FillNavSectionCombos();
+        LocalizePlayerSettings(loc);
 
         // 4. Language & Region Section
         if (LocalizationSectionTitle != null) LocalizationSectionTitle.Text = loc["Language_SectionTitle"];

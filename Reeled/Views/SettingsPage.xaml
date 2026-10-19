@@ -1010,6 +1010,107 @@
                                               VerticalAlignment="Center" />
                             </Grid>
                         </Border>
+
+                        <TextBlock x:Name="SubPlaybackBar" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Bottom bar" />
+
+                        <!-- Card: toolbar editor -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="14">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE70F;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="ToolbarEditorTitleText" Text="Player controls" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="ToolbarEditorSubtitleText" Text="Drag buttons into the bar or out to the tray. Also from the player: right-click > Customize controls" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                    <Button x:Name="ToolbarResetButton" Grid.Column="2" Click="OnToolbarResetClick" Style="{ThemeResource SubtleButtonStyle}" Padding="12,5" FontSize="12.5" Content="Reset" VerticalAlignment="Center" />
+                                </Grid>
+                                <ContentPresenter x:Name="ToolbarEditorHost" Margin="40,0,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock x:Name="SubPlaybackOsd" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="On-screen display" />
+
+                        <!-- Card: OSD look -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE8E9;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="OsdStyleTitleText" Text="OSD style" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="OsdStyleSubtitleText" Text="Where messages appear and how they look" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                </Grid>
+                                <StackPanel Margin="40,0,0,0" Spacing="2">
+                                    <Grid ColumnSpacing="12" MinHeight="36">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="OsdPositionLabel" Text="Position" FontSize="13" VerticalAlignment="Center" />
+                                        <ComboBox x:Name="OsdPositionCombo" Grid.Column="1" MinWidth="180" SelectionChanged="OnOsdSettingChanged" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12" MinHeight="36">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="OsdSizeLabel" Text="Text size" FontSize="13" VerticalAlignment="Center" />
+                                        <Slider x:Name="OsdSizeSlider" Grid.Column="1" Width="180" Minimum="28" Maximum="88" StepFrequency="2" Value="52" ValueChanged="OnOsdSizeChanged" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12" MinHeight="36">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="OsdDurationLabel" Text="Stays on screen" FontSize="13" VerticalAlignment="Center" />
+                                        <ComboBox x:Name="OsdDurationCombo" Grid.Column="1" MinWidth="180" SelectionChanged="OnOsdSettingChanged" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12" MinHeight="36">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="OsdBackdropLabel" Text="Gradient backdrop" FontSize="13" VerticalAlignment="Center" />
+                                        <ToggleSwitch x:Name="OsdBackdropToggle" Grid.Column="1" MinWidth="0" OnContent="" OffContent="" Toggled="OnOsdToggleChanged" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12" MinHeight="36">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="OsdTintLabel" Text="Tint by action (volume, seek, speed...)" FontSize="13" VerticalAlignment="Center" />
+                                        <ToggleSwitch x:Name="OsdTintToggle" Grid.Column="1" MinWidth="0" OnContent="" OffContent="" Toggled="OnOsdToggleChanged" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12" MinHeight="36">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="OsdDetailsLabel" Text="Details line (e.g. 01:20 → 01:25 after a skip)" FontSize="13" VerticalAlignment="Center" />
+                                        <ToggleSwitch x:Name="OsdDetailsToggle" Grid.Column="1" MinWidth="0" OnContent="" OffContent="" Toggled="OnOsdToggleChanged" />
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock x:Name="SubPlaybackDecoding" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Decoding" />
 
                         <!-- Card: Hardware decoding -->

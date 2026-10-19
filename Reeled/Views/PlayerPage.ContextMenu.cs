@@ -189,6 +189,7 @@ public sealed partial class PlayerPage
             _inactivityTimer.Stop();
             DispatcherQueue.TryEnqueue(() => vm.IsControlsVisible = false);
         }, "H"));
+        menu.Items.Add(Item(loc["Toolbar_EditorTitle"], "", OpenToolbarEditor));
         menu.Items.Add(Item(loc["Player_Tooltip_Session"], "", () => OpenSessionPanel(SessionTabPlayback)));
         menu.Items.Add(Item(loc["Player_BackToLibrary"], "", vm.BackToHome, "Esc"));
         return menu;

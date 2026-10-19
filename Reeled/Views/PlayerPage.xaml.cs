@@ -42,6 +42,7 @@ public sealed partial class PlayerPage : Page
     private bool AreFlyoutsOrPopupsOpen =>
         _openFlyoutsCount > 0 ||
         _isSessionPanelOpen ||
+        _isToolbarEditorOpen ||
         _isPickingOnTimeline ||
         (MomentsJumpPopup != null && MomentsJumpPopup.Visibility == Visibility.Visible) ||
         (MomentsFlyout != null && MomentsFlyout.IsOpen);
@@ -110,6 +111,16 @@ public sealed partial class PlayerPage : Page
             {
                 UpdateShuffleVisual();
             }
+            else if (e.PropertyName == nameof(PlayerViewModel.IsExternalSubtitleActive))
+            {
+                ApplySubtitleOverlayStyle();
+                UpdateSubtitleOverlay(ViewModel.CurrentTime);
+            }
+            else if (e.PropertyName == nameof(PlayerViewModel.CurrentTime))
+            {
+                // Paused seeks and frame steps (playback itself is tracked per frame)
+                if (!_isRenderingTimeline && ViewModel.IsExternalSubtitleActive) UpdateSubtitleOverlay(ViewModel.CurrentTime);
+            }
             else if (e.PropertyName == nameof(PlayerViewModel.StatusToast))
             {
                 UpdateOsdToast(ViewModel.StatusToast);
@@ -172,6 +183,7 @@ public sealed partial class PlayerPage : Page
             if (Visibility == Visibility.Visible)
             {
                 RefreshVideoLayout();
+                ApplySubtitleOverlayStyle();
                 DispatcherQueue.TryEnqueue(RenderTimelineMarkers);
                 UpdateResponsiveLayout(e.NewSize.Width);
             }
@@ -348,6 +360,7 @@ public sealed partial class PlayerPage : Page
         AnimateSidePanel(PlaylistQueueSidebar, SidebarTranslation, ViewModel.IsSidebarOpen, animate: false);
         RestartInactivityTimer();
         TimelineSeekBar.Value = ViewModel.ProgressValue;
+        ApplyToolbarLayout();
         UpdateVolumeVisuals();
         UpdateQueueSummary();
         RefreshVideoLayout();
@@ -415,6 +428,7 @@ public sealed partial class PlayerPage : Page
                 double currentSec = ViewModel.AnchorSeconds + (elapsed * ViewModel.PlaybackRate);
                 double pct = (currentSec / ViewModel.TotalTime.TotalSeconds) * 100.0;
                 TimelineSeekBar.Value = Math.Clamp(pct, 0.0, 100.0);
+                if (ViewModel.IsExternalSubtitleActive) UpdateSubtitleOverlay(TimeSpan.FromSeconds(currentSec));
             }
         }
     }
@@ -977,6 +991,7 @@ public sealed partial class PlayerPage : Page
         }
 
         _controlsStoryboard?.Stop();
+        AnimateSubtitleLift(visible, animate);
 
         if (!animate)
         {
@@ -2094,7 +2109,11 @@ public sealed partial class PlayerPage : Page
                 break;
 
             case VirtualKey.Escape:
-                if (_isSessionPanelOpen)
+                if (_isToolbarEditorOpen)
+                {
+                    CloseToolbarEditor();
+                }
+                else if (_isSessionPanelOpen)
                 {
                     SetSessionPanelOpen(false);
                 }

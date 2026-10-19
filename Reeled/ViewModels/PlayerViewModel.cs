@@ -80,6 +80,13 @@ public partial class PlayerViewModel : ObservableObject
     [ObservableProperty]
     private bool _isShuffleEnabled;
 
+    /// <summary>A text subtitle file the player draws itself (styled live), or null.</summary>
+    public IReadOnlyList<Helpers.SubtitleCue>? ExternalSubtitleCues { get; private set; }
+    public string? ExternalSubtitleName { get; private set; }
+
+    [ObservableProperty]
+    private bool _isExternalSubtitleActive;
+
     /// <summary>A-B loop: playback jumps back to A on reaching B.</summary>
     [ObservableProperty]
     private TimeSpan? _loopStart;
@@ -366,9 +373,12 @@ public partial class PlayerViewModel : ObservableObject
         SaveResumePosition();
         if (!ReferenceEquals(clip, CurrentClip))
         {
-            // A loop belongs to the clip it was set on
+            // A loop and a loaded subtitle file belong to the clip they were set on
             LoopStart = null;
             LoopEnd = null;
+            ExternalSubtitleCues = null;
+            ExternalSubtitleName = null;
+            IsExternalSubtitleActive = false;
         }
 
         UpdateActivePlaylistItem(clip);
@@ -1136,8 +1146,19 @@ public partial class PlayerViewModel : ObservableObject
         HasSubtitles = SubtitleTracks.Count > 0;
     }
 
+    /// <summary>Shows the subtitle file loaded into the player (turns embedded tracks off).</summary>
+    public void SelectExternalSubtitle()
+    {
+        if (ExternalSubtitleCues == null) return;
+        _playbackService.SetSubtitleTrack(-1);
+        IsExternalSubtitleActive = true;
+        RefreshSubtitleTracks();
+        ShowToast(ExternalSubtitleName ?? string.Empty, kind: OsdKind.Tracks);
+    }
+
     public void SelectSubtitleTrack(int trackId)
     {
+        IsExternalSubtitleActive = false;
         bool success = _playbackService.SetSubtitleTrack(trackId);
         if (success)
         {
@@ -1162,6 +1183,21 @@ public partial class PlayerViewModel : ObservableObject
 
             WinRT.Interop.InitializeWithWindow.Initialize(picker, windowHandle);
             var file = await picker.PickSingleFileAsync();
+            if (file != null && Helpers.SubtitleParser.CanParse(file.Path))
+            {
+                // Text subtitles are drawn by Reeled so their style can change live
+                var cues = await Task.Run(() => Helpers.SubtitleParser.Parse(file.Path));
+                if (cues.Count > 0)
+                {
+                    ExternalSubtitleCues = cues;
+                    ExternalSubtitleName = file.Name;
+                    _playbackService.SetSubtitleTrack(-1);
+                    IsExternalSubtitleActive = true;
+                    RefreshSubtitleTracks();
+                    ShowToast(string.Format(_localizationService["Player_Toast_SubtitlesLoaded"], file.Name), kind: OsdKind.Tracks);
+                    return;
+                }
+            }
             if (file != null)
             {
                 bool added = _playbackService.AddSubtitleFile(file.Path);

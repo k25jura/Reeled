@@ -21,6 +21,8 @@ public partial class LibVlcPlaybackService
     private long _audioDelayMs;
     private long _subtitleDelayMs;
     private SubtitleStyle _subtitleStyle = new();
+    private readonly List<string> _externalSubtitles = new();
+    private string? _externalSubtitlesFor;
 
     public VideoAdjustments VideoAdjust => _videoAdjust;
     public string? AspectRatio => _aspectRatio;
@@ -208,33 +210,28 @@ public partial class LibVlcPlaybackService
     }
 
     // ---------------------------------------------------------------------------------------------
-    // Subtitle style: libvlc 3 only reads the text renderer's settings when a clip opens, so the style
-    // goes into the media options and applies from the next clip (or a reload of the current one).
+    // Subtitle style. Text subtitle files are drawn by the player itself (live); subtitles built into
+    // a video go through libvlc's text renderer, which only reads its settings when the engine starts.
     // ---------------------------------------------------------------------------------------------
 
     public SubtitleStyle SubtitleStyle => _subtitleStyle;
 
     public void SetSubtitleStyle(SubtitleStyle style) => _subtitleStyle = style.Clone();
 
-    private void AddSubtitleStyleOptions(Media media)
+    private static IEnumerable<string> SubtitleStyleEngineOptions(SubtitleStyle? s)
     {
-        var s = _subtitleStyle;
-        if (s.IsDefault) return;
-        try
+        if (s == null || s.IsDefault) yield break;
+        // libvlc's default is ~1/20 of the video height; a smaller divisor means bigger text
+        int rel = (int)Math.Round(20 / Math.Clamp(s.Scale, 0.4, 3.0));
+        yield return $"--freetype-rel-fontsize={Math.Clamp(rel, 6, 50)}";
+        yield return $"--freetype-color={s.ColorRgb}";
+        if (s.Bold) yield return "--freetype-bold";
+        yield return $"--freetype-outline-thickness={(s.Background == SubtitleBackground.Outline ? 4 : s.Background == SubtitleBackground.None ? 0 : 2)}";
+        if (s.Background == SubtitleBackground.Box)
         {
-            // Relative font size: libvlc's default is ~1/20 of the video height (rel-fontsize 20 = smaller)
-            int rel = (int)Math.Round(20 / Math.Clamp(s.Scale, 0.4, 3.0));
-            media.AddOption($":freetype-rel-fontsize={Math.Clamp(rel, 6, 50)}");
-            media.AddOption($":freetype-color={s.ColorRgb}");
-            media.AddOption($":freetype-bold={(s.Bold ? 1 : 0)}");
-            media.AddOption($":freetype-outline-thickness={(s.Background == SubtitleBackground.Outline ? 4 : s.Background == SubtitleBackground.None ? 0 : 2)}");
-            if (s.Background == SubtitleBackground.Box)
-            {
-                media.AddOption(":freetype-background-opacity=170");
-                media.AddOption(":freetype-background-color=0");
-            }
+            yield return "--freetype-background-opacity=170";
+            yield return "--freetype-background-color=0";
         }
-        catch { }
     }
 
     /// <summary>Re-applies everything after a clip starts (some settings reset per media).</summary>

@@ -352,6 +352,7 @@ public partial class LibVlcPlaybackService : ILibVlcPlaybackService
         {
             string uri = new Uri(filePath).AbsoluteUri;
             bool success = _mediaPlayer.AddSlave(MediaSlaveType.Subtitle, uri, select: true);
+            if (success && !_externalSubtitles.Contains(uri)) _externalSubtitles.Add(uri);
             SubtitlesChanged?.Invoke();
             return success;
         }
@@ -454,6 +455,8 @@ public partial class LibVlcPlaybackService : ILibVlcPlaybackService
             {
                 options.AddRange(swapChainOptions);
             }
+            // Subtitles built into a video use the saved style; libvlc reads it once, at start
+            options.AddRange(SubtitleStyleEngineOptions(App.GetService<ILocalStorageService>().CurrentSettings.PlayerSession?.Subtitles));
 
             _libVLC = new LibVLC(enableDebugLogs: false, options.ToArray());
             _mediaPlayer = new MediaPlayer(_libVLC);
@@ -691,7 +694,16 @@ public partial class LibVlcPlaybackService : ILibVlcPlaybackService
                         newMedia.AddOption(":avcodec-hw=none");
                     }
                     newMedia.AddOption(":file-caching=150");
-                    AddSubtitleStyleOptions(newMedia);
+                    // Reopening the same clip (e.g. to apply a subtitle style) keeps subtitle files the user added
+                    if (!string.Equals(_externalSubtitlesFor, filePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _externalSubtitles.Clear();
+                        _externalSubtitlesFor = filePath;
+                    }
+                    foreach (var sub in _externalSubtitles)
+                    {
+                        try { newMedia.AddSlave(MediaSlaveType.Subtitle, 4, sub); } catch { }
+                    }
                     if (startTimeMs > 0)
                     {
                         newMedia.AddOption(FormattableString.Invariant($":start-time={startTimeMs / 1000.0:0.###}"));

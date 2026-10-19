@@ -150,6 +150,23 @@
                     Style="{StaticResource CleanMediaOverlayButtonStyle}" />
         </Grid>
 
+        <!-- Subtitle files the player draws itself (style applies live); lifts above the controls -->
+        <Border x:Name="SubtitleOverlay"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom"
+                Margin="48,0,48,40"
+                Padding="14,4,14,6"
+                CornerRadius="6"
+                IsHitTestVisible="False"
+                Visibility="Collapsed">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="SubtitleOverlayTranslation" Y="0" />
+            </Border.RenderTransform>
+            <Grid>
+                <TextBlock x:Name="SubtitleOverlayText" TextAlignment="Center" TextWrapping="Wrap" Foreground="White" FontSize="34" HorizontalAlignment="Center" />
+            </Grid>
+        </Border>
+
         <!-- OSD: large text over a soft gradient band whose tint follows the action (volume, seek,
              speed, moments...). Position, size and the band are customizable (Settings > Player). -->
         <Grid x:Name="OsdToastContainer" IsHitTestVisible="False" Visibility="Collapsed" Opacity="0">
@@ -1152,7 +1169,6 @@
                                 <ToggleSwitch x:Name="SubtitleBoldToggle" Grid.Column="1" MinWidth="0" OnContent="" OffContent="" Toggled="OnSubtitleStyleToggled" />
                             </Grid>
                             <TextBlock x:Name="SubtitleStyleHint" Text="Style changes apply when the next clip starts" FontSize="11.5" Foreground="#80FFFFFF" TextWrapping="Wrap" Margin="2,4,0,0" />
-                            <Button x:Name="SubtitleApplyButton" Click="OnSubtitleApplyClick" Padding="12,5" FontSize="12" Content="Apply now" />
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>

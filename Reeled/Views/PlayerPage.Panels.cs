@@ -103,7 +103,6 @@ public sealed partial class PlayerPage
         SubtitleBackLabel.Text = loc["Player_Session_Background"];
         SubtitleBoldLabel.Text = loc["Player_Session_Bold"];
         SubtitleStyleHint.Text = loc["Player_Session_StyleHint"];
-        SubtitleApplyButton.Content = loc["Player_Session_ApplyNow"];
 
         FillSessionCombos(loc);
         BuildQueueSortMenu();
@@ -518,15 +517,23 @@ public sealed partial class PlayerPage
             case TracksTabSubtitles:
                 TracksSubtitlesPanel.Children.Clear();
                 TracksSubtitlesPanel.Children.Add(SectionLabel(loc["Player_Tracks_Embedded"]));
-                TracksSubtitlesPanel.Children.Add(OptionRow(loc["Player_Tracks_None"], ViewModel.SelectedSubtitleTrack == null, () =>
+                TracksSubtitlesPanel.Children.Add(OptionRow(loc["Player_Tracks_None"], ViewModel.SelectedSubtitleTrack == null && !ViewModel.IsExternalSubtitleActive, () =>
                 {
                     ViewModel.SelectSubtitleTrack(-1);
                     BuildTracksPanel(TracksTabSubtitles);
                 }));
+                if (ViewModel.ExternalSubtitleCues != null)
+                {
+                    TracksSubtitlesPanel.Children.Add(OptionRow(ViewModel.ExternalSubtitleName ?? "", ViewModel.IsExternalSubtitleActive, () =>
+                    {
+                        ViewModel.SelectExternalSubtitle();
+                        BuildTracksPanel(TracksTabSubtitles);
+                    }));
+                }
                 foreach (var track in ViewModel.SubtitleTracks)
                 {
                     int id = track.Id;
-                    TracksSubtitlesPanel.Children.Add(OptionRow(track.DisplayName, track.IsSelected, () =>
+                    TracksSubtitlesPanel.Children.Add(OptionRow(track.DisplayName, track.IsSelected && !ViewModel.IsExternalSubtitleActive, () =>
                     {
                         ViewModel.SelectSubtitleTrack(id);
                         BuildTracksPanel(TracksTabSubtitles);
@@ -957,8 +964,6 @@ public sealed partial class PlayerPage
         ViewModel.PlaybackService.SetSubtitleStyle(style);
         Storage.CurrentSettings.PlayerSession.Subtitles = style.Clone();
         _ = Storage.SaveSettingsAsync(Storage.CurrentSettings);
+        ApplySubtitleOverlayStyle();
     }
-
-    /// <summary>Reopens the clip where it is so the new subtitle style takes effect now.</summary>
-    private void OnSubtitleApplyClick(object sender, RoutedEventArgs e) => ViewModel.ReloadCurrentClip();
 }

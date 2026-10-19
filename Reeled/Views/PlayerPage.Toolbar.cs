@@ -123,6 +123,9 @@ public sealed partial class PlayerPage
 
     private void ApplyToolbarMode(ToolbarLayoutMode mode)
     {
+        // Detach from wherever it is (Parent isn't reliable before the page has loaded)
+        BarLayoutRoot.Children.Remove(SeekRow);
+        ControlsRow.Children.Remove(SeekRow);
         if (SeekRow.Parent is Panel parent) parent.Children.Remove(SeekRow);
         ControlsRow.ColumnDefinitions.Clear();
 
@@ -157,6 +160,101 @@ public sealed partial class PlayerPage
             ControlsRow.Margin = new Thickness(0);
             BottomControlBar.Padding = new Thickness(16, 4, 16, 8);
         }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // In-player toolbar editor (right-click > Customize controls)
+    // ---------------------------------------------------------------------------------------------
+
+    private Border? _toolbarEditorOverlay;
+    private Controls.ToolbarEditor? _toolbarEditor;
+    private bool _isToolbarEditorOpen;
+
+    public void OpenToolbarEditor()
+    {
+        var loc = Loc;
+        if (_toolbarEditorOverlay == null)
+        {
+            _toolbarEditor = new Controls.ToolbarEditor { AllIds = ToolbarItemIds };
+            _toolbarEditor.LayoutChanged += (s, layout) =>
+            {
+                ApplyToolbarLayout(layout);
+                Storage.CurrentSettings.PlayerToolbar = layout.Clone();
+                _ = Storage.SaveSettingsAsync(Storage.CurrentSettings);
+            };
+
+            var title = new TextBlock { Text = loc["Toolbar_EditorTitle"], FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+            var reset = new Button { Content = loc["Toolbar_Reset"], Style = (Style)Application.Current.Resources["SubtleButtonStyle"], Padding = new Thickness(12, 5, 12, 6) };
+            reset.Click += (s, e) =>
+            {
+                var layout = PlayerToolbarLayout.Default;
+                _toolbarEditor.SetLayout(layout);
+                ApplyToolbarLayout(layout);
+                Storage.CurrentSettings.PlayerToolbar = layout;
+                _ = Storage.SaveSettingsAsync(Storage.CurrentSettings);
+            };
+            var done = new Button { Content = loc["Toolbar_Done"], Style = (Style)Application.Current.Resources["AccentButtonStyle"], Padding = new Thickness(18, 5, 18, 6) };
+            done.Click += (s, e) => CloseToolbarEditor();
+
+            var header = new Grid { ColumnSpacing = 8, Margin = new Thickness(0, 0, 0, 12) };
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            header.Children.Add(title);
+            Grid.SetColumn(reset, 1);
+            Grid.SetColumn(done, 2);
+            header.Children.Add(reset);
+            header.Children.Add(done);
+
+            var content = new StackPanel();
+            content.Children.Add(header);
+            content.Children.Add(_toolbarEditor);
+
+            _toolbarEditorOverlay = new Border
+            {
+                Child = content,
+                MaxWidth = 760,
+                Margin = new Thickness(24, 0, 24, 128),
+                Padding = new Thickness(18, 16, 18, 16),
+                CornerRadius = new CornerRadius(10),
+                BorderThickness = new Thickness(1),
+                BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(51, 255, 255, 255)),
+                Background = (Brush)Resources["PlayerFlyoutBackdropBrush"],
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                RequestedTheme = ElementTheme.Dark,
+                RenderTransform = new TranslateTransform(),
+                Visibility = Visibility.Collapsed,
+                Opacity = 0
+            };
+            Helpers.VideoGlass.Wrap(_toolbarEditorOverlay, "Flyout");
+            RootContainer.Children.Add(_toolbarEditorOverlay);
+        }
+
+        _toolbarEditor!.SetLayout(Storage.CurrentSettings.PlayerToolbar ?? PlayerToolbarLayout.Default);
+        _isToolbarEditorOpen = true;
+        _inactivityTimer.Stop();
+        ViewModel.IsControlsVisible = true;
+        _toolbarEditorOverlay.Visibility = Visibility.Visible;
+        _videoGlass?.Track(500);
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        sb.Children.Add(Helpers.Motion.Spline(_toolbarEditorOverlay, "Opacity", 1, Helpers.Motion.Medium, from: 0));
+        sb.Children.Add(Helpers.Motion.Spline(_toolbarEditorOverlay.RenderTransform, "Y", 0, Helpers.Motion.Long, from: 16));
+        Helpers.Motion.BeginExact(sb);
+    }
+
+    private void CloseToolbarEditor()
+    {
+        if (!_isToolbarEditorOpen || _toolbarEditorOverlay == null) return;
+        _isToolbarEditorOpen = false;
+        _videoGlass?.Track(400);
+        var overlay = _toolbarEditorOverlay;
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        sb.Children.Add(Helpers.Motion.Spline(overlay, "Opacity", 0, Helpers.Motion.Short, accelerate: true));
+        sb.Children.Add(Helpers.Motion.Spline(overlay.RenderTransform, "Y", 10, Helpers.Motion.Short, accelerate: true));
+        sb.Completed += (s, e) => { if (!_isToolbarEditorOpen) overlay.Visibility = Visibility.Collapsed; };
+        Helpers.Motion.BeginExact(sb);
+        if (ViewModel.IsPlaying && !AreFlyoutsOrPopupsOpen) RestartInactivityTimer();
     }
 
     // ---------------------------------------------------------------------------------------------

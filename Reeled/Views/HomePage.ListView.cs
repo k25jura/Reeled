@@ -70,6 +70,7 @@ public sealed partial class HomePage
         ClipsListHost.Visibility = IsListMode ? Visibility.Visible : Visibility.Collapsed;
         UpdateGridItemsSource();
         UpdateListColumns(force: true);
+        ApplyLoadingState(animate: false, force: true);
         UpdateListSortIndicators();
         UpdateViewModeMenu();
 
@@ -93,7 +94,8 @@ public sealed partial class HomePage
     private void UpdateListColumns(bool force = false)
     {
         if (!IsListMode || ClipsListView == null) return;
-        bool compact = ClipsListView.ActualWidth > 0 && ClipsListView.ActualWidth < 760;
+        // Measured on the host: the list itself is collapsed while its skeleton shows
+        bool compact = ClipsListHost.ActualWidth > 0 && ClipsListHost.ActualWidth < 760;
         if (compact == _listCompact && !force) return;
         _listCompact = compact;
 
@@ -101,6 +103,7 @@ public sealed partial class HomePage
         ListHeaderFolderText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         ListSortDate.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         foreach (var row in _listRows) ApplyRowColumns(row);
+        foreach (var row in _skeletonRows) ApplySkeletonRowColumns(row);
     }
 
     private void ApplyColumns(Grid grid)
@@ -148,7 +151,7 @@ public sealed partial class HomePage
     {
         if (sender is not FrameworkElement el || el.Tag is not string column) return;
         int current = ViewModel.SortIndex;
-        ViewModel.SortIndex = column switch
+        int next = column switch
         {
             "name" => current == 2 ? 3 : 2,
             "date" => current == 0 ? 1 : 0,
@@ -157,13 +160,14 @@ public sealed partial class HomePage
             "size" => current == 5 ? 7 : 5,
             _ => current
         };
-        UpdateListSortIndicators();
+        UpdateListSortIndicators(next);
+        ChangeSortAnimated(next);
     }
 
-    private void UpdateListSortIndicators()
+    private void UpdateListSortIndicators(int? sortIndex = null)
     {
         if (ListSortNameGlyph == null) return;
-        int sort = ViewModel.SortIndex;
+        int sort = sortIndex ?? ViewModel.SortIndex;
         void Set(FontIcon glyph, bool active, bool descending)
         {
             glyph.Opacity = active ? 1 : 0;
@@ -215,7 +219,7 @@ public sealed partial class HomePage
         });
         LocalizeListHeaders();
 
-        ClipsListView.SizeChanged += OnClipsListSizeChanged;
+        ClipsListHost.SizeChanged += OnClipsListSizeChanged;
         ClipsListView.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnClipsGridPointerPressed), handledEventsToo: true);
         ClipsListView.AddHandler(UIElement.PointerMovedEvent, new PointerEventHandler(OnClipsGridPointerMoved), handledEventsToo: true);
         ClipsListView.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(OnClipsGridPointerReleased), handledEventsToo: true);

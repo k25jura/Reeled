@@ -142,6 +142,7 @@ public sealed partial class HomePage : Page
                 UpdateSortButtonUI();
                 UpdateListSortIndicators();
                 ScrollClipsToTop();
+                PlayContentEnter();
             }
             else if (e.PropertyName == nameof(HomeViewModel.ViewDensity))
             {
@@ -169,7 +170,7 @@ public sealed partial class HomePage : Page
             }
             else if (e.PropertyName == nameof(HomeViewModel.ShowSkeletonLoading) || e.PropertyName == nameof(HomeViewModel.IsLoading))
             {
-                UpdateSkeletonAnimations();
+                ApplyLoadingState(animate: true);
                 if (!ViewModel.ShowSkeletonLoading)
                 {
                     _clipsScrollViewer = null;
@@ -1614,9 +1615,7 @@ public sealed partial class HomePage : Page
     {
         if (sender is MenuFlyoutItem item && item.Tag is string tagStr && int.TryParse(tagStr, out int sortIndex))
         {
-            ViewModel.SortIndex = sortIndex;
-            UpdateSortButtonUI();
-            ScrollClipsToTop();
+            ChangeSortAnimated(sortIndex);
         }
     }
 

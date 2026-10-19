@@ -405,11 +405,19 @@ public sealed partial class HomePage
             }
             else
             {
+                bool selected = ViewModel.SelectedDirectory == child && ViewModel.CurrentSection == NavigationSection.Folder;
                 var item = new MenuFlyoutItem
                 {
                     Text = child.DisplayName,
-                    Icon = new FontIcon { Glyph = ViewModel.SelectedDirectory == child && ViewModel.CurrentSection == NavigationSection.Folder ? "" : "" }
+                    Icon = !selected && child.GameIcon != null
+                        ? new ImageIcon { Source = child.GameIcon }
+                        : new FontIcon { Glyph = selected ? "" : "" }
                 };
+                // Game icons can be set from here too, not only from the sidebar
+                var context = new MenuFlyout();
+                AddGameIconMenu(context.Items, child);
+                if (context.Items.Count > 0 && context.Items[0] is MenuFlyoutSeparator) context.Items.RemoveAt(0);
+                item.ContextFlyout = context;
                 item.Click += async (s, e) =>
                 {
                     await ViewModel.SelectDirectoryAsync(child);

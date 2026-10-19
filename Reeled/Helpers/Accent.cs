@@ -202,7 +202,9 @@ public static class Accent
 
         foreach (var key in AccentBrushKeys)
         {
-            foreach (var theme in new[] { "Light", "Dark", "Default" })
+            // Not "Default": touching the fallback dictionary's entries crashes the XAML runtime (0xC000027B)
+            // as soon as the light theme is applied
+            foreach (var theme in new[] { "Light", "Dark" })
             {
                 try
                 {

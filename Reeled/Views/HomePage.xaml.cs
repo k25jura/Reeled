@@ -28,6 +28,7 @@ public sealed partial class HomePage : Page
         ViewModel.ViewContentReplaced += OnViewContentReplaced;
         WireTags();
         WireGameIcons();
+        WireTabs();
 
         Helpers.CursorHelper.SetElementCursor(SidebarResizeHandle, Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast));
 
@@ -431,6 +432,7 @@ public sealed partial class HomePage : Page
             if (AddWatchFolderButton != null) ToolTipService.SetToolTip(AddWatchFolderButton, loc["Tooltip_AddWatchFolder"]);
             if (OpenFileHeaderButton != null) ToolTipService.SetToolTip(OpenFileHeaderButton, loc["Tooltip_OpenFile"] + " (Ctrl+O)");
             BuildHorizontalNav();
+            RefreshTabsLocalization();
             if (RefreshClipsButton != null) ToolTipService.SetToolTip(RefreshClipsButton, loc["Tooltip_RefreshClips"]);
             if (FeedbackButton != null) ToolTipService.SetToolTip(FeedbackButton, loc["Feedback_Tooltip"]);
             if (ExplorerHyperlinkButton != null) ToolTipService.SetToolTip(ExplorerHyperlinkButton, loc["Tooltip_OpenInExplorer"]);
@@ -1355,6 +1357,8 @@ public sealed partial class HomePage : Page
             MainContentTranslate.X = 0.0;
             HeaderToolbarTranslate.X = 0.0;
             SidebarContentBorder.Opacity = 1.0;
+            // The content has settled where it will stay: the tab strip knows where the title bar drags
+            UpdateLibraryTitleBar();
             if (!isOpen)
             {
                 SidebarContainer.Visibility = Visibility.Collapsed;
@@ -2552,6 +2556,8 @@ public sealed partial class HomePage : Page
             return true;
         });
 
+        RegisterTabShortcuts(Add);
+
         // Accelerator tooltips would otherwise be appended to the page's tooltips
         KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
     }
@@ -2595,18 +2601,24 @@ public sealed partial class HomePage : Page
 
     private void ScrollClipsToTop()
     {
-        if (ClipsGridView == null) return;
+        // A tab that is being shown holds its own scroll position (see BeginScrollRestore)
+        if (ClipsGridView == null || ScrollRestoreActive) return;
         ActiveScrollViewer()?.ChangeView(null, 0.0, null, disableAnimation: true);
 
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
-            if (ClipsGridView == null) return;
+            if (ClipsGridView == null || ScrollRestoreActive) return;
             ActiveScrollViewer()?.ChangeView(null, 0.0, null, disableAnimation: true);
         });
     }
 
     private async void OnHomeTabClick(object sender, RoutedEventArgs e)
     {
+        if (sender is Button && IsCtrlDown())
+        {
+            OpenSectionInNewTab(NavigationSection.Home);
+            return;
+        }
         DirectoriesTreeView.SelectedItem = null;
         await ViewModel.SelectHomeAsync();
         ScrollClipsToTop();
@@ -2615,6 +2627,11 @@ public sealed partial class HomePage : Page
 
     private async void OnFavoritesTabClick(object sender, RoutedEventArgs e)
     {
+        if (sender is Button && IsCtrlDown())
+        {
+            OpenSectionInNewTab(NavigationSection.Favorites);
+            return;
+        }
         DirectoriesTreeView.SelectedItem = null;
         await ViewModel.SelectFavoritesAsync();
         ScrollClipsToTop();
@@ -2623,6 +2640,11 @@ public sealed partial class HomePage : Page
 
     private async void OnSavedMomentsTabClick(object sender, RoutedEventArgs e)
     {
+        if (sender is Button && IsCtrlDown())
+        {
+            OpenSectionInNewTab(NavigationSection.SavedMoments);
+            return;
+        }
         DirectoriesTreeView.SelectedItem = null;
         await ViewModel.SelectSavedMomentsAsync();
         ScrollClipsToTop();
@@ -3011,6 +3033,7 @@ public sealed partial class HomePage : Page
         }
 
         Item("FolderMenu_Open", "\uE8E5", () => SelectFolderFromMenu(node));
+        Item("Tabs_OpenInNewTab", "\uE8A7", () => OpenFolderInNewTab(node));
         if (node.HasSubDirectories)
         {
             bool expanded = node.IsExpanded && !_collapsingNodes.Contains(node);
@@ -3464,6 +3487,14 @@ public sealed partial class HomePage : Page
 
         if (targetNode != null)
         {
+            // Ctrl+click opens the folder in a new tab and leaves this one as it is
+            if (IsCtrlDown())
+            {
+                OpenFolderInNewTab(targetNode);
+                SelectTreeFolderFor(ViewModel.ActiveTab);
+                return;
+            }
+
             sender.SelectedItem = targetNode;
             bool isAlreadySelected = (ViewModel.CurrentSection == NavigationSection.Folder && ViewModel.SelectedDirectory == targetNode);
 

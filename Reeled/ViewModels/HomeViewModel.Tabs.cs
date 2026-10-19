@@ -100,7 +100,8 @@ public partial class HomeViewModel
     {
         if (!_tabsRestorePending) return false;
         _tabsRestorePending = false;
-        await ApplyActiveTabAsync();
+        // Nothing has been shown yet, so even a view that looks the same still has to be built
+        await ApplyActiveTabAsync(force: true);
         return true;
     }
 
@@ -145,7 +146,7 @@ public partial class HomeViewModel
     }
 
     /// <summary>Puts the active tab's state on screen: its search, then its section or folder.</summary>
-    public async Task ApplyActiveTabAsync()
+    public async Task ApplyActiveTabAsync(bool force = false)
     {
         var tab = ActiveTab;
         _applyingTab = true;
@@ -174,7 +175,7 @@ public partial class HomeViewModel
                 }
             }
 
-            bool sameView = tab.Section == CurrentSection &&
+            bool sameView = !force && tab.Section == CurrentSection &&
                             (tab.Section != NavigationSection.Folder || ReferenceEquals(SelectedDirectory, node));
             if (sameView)
             {

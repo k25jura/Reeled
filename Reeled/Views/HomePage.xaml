@@ -452,11 +452,7 @@
                             Margin="0,0,0,5"
                             Background="{ThemeResource AccentFillColorDefaultBrush}"
                             IsHitTestVisible="False"
-                            Opacity="0">
-                        <Border.RenderTransform>
-                            <TranslateTransform x:Name="HorizontalNavIndicatorTranslation" X="0" />
-                        </Border.RenderTransform>
-                    </Border>
+                            Opacity="0" />
                 </Grid>
             </ScrollViewer>
 

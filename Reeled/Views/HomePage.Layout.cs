@@ -140,9 +140,10 @@ public sealed partial class HomePage
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             UpdateActiveIndicator(animate: false);
-            UpdateHorizontalIndicator(animate: false);
             UpdateLibraryTitleBar();
         });
+        // Whatever the underline was under no longer applies after the switch: place it afresh
+        QueueHorizontalIndicator(animate: false, snap: true);
     }
 
     /// <summary>The settings / update / feedback / refresh row lives in the sidebar or the bar.</summary>
@@ -220,7 +221,7 @@ public sealed partial class HomePage
     {
         if (ReferenceEquals(sender, HorizontalNavBar)) LimitHorizontalNavWidth();
         if (_sidebarPosition == SidebarPosition.Top) UpdateLibraryTitleBar();
-        UpdateHorizontalIndicator(animate: false);
+        QueueHorizontalIndicator(animate: false);
     }
 
     private void OnHorizontalNavWheel(object sender, PointerRoutedEventArgs e)
@@ -285,10 +286,8 @@ public sealed partial class HomePage
         HorizontalNavItems.Children.Add(add);
 
         UpdateHorizontalNavVisuals();
-        if (snapIndicator)
-        {
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => UpdateHorizontalIndicator(animate: false));
-        }
+        // The items are new elements with no size yet; the indicator is placed once they have been laid out
+        if (snapIndicator) QueueHorizontalIndicator(animate: false);
     }
 
     private Button CreateHorizontalItemButton(string glyph, string label, int count, out TextBlock labelText, out FontIcon icon)
@@ -447,42 +446,114 @@ public sealed partial class HomePage
         }
     }
 
-    /// <summary>The accent underline slides to the selected item (Windows 11 top navigation style).</summary>
-    private void UpdateHorizontalIndicator(bool animate)
+    // The accent underline slides to the selected item (Windows 11 top navigation style). Its position is a
+    // composition translation: a XAML storyboard that held its end value kept overriding later snaps, which
+    // left the underline misaligned after the bar was rebuilt. Updates are queued and run once the items
+    // have been laid out, so a freshly rebuilt tab is never measured while it is still 0 wide.
+    private Microsoft.UI.Composition.Visual? _hNavIndicatorVisual;
+    private float _hNavIndicatorX;
+    private bool _hNavIndicatorQueued;
+    private bool _hNavQueuedAnimate;
+    private bool _hNavQueuedSnap;
+    private bool _hNavWaitingForLayout;
+    private long _hNavSlideUntil;
+
+    private Microsoft.UI.Composition.Visual HNavIndicatorVisual()
+    {
+        if (_hNavIndicatorVisual == null)
+        {
+            Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.SetIsTranslationEnabled(HorizontalNavIndicator, true);
+            _hNavIndicatorVisual = Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(HorizontalNavIndicator);
+            _hNavIndicatorVisual.Properties.InsertVector3("Translation", System.Numerics.Vector3.Zero);
+        }
+        return _hNavIndicatorVisual;
+    }
+
+    /// <summary>
+    /// Asks for the underline to be moved under the selected item after the next layout. Requests made in
+    /// the same turn merge: a slide wins over a plain re-measure, a snap (position switch) wins over both.
+    /// </summary>
+    private void QueueHorizontalIndicator(bool animate, bool snap = false)
+    {
+        _hNavQueuedAnimate |= animate;
+        _hNavQueuedSnap |= snap;
+        if (_hNavIndicatorQueued) return;
+        _hNavIndicatorQueued = true;
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            _hNavIndicatorQueued = false;
+            // A synchronous layout pass settles the rebuilt items (not allowed from inside a layout event)
+            try { HorizontalNavItemsHost.UpdateLayout(); } catch { }
+            bool slide = _hNavQueuedAnimate && !_hNavQueuedSnap;
+            bool force = _hNavQueuedSnap;
+            _hNavQueuedAnimate = false;
+            _hNavQueuedSnap = false;
+            UpdateHorizontalIndicator(slide, force);
+        });
+    }
+
+    private void UpdateHorizontalIndicator(bool animate, bool forceSnap = false)
     {
         if (!IsHorizontalNav || HorizontalNavIndicator == null) return;
+        if (HorizontalNavBar.Visibility != Visibility.Visible) return;
+        var visual = HNavIndicatorVisual();
+
         var entry = _hNavEntries.FirstOrDefault(e => e.IsSelected());
-        if (entry.Element == null || entry.Element.ActualWidth <= 0)
+        if (entry.Element == null)
         {
+            // No tab is selected: let the underline fade away where it is
             if (_hNavIndicatorShown)
             {
                 _hNavIndicatorShown = false;
-                var hide = new Storyboard();
-                hide.Children.Add(Helpers.Motion.Spline(HorizontalNavIndicator, "Opacity", 0, Helpers.Motion.Short, accelerate: true));
-                Helpers.Motion.BeginExact(hide);
+                FadeHorizontalIndicator(show: false);
             }
             return;
         }
 
-        var pos = entry.Element.TransformToVisual(HorizontalNavItemsHost).TransformPoint(new Windows.Foundation.Point(0, 0));
-        double x = pos.X + (entry.Element.ActualWidth - HorizontalNavIndicator.Width) / 2;
-
-        if (!animate || !_hNavIndicatorShown || Helpers.Motion.IsReduced)
+        Windows.Foundation.Point pos;
+        if (entry.Element.ActualWidth <= 0 || HorizontalNavItemsHost.ActualWidth <= 0)
         {
-            HorizontalNavIndicatorTranslation.X = x;
+            WaitForHorizontalNavLayout(animate, forceSnap);
+            return;
+        }
+        try
+        {
+            pos = entry.Element.TransformToVisual(HorizontalNavItemsHost).TransformPoint(new Windows.Foundation.Point(0, 0));
+        }
+        catch
+        {
+            // Not in the tree yet
+            WaitForHorizontalNavLayout(animate, forceSnap);
+            return;
+        }
+
+        // Items that shift while the underline is still sliding re-aim the slide instead of cutting it short
+        if (!forceSnap && Environment.TickCount64 < _hNavSlideUntil) animate = true;
+        float x = (float)(pos.X + (entry.Element.ActualWidth - HorizontalNavIndicator.Width) / 2);
+        bool moved = !_hNavIndicatorShown || Math.Abs(x - _hNavIndicatorX) > 0.5f;
+        _hNavIndicatorX = x;
+
+        if (!_hNavIndicatorShown || forceSnap || !animate || Helpers.Motion.IsReduced)
+        {
+            if (moved || forceSnap)
+            {
+                visual.StopAnimation("Translation");
+                visual.Properties.InsertVector3("Translation", new System.Numerics.Vector3(x, 0, 0));
+            }
             if (!_hNavIndicatorShown)
             {
                 _hNavIndicatorShown = true;
-                var show = new Storyboard();
-                show.Children.Add(Helpers.Motion.Spline(HorizontalNavIndicator, "Opacity", 1, Helpers.Motion.Medium));
-                Helpers.Motion.BeginExact(show);
+                FadeHorizontalIndicator(show: true);
             }
         }
-        else
+        else if (moved)
         {
-            var sb = new Storyboard();
-            sb.Children.Add(Helpers.Motion.Spline(HorizontalNavIndicatorTranslation, "X", x, Helpers.Motion.Medium));
-            Helpers.Motion.BeginExact(sb);
+            // Slide from wherever it is now (also while an earlier slide is still running)
+            var slide = visual.Compositor.CreateVector3KeyFrameAnimation();
+            slide.InsertKeyFrame(1f, new System.Numerics.Vector3(x, 0, 0), Helpers.Motion.DecelerateCurve(visual.Compositor));
+            slide.Duration = TimeSpan.FromMilliseconds(Helpers.Motion.Medium);
+            visual.StartAnimation("Translation", slide);
+            _hNavSlideUntil = Environment.TickCount64 + (long)Helpers.Motion.Medium;
         }
 
         // Keep the selected item in view when the bar overflows
@@ -491,6 +562,32 @@ public sealed partial class HomePage
         {
             HorizontalNavScroller.ChangeView(Math.Max(0, left - 24), null, null, disableAnimation: !animate);
         }
+    }
+
+    /// <summary>The target isn't measured yet: try again on the next layout pass instead of guessing.</summary>
+    private void WaitForHorizontalNavLayout(bool animate, bool snap)
+    {
+        _hNavQueuedAnimate |= animate;
+        _hNavQueuedSnap |= snap;
+        if (_hNavWaitingForLayout) return;
+        _hNavWaitingForLayout = true;
+        void OnLayout(object? s, object e)
+        {
+            var entry = _hNavEntries.FirstOrDefault(x => x.IsSelected());
+            if (entry.Element != null && entry.Element.ActualWidth <= 0 && HorizontalNavBar.Visibility == Visibility.Visible && IsHorizontalNav) return;
+            HorizontalNavItemsHost.LayoutUpdated -= OnLayout;
+            _hNavWaitingForLayout = false;
+            QueueHorizontalIndicator(animate: false);
+        }
+        HorizontalNavItemsHost.LayoutUpdated += OnLayout;
+    }
+
+    private void FadeHorizontalIndicator(bool show)
+    {
+        var sb = new Storyboard();
+        sb.Children.Add(Helpers.Motion.Spline(HorizontalNavIndicator, "Opacity", show ? 1 : 0,
+            show ? Helpers.Motion.Medium : Helpers.Motion.Short, accelerate: !show));
+        Helpers.Motion.BeginExact(sb);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -590,7 +687,7 @@ public sealed partial class HomePage
                     {
                         // Folder labels show the selected subfolder, so rebuild those; tabs just restyle
                         BuildHorizontalNav(snapIndicator: false);
-                        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => UpdateHorizontalIndicator(animate: true));
+                        QueueHorizontalIndicator(animate: true);
                     }
                     ApplyNavSectionVisibility();
                     break;

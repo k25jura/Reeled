@@ -38,7 +38,7 @@ public static partial class GameIconService
     private static HttpClient CreateClient()
     {
         var client = new HttpClient { Timeout = TimeSpan.FromSeconds(12) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("Reeled/1.3 (+https://github.com/k25jura/Reeled)");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Reeled/2.0 (+https://github.com/k25jura/Reeled)");
         return client;
     }
 

@@ -24,7 +24,7 @@
     <AssemblyTitle>Reeled</AssemblyTitle>
     <Copyright>Copyright © 2026 k25jura</Copyright>
     <Description>Modern high-performance gaming clips library and player</Description>
-    <Version>1.2.0</Version>
+    <Version>2.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

@@ -279,7 +279,7 @@ public sealed partial class HomePage
             Padding = new Thickness(9, 7, 9, 7),
             Margin = new Thickness(4, 0, 0, 0),
             VerticalAlignment = VerticalAlignment.Center,
-            Content = new FontIcon { Glyph = "", FontSize = 12 }
+            Content = new FontIcon { Glyph = "\uE8F4", FontSize = 12 }
         };
         ToolTipService.SetToolTip(add, loc["Tooltip_AddWatchFolder"]);
         add.Click += OnAddFolderClick;

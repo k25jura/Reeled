@@ -64,10 +64,21 @@ public static class Accent
         Apply(shades);
     }
 
+    /// <summary>Applies a colour directly, without a hex round trip (live preview while dragging a picker).</summary>
+    public static void Apply(Color color) => Apply(ShadesFor(color));
+
     private static void Apply(Color[] shades)
     {
         var resources = Application.Current?.Resources;
         if (resources == null) return;
+
+        // Nothing to repaint when the shades are the ones already in use
+        if (_applied != null)
+        {
+            bool same = true;
+            for (int i = 0; i < shades.Length && same; i++) same = _applied[i] == shades[i];
+            if (same) return;
+        }
 
         // Capture the brushes painted with the Windows shades once, before anything is repainted
         _accentBrushes ??= FindAccentBrushes(resources, SystemShades());

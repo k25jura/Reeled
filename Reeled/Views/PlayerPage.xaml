@@ -80,54 +80,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <Style x:Key="MomentColorCircleButtonStyle" TargetType="Button">
-            <Setter Property="Width" Value="24" />
-            <Setter Property="Height" Value="24" />
-            <Setter Property="MinWidth" Value="0" />
-            <Setter Property="MinHeight" Value="0" />
-            <Setter Property="Padding" Value="0" />
-            <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#40FFFFFF" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Grid x:Name="RootGrid" Background="Transparent" Width="{TemplateBinding Width}" Height="{TemplateBinding Height}">
-                            <Ellipse x:Name="BackgroundEllipse"
-                                     Fill="{TemplateBinding Background}"
-                                     Stroke="{TemplateBinding BorderBrush}"
-                                     StrokeThickness="{TemplateBinding BorderThickness}"
-                                     Width="{TemplateBinding Width}"
-                                     Height="{TemplateBinding Height}" />
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            <VisualStateManager.VisualStateGroups>
-                                <VisualStateGroup x:Name="CommonStates">
-                                    <VisualState x:Name="Normal" />
-                                    <VisualState x:Name="PointerOver">
-                                        <VisualState.Setters>
-                                            <Setter Target="BackgroundEllipse.Stroke" Value="#E0FFFFFF" />
-                                            <Setter Target="BackgroundEllipse.StrokeThickness" Value="2" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="Pressed">
-                                        <VisualState.Setters>
-                                            <Setter Target="BackgroundEllipse.Stroke" Value="#FFFFFFFF" />
-                                            <Setter Target="BackgroundEllipse.StrokeThickness" Value="2" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="Disabled">
-                                        <VisualState.Setters>
-                                            <Setter Target="RootGrid.Opacity" Value="0.4" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                </VisualStateGroup>
-                            </VisualStateManager.VisualStateGroups>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
     </Page.Resources>
 
     <Grid x:Name="RootContainer">
@@ -586,43 +538,7 @@
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock x:Name="MarkMomentColorLabel" Text="Color" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
-                                        <StackPanel x:Name="MarkMomentColorPanel" Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                            <Button Tag="#FFD700" ToolTipService.ToolTip="Gold" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#FFD700" />
-                                            <Button Tag="#4CC2FF" ToolTipService.ToolTip="Cyan" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#4CC2FF" />
-                                            <Button Tag="#2ECC71" ToolTipService.ToolTip="Emerald" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#2ECC71" />
-                                            <Button Tag="#FF6B6B" ToolTipService.ToolTip="Coral" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#FF6B6B" />
-                                            <Button Tag="#AF52DE" ToolTipService.ToolTip="Violet" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#AF52DE" />
-                                            <Button Tag="#FF9500" ToolTipService.ToolTip="Orange" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#FF9500" />
-                                            <Button x:Name="CustomColorPickerButton"
-                                                    ToolTipService.ToolTip="Custom Color"
-                                                    Tag="Custom"
-                                                    Style="{StaticResource MomentColorCircleButtonStyle}"
-                                                    Background="#2D2D2D"
-                                                    BorderBrush="#60FFFFFF">
-                                                <FontIcon x:Name="CustomColorPickerPipetteIcon" Glyph="&#xEF3C;" FontSize="10" Foreground="White" />
-                                                <Button.Flyout>
-                                                    <Flyout x:Name="CustomColorFlyout" Placement="Top" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
-                                                        <StackPanel Padding="12,10" Spacing="8">
-                                                            <ColorPicker x:Name="CustomColorPickerControl"
-                                                                         ColorChanged="OnCustomColorPickerColorChanged"
-                                                                         IsColorSpectrumVisible="True"
-                                                                         IsColorSliderVisible="True"
-                                                                         IsHexInputVisible="False"
-                                                                         IsColorChannelTextInputVisible="False"
-                                                                         IsAlphaEnabled="False"
-                                                                         ColorSpectrumShape="Box" />
-                                                            <TextBox x:Name="CustomColorHexInput"
-                                                                     PlaceholderText="#RRGGBB"
-                                                                     FontSize="11"
-                                                                     TextAlignment="Center"
-                                                                     MaxLength="7"
-                                                                     TextChanged="OnCustomColorHexInputTextChanged"
-                                                                     Margin="0,2,0,0" />
-                                                        </StackPanel>
-                                                    </Flyout>
-                                                </Button.Flyout>
-                                            </Button>
-                                        </StackPanel>
+                                        <controls:ColorChooser x:Name="MarkMomentColorChooser" Grid.Column="1" HorizontalAlignment="Center" SwatchSize="20" SwatchSpacing="2" ConfirmCustom="False" />
                                     </Grid>
 
                                     <!-- Save button -->
@@ -1150,7 +1066,7 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock x:Name="SubtitleColorLabel" Text="Color" FontSize="12" Foreground="#CCFFFFFF" VerticalAlignment="Center" />
-                                <StackPanel x:Name="SubtitleColorPanel" Grid.Column="1" Orientation="Horizontal" Spacing="6" />
+                                <controls:ColorChooser x:Name="SubtitleColorChooser" Grid.Column="1" SwatchSize="20" SwatchSpacing="2" />
                             </Grid>
                             <Grid ColumnSpacing="10">
                                 <Grid.ColumnDefinitions>

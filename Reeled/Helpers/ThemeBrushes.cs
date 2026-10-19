@@ -63,6 +63,13 @@ public static class ThemeBrushes
         element.ActualThemeChanged += (s, e) => refresh();
     }
 
+    /// <summary>One entry of the Light, Dark or Default theme dictionaries of the application, or null.</summary>
+    internal static object? FindInTheme(string key, string themeKey)
+    {
+        var resources = Application.Current?.Resources;
+        return resources == null ? null : Find(resources, key, themeKey, 0);
+    }
+
     private static object? Find(ResourceDictionary dict, string key, string themeKey, int depth)
     {
         if (depth > 8) return null;

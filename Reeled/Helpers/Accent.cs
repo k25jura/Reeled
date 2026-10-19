@@ -10,10 +10,11 @@ namespace Reeled.Helpers;
 /// The app's accent colour: the Windows accent, one of the presets, or any colour the user picks.
 ///
 /// WinUI resolves accent brushes (AccentFillColorDefaultBrush and the control brushes that alias it)
-/// once, from the SystemAccentColor shades. To recolour live, every brush in the merged theme
-/// dictionaries whose colour is one of the Windows accent shades is remembered on first use and then
-/// repainted in place, so buttons, toggles, sliders and selection indicators all change at once
-/// without reloading pages.
+/// once, from the SystemAccentColor shades. To recolour live, the base accent brushes of the Light and
+/// Dark theme dictionaries (see AccentBrushKeys) are remembered on first use and then repainted in
+/// place, so buttons, toggles, sliders and selection indicators, which alias them, all change at once
+/// without reloading pages. Dictionaries are never enumerated: that resolves alias entries against the
+/// wrong theme (see AccentBrushKeys).
 /// </summary>
 public static class Accent
 {
@@ -81,7 +82,7 @@ public static class Accent
         }
 
         // Capture the brushes painted with the Windows shades once, before anything is repainted
-        _accentBrushes ??= FindAccentBrushes(resources, SystemShades());
+        _accentBrushes ??= FindAccentBrushes(SystemShades());
 
         for (int i = 0; i < ShadeKeys.Length; i++)
         {
@@ -178,42 +179,42 @@ public static class Accent
         };
     }
 
-    private static List<(SolidColorBrush, int)> FindAccentBrushes(ResourceDictionary root, Color[] shades)
+    /// <summary>
+    /// The brushes that WinUI itself paints with the accent shades. Every other accent brush (toggle fill,
+    /// slider track, selection indicator, accent button...) is an alias of one of these and shares its instance.
+    /// They are looked up by name: enumerating whole theme dictionaries would resolve every alias entry
+    /// outside any element, against the application's theme, and pin the Light dictionary's text, control
+    /// and card brushes to their Dark values for good.
+    /// </summary>
+    private static readonly string[] AccentBrushKeys =
+    {
+        "AccentFillColorDefaultBrush", "AccentFillColorSecondaryBrush", "AccentFillColorTertiaryBrush",
+        "AccentFillColorSelectedTextBackgroundBrush",
+        "AccentTextFillColorPrimaryBrush", "AccentTextFillColorSecondaryBrush", "AccentTextFillColorTertiaryBrush",
+        "AccentAAFillColorDefaultBrush", "AccentAAFillColorSecondaryBrush", "AccentAAFillColorTertiaryBrush",
+        "SystemFillColorAttentionBrush",
+    };
+
+    private static List<(SolidColorBrush, int)> FindAccentBrushes(Color[] shades)
     {
         var found = new List<(SolidColorBrush, int)>();
         var seen = new HashSet<SolidColorBrush>();
 
-        void Scan(ResourceDictionary dict, int depth)
+        foreach (var key in AccentBrushKeys)
         {
-            if (depth > 6) return;
-            try
+            foreach (var theme in new[] { "Light", "Dark", "Default" })
             {
-                foreach (var pair in dict)
+                try
                 {
-                    if (pair.Value is SolidColorBrush brush && seen.Add(brush))
+                    if (ThemeBrushes.FindInTheme(key, theme) is SolidColorBrush brush && seen.Add(brush))
                     {
                         int shade = ShadeIndex(brush.Color, shades);
                         if (shade >= 0) found.Add((brush, shade));
                     }
                 }
+                catch { }
             }
-            catch { }
-            try
-            {
-                foreach (var theme in dict.ThemeDictionaries.Values)
-                {
-                    if (theme is ResourceDictionary td) Scan(td, depth + 1);
-                }
-            }
-            catch { }
-            try
-            {
-                foreach (var merged in dict.MergedDictionaries) Scan(merged, depth + 1);
-            }
-            catch { }
         }
-
-        Scan(root, 0);
         return found;
     }
 

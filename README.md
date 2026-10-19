@@ -23,14 +23,28 @@ Built with unpackaged WinUI 3 (Windows App SDK), .NET 8, and LibVLC 3.0.
 ### Library & Folders
 - **Folder Watching**: Add your recording directories (e.g. Shadowplay or OBS output folders). Newly recorded, renamed, or deleted clips update automatically.
 - **Organization**: Filter clips by date, group by month, and search by title or tags.
-- **Clip Context Menu**: View video metadata (resolution, bitrate, codecs, audio tracks), favorite clips, rename, open in File Explorer, or delete to the Windows Recycle Bin.
+- **Tags**: Label clips with your own tags and filter the library by tag or by game.
+- **Game Icons**: Game folders get their icon from the Steam store automatically (only confident matches; can be turned off), or pick one yourself.
+- **Tabs**: Keep several folders open side by side in tabs, reopened on the next start.
+- **Grid or List**: Browse as cards or as a sortable details list.
+- **Clip Context Menu**: View video metadata (resolution, bitrate, codecs, audio tracks), favorite clips, tag, rename, open in File Explorer, or delete to the Windows Recycle Bin.
+
+### Customization
+- **Accent Colour**: Follow Windows, pick a preset, or choose any colour.
+- **Interface Size**: Scale the whole interface from 80% to 175% (`Ctrl` + `+` / `-` / `0`).
+- **Navigation**: Put the navigation on any window edge and hide sections you don't use.
+- **Player Toolbar**: Drag and drop the buttons you want, in a two-row or a one-row layout.
+- **On-screen Display**: Choose its position, size, duration and backdrop.
 
 ### Video Player
 - **Direct3D11 Playback**: Hardware-accelerated rendering powered by LibVLC 3.0.
 - **Timeline Scrubbing**: Smooth video seeking while dragging the timeline slider.
-- **Audio Control**: Multi-track audio switching, volume boost above 100%, and scroll-wheel volume adjustment.
-- **Playback Tools**: Frame-by-frame stepping, playback speed controls, and repeat modes (off, loop one, loop all).
-- **Clip Queue**: Quick slide-out drawer (`Q`) to switch to other clips in the folder without heading back to the library.
+- **Audio Control**: Multi-track audio switching, output device choice, volume boost above 100%, and scroll-wheel volume adjustment.
+- **Session Settings**: Speed, repeat, A-B loop, picture adjustments, aspect ratio, a 10-band equalizer, audio and subtitle delay, and subtitle style in one panel.
+- **Subtitles**: Load SRT, VTT or ASS files and style them live.
+- **Playback Tools**: Frame-by-frame stepping, playback speed controls, snapshots, mini player, and repeat modes (off, loop one, loop all).
+- **Clip Queue**: Quick slide-out drawer (`Q`) to switch, sort, shuffle or reorder clips without heading back to the library.
+- **Right-click Menu**: Everything the player can do, one right-click away.
 
 ### Moments & Bookmarks
 - **Mark Highlights**: Press `B` during playback to mark a moment at the current timestamp.
@@ -58,9 +72,12 @@ Built with unpackaged WinUI 3 (Windows App SDK), .NET 8, and LibVLC 3.0.
 | `Mouse Scroll Wheel` | Volume adjust (over canvas or volume slider); can skip or do nothing instead |
 | `M` | Toggle mute |
 | `B` | Mark moment bookmark at current timestamp |
+| `L` | A-B loop: set start, set end, clear |
+| `H` | Hide the controls |
 | `Q` | Toggle Clip Queue drawer |
 | `R` | Cycle repeat mode (Off / All / One) |
 | `S` | Stop playback |
+| `Ctrl + O` | Open a video file |
 | `F` or `F11` | Toggle fullscreen |
 | `Double Click` (Canvas) | Toggle fullscreen |
 | `Escape` | Exit fullscreen / Return to library |
@@ -70,18 +87,24 @@ Built with unpackaged WinUI 3 (Windows App SDK), .NET 8, and LibVLC 3.0.
 | Input | Action |
 | --- | --- |
 | `Ctrl + F` | Open search |
+| `Ctrl + O` | Open a video file |
+| `Ctrl + T` / `Ctrl + W` | New tab / close tab |
+| `Ctrl + Tab` / `Ctrl + Shift + Tab` | Next / previous tab |
+| `Ctrl + 1` – `9` | Go to tab 1–8 / last tab |
+| `Middle Click` / `Ctrl + Click` (folder) | Open the folder in a new tab |
+| `Ctrl + +` / `Ctrl + -` / `Ctrl + 0` | Interface size up / down / reset (works everywhere) |
 | `Escape` (in search) | Clear search, press again to close it |
-| `Right Click` (folder) | Open, reveal in File Explorer, reorder or remove watch folders |
+| `Right Click` (folder) | Open in a new tab, set a game icon, reveal in File Explorer, reorder or remove watch folders |
 | `F5` | Rescan watch folders |
 | `F2` | Rename the clip under the cursor (in app) |
 | `Delete` | Move the clip under the cursor to the Recycle Bin (asks first) |
-| `Middle Click` | Autoscroll |
+| `Middle Click` (clips) | Autoscroll |
 
 ---
 
 ## Tech Stack
 
-- **UI Framework**: WinUI 3 (Windows App SDK 1.6+) unpackaged
+- **UI Framework**: WinUI 3 (Windows App SDK 2.4) unpackaged
 - **Runtime**: .NET 8 (`net8.0-windows10.0.26100.0`)
 - **Architecture**: MVVM via `CommunityToolkit.Mvvm` with dependency injection
 - **Video Engine**: `LibVLCSharp.WinUI` and native VideoLAN LibVLC 3.0 (Direct3D11 SwapChainPanel)

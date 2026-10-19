@@ -30,6 +30,7 @@ public sealed partial class HomePage
 
     private TabView _tabView = null!;
     private Grid _tabStripHolder = null!;
+    private Panel? _tabStripHost;
     private Border _tabFooter = null!;
     private readonly TranslateTransform _tabStripTranslate = new();
     private readonly Dictionary<LibraryTab, TabViewItem> _tabItems = new();
@@ -566,9 +567,12 @@ public sealed partial class HomePage
     private void ParentTabStrip()
     {
         Panel host = _sidebarPosition == SidebarPosition.Top ? TabStripHostTop : TabStripOverlayMain;
-        if (ReferenceEquals(_tabStripHolder.Parent, host)) return;
+        // Parent isn't reliable before the page is in the tree, so remember the host ourselves
+        if (ReferenceEquals(_tabStripHost, host)) return;
+        _tabStripHost?.Children.Remove(_tabStripHolder);
         if (_tabStripHolder.Parent is Panel old) old.Children.Remove(_tabStripHolder);
         host.Children.Add(_tabStripHolder);
+        _tabStripHost = host;
     }
 
     private void ApplyTabStripFinalState()

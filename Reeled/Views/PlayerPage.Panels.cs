@@ -41,6 +41,7 @@ public sealed partial class PlayerPage
         SessionTabs.SelectionChanged += (s, i) => SwitchSessionTab(i);
         BuildQueueSortMenu();
         BuildEqualizerBands();
+        InitializeMomentColors();
         BuildSubtitleColors();
         ViewModel.Playlist.CollectionChanged += (s, e) => UpdateQueueSummary();
         ApplyRememberedSession();
@@ -904,6 +905,36 @@ public sealed partial class PlayerPage
         _ = Storage.SaveSettingsAsync(Storage.CurrentSettings);
     }
 
+    // ---- Colours -------------------------------------------------------------------------------
+
+    private static readonly (string Hex, string Name)[] MomentColors =
+    {
+        ("#FFD700", "Gold"), ("#4CC2FF", "Cyan"), ("#2ECC71", "Emerald"), ("#FF6B6B", "Coral"), ("#AF52DE", "Violet"), ("#FF9500", "Orange")
+    };
+
+    private void InitializeMomentColors()
+    {
+        var presets = new List<Controls.ColorChoice>();
+        foreach (var (hex, name) in MomentColors)
+        {
+            presets.Add(new Controls.ColorChoice { Value = hex, Color = ParseColor(hex), Name = name });
+        }
+        MarkMomentColorChooser.Presets = presets;
+        ConfigurePlayerChooser(MarkMomentColorChooser, FlyoutPlacementMode.Top);
+        MarkMomentColorChooser.ColorChanged += (s, e) => _selectedMarkColor = e.Value;
+    }
+
+    /// <summary>Choosers inside the player sit on video glass and keep the controls from auto-hiding while their picker is open.</summary>
+    private void ConfigurePlayerChooser(Controls.ColorChooser chooser, FlyoutPlacementMode placement)
+    {
+        chooser.FlyoutPlacement = placement;
+        chooser.UseVideoGlass = true;
+        chooser.FlyoutPresenterStyle = (Style)Resources["PlayerFlyoutPresenterStyle"];
+        chooser.PickerPadding = new Thickness(14, 12, 14, 14);
+        chooser.PickerOpened += (s, e) => OnFlyoutOpened(chooser, e);
+        chooser.PickerClosed += (s, e) => OnFlyoutClosed(chooser, e);
+    }
+
     // ---- Subtitles -----------------------------------------------------------------------------
 
     private static readonly (int Rgb, string Hex)[] SubtitleColors =
@@ -913,38 +944,27 @@ public sealed partial class PlayerPage
 
     private void BuildSubtitleColors()
     {
-        SubtitleColorPanel.Children.Clear();
-        foreach (var (rgb, hex) in SubtitleColors)
+        var presets = new List<Controls.ColorChoice>();
+        foreach (var (_, hex) in SubtitleColors)
         {
-            Helpers.Accent.TryParse(hex, out var c);
-            var button = new Button
-            {
-                Tag = rgb,
-                Width = 22,
-                Height = 22,
-                Background = new SolidColorBrush(c),
-                Style = (Style)Resources["MomentColorCircleButtonStyle"]
-            };
-            button.Click += (s, e) =>
-            {
-                var style = ViewModel.PlaybackService.SubtitleStyle.Clone();
-                style.ColorRgb = rgb;
-                CommitSubtitleStyle(style);
-                UpdateSubtitleColorSelection();
-            };
-            SubtitleColorPanel.Children.Add(button);
+            presets.Add(new Controls.ColorChoice { Value = hex, Color = ParseColor(hex), Name = hex });
         }
+        SubtitleColorChooser.Presets = presets;
+        ConfigurePlayerChooser(SubtitleColorChooser, FlyoutPlacementMode.Left);
+        // The overlay previews the colour while the picker is dragged; the style is saved once it's chosen
+        SubtitleColorChooser.ColorChanged += (s, e) => SubtitleOverlayText.Foreground = new SolidColorBrush(e.Color);
+        SubtitleColorChooser.ColorCommitted += (s, e) =>
+        {
+            var style = ViewModel.PlaybackService.SubtitleStyle.Clone();
+            style.ColorRgb = (e.Color.R << 16) | (e.Color.G << 8) | e.Color.B;
+            CommitSubtitleStyle(style);
+        };
     }
 
     private void UpdateSubtitleColorSelection()
     {
-        int current = ViewModel.PlaybackService.SubtitleStyle.ColorRgb;
-        foreach (var b in SubtitleColorPanel.Children.OfType<Button>())
-        {
-            bool selected = b.Tag is int rgb && rgb == current;
-            b.BorderThickness = new Thickness(selected ? 2 : 1);
-            b.BorderBrush = new SolidColorBrush(selected ? Microsoft.UI.Colors.White : Windows.UI.Color.FromArgb(64, 255, 255, 255));
-        }
+        int current = ViewModel.PlaybackService.SubtitleStyle.ColorRgb & 0xFFFFFF;
+        SubtitleColorChooser.SelectedValue = $"#{current:X6}";
     }
 
     private void OnSubtitleStyleChanged(object sender, SelectionChangedEventArgs e)

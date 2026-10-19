@@ -6,6 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:viewmodels="using:Reeled.ViewModels"
+    xmlns:controls="using:Reeled.Controls"
     mc:Ignorable="d"
     NavigationCacheMode="Required">
 
@@ -1204,7 +1205,6 @@
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
 
                                     <FontIcon Grid.Column="0" Glyph="&#xE771;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
@@ -1215,13 +1215,10 @@
                                                    Style="{ThemeResource CaptionTextBlockStyle}"
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                     </StackPanel>
-
-                                    <TextBlock x:Name="AccentCurrentNameText" Grid.Column="2" FontSize="12.5"
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
                                 </Grid>
 
-                                <!-- Swatches are built in code (selection ring, check and hover motion) -->
-                                <StackPanel x:Name="AccentSwatchesPanel" Orientation="Horizontal" Spacing="6" Margin="40,0,0,0" />
+                                <!-- Swatches, recents and the picker: presets are supplied in code (Windows accent + the app presets) -->
+                                <controls:ColorChooser x:Name="AccentChooser" Margin="40,0,0,0" HorizontalAlignment="Left" />
                             </StackPanel>
                         </Border>
 

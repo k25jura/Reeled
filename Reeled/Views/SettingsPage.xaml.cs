@@ -875,7 +875,7 @@ public sealed partial class SettingsPage : Page
             }
             if (index < 0) continue;
 
-            var panel = new StackPanel { Spacing = 1, Margin = new Thickness(28, 0, 0, 2), Visibility = Visibility.Collapsed, Opacity = 0 };
+            var panel = new StackPanel { Spacing = 1, Margin = new Thickness(28, 0, 0, 2), Visibility = Visibility.Collapsed, Opacity = 0, RenderTransform = new TranslateTransform() };
             foreach (var name in headers)
             {
                 if (FindName(name) is not TextBlock header) continue;
@@ -916,37 +916,6 @@ public sealed partial class SettingsPage : Page
             SettingsScrollViewer.ChangeView(null, Math.Max(0, pt.Y - 14), null, false);
         }
         catch { }
-    }
-
-    /// <summary>Opens the active category's sub-list (space first, then the items) and closes the previous one.</summary>
-    private void UpdateSubNavigation(string sectionTag, bool animate)
-    {
-        if (_expandedSubSection == sectionTag) return;
-        string? previous = _expandedSubSection;
-        _expandedSubSection = sectionTag;
-
-        void Realign()
-        {
-            if (FindCategoryButton(_activeSectionTag) is Button active) AnimateIndicatorTo(active, animate: true);
-        }
-
-        if (previous != null && _subNavPanels.TryGetValue(previous, out var oldPanel))
-        {
-            if (animate) Helpers.Motion.Reveal(oldPanel, false, Realign);
-            else { oldPanel.Visibility = Visibility.Collapsed; oldPanel.Opacity = 0; }
-        }
-        // Start on the section's first group until the scroll position says otherwise
-        foreach (var (_, _, header, section) in _subNavItems)
-        {
-            if (section == sectionTag) { SetActiveSubHeader(header.Name); break; }
-        }
-
-        if (_subNavPanels.TryGetValue(sectionTag, out var panel))
-        {
-            if (animate) Helpers.Motion.Reveal(panel, true, Realign);
-            else { panel.Visibility = Visibility.Visible; panel.Opacity = 1; }
-        }
-        if (!animate) DispatcherQueue.TryEnqueue(Realign);
     }
 
     private Button? FindCategoryButton(string tag)

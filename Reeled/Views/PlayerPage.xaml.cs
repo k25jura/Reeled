@@ -32,7 +32,6 @@ public sealed partial class PlayerPage : Page
     private Storyboard? _activeMomentBadgeStoryboard;
     private Storyboard? _markModeSwitchStoryboard;
     private Guid? _dismissedMomentId;
-    private bool _colorButtonsInitialized;
     private enum TimelinePickTarget { None, Point, RangeStart, RangeEnd }
     private TimelinePickTarget _activePickTarget = TimelinePickTarget.None;
     private ClipBookmark? _editingBookmark;
@@ -63,7 +62,7 @@ public sealed partial class PlayerPage : Page
         Helpers.VideoGlass.Wrap(MomentsJumpPopup, "Flyout");
         Helpers.VideoGlass.Wrap(ActiveMomentPromptBadge, "Flyout");
         Helpers.VideoGlass.Wrap(TimelinePickerPromptBadge, "Flyout");
-        foreach (var flyout in new[] { MomentsFlyout, CustomColorFlyout, TracksFlyout })
+        foreach (var flyout in new[] { MomentsFlyout, TracksFlyout })
         {
             Helpers.VideoGlass.Wrap(flyout, 7);
         }
@@ -288,7 +287,6 @@ public sealed partial class PlayerPage : Page
             if (MarkRangeChooseEndButton != null) MarkRangeChooseEndButton.Content = loc["Player_ChooseOnTimeline"];
             if (MarkMomentLabelBox != null) MarkMomentLabelBox.PlaceholderText = loc["Player_MarkMoment_TitlePlaceholder"];
             if (MarkMomentColorLabel != null) MarkMomentColorLabel.Text = loc["Player_MarkMoment_Color"];
-            if (CustomColorPickerButton != null) ToolTipService.SetToolTip(CustomColorPickerButton, loc["Player_CustomColorTooltip"]);
             if (MarkMomentSaveButton != null) MarkMomentSaveButton.Content = _editingBookmark != null ? (loc["Player_EditMomentSave"] ?? "Save Changes") : loc["Player_MarkMoment_Save"];
 
             // Moments Jump Prompt & Active Moment Prompt
@@ -708,8 +706,7 @@ public sealed partial class PlayerPage : Page
             PresetSpeed20,
             ResetSpeedButton,
             MarkPointModeButton,
-            MarkRangeModeButton,
-            CustomColorPickerButton
+            MarkRangeModeButton
         };
 
         foreach (var btn in buttons)
@@ -1344,133 +1341,7 @@ public sealed partial class PlayerPage : Page
         }
     }
 
-    private void UpdateMarkColorButtons()
-    {
-        if (MarkMomentColorPanel == null) return;
-        if (!_colorButtonsInitialized)
-        {
-            _colorButtonsInitialized = true;
-            foreach (var child in MarkMomentColorPanel.Children)
-            {
-                if (child is Button colorBtn && colorBtn.Tag is string hex)
-                {
-                    if (hex == "Custom") continue;
-                    colorBtn.Click += (s, e) =>
-                    {
-                        _selectedMarkColor = hex;
-                        UpdateMarkColorSelectionHighlight();
-                    };
-                }
-            }
-        }
-        UpdateMarkColorSelectionHighlight();
-    }
-
-    private void UpdateMarkColorSelectionHighlight()
-    {
-        if (MarkMomentColorPanel == null) return;
-        bool matchedPreset = false;
-        foreach (var child in MarkMomentColorPanel.Children)
-        {
-            if (child is Button colorBtn && colorBtn.Tag is string hex)
-            {
-                if (hex == "Custom") continue;
-                bool isSelected = string.Equals(hex, _selectedMarkColor, StringComparison.OrdinalIgnoreCase);
-                if (isSelected) matchedPreset = true;
-                colorBtn.BorderThickness = new Thickness(isSelected ? 2 : 1);
-                colorBtn.BorderBrush = isSelected
-                    ? new SolidColorBrush(Microsoft.UI.Colors.White)
-                    : new SolidColorBrush(Windows.UI.Color.FromArgb(64, 255, 255, 255));
-            }
-        }
-        if (CustomColorPickerButton != null)
-        {
-            bool isCustomSelected = !matchedPreset && !string.IsNullOrEmpty(_selectedMarkColor);
-            CustomColorPickerButton.BorderThickness = new Thickness(isCustomSelected ? 2 : 1);
-            CustomColorPickerButton.BorderBrush = isCustomSelected
-                ? new SolidColorBrush(Microsoft.UI.Colors.White)
-                : new SolidColorBrush(Windows.UI.Color.FromArgb(64, 255, 255, 255));
-            if (isCustomSelected)
-            {
-                var parsed = ParseColor(_selectedMarkColor);
-                CustomColorPickerButton.Background = new SolidColorBrush(parsed);
-                if (CustomColorHexInput != null && CustomColorHexInput.Text != _selectedMarkColor)
-                {
-                    CustomColorHexInput.Text = _selectedMarkColor;
-                }
-                if (CustomColorPickerControl != null)
-                {
-                    CustomColorPickerControl.Color = parsed;
-                }
-                if (CustomColorPickerPipetteIcon != null)
-                {
-                    double luminance = (0.299 * parsed.R + 0.587 * parsed.G + 0.114 * parsed.B) / 255.0;
-                    CustomColorPickerPipetteIcon.Foreground = luminance > 0.55
-                        ? new SolidColorBrush(Microsoft.UI.Colors.Black)
-                        : new SolidColorBrush(Microsoft.UI.Colors.White);
-                }
-            }
-        }
-    }
-
-    private void OnCustomColorPickerColorChanged(ColorPicker sender, ColorChangedEventArgs args)
-    {
-        var col = args.NewColor;
-        _selectedMarkColor = $"#{col.R:X2}{col.G:X2}{col.B:X2}";
-        if (CustomColorHexInput != null && CustomColorHexInput.Text != _selectedMarkColor)
-        {
-            CustomColorHexInput.Text = _selectedMarkColor;
-        }
-        if (CustomColorPickerButton != null)
-        {
-            CustomColorPickerButton.Background = new SolidColorBrush(col);
-            CustomColorPickerButton.BorderThickness = new Thickness(2);
-            CustomColorPickerButton.BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.White);
-        }
-        if (CustomColorPickerPipetteIcon != null)
-        {
-            double luminance = (0.299 * col.R + 0.587 * col.G + 0.114 * col.B) / 255.0;
-            CustomColorPickerPipetteIcon.Foreground = luminance > 0.55
-                ? new SolidColorBrush(Microsoft.UI.Colors.Black)
-                : new SolidColorBrush(Microsoft.UI.Colors.White);
-        }
-    }
-
-    private void OnCustomColorHexInputTextChanged(object sender, TextChangedEventArgs e)
-    {
-        if (CustomColorHexInput == null) return;
-        string text = CustomColorHexInput.Text.Trim();
-        if (!text.StartsWith('#') && text.Length == 6)
-        {
-            text = "#" + text;
-        }
-        if (text.Length == 7 && text.StartsWith('#'))
-        {
-            try
-            {
-                var col = ParseColor(text);
-                _selectedMarkColor = text;
-                if (CustomColorPickerControl != null && CustomColorPickerControl.Color != col)
-                {
-                    CustomColorPickerControl.Color = col;
-                }
-                if (CustomColorPickerButton != null)
-                {
-                    CustomColorPickerButton.Background = new SolidColorBrush(col);
-                    CustomColorPickerButton.BorderThickness = new Thickness(2);
-                    CustomColorPickerButton.BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.White);
-                }
-                if (CustomColorPickerPipetteIcon != null)
-                {
-                    double luminance = (0.299 * col.R + 0.587 * col.G + 0.114 * col.B) / 255.0;
-                    CustomColorPickerPipetteIcon.Foreground = luminance > 0.55
-                        ? new SolidColorBrush(Microsoft.UI.Colors.Black)
-                        : new SolidColorBrush(Microsoft.UI.Colors.White);
-                }
-            }
-            catch { }
-        }
-    }
+    private void UpdateMarkColorButtons() => MarkMomentColorChooser.SelectedValue = _selectedMarkColor;
 
     private async void OnSaveMarkMomentClick(object sender, RoutedEventArgs e)
     {

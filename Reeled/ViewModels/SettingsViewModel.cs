@@ -86,6 +86,9 @@ public partial class SettingsViewModel : ObservableObject
     private bool _showMomentsBadges = true;
 
     [ObservableProperty]
+    private bool _lookUpGameIcons = true;
+
+    [ObservableProperty]
     private bool _enableBackdropBlur = true;
 
     [ObservableProperty]
@@ -293,6 +296,7 @@ public partial class SettingsViewModel : ObservableObject
         EnableOsdNotifications = _storageService.CurrentSettings.EnableOsdNotifications;
         EnableClipCache = _storageService.CurrentSettings.EnableClipCache;
         ShowMomentsBadges = _storageService.CurrentSettings.ShowMomentsBadges;
+        LookUpGameIcons = _storageService.CurrentSettings.LookUpGameIcons;
         EnableBackdropBlur = _storageService.CurrentSettings.EnableBackdropBlur;
         SelectedThemeIndex = _storageService.CurrentSettings.AppTheme switch
         {
@@ -567,6 +571,17 @@ public partial class SettingsViewModel : ObservableObject
             _ = _storageService.SaveSettingsAsync(settings);
             _homeViewModel.ShowMomentsBadges = value;
         }
+    }
+
+    partial void OnLookUpGameIconsChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.LookUpGameIcons == value) return;
+        settings.LookUpGameIcons = value;
+        _ = _storageService.SaveSettingsAsync(settings);
+        // Turning it on looks up the folders that have no icon yet; turning it off only stops new lookups
+        if (value) _homeViewModel.RefreshGameIcons();
+        else _homeViewModel.StopGameIconLookups();
     }
 
     partial void OnEnableBackdropBlurChanged(bool value)
@@ -1435,6 +1450,7 @@ public partial class SettingsViewModel : ObservableObject
         settings.MomentsNavVisibility = NavSectionVisibility.Always;
         settings.LibraryViewMode = LibraryViewMode.Grid;
         settings.ShowMomentsBadges = true;
+        settings.LookUpGameIcons = true;
         settings.EnableBackdropBlur = true;
         settings.ViewDensity = ViewDensityMode.Comfortable;
         settings.DateGrouping = DateGroupingMode.None;

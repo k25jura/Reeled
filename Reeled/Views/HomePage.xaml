@@ -383,6 +383,22 @@
                             <FontIcon Glyph="&#xE8A4;" FontSize="10" Foreground="#FFD700" />
                             <TextBlock Text="{x:Bind BookmarkCount, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
+                        <ItemsControl ItemsSource="{x:Bind TagsPreview, Mode=OneWay}" IsTabStop="False" VerticalAlignment="Center"
+                                      Visibility="{x:Bind HasTags, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="4" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <Border Background="{ThemeResource ControlFillColorSecondaryBrush}" CornerRadius="4" Padding="5,0,5,1">
+                                        <TextBlock Text="{x:Bind}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   MaxWidth="120" TextTrimming="CharacterEllipsis" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                     <TextBlock x:Name="RowSubtitle" Text="{x:Bind FolderName, Mode=OneWay}" FontSize="11.5" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
@@ -695,11 +711,19 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
-                                        <FontIcon Grid.Column="0" 
-                                                  Glyph="{x:Bind IconGlyph, Mode=OneWay}" 
-                                                  FontSize="15" 
-                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                                  VerticalAlignment="Center" />
+                                        <!-- The folder glyph, or the game's icon once one is known -->
+                                        <Grid Grid.Column="0" Width="18" Height="18" VerticalAlignment="Center">
+                                            <FontIcon Glyph="{x:Bind IconGlyph, Mode=OneWay}"
+                                                      FontSize="15"
+                                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Visibility="{x:Bind FolderGlyphVisibility, Mode=OneWay}" />
+                                            <Grid CornerRadius="4"
+                                                  Visibility="{x:Bind HasGameIcon, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <Image Source="{x:Bind GameIcon, Mode=OneWay}" Stretch="UniformToFill" />
+                                            </Grid>
+                                        </Grid>
 
                                         <TextBlock Grid.Column="1" 
                                                    Text="{x:Bind DisplayName}" 
@@ -1021,6 +1045,19 @@
                             </Button>
                         </Grid>
 
+                        <!-- Tags filter: the user's tags and games; the label carries the active filter count -->
+                        <DropDownButton x:Name="TagsFilterButton"
+                                        Padding="12,5,10,6"
+                                        VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <FontIcon x:Name="TagsFilterIcon" Glyph="&#xE1CB;" FontSize="13" />
+                                <TextBlock x:Name="TagsFilterText" Text="Tags" FontSize="12.5" />
+                            </StackPanel>
+                            <DropDownButton.Flyout>
+                                <MenuFlyout x:Name="TagsFilterFlyout" Placement="BottomEdgeAlignedRight" Opening="OnTagsFilterOpening" Opened="OnFlyoutOpened" />
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+
                         <!-- Sort DropDown Button -->
                         <DropDownButton x:Name="SortOptionsButton"
                                         Padding="12,5,10,6"
@@ -1266,20 +1303,40 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- Left: Saved Moments Frosted Badge -->
-                                    <Border Grid.Column="0" HorizontalAlignment="Left"
-                                            Background="#80000000"
-                                            BorderBrush="#33FFFFFF"
-                                            BorderThickness="1"
-                                            CornerRadius="10"
-                                            Padding="6,2"
-                                            Visibility="{x:Bind ShowBookmarkBadge, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                            <FontIcon Glyph="&#xE8A4;" FontSize="10" Foreground="#FFD700" VerticalAlignment="Center" />
-                                            <TextBlock Text="{x:Bind FormattedBookmarkCount, Mode=OneWay}" 
-                                                       FontSize="11" FontWeight="SemiBold" Foreground="#FFF0A0" VerticalAlignment="Center" />
-                                        </StackPanel>
-                                    </Border>
+                                    <!-- Left: Saved Moments Frosted Badge, then the clip's tags (at most two and a "+N") -->
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Left" Margin="0,0,6,0">
+                                        <Border VerticalAlignment="Top"
+                                                Background="#80000000"
+                                                BorderBrush="#33FFFFFF"
+                                                BorderThickness="1"
+                                                CornerRadius="10"
+                                                Padding="6,2"
+                                                Visibility="{x:Bind ShowBookmarkBadge, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE8A4;" FontSize="10" Foreground="#FFD700" VerticalAlignment="Center" />
+                                                <TextBlock Text="{x:Bind FormattedBookmarkCount, Mode=OneWay}"
+                                                           FontSize="11" FontWeight="SemiBold" Foreground="#FFF0A0" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Border>
+                                        <ItemsControl ItemsSource="{x:Bind TagsPreview, Mode=OneWay}"
+                                                      IsTabStop="False"
+                                                      VerticalAlignment="Top"
+                                                      Visibility="{x:Bind HasTags, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="x:String">
+                                                    <Border Background="#59000000" CornerRadius="4" Padding="5,1,5,2">
+                                                        <TextBlock Text="{x:Bind}" FontSize="11" FontWeight="SemiBold" Foreground="White"
+                                                                   MaxWidth="84" TextTrimming="CharacterEllipsis" />
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
 
                                     <!-- Right: Glassmorphic Favorite Button with Pulse Ring & Sparkles -->
                                     <!-- Shown on hover, or always once the clip is a favorite -->

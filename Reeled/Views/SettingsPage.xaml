@@ -1365,6 +1365,39 @@
                             </Grid>
                         </Border>
 
+                        <!-- Card: Game icons from Steam -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE7FC;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="GameIconsTitleText" Text="Look up game icons on Steam" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="GameIconsSubtitleText" Text="Folder names are sent to the Steam store to find matching icons. Turning this off stops automatic lookups; icons already found stay"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2"
+                                              IsOn="{x:Bind ViewModel.LookUpGameIcons, Mode=TwoWay}"
+                                              OnContent=""
+                                              OffContent=""
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
                         <TextBlock x:Name="SubAppearanceEffects" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Effects &amp; motion" />
 
                         <!-- Card 3: Enable Backdrop Blur -->

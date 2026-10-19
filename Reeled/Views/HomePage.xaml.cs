@@ -26,6 +26,8 @@ public sealed partial class HomePage : Page
         InitializeComponent();
         ViewModel.RequestScrollToTop += ScrollClipsToTop;
         ViewModel.ViewContentReplaced += OnViewContentReplaced;
+        WireTags();
+        WireGameIcons();
 
         Helpers.CursorHelper.SetElementCursor(SidebarResizeHandle, Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast));
 
@@ -201,6 +203,12 @@ public sealed partial class HomePage : Page
         if (SortOptionsButton != null)
         {
             SortOptionsButton.RequestedTheme = theme;
+        }
+
+        if (TagsFilterButton != null)
+        {
+            TagsFilterButton.RequestedTheme = theme;
+            UpdateTagsFilterButton();
         }
 
         if (ViewOptionsButton != null)
@@ -466,6 +474,7 @@ public sealed partial class HomePage : Page
 
             UpdateSortButtonUI();
             UpdateViewOptionsMenuUI();
+            UpdateTagsFilterButton();
 
             // Folders Empty Fallback Prompt
             if (FoldersFallbackTitleText != null) FoldersFallbackTitleText.Text = loc["Folders_FallbackTitle"];
@@ -3015,6 +3024,7 @@ public sealed partial class HomePage : Page
         flyout.Items.Add(new MenuFlyoutSeparator());
         Item("FolderMenu_RevealExplorer", "\uEC50", () => ViewModel.OpenFolderInExplorer(node));
         Item("FolderMenu_CopyPath", "\uE8C8", () => ViewModel.CopyFolderPath(node));
+        AddGameIconMenu(flyout.Items, node);
 
         // Watch folders can be reordered; subfolders follow the file system order
         int index = ViewModel.Directories.IndexOf(node);
@@ -3748,6 +3758,8 @@ public sealed partial class HomePage : Page
             };
             renameDiskItem.Click += async (s, args) => await ShowRenameDialogAsync(clip);
             flyout.Items.Add(renameDiskItem);
+
+            flyout.Items.Add(CreateClipTagsMenu(clip));
 
             flyout.Items.Add(new MenuFlyoutSeparator());
 

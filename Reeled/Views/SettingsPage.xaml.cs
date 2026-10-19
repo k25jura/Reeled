@@ -1423,6 +1423,8 @@ public sealed partial class SettingsPage : Page
         if (AppThemeSubtitleText != null) AppThemeSubtitleText.Text = loc["Appearance_ThemeSubtitle"];
         if (MomentsBadgesTitleText != null) MomentsBadgesTitleText.Text = loc["Appearance_MomentsBadgesTitle"];
         if (MomentsBadgesSubtitleText != null) MomentsBadgesSubtitleText.Text = loc["Appearance_MomentsBadgesSubtitle"];
+        if (GameIconsTitleText != null) GameIconsTitleText.Text = loc["Appearance_GameIconsTitle"];
+        if (GameIconsSubtitleText != null) GameIconsSubtitleText.Text = loc["Appearance_GameIconsSubtitle"];
         if (BackdropBlurTitleText != null) BackdropBlurTitleText.Text = loc["Appearance_BackdropBlurTitle"];
         if (BackdropBlurSubtitleText != null) BackdropBlurSubtitleText.Text = loc["Appearance_BackdropBlurSubtitle"];
         if (ReduceMotionTitleText != null) ReduceMotionTitleText.Text = loc["Appearance_ReduceMotionTitle"];

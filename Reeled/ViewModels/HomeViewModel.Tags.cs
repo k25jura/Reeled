@@ -23,6 +23,9 @@ public partial class HomeViewModel
     /// <summary>The user's tags in their order.</summary>
     public IReadOnlyList<string> TagLibrary => _storageService.CurrentSettings.TagLibrary;
 
+    /// <summary>The library's instance of a clip, or null when the file isn't in the library (e.g. opened from disk).</summary>
+    public GameClip? FindLibraryClip(string path) => FindClip(path);
+
     public int CountWithTag(string tag) => AllClips.Count(c => c.Tags.Contains(tag, StringComparer.CurrentCultureIgnoreCase));
 
     /// <summary>Games (clip folders) with clip counts, most clips first.</summary>

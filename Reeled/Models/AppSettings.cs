@@ -23,6 +23,12 @@ public class AppSettings
     public bool EnableClipCache { get; set; } = true;
     public bool EnableSkeletonLoading { get; set; } = true;
     public double SidebarWidth { get; set; } = 316;
+    /// <summary>Which window edge the library navigation sits on.</summary>
+    public SidebarPosition SidebarPosition { get; set; } = SidebarPosition.Left;
+    public NavSectionVisibility FavoritesNavVisibility { get; set; } = NavSectionVisibility.Always;
+    public NavSectionVisibility MomentsNavVisibility { get; set; } = NavSectionVisibility.Always;
+    /// <summary>Card grid or a details list.</summary>
+    public LibraryViewMode LibraryViewMode { get; set; } = LibraryViewMode.Grid;
     /// <summary>Last normal (not maximized) window bounds in physical pixels; 0 width = never saved.</summary>
     public int WindowX { get; set; }
     public int WindowY { get; set; }
@@ -69,6 +75,27 @@ public class AppSettings
     public bool HardwareDecoding { get; set; } = true;
     /// <summary>Last playback position (ms) per clip path, for resuming long clips.</summary>
     public Dictionary<string, long> ResumePositions { get; set; } = new();
+}
+
+public enum SidebarPosition
+{
+    Left = 0,
+    Right = 1,
+    Top = 2,
+    Bottom = 3
+}
+
+public enum NavSectionVisibility
+{
+    Always = 0,
+    WhenNotEmpty = 1,
+    Hidden = 2
+}
+
+public enum LibraryViewMode
+{
+    Grid = 0,
+    List = 1
 }
 
 public enum WheelAction

@@ -1430,6 +1430,10 @@ public partial class SettingsViewModel : ObservableObject
         settings.AccentColor = Helpers.Accent.SystemMode;
         settings.UiZoom = 1.0;
         settings.CloseButtonReturnsToLibrary = false;
+        settings.SidebarPosition = SidebarPosition.Left;
+        settings.FavoritesNavVisibility = NavSectionVisibility.Always;
+        settings.MomentsNavVisibility = NavSectionVisibility.Always;
+        settings.LibraryViewMode = LibraryViewMode.Grid;
         settings.ShowMomentsBadges = true;
         settings.EnableBackdropBlur = true;
         settings.ViewDensity = ViewDensityMode.Comfortable;

@@ -498,5 +498,29 @@
   "Appearance_ZoomSubtitle": "Scale everything in Reeled. Ctrl + and Ctrl - work anywhere, Ctrl 0 resets",
   "SettingsSubAppearanceLayout": "Layout",
   "Playback_CloseToLibraryTitle": "Close button returns to library",
-  "Playback_CloseToLibrarySubtitle": "While a clip is playing, closing the window goes back to the library instead of quitting"
+  "Playback_CloseToLibrarySubtitle": "While a clip is playing, closing the window goes back to the library instead of quitting",
+
+  "Nav_Position": "Navigation position",
+  "Nav_PositionLeft": "Sidebar on the left",
+  "Nav_PositionRight": "Sidebar on the right",
+  "Nav_PositionTop": "Bar at the top",
+  "Nav_PositionBottom": "Bar at the bottom",
+  "Nav_ShowAlways": "Always show",
+  "Nav_ShowWhenNotEmpty": "Show when it has clips",
+  "Nav_HideSection": "Hide",
+  "Nav_Subfolders": "Subfolders",
+  "Nav_AllOfFolder": "All of {0}",
+  "Appearance_NavPositionTitle": "Navigation position",
+  "Appearance_NavPositionSubtitle": "Sidebar on the left or right, or a bar along the top or bottom",
+  "Appearance_NavSectionsTitle": "Navigation sections",
+  "Appearance_NavSectionsSubtitle": "Choose which sections appear. You can also right-click a section",
+
+  "List_Name": "Name",
+  "List_Folder": "Folder",
+  "List_Date": "Date",
+  "List_Length": "Length",
+  "List_Size": "Size",
+  "View_Layout": "Layout",
+  "View_Cards": "Cards",
+  "View_List": "List"
 }

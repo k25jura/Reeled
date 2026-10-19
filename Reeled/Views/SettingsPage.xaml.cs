@@ -1467,6 +1467,14 @@ public sealed partial class SettingsPage : Page
         if (CloseToLibrarySubtitleText != null) CloseToLibrarySubtitleText.Text = loc["Playback_CloseToLibrarySubtitle"];
         BuildAccentSwatches();
         UpdateZoomControls();
+        if (NavPositionTitleText != null) NavPositionTitleText.Text = loc["Appearance_NavPositionTitle"];
+        if (NavPositionSubtitleText != null) NavPositionSubtitleText.Text = loc["Appearance_NavPositionSubtitle"];
+        if (NavSectionsTitleText != null) NavSectionsTitleText.Text = loc["Appearance_NavSectionsTitle"];
+        if (NavSectionsSubtitleText != null) NavSectionsSubtitleText.Text = loc["Appearance_NavSectionsSubtitle"];
+        if (NavFavoritesLabel != null) NavFavoritesLabel.Text = loc["Nav_Favorites"];
+        if (NavMomentsLabel != null) NavMomentsLabel.Text = loc["Nav_SavedMoments"];
+        BuildNavPositionTiles();
+        FillNavSectionCombos();
 
         // 4. Language & Region Section
         if (LocalizationSectionTitle != null) LocalizationSectionTitle.Text = loc["Language_SectionTitle"];

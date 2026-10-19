@@ -498,5 +498,29 @@
   "Appearance_ZoomSubtitle": "Масштабує весь Reeled. Ctrl + та Ctrl - працюють будь-де, Ctrl 0 скидає",
   "SettingsSubAppearanceLayout": "Макет",
   "Playback_CloseToLibraryTitle": "Кнопка закриття повертає до бібліотеки",
-  "Playback_CloseToLibrarySubtitle": "Під час перегляду кліпу закриття вікна повертає до бібліотеки, а не виходить із програми"
+  "Playback_CloseToLibrarySubtitle": "Під час перегляду кліпу закриття вікна повертає до бібліотеки, а не виходить із програми",
+
+  "Nav_Position": "Розташування навігації",
+  "Nav_PositionLeft": "Бічна панель ліворуч",
+  "Nav_PositionRight": "Бічна панель праворуч",
+  "Nav_PositionTop": "Панель угорі",
+  "Nav_PositionBottom": "Панель унизу",
+  "Nav_ShowAlways": "Показувати завжди",
+  "Nav_ShowWhenNotEmpty": "Показувати, коли є кліпи",
+  "Nav_HideSection": "Приховати",
+  "Nav_Subfolders": "Підпапки",
+  "Nav_AllOfFolder": "Уся папка {0}",
+  "Appearance_NavPositionTitle": "Розташування навігації",
+  "Appearance_NavPositionSubtitle": "Бічна панель ліворуч чи праворуч або панель угорі чи внизу",
+  "Appearance_NavSectionsTitle": "Розділи навігації",
+  "Appearance_NavSectionsSubtitle": "Виберіть, які розділи показувати. Також можна клацнути розділ правою кнопкою",
+
+  "List_Name": "Назва",
+  "List_Folder": "Папка",
+  "List_Date": "Дата",
+  "List_Length": "Тривалість",
+  "List_Size": "Розмір",
+  "View_Layout": "Подання",
+  "View_Cards": "Картки",
+  "View_List": "Список"
 }

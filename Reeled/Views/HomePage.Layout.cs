@@ -1,0 +1,653 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
+using Reeled.Models;
+using Reeled.ViewModels;
+
+namespace Reeled.Views;
+
+/// <summary>
+/// Library layout: which edge the navigation sits on (left / right sidebar, or a horizontal bar at the
+/// top or bottom), which navigation sections are shown, and where the footer buttons live.
+/// </summary>
+public sealed partial class HomePage
+{
+    private SidebarPosition _sidebarPosition = SidebarPosition.Left;
+    private bool _layoutApplied;
+
+    private const double TopBarHeight = 48;
+    private const double BottomBarHeight = 52;
+
+    private bool IsHorizontalNav => _sidebarPosition is SidebarPosition.Top or SidebarPosition.Bottom;
+    private bool IsSidebarRight => _sidebarPosition == SidebarPosition.Right;
+
+    private static Services.ILocalStorageService LayoutStorage => App.GetService<Services.ILocalStorageService>();
+    private static Services.ILocalizationService LayoutLoc => App.GetService<Services.ILocalizationService>();
+
+    /// <summary>Applies the stored layout; cheap when nothing changed (the page is cached across visits).</summary>
+    private void ApplyLayoutSettings()
+    {
+        var settings = LayoutStorage.CurrentSettings;
+        if (!_layoutApplied || settings.SidebarPosition != _sidebarPosition)
+        {
+            ApplySidebarPosition(settings.SidebarPosition);
+        }
+        ApplyNavSectionVisibility();
+        if (!_layoutApplied || settings.LibraryViewMode != _libraryViewMode)
+        {
+            _libraryViewMode = settings.LibraryViewMode == LibraryViewMode.List ? LibraryViewMode.Grid : LibraryViewMode.List;
+            ApplyLibraryViewMode(settings.LibraryViewMode, animate: false);
+        }
+        _layoutApplied = true;
+    }
+
+    /// <summary>Changes the navigation edge from inside the library, with a soft crossfade.</summary>
+    private void SetSidebarPosition(SidebarPosition position)
+    {
+        var settings = LayoutStorage.CurrentSettings;
+        if (settings.SidebarPosition == position) return;
+        settings.SidebarPosition = position;
+        _ = LayoutStorage.SaveSettingsAsync(settings);
+
+        if (Helpers.Motion.IsReduced)
+        {
+            ApplySidebarPosition(position);
+            return;
+        }
+
+        var fadeOut = new Storyboard();
+        fadeOut.Children.Add(Helpers.Motion.Spline(MainRootGrid, "Opacity", 0, Helpers.Motion.Short - 60, accelerate: true));
+        fadeOut.Completed += (s, e) =>
+        {
+            ApplySidebarPosition(position);
+            var fadeIn = new Storyboard();
+            fadeIn.Children.Add(Helpers.Motion.Spline(MainRootGrid, "Opacity", 1, Helpers.Motion.Medium, from: 0));
+            Helpers.Motion.BeginExact(fadeIn);
+        };
+        Helpers.Motion.BeginExact(fadeOut);
+    }
+
+    private void ApplySidebarPosition(SidebarPosition position)
+    {
+        _sidebarPosition = position;
+        bool right = IsSidebarRight;
+        bool horizontal = IsHorizontalNav;
+        bool top = position == SidebarPosition.Top;
+
+        _sidebarStoryboard?.Stop();
+        _sidebarStoryboard = null;
+
+        // Columns: the spacer reserving the sidebar's width sits on the sidebar's side
+        MainRootGrid.ColumnDefinitions[0].Width = right ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
+        MainRootGrid.ColumnDefinitions[1].Width = right ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
+        Grid.SetColumn(SidebarSpacer, right ? 1 : 0);
+        Grid.SetColumn(MainContentRoot, right ? 0 : 1);
+
+        SidebarContainer.HorizontalAlignment = right ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+        SidebarContentBorder.HorizontalAlignment = SidebarContainer.HorizontalAlignment;
+        SidebarContentBorder.BorderThickness = right ? new Thickness(1, 0, 0, 0) : new Thickness(0, 0, 1, 0);
+        SidebarResizeHandle.HorizontalAlignment = right ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        SidebarResizeHandle.Margin = right ? new Thickness(-5, 0, 0, 0) : new Thickness(0, 0, -5, 0);
+        // On the right, the sidebar's header drops below the caption buttons
+        SidebarHeaderRow.Margin = right ? new Thickness(14, 42, 14, 10) : new Thickness(14, 10, 14, 10);
+
+        // The "show sidebar" button sits on the sidebar's side of the header
+        Grid.SetColumn(ShowSidebarContainer, right ? 3 : 0);
+        ShowSidebarContainer.Margin = right ? new Thickness(-12, 0, 0, 0) : new Thickness(0, 0, -12, 0);
+        ShowSidebarButton.HorizontalAlignment = right ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+
+        SidebarTranslate.X = 0;
+        MainContentTranslate.X = 0;
+        HeaderToolbarTranslate.X = 0;
+
+        if (horizontal)
+        {
+            SidebarContainer.Visibility = Visibility.Collapsed;
+            SidebarSpacer.Width = 0;
+            ShowSidebarContainer.Visibility = Visibility.Collapsed;
+            ShowSidebarContainer.Width = 0;
+            (App.Window as MainWindow)?.SetSidebarOpen(false);
+
+            HorizontalNavBar.Visibility = Visibility.Visible;
+            HorizontalNavBar.VerticalAlignment = top ? VerticalAlignment.Top : VerticalAlignment.Bottom;
+            HorizontalNavBar.Height = top ? TopBarHeight : BottomBarHeight;
+            HorizontalNavBar.BorderThickness = top ? new Thickness(0, 0, 0, 1) : new Thickness(0, 1, 0, 0);
+            HorizontalNavCaptionSpacer.Width = top ? 140 / Helpers.UiZoom.Current : 0;
+            MainContentRoot.Margin = top ? new Thickness(0, TopBarHeight, 0, 0) : new Thickness(0, 0, 0, BottomBarHeight);
+            LibraryHeaderBorder.Padding = top ? new Thickness(24, 20, 24, 10) : new Thickness(24, 32, 24, 10);
+            MoveFooter(toHorizontal: true);
+            BuildHorizontalNav();
+        }
+        else
+        {
+            HorizontalNavBar.Visibility = Visibility.Collapsed;
+            MainContentRoot.Margin = new Thickness(0);
+            LibraryHeaderBorder.Padding = new Thickness(24, 32, 24, 10);
+            MoveFooter(toHorizontal: false);
+            AnimateSidebar(ViewModel.IsSidebarOpen, animate: false);
+        }
+
+        _lastCalculatedWidth = -1;
+        _lastColumnCount = -1;
+        UpdateGridResponsiveLayout();
+        UpdateLibraryTitleBar();
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            UpdateActiveIndicator(animate: false);
+            UpdateHorizontalIndicator(animate: false);
+            UpdateLibraryTitleBar();
+        });
+    }
+
+    /// <summary>The settings / update / feedback / refresh row lives in the sidebar or the bar.</summary>
+    private void MoveFooter(bool toHorizontal)
+    {
+        var grid = SidebarFooterGrid;
+        if (toHorizontal && HorizontalNavFooterHost.Child == grid) return;
+        if (!toHorizontal && SidebarFooterBorder.Child == grid) return;
+
+        if (grid.Parent is Border oldHost) oldHost.Child = null;
+        if (toHorizontal)
+        {
+            HorizontalNavFooterHost.Child = grid;
+            SidebarFooterBorder.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            SidebarFooterBorder.Child = grid;
+            SidebarFooterBorder.Visibility = Visibility.Visible;
+        }
+    }
+
+    /// <summary>
+    /// Tells the window where the library's drag region is. With the bar at the top it is the title bar:
+    /// the empty parts drag the window and the items stay clickable.
+    /// </summary>
+    private void UpdateLibraryTitleBar()
+    {
+        if (App.Window is not MainWindow mw || !IsLoaded) return;
+        switch (_sidebarPosition)
+        {
+            case SidebarPosition.Top:
+                HorizontalNavCaptionSpacer.Width = 140 / Helpers.UiZoom.Current;
+                var (left, right) = TopBarDragGap(mw);
+                mw.SetLibraryTitleBar(left, right, TopBarHeight);
+                break;
+            case SidebarPosition.Right:
+                mw.SetLibraryTitleBar(0, 0, 36);
+                break;
+            default:
+                mw.SetLibraryTitleBar(48, 0, 36);
+                break;
+        }
+    }
+
+    /// <summary>The empty stretch between the bar's items and its buttons, which drags the window.</summary>
+    private (double Left, double Right) TopBarDragGap(MainWindow mw)
+    {
+        try
+        {
+            var root = mw.ContentRoot;
+            double used = Math.Min(HorizontalNavScroller.ActualWidth, HorizontalNavItems.ActualWidth);
+            double left = HorizontalNavScroller.TransformToVisual(root).TransformPoint(new Windows.Foundation.Point(used, 0)).X;
+            double footerLeft = HorizontalNavFooterHost.TransformToVisual(root).TransformPoint(new Windows.Foundation.Point(0, 0)).X;
+            double right = Math.Max(0, root.ActualWidth - footerLeft - 140 / Helpers.UiZoom.Current);
+            return (Math.Max(0, left), right);
+        }
+        catch
+        {
+            return (0, 0);
+        }
+    }
+
+    /// <summary>Items scroll before they swallow the whole bar, so there is always room to drag.</summary>
+    private void LimitHorizontalNavWidth()
+    {
+        if (!IsHorizontalNav) return;
+        double reserved = HorizontalNavLogo.ActualWidth + 32 + HorizontalNavFooterHost.ActualWidth + HorizontalNavCaptionSpacer.Width;
+        double max = HorizontalNavBar.ActualWidth - reserved - (_sidebarPosition == SidebarPosition.Top ? 72 : 0);
+        HorizontalNavScroller.MaxWidth = Math.Max(120, max);
+        HorizontalNavScroller.HorizontalAlignment = HorizontalAlignment.Left;
+    }
+
+    private void OnHorizontalNavLayoutChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (ReferenceEquals(sender, HorizontalNavBar)) LimitHorizontalNavWidth();
+        if (_sidebarPosition == SidebarPosition.Top) UpdateLibraryTitleBar();
+        UpdateHorizontalIndicator(animate: false);
+    }
+
+    private void OnHorizontalNavWheel(object sender, PointerRoutedEventArgs e)
+    {
+        // A vertical wheel scrolls the bar sideways when it overflows
+        int delta = e.GetCurrentPoint(HorizontalNavScroller).Properties.MouseWheelDelta;
+        if (HorizontalNavScroller.ScrollableWidth <= 0 || delta == 0) return;
+        HorizontalNavScroller.ChangeView(HorizontalNavScroller.HorizontalOffset - delta, null, null);
+        e.Handled = true;
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Horizontal navigation items
+    // ---------------------------------------------------------------------------------------------
+
+    private readonly List<(FrameworkElement Element, Func<bool> IsSelected, TextBlock Label, FontIcon Icon)> _hNavEntries = new();
+    private bool _hNavIndicatorShown;
+
+    private void BuildHorizontalNav(bool snapIndicator = true)
+    {
+        if (!IsHorizontalNav || HorizontalNavItems == null) return;
+        var loc = LayoutLoc;
+        HorizontalNavItems.Children.Clear();
+        _hNavEntries.Clear();
+
+        AddHorizontalTab("", loc["Nav_Home"], ViewModel.AllClipsCount, () => ViewModel.IsHomeSelected,
+            () => OnHomeTabClick(this, new RoutedEventArgs()));
+        if (IsNavSectionShown(NavigationSection.Favorites))
+        {
+            AddHorizontalTab("", loc["Nav_Favorites"], ViewModel.FavoritesCount, () => ViewModel.IsFavoritesSelected,
+                () => OnFavoritesTabClick(this, new RoutedEventArgs()), NavigationSection.Favorites);
+        }
+        if (IsNavSectionShown(NavigationSection.SavedMoments))
+        {
+            AddHorizontalTab("", loc["Nav_SavedMoments"], ViewModel.SavedMomentsCount, () => ViewModel.IsSavedMomentsSelected,
+                () => OnSavedMomentsTabClick(this, new RoutedEventArgs()), NavigationSection.SavedMoments);
+        }
+
+        if (ViewModel.Directories.Count > 0)
+        {
+            HorizontalNavItems.Children.Add(new Border
+            {
+                Width = 1,
+                Height = 20,
+                Margin = new Thickness(8, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Background = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"]
+            });
+            foreach (var root in ViewModel.Directories) AddHorizontalFolder(root);
+        }
+
+        var add = new Button
+        {
+            Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
+            Padding = new Thickness(9, 7, 9, 7),
+            Margin = new Thickness(4, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Content = new FontIcon { Glyph = "", FontSize = 12 }
+        };
+        ToolTipService.SetToolTip(add, loc["Tooltip_AddWatchFolder"]);
+        add.Click += OnAddFolderClick;
+        HorizontalNavItems.Children.Add(add);
+
+        UpdateHorizontalNavVisuals();
+        if (snapIndicator)
+        {
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => UpdateHorizontalIndicator(animate: false));
+        }
+    }
+
+    private Button CreateHorizontalItemButton(string glyph, string label, int count, out TextBlock labelText, out FontIcon icon)
+    {
+        icon = new FontIcon { Glyph = glyph, FontSize = 14, VerticalAlignment = VerticalAlignment.Center };
+        labelText = new TextBlock { Text = label, FontSize = 13, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 220, TextTrimming = TextTrimming.CharacterEllipsis };
+        var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        panel.Children.Add(icon);
+        panel.Children.Add(labelText);
+        if (count > 0)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = count.ToString(),
+                FontSize = 11.5,
+                Foreground = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"],
+                VerticalAlignment = VerticalAlignment.Center
+            });
+        }
+        return new Button
+        {
+            Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
+            Padding = new Thickness(12, 7, 12, 8),
+            VerticalAlignment = VerticalAlignment.Center,
+            Content = panel
+        };
+    }
+
+    private void AddHorizontalTab(string glyph, string label, int count, Func<bool> isSelected, Action invoke, NavigationSection? section = null)
+    {
+        var button = CreateHorizontalItemButton(glyph, label, count, out var text, out var icon);
+        button.Click += (s, e) => invoke();
+        if (section is NavigationSection sec) button.ContextFlyout = CreateSectionVisibilityMenu(sec);
+        _hNavEntries.Add((button, isSelected, text, icon));
+        HorizontalNavItems.Children.Add(button);
+    }
+
+    private void AddHorizontalFolder(DirectoryNode root)
+    {
+        bool InThisRoot() => ViewModel.CurrentSection == NavigationSection.Folder && ViewModel.SelectedDirectory != null &&
+                             (ViewModel.SelectedDirectory == root || IsDescendantPath(ViewModel.SelectedDirectory.FullPath, root.FullPath));
+
+        string label = root.DisplayName;
+        int count = root.ClipCount;
+        if (InThisRoot() && ViewModel.SelectedDirectory != root)
+        {
+            label = $"{root.DisplayName}  ›  {ViewModel.SelectedDirectory!.DisplayName}";
+            count = ViewModel.SelectedDirectory.ClipCount;
+        }
+
+        var button = CreateHorizontalItemButton("", label, count, out var text, out var icon);
+        button.Click += async (s, e) =>
+        {
+            DirectoriesTreeView.SelectedItem = null;
+            await ViewModel.SelectDirectoryAsync(root);
+            ScrollClipsToTop();
+        };
+        button.ContextFlyout = CreateHorizontalFolderMenu(root);
+
+        var group = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0, VerticalAlignment = VerticalAlignment.Center };
+        group.Children.Add(button);
+        if (root.HasSubDirectories || root.SubDirectories.Count > 0)
+        {
+            var chevron = new Button
+            {
+                Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
+                Padding = new Thickness(5, 9, 5, 9),
+                Margin = new Thickness(-4, 0, 2, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Content = new FontIcon { Glyph = "", FontSize = 9, Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] }
+            };
+            ToolTipService.SetToolTip(chevron, LayoutLoc["Nav_Subfolders"]);
+            chevron.Click += (s, e) =>
+            {
+                var menu = new MenuFlyout
+                {
+                    Placement = _sidebarPosition == SidebarPosition.Bottom ? FlyoutPlacementMode.TopEdgeAlignedLeft : FlyoutPlacementMode.BottomEdgeAlignedLeft
+                };
+                AddSubfolderItems(menu.Items, root, isRoot: true);
+                menu.ShowAt(button);
+            };
+            group.Children.Add(chevron);
+        }
+        _hNavEntries.Add((button, InThisRoot, text, icon));
+        HorizontalNavItems.Children.Add(group);
+    }
+
+    private static bool IsDescendantPath(string path, string rootPath) =>
+        path.StartsWith(rootPath.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Subfolders as a menu: folders with children become submenus that start with the folder itself.</summary>
+    private void AddSubfolderItems(IList<MenuFlyoutItemBase> items, DirectoryNode node, bool isRoot)
+    {
+        var self = new MenuFlyoutItem
+        {
+            Text = isRoot ? string.Format(LayoutLoc["Nav_AllOfFolder"], node.DisplayName) : node.DisplayName,
+            Icon = new FontIcon { Glyph = ViewModel.SelectedDirectory == node && ViewModel.CurrentSection == NavigationSection.Folder ? "" : "" }
+        };
+        self.Click += async (s, e) =>
+        {
+            await ViewModel.SelectDirectoryAsync(node);
+            ScrollClipsToTop();
+        };
+        items.Add(self);
+        if (isRoot && node.SubDirectories.Count > 0) items.Add(new MenuFlyoutSeparator());
+
+        foreach (var child in node.SubDirectories)
+        {
+            if (child.SubDirectories.Count > 0)
+            {
+                var sub = new MenuFlyoutSubItem { Text = child.DisplayName, Icon = new FontIcon { Glyph = "" } };
+                AddSubfolderItems(sub.Items, child, isRoot: false);
+                items.Add(sub);
+            }
+            else
+            {
+                var item = new MenuFlyoutItem
+                {
+                    Text = child.DisplayName,
+                    Icon = new FontIcon { Glyph = ViewModel.SelectedDirectory == child && ViewModel.CurrentSection == NavigationSection.Folder ? "" : "" }
+                };
+                item.Click += async (s, e) =>
+                {
+                    await ViewModel.SelectDirectoryAsync(child);
+                    ScrollClipsToTop();
+                };
+                items.Add(item);
+            }
+        }
+    }
+
+    private MenuFlyout CreateHorizontalFolderMenu(DirectoryNode root)
+    {
+        var loc = LayoutLoc;
+        var menu = new MenuFlyout();
+        var open = new MenuFlyoutItem { Text = loc["FolderMenu_RevealExplorer"], Icon = new FontIcon { Glyph = "" } };
+        open.Click += (s, e) => ViewModel.OpenFolderInExplorer(root);
+        var copy = new MenuFlyoutItem { Text = loc["FolderMenu_CopyPath"], Icon = new FontIcon { Glyph = "" } };
+        copy.Click += (s, e) => ViewModel.CopyFolderPath(root);
+        menu.Items.Add(open);
+        menu.Items.Add(copy);
+        return menu;
+    }
+
+    private void UpdateHorizontalNavVisuals()
+    {
+        if (!IsHorizontalNav) return;
+        var primary = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+        var secondary = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        foreach (var (_, isSelected, label, icon) in _hNavEntries)
+        {
+            bool selected = isSelected();
+            label.Foreground = selected ? primary : secondary;
+            icon.Foreground = selected ? primary : secondary;
+            label.FontWeight = selected ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
+        }
+    }
+
+    /// <summary>The accent underline slides to the selected item (Windows 11 top navigation style).</summary>
+    private void UpdateHorizontalIndicator(bool animate)
+    {
+        if (!IsHorizontalNav || HorizontalNavIndicator == null) return;
+        var entry = _hNavEntries.FirstOrDefault(e => e.IsSelected());
+        if (entry.Element == null || entry.Element.ActualWidth <= 0)
+        {
+            if (_hNavIndicatorShown)
+            {
+                _hNavIndicatorShown = false;
+                var hide = new Storyboard();
+                hide.Children.Add(Helpers.Motion.Spline(HorizontalNavIndicator, "Opacity", 0, Helpers.Motion.Short, accelerate: true));
+                Helpers.Motion.BeginExact(hide);
+            }
+            return;
+        }
+
+        var pos = entry.Element.TransformToVisual(HorizontalNavItemsHost).TransformPoint(new Windows.Foundation.Point(0, 0));
+        double x = pos.X + (entry.Element.ActualWidth - HorizontalNavIndicator.Width) / 2;
+
+        if (!animate || !_hNavIndicatorShown || Helpers.Motion.IsReduced)
+        {
+            HorizontalNavIndicatorTranslation.X = x;
+            if (!_hNavIndicatorShown)
+            {
+                _hNavIndicatorShown = true;
+                var show = new Storyboard();
+                show.Children.Add(Helpers.Motion.Spline(HorizontalNavIndicator, "Opacity", 1, Helpers.Motion.Medium));
+                Helpers.Motion.BeginExact(show);
+            }
+        }
+        else
+        {
+            var sb = new Storyboard();
+            sb.Children.Add(Helpers.Motion.Spline(HorizontalNavIndicatorTranslation, "X", x, Helpers.Motion.Medium));
+            Helpers.Motion.BeginExact(sb);
+        }
+
+        // Keep the selected item in view when the bar overflows
+        double left = pos.X, right = pos.X + entry.Element.ActualWidth;
+        if (left < HorizontalNavScroller.HorizontalOffset || right > HorizontalNavScroller.HorizontalOffset + HorizontalNavScroller.ViewportWidth)
+        {
+            HorizontalNavScroller.ChangeView(Math.Max(0, left - 24), null, null, disableAnimation: !animate);
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Section visibility (Favorites, Saved Moments)
+    // ---------------------------------------------------------------------------------------------
+
+    private bool IsNavSectionShown(NavigationSection section)
+    {
+        var settings = LayoutStorage.CurrentSettings;
+        var mode = section == NavigationSection.Favorites ? settings.FavoritesNavVisibility : settings.MomentsNavVisibility;
+        int count = section == NavigationSection.Favorites ? ViewModel.FavoritesCount : ViewModel.SavedMomentsCount;
+        return mode switch
+        {
+            NavSectionVisibility.Hidden => false,
+            // Never pull the rug while the section is open (e.g. un-favoriting the last clip)
+            NavSectionVisibility.WhenNotEmpty => count > 0 || ViewModel.CurrentSection == section,
+            _ => true
+        };
+    }
+
+    private void ApplyNavSectionVisibility()
+    {
+        bool favorites = IsNavSectionShown(NavigationSection.Favorites);
+        bool moments = IsNavSectionShown(NavigationSection.SavedMoments);
+        bool changed = (FavoritesNavButton.Visibility == Visibility.Visible) != favorites ||
+                       (SavedMomentsNavButton.Visibility == Visibility.Visible) != moments;
+
+        FavoritesNavButton.Visibility = favorites ? Visibility.Visible : Visibility.Collapsed;
+        SavedMomentsNavButton.Visibility = moments ? Visibility.Visible : Visibility.Collapsed;
+
+        if ((ViewModel.IsFavoritesSelected && !favorites) || (ViewModel.IsSavedMomentsSelected && !moments))
+        {
+            OnHomeTabClick(this, new RoutedEventArgs());
+        }
+
+        if (changed)
+        {
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => UpdateActiveIndicator(animate: false));
+            BuildHorizontalNav();
+        }
+    }
+
+    private MenuFlyout CreateSectionVisibilityMenu(NavigationSection section)
+    {
+        var loc = LayoutLoc;
+        var menu = new MenuFlyout();
+        var options = new[]
+        {
+            (NavSectionVisibility.Always, loc["Nav_ShowAlways"]),
+            (NavSectionVisibility.WhenNotEmpty, loc["Nav_ShowWhenNotEmpty"]),
+            (NavSectionVisibility.Hidden, loc["Nav_HideSection"]),
+        };
+        var radios = new List<(RadioMenuFlyoutItem, NavSectionVisibility)>();
+        foreach (var (mode, text) in options)
+        {
+            var item = new RadioMenuFlyoutItem { Text = text, GroupName = "NavVis" + section };
+            item.Click += (s, e) => SetNavSectionVisibility(section, mode);
+            radios.Add((item, mode));
+            menu.Items.Add(item);
+        }
+        menu.Opening += (s, e) =>
+        {
+            var settings = LayoutStorage.CurrentSettings;
+            var current = section == NavigationSection.Favorites ? settings.FavoritesNavVisibility : settings.MomentsNavVisibility;
+            foreach (var (item, mode) in radios) item.IsChecked = mode == current;
+        };
+        return menu;
+    }
+
+    private void SetNavSectionVisibility(NavigationSection section, NavSectionVisibility mode)
+    {
+        var settings = LayoutStorage.CurrentSettings;
+        if (section == NavigationSection.Favorites) settings.FavoritesNavVisibility = mode;
+        else settings.MomentsNavVisibility = mode;
+        _ = LayoutStorage.SaveSettingsAsync(settings);
+        ApplyNavSectionVisibility();
+    }
+
+    private void WireLayoutHandlers()
+    {
+        FavoritesNavButton.ContextFlyout = CreateSectionVisibilityMenu(NavigationSection.Favorites);
+        SavedMomentsNavButton.ContextFlyout = CreateSectionVisibilityMenu(NavigationSection.SavedMoments);
+
+        HorizontalNavItems.SizeChanged += OnHorizontalNavLayoutChanged;
+        HorizontalNavScroller.SizeChanged += OnHorizontalNavLayoutChanged;
+        HorizontalNavFooterHost.SizeChanged += OnHorizontalNavLayoutChanged;
+        HorizontalNavBar.SizeChanged += OnHorizontalNavLayoutChanged;
+
+        ViewModel.Directories.CollectionChanged += (s, e) => BuildHorizontalNav();
+        ViewModel.PropertyChanged += (s, e) =>
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(HomeViewModel.CurrentSection):
+                case nameof(HomeViewModel.SelectedDirectory):
+                    if (IsHorizontalNav)
+                    {
+                        // Folder labels show the selected subfolder, so rebuild those; tabs just restyle
+                        BuildHorizontalNav(snapIndicator: false);
+                        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => UpdateHorizontalIndicator(animate: true));
+                    }
+                    ApplyNavSectionVisibility();
+                    break;
+                case nameof(HomeViewModel.AllClipsCount):
+                case nameof(HomeViewModel.FavoritesCount):
+                case nameof(HomeViewModel.SavedMomentsCount):
+                    ApplyNavSectionVisibility();
+                    BuildHorizontalNav();
+                    break;
+            }
+        };
+
+        if (App.Window is MainWindow mw)
+        {
+            mw.ZoomLevelChanged += (s, z) => UpdateLibraryTitleBar();
+        }
+
+        AddNavigationPositionMenu();
+        AddViewModeMenu();
+    }
+
+    /// <summary>View menu: where the navigation sits, so it's discoverable without opening Settings.</summary>
+    private void AddNavigationPositionMenu()
+    {
+        var loc = LayoutLoc;
+        var sub = new MenuFlyoutSubItem { Text = loc["Nav_Position"], Icon = new FontIcon { Glyph = "" } };
+        var items = new List<(RadioMenuFlyoutItem, SidebarPosition)>();
+        foreach (var (pos, key) in new[]
+        {
+            (SidebarPosition.Left, "Nav_PositionLeft"), (SidebarPosition.Right, "Nav_PositionRight"),
+            (SidebarPosition.Top, "Nav_PositionTop"), (SidebarPosition.Bottom, "Nav_PositionBottom"),
+        })
+        {
+            var item = new RadioMenuFlyoutItem { Text = loc[key], GroupName = "NavPosition" };
+            item.Click += (s, e) => SetSidebarPosition(pos);
+            items.Add((item, pos));
+            sub.Items.Add(item);
+        }
+        ViewMenuFlyout.Items.Add(new MenuFlyoutSeparator());
+        ViewMenuFlyout.Items.Add(sub);
+        ViewMenuFlyout.Opening += (s, e) =>
+        {
+            foreach (var (item, pos) in items) item.IsChecked = pos == _sidebarPosition;
+        };
+        LayoutLoc.LanguageChanged += (s, e) => DispatcherQueue.TryEnqueue(() =>
+        {
+            sub.Text = LayoutLoc["Nav_Position"];
+            foreach (var (item, pos) in items)
+            {
+                item.Text = LayoutLoc[pos switch
+                {
+                    SidebarPosition.Right => "Nav_PositionRight",
+                    SidebarPosition.Top => "Nav_PositionTop",
+                    SidebarPosition.Bottom => "Nav_PositionBottom",
+                    _ => "Nav_PositionLeft"
+                }];
+            }
+        });
+    }
+}

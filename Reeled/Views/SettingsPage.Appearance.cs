@@ -326,6 +326,142 @@ public sealed partial class SettingsPage
     }
 
     // ---------------------------------------------------------------------------------------------
+    // Navigation position and sections
+    // ---------------------------------------------------------------------------------------------
+
+    private readonly List<(Border Frame, Border Bar, Models.SidebarPosition Position)> _navTiles = new();
+
+    private void BuildNavPositionTiles()
+    {
+        if (NavPositionTiles == null) return;
+        var loc = ViewModel.Loc;
+        NavPositionTiles.Children.Clear();
+        _navTiles.Clear();
+
+        foreach (var (pos, key) in new[]
+        {
+            (Models.SidebarPosition.Left, "Nav_PositionLeft"), (Models.SidebarPosition.Right, "Nav_PositionRight"),
+            (Models.SidebarPosition.Top, "Nav_PositionTop"), (Models.SidebarPosition.Bottom, "Nav_PositionBottom"),
+        })
+        {
+            bool vertical = pos is Models.SidebarPosition.Left or Models.SidebarPosition.Right;
+            var bar = new Border
+            {
+                CornerRadius = new CornerRadius(2),
+                Width = vertical ? 11 : double.NaN,
+                Height = vertical ? double.NaN : 6,
+                HorizontalAlignment = pos switch
+                {
+                    Models.SidebarPosition.Left => HorizontalAlignment.Left,
+                    Models.SidebarPosition.Right => HorizontalAlignment.Right,
+                    _ => HorizontalAlignment.Stretch
+                },
+                VerticalAlignment = pos switch
+                {
+                    Models.SidebarPosition.Top => VerticalAlignment.Top,
+                    Models.SidebarPosition.Bottom => VerticalAlignment.Bottom,
+                    _ => VerticalAlignment.Stretch
+                }
+            };
+
+            // A few "cards" so the preview reads as the library
+            var cards = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 3,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = pos switch
+                {
+                    Models.SidebarPosition.Left => new Thickness(12, 0, 0, 0),
+                    Models.SidebarPosition.Right => new Thickness(0, 0, 12, 0),
+                    Models.SidebarPosition.Top => new Thickness(0, 7, 0, 0),
+                    _ => new Thickness(0, 0, 0, 7)
+                }
+            };
+            for (int i = 0; i < 3; i++)
+            {
+                cards.Children.Add(new Border
+                {
+                    Width = vertical ? 7 : 9,
+                    Height = 7,
+                    CornerRadius = new CornerRadius(1.5),
+                    Background = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"],
+                    Opacity = 0.55
+                });
+            }
+
+            var inner = new Grid { Margin = new Thickness(3) };
+            inner.Children.Add(cards);
+            inner.Children.Add(bar);
+
+            var frame = new Border
+            {
+                Width = 56,
+                Height = 40,
+                CornerRadius = new CornerRadius(6),
+                BorderThickness = new Thickness(1.5),
+                Background = (Brush)Application.Current.Resources["ControlFillColorSecondaryBrush"],
+                Child = inner
+            };
+
+            var button = CreateSwatchButton(frame, loc[key]);
+            button.Click += (s, e) => SelectNavPosition(pos);
+            _navTiles.Add((frame, bar, pos));
+            NavPositionTiles.Children.Add(button);
+        }
+        UpdateNavPositionTiles();
+    }
+
+    private void SelectNavPosition(Models.SidebarPosition position)
+    {
+        var settings = Storage.CurrentSettings;
+        if (settings.SidebarPosition == position) return;
+        settings.SidebarPosition = position;
+        _ = Storage.SaveSettingsAsync(settings);
+        UpdateNavPositionTiles();
+    }
+
+    private void UpdateNavPositionTiles()
+    {
+        var current = Storage.CurrentSettings.SidebarPosition;
+        var accent = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+        var idleStroke = (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"];
+        var idleBar = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        foreach (var (frame, bar, pos) in _navTiles)
+        {
+            bool selected = pos == current;
+            frame.BorderBrush = selected ? accent : idleStroke;
+            bar.Background = selected ? accent : idleBar;
+            bar.Opacity = selected ? 1 : 0.6;
+        }
+    }
+
+    private void FillNavSectionCombos()
+    {
+        if (NavFavoritesComboBox == null) return;
+        var loc = ViewModel.Loc;
+        bool prev = _isInitializing;
+        _isInitializing = true;
+        var options = new[] { loc["Nav_ShowAlways"], loc["Nav_ShowWhenNotEmpty"], loc["Nav_HideSection"] };
+        NavFavoritesComboBox.ItemsSource = options;
+        NavMomentsComboBox.ItemsSource = options.ToArray();
+        NavFavoritesComboBox.SelectedIndex = (int)Storage.CurrentSettings.FavoritesNavVisibility;
+        NavMomentsComboBox.SelectedIndex = (int)Storage.CurrentSettings.MomentsNavVisibility;
+        _isInitializing = prev;
+    }
+
+    private void OnNavSectionVisibilityChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isInitializing || sender is not ComboBox combo || combo.SelectedIndex < 0) return;
+        var settings = Storage.CurrentSettings;
+        var value = (Models.NavSectionVisibility)combo.SelectedIndex;
+        if (combo == NavFavoritesComboBox) settings.FavoritesNavVisibility = value;
+        else settings.MomentsNavVisibility = value;
+        _ = Storage.SaveSettingsAsync(settings);
+    }
+
+    // ---------------------------------------------------------------------------------------------
     // Interface size
     // ---------------------------------------------------------------------------------------------
 

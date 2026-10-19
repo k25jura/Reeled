@@ -40,8 +40,10 @@ public sealed partial class HomePage : Page
             {
                 _sidebarWidth = ViewModel.SidebarWidth;
             }
+            ApplyLayoutSettings();
             UpdateActiveIndicator(animate: false);
-            AnimateSidebar(ViewModel.IsSidebarOpen, animate: false);
+            if (!IsHorizontalNav) AnimateSidebar(ViewModel.IsSidebarOpen, animate: false);
+            UpdateLibraryTitleBar();
             UpdateLogo(ActualTheme);
             UpdateNavTabVisuals();
             ApplyLocalization();
@@ -64,6 +66,7 @@ public sealed partial class HomePage : Page
 
             RegisterLibraryShortcuts();
             WireUpdateNotifications();
+            WireLayoutHandlers();
 
             if (ClipsGridView != null)
             {
@@ -137,6 +140,7 @@ public sealed partial class HomePage : Page
             else if (e.PropertyName == nameof(HomeViewModel.SortIndex))
             {
                 UpdateSortButtonUI();
+                UpdateListSortIndicators();
                 ScrollClipsToTop();
             }
             else if (e.PropertyName == nameof(HomeViewModel.ViewDensity))
@@ -327,7 +331,7 @@ public sealed partial class HomePage : Page
 
         ClipsGroupedSource.Source = null;
         ClipsGroupedSource.Source = ViewModel.GroupedClips;
-        ClipsGridView.ItemsSource = ClipsGroupedSource.View;
+        SetClipsItemsSource(ClipsGroupedSource.View);
 
         _activeGroupWrapGrids.Clear();
         _lastCalculatedWidth = -1;
@@ -408,7 +412,6 @@ public sealed partial class HomePage : Page
             if (HomeNavText != null) HomeNavText.Text = loc["Nav_Home"];
             if (FavoritesNavText != null) FavoritesNavText.Text = loc["Nav_Favorites"];
             if (SavedMomentsNavText != null) SavedMomentsNavText.Text = loc["Nav_SavedMoments"];
-            if (OpenFileNavText != null) OpenFileNavText.Text = loc["Nav_OpenFile"];
             if (FoldersHeaderNavText != null) FoldersHeaderNavText.Text = loc["Nav_Folders"];
             if (FoldersAddNavText != null) FoldersAddNavText.Text = loc["Nav_AddFolder"];
             if (SettingsNavText != null) SettingsNavText.Text = loc["Nav_Settings"];
@@ -417,7 +420,8 @@ public sealed partial class HomePage : Page
             if (CollapseSidebarButton != null) ToolTipService.SetToolTip(CollapseSidebarButton, loc["Tooltip_CollapseSidebar"]);
             if (ShowSidebarButton != null) ToolTipService.SetToolTip(ShowSidebarButton, loc["Tooltip_ShowSidebar"]);
             if (AddWatchFolderButton != null) ToolTipService.SetToolTip(AddWatchFolderButton, loc["Tooltip_AddWatchFolder"]);
-            if (OpenFileNavButton != null) ToolTipService.SetToolTip(OpenFileNavButton, loc["Tooltip_OpenFile"]);
+            if (OpenFileHeaderButton != null) ToolTipService.SetToolTip(OpenFileHeaderButton, loc["Tooltip_OpenFile"] + " (Ctrl+O)");
+            BuildHorizontalNav();
             if (RefreshClipsButton != null) ToolTipService.SetToolTip(RefreshClipsButton, loc["Tooltip_RefreshClips"]);
             if (FeedbackButton != null) ToolTipService.SetToolTip(FeedbackButton, loc["Feedback_Tooltip"]);
             if (ExplorerHyperlinkButton != null) ToolTipService.SetToolTip(ExplorerHyperlinkButton, loc["Tooltip_OpenInExplorer"]);
@@ -517,6 +521,10 @@ public sealed partial class HomePage : Page
         if (SidebarLogoSvg.UriSource != uri)
         {
             SidebarLogoSvg.UriSource = uri;
+        }
+        if (HorizontalNavLogoSvg != null && HorizontalNavLogoSvg.UriSource != uri)
+        {
+            HorizontalNavLogoSvg.UriSource = uri;
         }
     }
 
@@ -1213,6 +1221,7 @@ public sealed partial class HomePage : Page
 
     private void OnPageSizeChanged(object sender, SizeChangedEventArgs e)
     {
+        if (IsHorizontalNav) return;
         double scale = XamlRoot?.RasterizationScale ?? 1.0;
         if (scale <= 0) scale = 1.0;
 
@@ -1246,6 +1255,7 @@ public sealed partial class HomePage : Page
 
     private void AnimateSidebar(bool isOpen, bool animate = true)
     {
+        if (IsHorizontalNav) return;
         if (IsReduceMotionEnabled()) animate = false;
         _sidebarStoryboard?.Stop();
         _sidebarStoryboard = null;
@@ -1261,8 +1271,11 @@ public sealed partial class HomePage : Page
         }
 
         // Where things are on screen right now, so an interrupted toggle continues from there
-        double fromSidebarX = SidebarContainer.Visibility == Visibility.Visible ? SidebarTranslate.X : -width;
-        double contentVisualX = SidebarSpacer.Width + MainContentTranslate.X;
+        bool right = IsSidebarRight;
+        double closedX = right ? width : -width;
+        double fromSidebarX = SidebarContainer.Visibility == Visibility.Visible ? SidebarTranslate.X : closedX;
+        double oldSpacer = SidebarSpacer.Width;
+        double contentVisualX = oldSpacer + MainContentTranslate.X;
 
         // Layout changes exactly once, up front: the spacer snaps to its final width and the clip grid
         // reflows to its final column count immediately. Everything that moves afterwards is a
@@ -1273,7 +1286,7 @@ public sealed partial class HomePage : Page
         _lastColumnCount = -1;
         UpdateGridResponsiveLayout(forcedGridWidth: Math.Max(0, ActualWidth - targetSpacer));
 
-        double targetSidebarX = isOpen ? 0.0 : -width;
+        double targetSidebarX = isOpen ? 0.0 : closedX;
         SidebarContainer.Visibility = Visibility.Visible;
 
         if (!animate)
@@ -1295,9 +1308,11 @@ public sealed partial class HomePage : Page
         // Keep the content visually where it was, then let it glide into its new slot with the sidebar.
         // The toolbar is counter-translated by the same amount, so it stays pinned to the window's right edge
         // instead of riding along with the content.
-        double contentFrom = contentVisualX - targetSpacer;
+        // On the right the content's left edge never moves; only the toolbar rides with the sidebar
+        double contentFrom = right ? 0.0 : contentVisualX - targetSpacer;
+        double toolbarFrom = right ? HeaderToolbarTranslate.X + (targetSpacer - oldSpacer) : -contentFrom;
         MainContentTranslate.X = contentFrom;
-        HeaderToolbarTranslate.X = -contentFrom;
+        HeaderToolbarTranslate.X = toolbarFrom;
         SidebarTranslate.X = fromSidebarX;
 
         double duration = isOpen ? Helpers.Motion.Long + 60 : Helpers.Motion.Long;
@@ -1401,6 +1416,11 @@ public sealed partial class HomePage : Page
         SearchToggleButton.Width = h - 2;
         SearchClosedWidth = h;
         if (!_isSearchOpen) SearchHost.Width = h;
+        if (OpenFileHeaderButton != null)
+        {
+            OpenFileHeaderButton.Height = h;
+            OpenFileHeaderButton.Width = h;
+        }
     }
 
     private void OnSearchToggleClick(object sender, RoutedEventArgs e)
@@ -1481,7 +1501,7 @@ public sealed partial class HomePage : Page
         if (_isResizingSidebar)
         {
             double currentX = e.GetCurrentPoint(this).Position.X;
-            double delta = currentX - _resizeStartPointerX;
+            double delta = (currentX - _resizeStartPointerX) * (IsSidebarRight ? -1 : 1);
             double newWidth = Math.Clamp(_resizeStartWidth + delta, 220.0, 500.0);
 
             _sidebarWidth = newWidth;
@@ -1828,14 +1848,14 @@ public sealed partial class HomePage : Page
         if (ClipsGridView == null) return;
         if (ViewModel.DateGrouping == DateGroupingMode.None)
         {
-            ClipsGridView.ItemsSource = ViewModel.FilteredClips;
+            SetClipsItemsSource(ViewModel.FilteredClips);
         }
         else
         {
             if (ClipsGroupedSource != null)
             {
                 ClipsGroupedSource.Source = ViewModel.GroupedClips;
-                ClipsGridView.ItemsSource = ClipsGroupedSource.View;
+                SetClipsItemsSource(ClipsGroupedSource.View);
             }
         }
         _lastCalculatedWidth = -1;
@@ -2085,7 +2105,7 @@ public sealed partial class HomePage : Page
                 // visible card, so release only once no container shows the clip anymore.
                 DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
                 {
-                    if (ClipsGridView?.ContainerFromItem(recycledClip) == null)
+                    if (ActiveClipsView?.ContainerFromItem(recycledClip) == null)
                     {
                         recycledClip.Thumbnail = null;
                     }
@@ -2391,8 +2411,8 @@ public sealed partial class HomePage : Page
 
     private void StartAutoscroll(Windows.Foundation.Point origin)
     {
-        _clipsScrollViewer ??= FindVisualChild<ScrollViewer>(ClipsGridView);
-        if (_clipsScrollViewer == null) return;
+        _autoscrollViewer = ActiveScrollViewer();
+        if (_autoscrollViewer == null) return;
 
         _isAutoscrolling = true;
         _autoscrollOrigin = origin;
@@ -2486,6 +2506,12 @@ public sealed partial class HomePage : Page
             return true;
         });
 
+        Add(Windows.System.VirtualKey.O, Windows.System.VirtualKeyModifiers.Control, () =>
+        {
+            OnOpenVideoFileClick(this, new RoutedEventArgs());
+            return true;
+        });
+
         Add(Windows.System.VirtualKey.F5, Windows.System.VirtualKeyModifiers.None, () =>
         {
             _ = ViewModel.RefreshClipsAsync();
@@ -2538,28 +2564,26 @@ public sealed partial class HomePage : Page
 
     private void OnAutoscrollRendering(object? sender, object e)
     {
-        if (!_isAutoscrolling || _clipsScrollViewer == null) return;
+        if (!_isAutoscrolling || _autoscrollViewer == null) return;
 
         const double DeadZone = 12.0;
         if (Math.Abs(_autoscrollDeltaY) <= DeadZone) return;
 
         double effectiveDelta = _autoscrollDeltaY > 0 ? _autoscrollDeltaY - DeadZone : _autoscrollDeltaY + DeadZone;
         double speed = Math.Sign(effectiveDelta) * Math.Min(50.0, Math.Pow(Math.Abs(effectiveDelta) / 8.0, 1.35));
-        double targetOffset = _clipsScrollViewer.VerticalOffset + speed;
-        _clipsScrollViewer.ChangeView(null, targetOffset, null, disableAnimation: true);
+        double targetOffset = _autoscrollViewer.VerticalOffset + speed;
+        _autoscrollViewer.ChangeView(null, targetOffset, null, disableAnimation: true);
     }
 
     private void ScrollClipsToTop()
     {
         if (ClipsGridView == null) return;
-        EnsureScrollViewerHooked();
-        _clipsScrollViewer?.ChangeView(null, 0.0, null, disableAnimation: true);
+        ActiveScrollViewer()?.ChangeView(null, 0.0, null, disableAnimation: true);
 
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             if (ClipsGridView == null) return;
-            EnsureScrollViewerHooked();
-            _clipsScrollViewer?.ChangeView(null, 0.0, null, disableAnimation: true);
+            ActiveScrollViewer()?.ChangeView(null, 0.0, null, disableAnimation: true);
         });
     }
 

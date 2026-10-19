@@ -22,7 +22,11 @@ public partial class GameClip : ObservableObject
     public string DisplayName => !string.IsNullOrWhiteSpace(CustomTitle) ? CustomTitle : FileName;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FolderName))]
     private string _directoryPath = string.Empty;
+
+    /// <summary>The containing folder (usually the game, for Shadowplay / OBS style libraries).</summary>
+    public string FolderName => Path.GetFileName(DirectoryPath.TrimEnd('\\', '/'));
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FormattedDuration))]

@@ -353,6 +353,52 @@
 
         <!-- CollectionViewSource for fluid Google Photos-style Date Grouping -->
         <CollectionViewSource x:Name="ClipsGroupedSource" IsSourceGrouped="True" />
+
+        <!-- Library list row (Explorer "Details" style). Folder and date columns fold into a subtitle when narrow. -->
+        <DataTemplate x:Key="ClipListRowTemplate" x:DataType="models:GameClip">
+            <Grid Height="52" ColumnSpacing="14" Background="Transparent" RightTapped="OnClipCardRightTapped"
+                  PointerEntered="OnClipRowPointerEntered" PointerExited="OnClipRowPointerExited"
+                  Loaded="OnClipRowLoaded" Unloaded="OnClipRowUnloaded">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="64" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="180" />
+                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="88" />
+                    <ColumnDefinition Width="84" />
+                </Grid.ColumnDefinitions>
+
+                <Grid Width="64" Height="36" CornerRadius="4" Background="{ThemeResource LayerFillColorAltBrush}" VerticalAlignment="Center">
+                    <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="UniformToFill" />
+                </Grid>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="560"
+                                   ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}" />
+                        <FontIcon Glyph="&#xEB52;" FontSize="11" Foreground="#FF6B81" VerticalAlignment="Center"
+                                  Visibility="{x:Bind IsFavorite, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"
+                                    Visibility="{x:Bind ShowBookmarkBadge, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <FontIcon Glyph="&#xE8A4;" FontSize="10" Foreground="#FFD700" />
+                            <TextBlock Text="{x:Bind BookmarkCount, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock x:Name="RowSubtitle" Text="{x:Bind FolderName, Mode=OneWay}" FontSize="11.5" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                               TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
+                </StackPanel>
+
+                <TextBlock x:Name="RowFolder" Grid.Column="2" Text="{x:Bind FolderName, Mode=OneWay}" FontSize="12.5" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="RowDate" Grid.Column="3" Text="{x:Bind FormattedDate, Mode=OneWay}" FontSize="12.5" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <TextBlock Grid.Column="4" Text="{x:Bind FormattedDuration, Mode=OneWay}" FontSize="12.5" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           VerticalAlignment="Center" HorizontalAlignment="Right" />
+                <TextBlock Grid.Column="5" Text="{x:Bind FormattedFileSize, Mode=OneWay}" FontSize="12.5" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0" />
+            </Grid>
+        </DataTemplate>
+
     </Page.Resources>
 
     <Grid x:Name="MainRootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" SizeChanged="OnPageSizeChanged">
@@ -365,6 +411,59 @@
              the visible sidebar below slides over it on the compositor, so the clip grid relayouts once
              per open/close instead of on every animation frame. -->
         <Border x:Name="SidebarSpacer" Grid.Column="0" Width="316" />
+
+
+        <!-- Horizontal navigation: the sidebar docked to the top (as the title bar) or the bottom edge.
+             Items are built in code (HomePage.Layout.cs); the footer buttons are moved in here. -->
+        <Grid x:Name="HorizontalNavBar"
+              Grid.ColumnSpan="2"
+              VerticalAlignment="Top"
+              Height="48"
+              Visibility="Collapsed"
+              Canvas.ZIndex="2"
+              Background="{ThemeResource LayerFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+              BorderThickness="0,0,0,1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Image x:Name="HorizontalNavLogo" Grid.Column="0" Height="20" Margin="18,0,14,0" VerticalAlignment="Center" Stretch="Uniform">
+                <Image.Source>
+                    <SvgImageSource x:Name="HorizontalNavLogoSvg" UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="60" />
+                </Image.Source>
+            </Image>
+
+            <ScrollViewer x:Name="HorizontalNavScroller"
+                          Grid.Column="1"
+                          HorizontalScrollMode="Enabled"
+                          HorizontalScrollBarVisibility="Hidden"
+                          VerticalScrollMode="Disabled"
+                          VerticalScrollBarVisibility="Disabled"
+                          PointerWheelChanged="OnHorizontalNavWheel">
+                <Grid x:Name="HorizontalNavItemsHost" HorizontalAlignment="Left">
+                    <StackPanel x:Name="HorizontalNavItems" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center" Padding="0,0,8,0" />
+                    <Border x:Name="HorizontalNavIndicator"
+                            Width="16" Height="3" CornerRadius="1.5"
+                            HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                            Margin="0,0,0,5"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                            IsHitTestVisible="False"
+                            Opacity="0">
+                        <Border.RenderTransform>
+                            <TranslateTransform x:Name="HorizontalNavIndicatorTranslation" X="0" />
+                        </Border.RenderTransform>
+                    </Border>
+                </Grid>
+            </ScrollViewer>
+
+            <Border x:Name="HorizontalNavFooterHost" Grid.Column="2" Padding="8,0,10,0" VerticalAlignment="Center" />
+            <!-- Room for the window's caption buttons when the bar is the title bar -->
+            <Border x:Name="HorizontalNavCaptionSpacer" Grid.Column="3" Width="0" />
+        </Grid>
 
         <!-- Left Navigation Sidebar (overlay spanning both columns, drawn above the main content) -->
         <Grid Grid.ColumnSpan="2"
@@ -393,7 +492,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- Row 0: App Header & Collapse Button -->
-                <Grid Grid.Row="0" Margin="14,10,14,10">
+                <Grid Grid.Row="0" x:Name="SidebarHeaderRow" Margin="14,10,14,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
@@ -531,44 +630,6 @@
                                 </Grid>
                             </Grid>
                         </Button>
-
-                        <!-- Subtle Divider between Navigation Tabs and Utility Actions -->
-                        <MenuFlyoutSeparator Margin="14,3,14,3" />
-
-                        <!-- Open File Button (Secondary Utility Action) -->
-                        <Button x:Name="OpenFileNavButton"
-                                Click="OnOpenVideoFileClick"
-                                Style="{StaticResource NavTabButtonStyle}"
-                                ToolTipService.ToolTip="Open video file"
-                                Opacity="0.85"
-                                PointerPressed="OnItemPointerPressed"
-                                PointerReleased="OnItemPointerReleased"
-                                PointerCanceled="OnItemPointerCanceled">
-                            <Grid Height="34">
-                                <Grid Padding="14,0,12,0" VerticalAlignment="Center">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Icon (Toned-down Secondary Foreground) -->
-                                    <FontIcon x:Name="OpenFileNavIcon" 
-                                              Grid.Column="0" 
-                                              Glyph="&#xE8E5;" 
-                                              FontSize="15" 
-                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                              Margin="0,0,12,0" />
-
-                                    <!-- Label (Toned-down Secondary Foreground) -->
-                                    <TextBlock x:Name="OpenFileNavText" 
-                                               Grid.Column="1" 
-                                               Text="Open File" 
-                                               FontSize="12.5" 
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                               VerticalAlignment="Center" />
-                                </Grid>
-                            </Grid>
-                        </Button>
                     </StackPanel>
                 </Grid>
 
@@ -681,12 +742,13 @@
                 </Grid>
 
                 <!-- Row 5: Bottom Settings & Refresh (Integrated with Sidebar Background) -->
-                <Border Grid.Row="5" 
+                <Border Grid.Row="5"
+                        x:Name="SidebarFooterBorder"
                         BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
                         BorderThickness="0,1,0,0" 
                         Background="{ThemeResource LayerFillColorDefaultBrush}"
                         Padding="14,10">
-                    <Grid ColumnSpacing="4">
+                    <Grid x:Name="SidebarFooterGrid" ColumnSpacing="4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -813,11 +875,12 @@
             </Grid.RowDefinitions>
 
             <!-- Header: title with live library stats on the left, search / sort / view on the right -->
-            <Border Grid.Row="0" Padding="24,32,24,10" BorderThickness="0">
-                <Grid ColumnSpacing="12">
+            <Border Grid.Row="0" x:Name="LibraryHeaderBorder" Padding="24,32,24,10" BorderThickness="0">
+                <Grid x:Name="LibraryHeaderGrid" ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" MinWidth="160" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
@@ -910,6 +973,16 @@
                         <StackPanel.RenderTransform>
                             <TranslateTransform x:Name="HeaderToolbarTranslate" X="0" />
                         </StackPanel.RenderTransform>
+
+                        <!-- Open a video file that isn't in the library (Ctrl+O) -->
+                        <Button x:Name="OpenFileHeaderButton"
+                                Click="OnOpenVideoFileClick"
+                                Width="34" Height="32"
+                                Padding="0"
+                                VerticalAlignment="Center"
+                                ToolTipService.ToolTip="Open video file">
+                            <FontIcon Glyph="&#xE8E5;" FontSize="13" />
+                        </Button>
 
                         <!-- Search: a button that morphs into a field (width opens, then the text fades in) -->
                         <Grid x:Name="SearchHost" Width="34" Height="32" VerticalAlignment="Center">
@@ -1007,7 +1080,7 @@
                                     <ToggleMenuFlyoutItem x:Name="ViewDensityLargeItem" Click="OnViewDensityItemClick" Tag="2">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE8B9;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>
-                                    <MenuFlyoutSeparator />
+                                    <MenuFlyoutSeparator x:Name="ViewDensitySeparator" />
                                     <MenuFlyoutItem x:Name="ViewGroupingHeader" Text="Group by Date" IsEnabled="False" />
                                     <ToggleMenuFlyoutItem x:Name="ViewGroupingNoneItem" Click="OnViewGroupingItemClick" Tag="0">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE711;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
@@ -1021,7 +1094,7 @@
                                     <ToggleMenuFlyoutItem x:Name="ViewGroupingYearItem" Click="OnViewGroupingItemClick" Tag="3">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xEC92;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>
-                                    <MenuFlyoutSeparator />
+                                    <MenuFlyoutSeparator x:Name="ViewMetadataSeparator" />
                                     <ToggleMenuFlyoutItem x:Name="ViewMetadataHoverItem" Click="OnViewMetadataHoverToggleClick">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE890;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>
@@ -1340,6 +1413,96 @@
                         </DataTemplate>
                     </GridView.ItemTemplate>
                 </GridView>
+
+                <!-- List view: column headers (click to sort) over a details list -->
+                <Grid x:Name="ClipsListHost" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid x:Name="ListHeaderRow" Margin="32,8,40,4" ColumnSpacing="14" Height="30">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="64" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="180" />
+                            <ColumnDefinition Width="150" />
+                            <ColumnDefinition Width="88" />
+                            <ColumnDefinition Width="84" />
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="ListSortName" Grid.Column="1" Tag="name" Click="OnListHeaderClick" Style="{ThemeResource SubtleButtonStyle}" Padding="6,3" Margin="-6,0,0,0" HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock x:Name="ListHeaderNameText" Text="Name" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <FontIcon x:Name="ListSortNameGlyph" Glyph="&#xE70D;" FontSize="9" Opacity="0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Button>
+                        <TextBlock x:Name="ListHeaderFolderText" Grid.Column="2" Text="Folder" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                        <Button x:Name="ListSortDate" Grid.Column="3" Tag="date" Click="OnListHeaderClick" Style="{ThemeResource SubtleButtonStyle}" Padding="6,3" Margin="-6,0,0,0" HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock x:Name="ListHeaderDateText" Text="Date" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <FontIcon x:Name="ListSortDateGlyph" Glyph="&#xE70D;" FontSize="9" Opacity="0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="ListSortDuration" Grid.Column="4" Tag="duration" Click="OnListHeaderClick" Style="{ThemeResource SubtleButtonStyle}" Padding="6,3" Margin="0,0,-6,0" HorizontalAlignment="Right">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon x:Name="ListSortDurationGlyph" Glyph="&#xE70D;" FontSize="9" Opacity="0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock x:Name="ListHeaderDurationText" Text="Length" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="ListSortSize" Grid.Column="5" Tag="size" Click="OnListHeaderClick" Style="{ThemeResource SubtleButtonStyle}" Padding="6,3" Margin="0,0,2,0" HorizontalAlignment="Right">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon x:Name="ListSortSizeGlyph" Glyph="&#xE70D;" FontSize="9" Opacity="0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock x:Name="ListHeaderSizeText" Text="Size" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <Border Grid.Row="0" VerticalAlignment="Bottom" Height="1" Margin="30,0,34,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                    <ListView x:Name="ClipsListView"
+                              Grid.Row="1"
+                              Visibility="{x:Bind ViewModel.ShowSkeletonLoading, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                              ItemTemplate="{StaticResource ClipListRowTemplate}"
+                              ItemClick="OnClipItemClick"
+                              IsItemClickEnabled="True"
+                              SelectionMode="None"
+                              ContainerContentChanging="OnClipContainerContentChanging"
+                              Padding="24,4,24,24"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              IsTabStop="False">
+                        <ListView.ItemContainerTransitions>
+                            <TransitionCollection />
+                        </ListView.ItemContainerTransitions>
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                                <Setter Property="Padding" Value="8,0,8,0" />
+                                <Setter Property="Margin" Value="0,1" />
+                                <Setter Property="MinHeight" Value="0" />
+                                <Setter Property="CornerRadius" Value="6" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderContainerStyle>
+                                    <Style TargetType="ListViewHeaderItem">
+                                        <Setter Property="MinHeight" Value="0" />
+                                        <Setter Property="Padding" Value="8,0,0,0" />
+                                        <Setter Property="Margin" Value="0,0,0,4" />
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    </Style>
+                                </GroupStyle.HeaderContainerStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate x:DataType="models:ClipGroup">
+                                        <StackPanel Margin="2,18,0,2" Orientation="Horizontal" Spacing="12">
+                                            <TextBlock Text="{x:Bind Title}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Bottom" />
+                                            <TextBlock Text="{x:Bind Subtitle}" FontSize="12.5" Margin="0,0,0,1.5" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Bottom" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </ListView.GroupStyle>
+                    </ListView>
+                </Grid>
 
                 <!-- Skeleton Loading Grid View (Shown when loading and skeleton loading enabled) -->
                 <ScrollViewer x:Name="SkeletonScrollViewer"

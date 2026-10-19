@@ -1162,6 +1162,77 @@
                             </Grid>
                         </Border>
 
+
+                        <!-- Card: Navigation position (sidebar left / right, bar top / bottom) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16" RowSpacing="14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE8A0;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="NavPositionTitleText" Text="Navigation position" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="NavPositionSubtitleText" Text="Sidebar on the left or right, or a bar along the top or bottom"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+
+                                <!-- Mini window previews, built in code -->
+                                <StackPanel x:Name="NavPositionTiles" Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card: Navigation sections -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE71D;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="NavSectionsTitleText" Text="Navigation sections" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="NavSectionsSubtitleText" Text="Choose which sections appear. You can also right-click a section"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                </Grid>
+                                <Grid Margin="40,0,0,0" ColumnSpacing="12" RowSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                        <FontIcon Glyph="&#xEB52;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock x:Name="NavFavoritesLabel" Text="Favorites" FontSize="13" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <ComboBox x:Name="NavFavoritesComboBox" Grid.Column="1" MinWidth="200" SelectionChanged="OnNavSectionVisibilityChanged" />
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                        <FontIcon Glyph="&#xE8A4;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock x:Name="NavMomentsLabel" Text="Saved Moments" FontSize="13" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <ComboBox x:Name="NavMomentsComboBox" Grid.Row="1" Grid.Column="1" MinWidth="200" SelectionChanged="OnNavSectionVisibilityChanged" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock x:Name="SubAppearanceLibrary" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Library" />
 
                         <!-- Card 2: Saved Moments Badges -->

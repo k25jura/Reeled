@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
@@ -371,14 +372,7 @@ public sealed partial class MainWindow : Window
                 }
             }
 
-            if (RootFrame.Content is Views.SettingsPage)
-            {
-                AppTitleBar.Margin = new Thickness(540, 0, CaptionInset, 0);
-            }
-            else
-            {
-                AppTitleBar.Margin = new Thickness(48, 0, CaptionInset, 0);
-            }
+            RefreshTitleBarRegions();
         };
 
         RootWindowGrid.ActualThemeChanged += (s, e) =>
@@ -532,6 +526,7 @@ public sealed partial class MainWindow : Window
         // Ensure caption buttons are white while media player is active
         SetCaptionControlsVisible(true, force: true);
         UpdateTitleBarTheme(ElementTheme.Dark);
+        RefreshTitleBarRegions();
 
         var sb = new Storyboard();
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
@@ -694,6 +689,7 @@ public sealed partial class MainWindow : Window
             {
                 homePage.OnReturnedFromViewer();
             }
+            RefreshTitleBarRegions();
         };
 
         _transitionStoryboard = sb;
@@ -1032,8 +1028,7 @@ public sealed partial class MainWindow : Window
         }
 
         // Title bar drag region and caption-button clearance are in window units
-        var m = AppTitleBar.Margin;
-        AppTitleBar.Margin = new Thickness(m.Left, 0, CaptionInset, 0);
+        RefreshTitleBarRegions();
         ZoomLevelChanged?.Invoke(this, zoom);
         if (IsPlayerVisible) PlayerViewControl?.RefreshVideoLayout();
     }
@@ -1181,6 +1176,48 @@ public sealed partial class MainWindow : Window
     private void OnZoomOutIndicatorClick(object sender, RoutedEventArgs e) => Helpers.UiZoom.Step(-1, fromShortcut: true);
     private void OnZoomResetIndicatorClick(object sender, RoutedEventArgs e) => Helpers.UiZoom.Set(1.0, fromShortcut: true);
 
+
+    // ---------------------------------------------------------------------------------------------
+    // Title bar regions
+    // ---------------------------------------------------------------------------------------------
+
+    private double _libraryTitleBarLeft = 48;
+    private double _libraryTitleBarRight;
+    private double _libraryTitleBarHeight = 36;
+
+    /// <summary>
+    /// The library decides its own drag region (in content units): where it starts, how much room it
+    /// leaves before the caption buttons, and how tall it is (a top navigation bar doubles as the title
+    /// bar, dragging from the gap between its items and its buttons).
+    /// </summary>
+    public void SetLibraryTitleBar(double left, double right, double height)
+    {
+        _libraryTitleBarLeft = left;
+        _libraryTitleBarRight = right;
+        _libraryTitleBarHeight = height;
+        RefreshTitleBarRegions();
+    }
+
+    /// <summary>Applies the drag region for whatever is on screen: player, settings or library.</summary>
+    private void RefreshTitleBarRegions()
+    {
+        if (AppTitleBar == null) return;
+        if (IsPlayerVisible)
+        {
+            AppTitleBar.Margin = new Thickness(48, 0, CaptionInset, 0);
+            AppTitleBar.Height = 36;
+        }
+        else if (RootFrame.Content is Views.SettingsPage)
+        {
+            AppTitleBar.Margin = new Thickness(Math.Max(AppTitleBar.Margin.Left, 540), 0, CaptionInset, 0);
+            AppTitleBar.Height = 36;
+        }
+        else
+        {
+            AppTitleBar.Margin = new Thickness(_libraryTitleBarLeft, 0, CaptionInset + _libraryTitleBarRight, 0);
+            AppTitleBar.Height = _libraryTitleBarHeight;
+        }
+    }
 
     public void UpdateSettingsTitleBarMargin(double leftOffset)
     {

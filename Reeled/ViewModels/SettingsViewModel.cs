@@ -197,6 +197,9 @@ public partial class SettingsViewModel : ObservableObject
     private bool _resumePlayback = true;
 
     [ObservableProperty]
+    private bool _closeButtonReturnsToLibrary;
+
+    [ObservableProperty]
     private int _backdropBlurLevel = 1;
 
     partial void OnBackdropBlurLevelChanged(int value)
@@ -307,6 +310,7 @@ public partial class SettingsViewModel : ObservableObject
         AutoDownloadUpdates = _storageService.CurrentSettings.AutoDownloadUpdates;
         ReduceMotion = _storageService.CurrentSettings.ReduceMotion;
         ResumePlayback = _storageService.CurrentSettings.ResumePlayback;
+        CloseButtonReturnsToLibrary = _storageService.CurrentSettings.CloseButtonReturnsToLibrary;
         BackdropBlurLevel = _storageService.CurrentSettings.BackdropBlurLevel;
         GitHubToken = _storageService.CurrentSettings.GitHubToken ?? string.Empty;
         if (!IsUpdateAvailable && !IsUpdateReadyToInstall && !IsCheckingForUpdates)
@@ -1231,6 +1235,14 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnIsUpdateReadyToInstallChanged(bool value) => RefreshUpdateStatusText();
     partial void OnIsUpdateAvailableChanged(bool value) => RefreshUpdateStatusText();
 
+    partial void OnCloseButtonReturnsToLibraryChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.CloseButtonReturnsToLibrary == value) return;
+        settings.CloseButtonReturnsToLibrary = value;
+        _ = _storageService.SaveSettingsAsync(settings);
+    }
+
     partial void OnResumePlaybackChanged(bool value)
     {
         var settings = _storageService.CurrentSettings;
@@ -1415,6 +1427,9 @@ public partial class SettingsViewModel : ObservableObject
         settings.EnableOsdNotifications = true;
 
         settings.AppTheme = "Default";
+        settings.AccentColor = Helpers.Accent.SystemMode;
+        settings.UiZoom = 1.0;
+        settings.CloseButtonReturnsToLibrary = false;
         settings.ShowMomentsBadges = true;
         settings.EnableBackdropBlur = true;
         settings.ViewDensity = ViewDensityMode.Comfortable;
@@ -1434,6 +1449,8 @@ public partial class SettingsViewModel : ObservableObject
         await _storageService.SaveSettingsAsync(settings);
 
         App.ApplyTheme("Default");
+        Helpers.Accent.Apply(Helpers.Accent.SystemMode);
+        Helpers.UiZoom.Set(1.0);
         _localizationService.SetLanguage("System");
         Initialize();
         UpdateFormattedStrings();

@@ -48,6 +48,8 @@ public sealed partial class MainWindow : Window
     private readonly Windows.UI.ViewManagement.UISettings _uiSettings = new();
 
     public Microsoft.UI.Xaml.Controls.Frame NavigationFrame => RootFrame;
+    /// <summary>The (zoomable) grid holding all app content.</summary>
+    public FrameworkElement ContentRoot => RootWindowGrid;
 
     private bool _isCursorHidden;
     private bool _isWindowActive = true;
@@ -269,6 +271,19 @@ public sealed partial class MainWindow : Window
 
         AppWindow.Closing += (s, e) =>
         {
+            // Optional VLC-habit guard: closing while a clip plays goes back to the library instead
+            if (IsPlayerVisible &&
+                App.GetService<ILocalStorageService>().CurrentSettings.CloseButtonReturnsToLibrary)
+            {
+                e.Cancel = true;
+                if (AppWindow.Presenter.Kind == Microsoft.UI.Windowing.AppWindowPresenterKind.FullScreen)
+                {
+                    ToggleFullscreen();
+                }
+                App.GetService<PlayerViewModel>().BackToHome();
+                return;
+            }
+
             Helpers.CursorHelper.RestoreGlobalCursor();
             FlushStateOnExit();
             try
@@ -310,7 +325,9 @@ public sealed partial class MainWindow : Window
             Environment.Exit(0);
         };
 
-        RootWindowGrid.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnWindowGlobalKeyDown), handledEventsToo: true);
+        // On the window root so keys arrive even when nothing inside has focus
+        ZoomHost.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnWindowGlobalKeyDown), handledEventsToo: true);
+        InitializeZoom();
 
         // Apply persisted app theme
         var storageService = App.GetService<ILocalStorageService>();
@@ -320,6 +337,7 @@ public sealed partial class MainWindow : Window
         {
             DispatcherQueue.TryEnqueue(() =>
             {
+                Helpers.Accent.OnSystemColorsChanged();
                 var storage = App.GetService<ILocalStorageService>();
                 if (storage.CurrentSettings.AppTheme == "Default")
                 {
@@ -355,11 +373,11 @@ public sealed partial class MainWindow : Window
 
             if (RootFrame.Content is Views.SettingsPage)
             {
-                AppTitleBar.Margin = new Thickness(540, 0, 140, 0);
+                AppTitleBar.Margin = new Thickness(540, 0, CaptionInset, 0);
             }
             else
             {
-                AppTitleBar.Margin = new Thickness(48, 0, 140, 0);
+                AppTitleBar.Margin = new Thickness(48, 0, CaptionInset, 0);
             }
         };
 
@@ -482,6 +500,7 @@ public sealed partial class MainWindow : Window
 
     private void OnWindowGlobalKeyDown(object sender, KeyRoutedEventArgs e)
     {
+        if (TryHandleZoomKey(e)) return;
         if (e.Handled) return;
         if (IsPlayerVisible)
         {
@@ -961,11 +980,213 @@ public sealed partial class MainWindow : Window
         AppTitleBar.Opacity = 1.0;
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // Interface zoom
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>Space the caption buttons take, in (zoomed) content units.</summary>
+    private static double CaptionInset => 140 / Helpers.UiZoom.Current;
+
+    private DispatcherTimer? _zoomIndicatorTimer;
+    private bool _isZoomIndicatorShown;
+    private bool _isPointerOverZoomIndicator;
+
+    private void InitializeZoom()
+    {
+        Helpers.UiZoom.Load();
+        Helpers.UiZoom.Changed += (s, fromShortcut) =>
+        {
+            ApplyZoom();
+            if (fromShortcut) ShowZoomIndicator();
+            else UpdateZoomIndicatorText();
+        };
+        ApplyZoom();
+    }
+
+    /// <summary>
+    /// Scales the whole content tree: the content is laid out at window size / zoom and rendered with a
+    /// matching scale transform, so text and vectors stay sharp and hit-testing follows the transform.
+    /// </summary>
+    private void ApplyZoom()
+    {
+        double zoom = Helpers.UiZoom.Current;
+        if (Math.Abs(zoom - 1) < 0.001)
+        {
+            RootWindowGrid.RenderTransform = null;
+            RootWindowGrid.HorizontalAlignment = HorizontalAlignment.Stretch;
+            RootWindowGrid.VerticalAlignment = VerticalAlignment.Stretch;
+            RootWindowGrid.Width = double.NaN;
+            RootWindowGrid.Height = double.NaN;
+            RootWindowGrid.MinWidth = MinWindowWidth;
+            RootWindowGrid.MinHeight = MinWindowHeight;
+        }
+        else
+        {
+            RootWindowGrid.HorizontalAlignment = HorizontalAlignment.Left;
+            RootWindowGrid.VerticalAlignment = VerticalAlignment.Top;
+            RootWindowGrid.MinWidth = 0;
+            RootWindowGrid.MinHeight = 0;
+            RootWindowGrid.RenderTransform = new Microsoft.UI.Xaml.Media.ScaleTransform { ScaleX = zoom, ScaleY = zoom };
+            SizeZoomedContent();
+            EnsureWindowFitsZoom(zoom);
+        }
+
+        // Title bar drag region and caption-button clearance are in window units
+        var m = AppTitleBar.Margin;
+        AppTitleBar.Margin = new Thickness(m.Left, 0, CaptionInset, 0);
+        ZoomLevelChanged?.Invoke(this, zoom);
+        if (IsPlayerVisible) PlayerViewControl?.RefreshVideoLayout();
+    }
+
+    /// <summary>Pages that keep clear of the caption buttons adjust their insets here.</summary>
+    public event EventHandler<double>? ZoomLevelChanged;
+
+    private void SizeZoomedContent()
+    {
+        double zoom = Helpers.UiZoom.Current;
+        if (Math.Abs(zoom - 1) < 0.001 || ZoomHost.ActualWidth <= 0) return;
+        RootWindowGrid.Width = ZoomHost.ActualWidth / zoom;
+        RootWindowGrid.Height = ZoomHost.ActualHeight / zoom;
+    }
+
+    private void OnZoomHostSizeChanged(object sender, SizeChangedEventArgs e) => SizeZoomedContent();
+
+    /// <summary>Grows a restored window so zoomed-in content still gets the minimum layout size.</summary>
+    private void EnsureWindowFitsZoom(double zoom)
+    {
+        if (zoom <= 1 || AppWindow.Presenter is not Microsoft.UI.Windowing.OverlappedPresenter presenter ||
+            presenter.State != Microsoft.UI.Windowing.OverlappedPresenterState.Restored) return;
+
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        uint dpi = GetDpiForWindow(hwnd);
+        double scale = (dpi > 0 ? dpi : 96) / 96.0;
+        int minW = (int)(MinWindowWidth * scale * zoom);
+        int minH = (int)(MinWindowHeight * scale * zoom);
+        if (AppWindow.Size.Width >= minW && AppWindow.Size.Height >= minH) return;
+
+        var area = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(AppWindow.Id, Microsoft.UI.Windowing.DisplayAreaFallback.Nearest);
+        int w = Math.Max(AppWindow.Size.Width, minW);
+        int h = Math.Max(AppWindow.Size.Height, minH);
+        if (area != null)
+        {
+            w = Math.Min(w, area.WorkArea.Width);
+            h = Math.Min(h, area.WorkArea.Height);
+            int x = Math.Clamp(AppWindow.Position.X, area.WorkArea.X, area.WorkArea.X + area.WorkArea.Width - w);
+            int y = Math.Clamp(AppWindow.Position.Y, area.WorkArea.Y, area.WorkArea.Y + area.WorkArea.Height - h);
+            AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, w, h));
+        }
+        else
+        {
+            AppWindow.Resize(new Windows.Graphics.SizeInt32(w, h));
+        }
+    }
+
+    /// <summary>Ctrl + / Ctrl - / Ctrl 0 (main row and numpad), anywhere in the app.</summary>
+    private bool TryHandleZoomKey(KeyRoutedEventArgs e)
+    {
+        var down = Windows.UI.Core.CoreVirtualKeyStates.Down;
+        if (!Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control).HasFlag(down)) return false;
+        if (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Menu).HasFlag(down)) return false;
+        bool shift = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift).HasFlag(down);
+
+        int key = (int)e.Key;
+        const int VK_OEM_PLUS = 0xBB, VK_OEM_MINUS = 0xBD;
+        if (key == VK_OEM_PLUS || e.Key == Windows.System.VirtualKey.Add)
+        {
+            Helpers.UiZoom.Step(+1, fromShortcut: true);
+        }
+        else if (key == VK_OEM_MINUS || e.Key == Windows.System.VirtualKey.Subtract)
+        {
+            Helpers.UiZoom.Step(-1, fromShortcut: true);
+        }
+        else if ((e.Key == Windows.System.VirtualKey.Number0 || e.Key == Windows.System.VirtualKey.NumberPad0) && !shift)
+        {
+            Helpers.UiZoom.Set(1.0, fromShortcut: true);
+        }
+        else
+        {
+            return false;
+        }
+        e.Handled = true;
+        return true;
+    }
+
+    private void UpdateZoomIndicatorText()
+    {
+        if (ZoomIndicatorText == null) return;
+        ZoomIndicatorText.Text = Helpers.UiZoom.Format(Helpers.UiZoom.Current);
+        ZoomInIndicatorButton.IsEnabled = Helpers.UiZoom.CanZoomIn;
+        ZoomOutIndicatorButton.IsEnabled = Helpers.UiZoom.CanZoomOut;
+        ZoomResetIndicatorButton.Content = App.GetService<ILocalizationService>()["Zoom_Reset"];
+    }
+
+    private void ShowZoomIndicator()
+    {
+        UpdateZoomIndicatorText();
+        ZoomIndicator.RequestedTheme = IsPlayerVisible ? ElementTheme.Dark : App.CurrentTheme;
+        if (!_isZoomIndicatorShown)
+        {
+            _isZoomIndicatorShown = true;
+            ZoomIndicator.Visibility = Visibility.Visible;
+            var sb = new Storyboard();
+            sb.Children.Add(Helpers.Motion.Spline(ZoomIndicator, "Opacity", 1, Helpers.Motion.Medium, from: ZoomIndicator.Opacity));
+            sb.Children.Add(Helpers.Motion.Spline(ZoomIndicatorTranslation, "Y", 0, Helpers.Motion.Medium, from: ZoomIndicatorTranslation.Y));
+            Helpers.Motion.BeginExact(sb);
+        }
+        RestartZoomIndicatorTimer();
+    }
+
+    private void RestartZoomIndicatorTimer()
+    {
+        _zoomIndicatorTimer ??= CreateZoomIndicatorTimer();
+        _zoomIndicatorTimer.Stop();
+        _zoomIndicatorTimer.Start();
+    }
+
+    private DispatcherTimer CreateZoomIndicatorTimer()
+    {
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1800) };
+        timer.Tick += (s, e) =>
+        {
+            timer.Stop();
+            if (_isPointerOverZoomIndicator) return;
+            var sb = new Storyboard();
+            sb.Children.Add(Helpers.Motion.Spline(ZoomIndicator, "Opacity", 0, Helpers.Motion.Short, accelerate: true));
+            sb.Children.Add(Helpers.Motion.Spline(ZoomIndicatorTranslation, "Y", -8, Helpers.Motion.Short, accelerate: true));
+            sb.Completed += (s2, e2) =>
+            {
+                if (timer.IsEnabled || _isPointerOverZoomIndicator) return;
+                _isZoomIndicatorShown = false;
+                ZoomIndicator.Visibility = Visibility.Collapsed;
+            };
+            Helpers.Motion.BeginExact(sb);
+        };
+        return timer;
+    }
+
+    private void OnZoomIndicatorPointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        _isPointerOverZoomIndicator = true;
+        _zoomIndicatorTimer?.Stop();
+        if (ZoomIndicator.Opacity < 1) ShowZoomIndicator();
+    }
+
+    private void OnZoomIndicatorPointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        _isPointerOverZoomIndicator = false;
+        RestartZoomIndicatorTimer();
+    }
+
+    private void OnZoomInIndicatorClick(object sender, RoutedEventArgs e) => Helpers.UiZoom.Step(+1, fromShortcut: true);
+    private void OnZoomOutIndicatorClick(object sender, RoutedEventArgs e) => Helpers.UiZoom.Step(-1, fromShortcut: true);
+    private void OnZoomResetIndicatorClick(object sender, RoutedEventArgs e) => Helpers.UiZoom.Set(1.0, fromShortcut: true);
+
+
     public void UpdateSettingsTitleBarMargin(double leftOffset)
     {
         if (RootFrame.Content is Views.SettingsPage)
         {
-            AppTitleBar.Margin = new Thickness(Math.Max(leftOffset, 540), 0, 140, 0);
+            AppTitleBar.Margin = new Thickness(Math.Max(leftOffset, 540), 0, CaptionInset, 0);
         }
     }
 
@@ -1090,9 +1311,11 @@ public sealed partial class MainWindow : Window
             uint dpi = GetDpiForWindow(hWnd);
             double scale = (dpi > 0 ? dpi : 96) / 96.0;
 
+            // Zoomed-in content needs proportionally more room
+            double zoom = Helpers.UiZoom.Current;
             int effectiveMinWidth = _isSidebarOpen ? (MinWindowWidth + 260) : MinWindowWidth;
-            mmi.ptMinTrackSize.x = (int)(effectiveMinWidth * scale);
-            mmi.ptMinTrackSize.y = (int)(MinWindowHeight * scale);
+            mmi.ptMinTrackSize.x = (int)(effectiveMinWidth * scale * Math.Max(1, zoom));
+            mmi.ptMinTrackSize.y = (int)(MinWindowHeight * scale * Math.Max(1, zoom));
 
             Marshal.StructureToPtr(mmi, lParam, true);
             return IntPtr.Zero;

@@ -10,6 +10,8 @@
     Title="Reeled"
     mc:Ignorable="d">
 
+    <!-- Zoom host: the whole interface is scaled inside it (Ctrl + / Ctrl - / Ctrl 0, see ApplyZoom) -->
+    <Grid x:Name="ZoomHost" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" SizeChanged="OnZoomHostSizeChanged">
     <Grid x:Name="RootWindowGrid" 
           MinWidth="760" 
           MinHeight="500" 
@@ -103,5 +105,36 @@
                 </StackPanel>
             </Grid>
         </Grid>
+    </Grid>
+
+    <!-- Zoom level indicator (Ctrl + / Ctrl -), outside the scaled tree so it keeps its size -->
+    <Border x:Name="ZoomIndicator"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Top"
+            Margin="0,44,0,0"
+            Padding="16,6,6,6"
+            CornerRadius="8"
+            Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource SurfaceStrokeColorFlyoutBrush}"
+            BorderThickness="1"
+            Visibility="Collapsed"
+            Opacity="0"
+            PointerEntered="OnZoomIndicatorPointerEntered"
+            PointerExited="OnZoomIndicatorPointerExited">
+        <Border.RenderTransform>
+            <TranslateTransform x:Name="ZoomIndicatorTranslation" Y="-8" />
+        </Border.RenderTransform>
+        <StackPanel Orientation="Horizontal" Spacing="4">
+            <FontIcon Glyph="&#xE71E;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBlock x:Name="ZoomIndicatorText" Text="100%" FontSize="13" FontWeight="SemiBold" MinWidth="42" VerticalAlignment="Center" />
+            <Button x:Name="ZoomOutIndicatorButton" Click="OnZoomOutIndicatorClick" Style="{ThemeResource SubtleButtonStyle}" Width="30" Height="28" Padding="0">
+                <FontIcon Glyph="&#xE738;" FontSize="11" />
+            </Button>
+            <Button x:Name="ZoomInIndicatorButton" Click="OnZoomInIndicatorClick" Style="{ThemeResource SubtleButtonStyle}" Width="30" Height="28" Padding="0">
+                <FontIcon Glyph="&#xE710;" FontSize="11" />
+            </Button>
+            <Button x:Name="ZoomResetIndicatorButton" Click="OnZoomResetIndicatorClick" Padding="10,4" FontSize="12" Margin="4,0,0,0" Content="Reset" />
+        </StackPanel>
+    </Border>
     </Grid>
 </Window>

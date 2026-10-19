@@ -77,6 +77,9 @@ public sealed partial class SettingsPage : Page
             }
         };
 
+        Helpers.UiZoom.Changed += (s, e) => DispatcherQueue.TryEnqueue(UpdateZoomControls);
+        Helpers.Accent.Changed += (s, e) => DispatcherQueue.TryEnqueue(UpdateAccentSelection);
+
         Loaded += (s, e) =>
         {
             BuildSubNavigation();
@@ -848,7 +851,7 @@ public sealed partial class SettingsPage : Page
     private static readonly (string Section, string[] Headers)[] SubCategories =
     {
         ("PlaybackSection", new[] { "SubPlaybackSpeed", "SubPlaybackBehavior", "SubPlaybackControls", "SubPlaybackDecoding" }),
-        ("AppearanceSection", new[] { "SubAppearanceTheme", "SubAppearanceLibrary", "SubAppearanceEffects" }),
+        ("AppearanceSection", new[] { "SubAppearanceTheme", "SubAppearanceLayout", "SubAppearanceLibrary", "SubAppearanceEffects" }),
         ("StorageSection", new[] { "SubStoragePerformance", "SubStorageCaches" }),
         ("UpdateSection", new[] { "SubUpdatesStatus", "SubUpdatesPreferences" }),
     };
@@ -1455,6 +1458,15 @@ public sealed partial class SettingsPage : Page
         if (BackdropBlurSubtitleText != null) BackdropBlurSubtitleText.Text = loc["Appearance_BackdropBlurSubtitle"];
         if (ReduceMotionTitleText != null) ReduceMotionTitleText.Text = loc["Appearance_ReduceMotionTitle"];
         if (ReduceMotionSubtitleText != null) ReduceMotionSubtitleText.Text = loc["Appearance_ReduceMotionSubtitle"];
+        if (AccentTitleText != null) AccentTitleText.Text = loc["Appearance_AccentTitle"];
+        if (AccentSubtitleText != null) AccentSubtitleText.Text = loc["Appearance_AccentSubtitle"];
+        if (ZoomTitleText != null) ZoomTitleText.Text = loc["Appearance_ZoomTitle"];
+        if (ZoomSubtitleText != null) ZoomSubtitleText.Text = loc["Appearance_ZoomSubtitle"];
+        if (ZoomResetButton != null) ZoomResetButton.Content = loc["Zoom_Reset"];
+        if (CloseToLibraryTitleText != null) CloseToLibraryTitleText.Text = loc["Playback_CloseToLibraryTitle"];
+        if (CloseToLibrarySubtitleText != null) CloseToLibrarySubtitleText.Text = loc["Playback_CloseToLibrarySubtitle"];
+        BuildAccentSwatches();
+        UpdateZoomControls();
 
         // 4. Language & Region Section
         if (LocalizationSectionTitle != null) LocalizationSectionTitle.Text = loc["Language_SectionTitle"];

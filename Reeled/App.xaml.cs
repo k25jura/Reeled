@@ -79,6 +79,8 @@ public partial class App : Application
         }
 
         Helpers.CursorHelper.RestoreGlobalCursor();
+        // Before any UI exists, so every control is created with the chosen accent
+        Helpers.Accent.ApplyFromSettings();
         Window = new MainWindow();
         DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         var storage = GetService<ILocalStorageService>();
@@ -180,6 +182,7 @@ public partial class App : Application
 
             if (Window is MainWindow mainWindow)
             {
+                mainWindow.ContentRoot.RequestedTheme = targetTheme;
                 mainWindow.NavigationFrame.RequestedTheme = targetTheme;
                 if (mainWindow.NavigationFrame.Content is FrameworkElement page)
                 {

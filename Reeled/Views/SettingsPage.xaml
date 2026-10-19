@@ -978,6 +978,38 @@
                                               VerticalAlignment="Center" />
                             </Grid>
                         </Border>
+
+                        <!-- Card: Close button returns to the library -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE8BB;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="CloseToLibraryTitleText" Text="Close button returns to library" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="CloseToLibrarySubtitleText" Text="While a clip is playing, closing the window goes back to the library instead of quitting"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2"
+                                              IsOn="{x:Bind ViewModel.CloseButtonReturnsToLibrary, Mode=TwoWay}"
+                                              OnContent=""
+                                              OffContent=""
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
                         <TextBlock x:Name="SubPlaybackDecoding" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Decoding" />
 
                         <!-- Card: Hardware decoding -->
@@ -1056,6 +1088,77 @@
                                           SelectionChanged="OnThemeSelectionChanged"
                                           MinWidth="160"
                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+
+                        <!-- Card: Accent colour (Windows, presets, recent picks, custom) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="14">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <FontIcon Grid.Column="0" Glyph="&#xE771;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="AccentTitleText" Text="Accent color" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="AccentSubtitleText" Text="Highlights, buttons, toggles and the seek bar"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+
+                                    <TextBlock x:Name="AccentCurrentNameText" Grid.Column="2" FontSize="12.5"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                </Grid>
+
+                                <!-- Swatches are built in code (selection ring, check and hover motion) -->
+                                <StackPanel x:Name="AccentSwatchesPanel" Orientation="Horizontal" Spacing="6" Margin="40,0,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock x:Name="SubAppearanceLayout" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Layout" />
+
+                        <!-- Card: Interface size (zoom) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE71E;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="ZoomTitleText" Text="Interface size" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="ZoomSubtitleText" Text="Scale everything in Reeled. Ctrl + and Ctrl - work anywhere, Ctrl 0 resets"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                    <Button x:Name="ZoomResetButton" Click="OnZoomResetClick" Style="{ThemeResource SubtleButtonStyle}" Padding="10,5" FontSize="12.5" Margin="0,0,6,0"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" Content="Reset" />
+                                    <Button x:Name="ZoomOutButton" Click="OnZoomOutClick" Width="32" Height="32" Padding="0">
+                                        <FontIcon Glyph="&#xE738;" FontSize="11" />
+                                    </Button>
+                                    <TextBlock x:Name="ZoomValueText" Text="100%" FontSize="13" FontWeight="SemiBold" MinWidth="52" TextAlignment="Center" VerticalAlignment="Center" />
+                                    <Button x:Name="ZoomInButton" Click="OnZoomInClick" Width="32" Height="32" Padding="0">
+                                        <FontIcon Glyph="&#xE710;" FontSize="11" />
+                                    </Button>
+                                </StackPanel>
                             </Grid>
                         </Border>
 

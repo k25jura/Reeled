@@ -476,5 +476,27 @@
   "Feedback_Send": "Продовжити на GitHub",
   "Feedback_Cancel": "Скасувати",
   "About_DiagnosticsShow": "Показати подробиці",
-  "About_DiagnosticsHide": "Сховати подробиці"
+  "About_DiagnosticsHide": "Сховати подробиці",
+
+  "Zoom_Reset": "Скинути",
+  "Appearance_AccentTitle": "Колір акценту",
+  "Appearance_AccentSubtitle": "Виділення, кнопки, перемикачі та шкала перемотування",
+  "Appearance_AccentSystem": "Акцент Windows",
+  "Appearance_AccentCustom": "Власний",
+  "Appearance_AccentPick": "Вибрати колір",
+  "Appearance_AccentApply": "Застосувати",
+  "Accent_Orange": "Помаранчевий",
+  "Accent_Amber": "Бурштиновий",
+  "Accent_Red": "Червоний",
+  "Accent_Pink": "Рожевий",
+  "Accent_Violet": "Фіолетовий",
+  "Accent_Blue": "Синій",
+  "Accent_Teal": "Бірюзовий",
+  "Accent_Green": "Зелений",
+  "Accent_Graphite": "Графітовий",
+  "Appearance_ZoomTitle": "Розмір інтерфейсу",
+  "Appearance_ZoomSubtitle": "Масштабує весь Reeled. Ctrl + та Ctrl - працюють будь-де, Ctrl 0 скидає",
+  "SettingsSubAppearanceLayout": "Макет",
+  "Playback_CloseToLibraryTitle": "Кнопка закриття повертає до бібліотеки",
+  "Playback_CloseToLibrarySubtitle": "Під час перегляду кліпу закриття вікна повертає до бібліотеки, а не виходить із програми"
 }

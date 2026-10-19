@@ -476,5 +476,27 @@
   "Feedback_Send": "Continue on GitHub",
   "Feedback_Cancel": "Cancel",
   "About_DiagnosticsShow": "Show details",
-  "About_DiagnosticsHide": "Hide details"
+  "About_DiagnosticsHide": "Hide details",
+
+  "Zoom_Reset": "Reset",
+  "Appearance_AccentTitle": "Accent color",
+  "Appearance_AccentSubtitle": "Highlights, buttons, toggles and the seek bar",
+  "Appearance_AccentSystem": "Windows accent",
+  "Appearance_AccentCustom": "Custom",
+  "Appearance_AccentPick": "Pick a color",
+  "Appearance_AccentApply": "Apply",
+  "Accent_Orange": "Orange",
+  "Accent_Amber": "Amber",
+  "Accent_Red": "Red",
+  "Accent_Pink": "Pink",
+  "Accent_Violet": "Violet",
+  "Accent_Blue": "Blue",
+  "Accent_Teal": "Teal",
+  "Accent_Green": "Green",
+  "Accent_Graphite": "Graphite",
+  "Appearance_ZoomTitle": "Interface size",
+  "Appearance_ZoomSubtitle": "Scale everything in Reeled. Ctrl + and Ctrl - work anywhere, Ctrl 0 resets",
+  "SettingsSubAppearanceLayout": "Layout",
+  "Playback_CloseToLibraryTitle": "Close button returns to library",
+  "Playback_CloseToLibrarySubtitle": "While a clip is playing, closing the window goes back to the library instead of quitting"
 }

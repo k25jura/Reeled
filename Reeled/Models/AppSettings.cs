@@ -30,6 +30,14 @@ public class AppSettings
     public int WindowHeight { get; set; }
     public bool WindowMaximized { get; set; }
     public string AppTheme { get; set; } = "Default";
+    /// <summary>"System" follows the Windows accent; otherwise a #RRGGBB colour (preset or custom).</summary>
+    public string AccentColor { get; set; } = "System";
+    /// <summary>Colours picked with the custom picker, newest first, so they can be reused.</summary>
+    public List<string> RecentAccentColors { get; set; } = new();
+    /// <summary>Interface zoom (Ctrl + / Ctrl - / Ctrl 0), 1.0 = 100%.</summary>
+    public double UiZoom { get; set; } = 1.0;
+    /// <summary>The window's close button returns to the library while a clip is playing.</summary>
+    public bool CloseButtonReturnsToLibrary { get; set; } = false;
     public string Language { get; set; } = "System";
     public bool AutoCheckUpdates { get; set; } = true;
     public int AutoHideControlsSeconds { get; set; } = 2;

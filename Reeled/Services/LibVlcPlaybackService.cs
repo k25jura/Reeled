@@ -7,7 +7,7 @@ using Microsoft.UI.Dispatching;
 
 namespace Reeled.Services;
 
-public class LibVlcPlaybackService : ILibVlcPlaybackService
+public partial class LibVlcPlaybackService : ILibVlcPlaybackService
 {
     private LibVLC? _libVLC;
 
@@ -206,6 +206,15 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
                     slavePlayer.Volume = _storedVolume;
                     slavePlayer.Mute = IsMuted;
                     slavePlayer.SetRate(PlaybackRate);
+                    if (_eqBands != null || _audioDelayMs != 0)
+                    {
+                        // Mixed-in tracks get the same EQ and sync as the main one
+                        slavePlayer.Playing += (s2, e2) => Dispatch(() =>
+                        {
+                            if (_audioDelayMs != 0) { try { slavePlayer.SetAudioDelay(_audioDelayMs * 1000L); } catch { } }
+                            if (_eqBands != null) ApplyEqualizer();
+                        });
+                    }
                     _secondaryPlayersByTrack[trackId] = slavePlayer;
 
                     int targetTrack = trackId;
@@ -357,6 +366,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         if (_mediaPlayer == null) return;
         try
         {
+            _subtitleDelayMs = delayMs;
             _mediaPlayer.SetSpuDelay(delayMs * 1000L);
         }
         catch { }
@@ -560,6 +570,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
         {
             if (_mediaPlayer != null)
             {
+                ReapplySessionEffects();
                 ApplyAllVolumes();
                 _mediaPlayer.Mute = _storedMute;
                 if (_storedPlaybackRate > 0.1f)
@@ -680,6 +691,7 @@ public class LibVlcPlaybackService : ILibVlcPlaybackService
                         newMedia.AddOption(":avcodec-hw=none");
                     }
                     newMedia.AddOption(":file-caching=150");
+                    AddSubtitleStyleOptions(newMedia);
                     if (startTimeMs > 0)
                     {
                         newMedia.AddOption(FormattableString.Invariant($":start-time={startTimeMs / 1000.0:0.###}"));

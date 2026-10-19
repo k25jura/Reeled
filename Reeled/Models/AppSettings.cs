@@ -73,6 +73,11 @@ public class AppSettings
     public WheelAction PlayerWheelAction { get; set; } = WheelAction.Volume;
     /// <summary>GPU video decoding; turning it off helps with files that show artifacts or green frames.</summary>
     public bool HardwareDecoding { get; set; } = true;
+    public PlayerToolbarLayout PlayerToolbar { get; set; } = PlayerToolbarLayout.Default;
+    public OsdPreferences Osd { get; set; } = new();
+    public PlayerSessionPreferences PlayerSession { get; set; } = new();
+    /// <summary>Where snapshots go; empty = Pictures\Reeled.</summary>
+    public string? SnapshotFolder { get; set; }
     /// <summary>Last playback position (ms) per clip path, for resuming long clips.</summary>
     public Dictionary<string, long> ResumePositions { get; set; } = new();
 }

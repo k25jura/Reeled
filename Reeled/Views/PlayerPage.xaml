@@ -146,60 +146,56 @@
                     VerticalAlignment="Stretch" 
                     Command="{x:Bind ViewModel.TogglePlayPauseCommand}"
                     DoubleTapped="OnVideoOverlayDoubleTapped"
+                    RightTapped="OnVideoRightTapped"
                     Style="{StaticResource CleanMediaOverlayButtonStyle}" />
         </Grid>
 
-        <!-- VLC-style OSD Notification at top center with solid black outline stroke -->
-        <Grid x:Name="OsdToastContainer" 
-              HorizontalAlignment="Center" 
-              VerticalAlignment="Top" 
-              Margin="0,48,0,0" 
-              IsHitTestVisible="False"
-              Visibility="Collapsed"
-              Opacity="0">
-            <!-- 8-Directional Black Outline Layers for solid 2px stroke -->
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="-2,-2,2,2" />
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="2,-2,-2,2" />
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="-2,2,2,-2" />
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="2,2,-2,-2" />
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="0,-2,0,2" />
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="0,2,0,-2" />
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="-2,0,2,0" />
-            <TextBlock Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}" FontSize="64" FontWeight="Normal" Foreground="Black" TextAlignment="Center" HorizontalAlignment="Center" Margin="2,0,-2,0" />
-
-            <!-- Main White Foreground Text -->
-            <TextBlock x:Name="OsdToastText"
-                       Text="{x:Bind ViewModel.StatusToast, Mode=OneWay}"
-                       FontSize="64" 
-                       FontWeight="Normal" 
-                       Foreground="White"
-                       TextAlignment="Center"
-                       HorizontalAlignment="Center" />
+        <!-- OSD: large text over a soft gradient band whose tint follows the action (volume, seek,
+             speed, moments...). Position, size and the band are customizable (Settings > Player). -->
+        <Grid x:Name="OsdToastContainer" IsHitTestVisible="False" Visibility="Collapsed" Opacity="0">
+            <Rectangle x:Name="OsdGradient" VerticalAlignment="Top" Height="240">
+                <Rectangle.Fill>
+                    <LinearGradientBrush x:Name="OsdGradientBrush" StartPoint="0.5,0" EndPoint="0.5,1">
+                        <GradientStop x:Name="OsdGradientStart" Color="#B80B0F14" Offset="0" />
+                        <GradientStop x:Name="OsdGradientMiddle" Color="#560B0F14" Offset="0.5" />
+                        <GradientStop x:Name="OsdGradientMirror" Color="#560B0F14" Offset="0.5" />
+                        <GradientStop x:Name="OsdGradientEndA" Color="#000B0F14" Offset="1" />
+                        <GradientStop x:Name="OsdGradientEndB" Color="#000B0F14" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+            <StackPanel x:Name="OsdContent" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,58,0,0" Spacing="0">
+                <StackPanel.RenderTransform>
+                    <TranslateTransform x:Name="OsdContentTranslation" Y="0" />
+                </StackPanel.RenderTransform>
+                <TextBlock x:Name="OsdToastText" FontSize="56" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" TextAlignment="Center" />
+                <TextBlock x:Name="OsdDetailText" FontSize="19" Foreground="#E0FFFFFF" HorizontalAlignment="Center" TextAlignment="Center" Visibility="Collapsed" Margin="0,2,0,0" />
+            </StackPanel>
         </Grid>
 
-        <!-- Top Header Overlay (Telegram style) -->
+        <!-- Top Header Overlay -->
         <Border x:Name="TopHeaderBar"
-                VerticalAlignment="Top" 
-                Background="{StaticResource PlayerBarBackdropBrush}" 
-                BorderBrush="#1FFFFFFF" 
-                BorderThickness="0,0,0,1" 
+                VerticalAlignment="Top"
+                Background="{StaticResource PlayerBarBackdropBrush}"
+                BorderBrush="#1FFFFFFF"
+                BorderThickness="0,0,0,1"
                 Padding="16,8,16,8">
             <Grid>
                 <!-- Centered File Title (Dead Center of Window) -->
-                <TextBlock Text="{x:Bind ViewModel.CurrentClip.FileName, Mode=OneWay}" 
-                           FontSize="14" 
-                           FontWeight="SemiBold" 
-                           Foreground="White" 
-                           HorizontalAlignment="Center" 
-                           VerticalAlignment="Center" 
-                           TextTrimming="CharacterEllipsis" 
+                <TextBlock Text="{x:Bind ViewModel.CurrentClip.DisplayName, Mode=OneWay}"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           Foreground="White"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
                            MaxWidth="550" />
 
                 <!-- Left: Back Button -->
                 <Button x:Name="BackToLibraryButton"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Center"
-                        Command="{x:Bind ViewModel.BackToHomeCommand}" 
+                        Command="{x:Bind ViewModel.BackToHomeCommand}"
                         ToolTipService.ToolTip="Back to Library (Esc)"
                         IsTabStop="False"
                         Style="{ThemeResource SubtleButtonStyle}">
@@ -209,6 +205,20 @@
                     </StackPanel>
                 </Button>
 
+                <!-- Right (clear of the caption buttons): session settings -->
+                <Button x:Name="SessionHeaderButton"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Margin="0,0,132,0"
+                        Click="OnSessionButtonClick"
+                        ToolTipService.ToolTip="Playback &amp; video settings"
+                        IsTabStop="False"
+                        Style="{ThemeResource SubtleButtonStyle}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE9E9;" FontSize="14" Foreground="White" />
+                        <TextBlock x:Name="SessionHeaderText" Text="Settings" FontSize="13" Foreground="White" />
+                    </StackPanel>
+                </Button>
             </Grid>
         </Border>
 
@@ -300,824 +310,399 @@
             </Grid>
         </Border>
 
-        <!-- Bottom Control Bar (Full-width edge-to-edge, VLC layout, WinUI styling) -->
+        <!-- Bottom Control Bar. Items live in a pool and are placed into the left / centre / right zones by
+             the toolbar layout (PlayerPage.Toolbar.cs), so the layout can be customized. -->
         <Border x:Name="BottomControlBar"
-                VerticalAlignment="Bottom" 
-                HorizontalAlignment="Stretch" 
-                Margin="0" 
-                Background="{StaticResource PlayerBarBackdropBrush}" 
-                BorderBrush="#1FFFFFFF" 
-                BorderThickness="0,1,0,0" 
-                CornerRadius="0" 
-                Padding="16,8">
+                VerticalAlignment="Bottom"
+                HorizontalAlignment="Stretch"
+                Background="{StaticResource PlayerBarBackdropBrush}"
+                BorderBrush="#1FFFFFFF"
+                BorderThickness="0,1,0,0"
+                Padding="16,4,16,8">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <Grid Grid.Column="0" RowSpacing="6">
+                <Grid x:Name="BarLayoutRoot">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                <!-- Row 0: Timeline Slider with Timestamps -->
-                <Grid Grid.Row="0" Height="32">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+                    <!-- Seek row: times and the timeline -->
+                    <Grid x:Name="SeekRow" Grid.Row="0" ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="CurrentTimeText" Text="{x:Bind ViewModel.FormattedCurrentTime, Mode=OneWay}" FontSize="12" Foreground="#D0FFFFFF" VerticalAlignment="Center" MinWidth="40" />
+                        <controls:SeekBar x:Name="TimelineSeekBar" Grid.Column="1" />
+                        <TextBlock x:Name="TotalTimeText" Grid.Column="2" Text="{x:Bind ViewModel.FormattedTotalTime, Mode=OneWay}" FontSize="12" Foreground="#A0FFFFFF" VerticalAlignment="Center" MinWidth="40" TextAlignment="Right" />
+                    </Grid>
 
-                    <TextBlock Grid.Column="0" 
-                               Text="{x:Bind ViewModel.FormattedCurrentTime, Mode=OneWay}" 
-                               FontSize="12" 
-                               Foreground="#C0C0C0" 
-                               VerticalAlignment="Center" 
-                               Margin="0"
-                               MinWidth="42" />
-
-                    <!-- Timeline Slider with Embedded Markers Canvas and Thumb on Top -->
-                    <Slider x:Name="TimelineSlider" 
-                            Grid.Column="1"
-                            Minimum="0" 
-                            Maximum="100" 
-                            CornerRadius="4"
-                            Padding="0"
-                            ThumbToolTipValueConverter="{StaticResource SliderTimestampTooltipConverter}"
-                            Value="{x:Bind ViewModel.ProgressValue, Mode=OneWay}"
-                            ValueChanged="OnTimelineSliderValueChanged"
-                            SizeChanged="OnTimelineSliderSizeChanged"
-                            Loaded="OnTimelineSliderLoaded"
-                            IsTabStop="False"
-                            HorizontalAlignment="Stretch"
-                            Height="32"
-                            Margin="0">
-                        <Slider.Resources>
-                            <x:Double x:Key="SliderTrackThemeHeight">8</x:Double>
-                            <x:Double x:Key="SliderHorizontalThumbWidth">18</x:Double>
-                            <x:Double x:Key="SliderHorizontalThumbHeight">18</x:Double>
-                            <x:Double x:Key="SliderInnerThumbWidth">14</x:Double>
-                            <x:Double x:Key="SliderInnerThumbHeight">14</x:Double>
-                            <x:Double x:Key="SliderHorizontalHeight">32</x:Double>
-                            <x:Double x:Key="SliderPreContentMargin">12</x:Double>
-                            <x:Double x:Key="SliderPostContentMargin">12</x:Double>
-                            <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
-                            <CornerRadius x:Key="SliderThumbCornerRadius">9</CornerRadius>
-                            <Style TargetType="Thumb" x:Key="SliderThumbStyle">
-                                <Setter Property="BorderThickness" Value="1" />
-                                <Setter Property="Background" Value="{ThemeResource SliderThumbBackground}" />
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="Thumb">
-                                            <Border Background="{ThemeResource SliderOuterThumbBackground}" 
-                                                    BorderBrush="{ThemeResource SliderThumbBorderBrush}" 
-                                                    BorderThickness="{TemplateBinding BorderThickness}" 
-                                                    CornerRadius="{ThemeResource SliderThumbCornerRadius}">
-                                                <Ellipse x:Name="SliderInnerThumb" 
-                                                         RenderTransformOrigin="0.5, 0.5" 
-                                                         Fill="{TemplateBinding Background}" 
-                                                         Width="{ThemeResource SliderInnerThumbWidth}" 
-                                                         Height="{ThemeResource SliderInnerThumbHeight}" />
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </Slider.Resources>
-                        <Slider.Template>
-                            <ControlTemplate TargetType="Slider">
-                                <Grid Margin="{TemplateBinding Padding}">
-                                    <Border x:Name="FocusBorder" CornerRadius="4" Control.IsTemplateFocusTarget="True" />
-                                    <Grid x:Name="SliderContainer" Background="{ThemeResource SliderContainerBackground}">
-                                        <Grid x:Name="HorizontalTemplate" MinHeight="32">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="12" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="12" />
-                                            </Grid.RowDefinitions>
-                                            <Rectangle x:Name="HorizontalTrackRect" Fill="{TemplateBinding Background}" Height="8" Grid.Row="1" Grid.ColumnSpan="3" RadiusX="4" RadiusY="4" />
-                                            <Rectangle x:Name="HorizontalDecreaseRect" Fill="{TemplateBinding Foreground}" Grid.Row="1" RadiusX="4" RadiusY="4" />
-                                            <Canvas x:Name="TimelineMarkersCanvas" IsHitTestVisible="False" Grid.Row="1" Grid.ColumnSpan="3" />
-                                            <Thumb x:Name="HorizontalThumb" Style="{StaticResource SliderThumbStyle}" DataContext="{TemplateBinding Value}" Height="18" Width="18" CornerRadius="9" Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" FocusVisualMargin="-14,-6,-14,-6" AutomationProperties.AccessibilityView="Raw" />
-                                        </Grid>
-                                        <Grid x:Name="VerticalTemplate" Visibility="Collapsed" />
-                                    </Grid>
-                                </Grid>
-                            </ControlTemplate>
-                        </Slider.Template>
-                    </Slider>
-
-                    <TextBlock Grid.Column="2" 
-                               Text="{x:Bind ViewModel.FormattedTotalTime, Mode=OneWay}" 
-                               FontSize="12" 
-                               Foreground="#C0C0C0" 
-                               VerticalAlignment="Center" 
-                               Margin="0"
-                               MinWidth="42" 
-                               TextAlignment="Right" />
+                    <!-- Controls row: three zones; the centre one stays centred on the bar -->
+                    <Grid x:Name="ControlsRow" Grid.Row="1" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel x:Name="ToolbarLeftZone" Grid.Column="0" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                        <StackPanel x:Name="ToolbarCenterZone" Grid.Column="1" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <StackPanel x:Name="ToolbarRightZone" Grid.Column="2" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                    </Grid>
                 </Grid>
+                <Border x:Name="BottomControlBarQueueSpacer" Grid.Column="1" Width="0" />
+            </Grid>
+        </Border>
 
-                <!-- Row 1: Controls (Left: Playback/Actions, Right: Fullscreen/Volume) -->
-                <Grid Grid.Row="1" Margin="0,0,0,2" VerticalAlignment="Center">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+        <!-- Every toolbar item; the layout moves the visible ones into the zones above -->
+        <StackPanel x:Name="ToolbarPool" Visibility="Collapsed">
+                <Button x:Name="MomentsButton" Tag="moments" ToolTipService.ToolTip="Moments (B to mark)" Padding="8,0" Height="34" MinWidth="34" MinHeight="0" IsTabStop="False" Style="{ThemeResource SubtleButtonStyle}">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE8A4;" FontSize="14" Foreground="#FFD700" />
+                        <controls:RollingCounter Value="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" FontSize="12" Foreground="White" />
+                    </StackPanel>
+                    <Button.Flyout>
+                        <Flyout x:Name="MomentsFlyout" Placement="TopEdgeAlignedLeft" Opening="OnMomentsFlyoutOpening" Opened="OnFlyoutOpened" Closed="OnMomentsFlyoutClosed" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
+                            <Grid Width="352" RowSpacing="0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <controls:TabStrip x:Name="MomentsTabs" Margin="6,4,6,0" />
+                                <!-- Tab 0: moments in this clip -->
+                                <Grid x:Name="MomentsListPanel" Grid.Row="1" Padding="12,10,12,12" MinHeight="140">
+                                    <!-- Empty State -->
+                                    <StackPanel             Spacing="4" 
+                                                Padding="12,24" 
+                                                HorizontalAlignment="Center" 
+                                                VerticalAlignment="Center" 
+                                                Visibility="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                        <FontIcon Glyph="&#xE8A4;" FontSize="24" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,2" />
+                                        <TextBlock x:Name="MomentsFlyoutEmptyTitle" Text="No moments marked yet" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" />
+                                        <TextBlock x:Name="MomentsFlyoutEmptySubtitle" Text="Press 'B' while watching to mark a moment" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" />
+                                    </StackPanel>
 
-                    <!-- Left: Grouped playback/seek/moments/tools sections with AppBarSeparators -->
-                    <ScrollViewer Grid.Column="0"
-                                  HorizontalScrollBarVisibility="Hidden"
-                                  HorizontalScrollMode="Auto"
-                                  VerticalScrollBarVisibility="Disabled"
-                                  VerticalScrollMode="Disabled"
-                                  Margin="0,0,8,0">
-                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                        <!-- Section 1: Playback Controls -->
-                        <Button x:Name="PlayPauseButton"
-                                ToolTipService.ToolTip="Play / Pause (Space)"
-                                Command="{x:Bind ViewModel.TogglePlayPauseCommand}"
-                                Width="34" Height="34"
-                                Padding="0"
-                                MinWidth="0" MinHeight="0"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                IsTabStop="False"
-                                Style="{StaticResource PlayerIconButtonStyle}">
-                            <FontIcon Glyph="{x:Bind ViewModel.IsPlaying, Mode=OneWay, Converter={StaticResource PlayPauseGlyphConverter}}" 
-                                      FontSize="15" Foreground="White" />
-                        </Button>
+                                    <!-- Moments List -->
+                                    <ScrollViewer MaxHeight="300"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  Visibility="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <ItemsControl ItemsSource="{x:Bind ViewModel.Bookmarks, Mode=OneWay}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="models:ClipBookmark">
+                                                    <!-- The whole row jumps; edit / delete sit on the right -->
+                                                    <Grid Margin="0,1" ColumnSpacing="2">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Button Click="OnJumpToBookmarkItemClick"
+                                                                Tag="{x:Bind}"
+                                                                HorizontalAlignment="Stretch"
+                                                                HorizontalContentAlignment="Stretch"
+                                                                Padding="10,7"
+                                                                CornerRadius="5"
+                                                                ToolTipService.ToolTip="{x:Bind JumpTooltip, Mode=OneWay}"
+                                                                Style="{ThemeResource SubtleButtonStyle}">
+                                                            <Grid ColumnSpacing="10">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                                                         Fill="{x:Bind ColorHex, Mode=OneWay, Converter={StaticResource HexToBrushConverter}}" />
+                                                                <TextBlock Grid.Column="1" Text="{x:Bind DisplayLabel, Mode=OneWay}" FontSize="12.5" Foreground="White"
+                                                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Grid.Column="2" Text="{x:Bind FormattedRange, Mode=OneWay}" FontSize="12" Foreground="#99FFFFFF"
+                                                                           VerticalAlignment="Center" />
+                                                            </Grid>
+                                                        </Button>
+                                                        <Button Grid.Column="1"
+                                                                Click="OnEditBookmarkItemClick"
+                                                                Tag="{x:Bind}"
+                                                                ToolTipService.ToolTip="{x:Bind RenameTooltip, Mode=OneWay}"
+                                                                Width="30" Height="30"
+                                                                Padding="0" MinWidth="0" MinHeight="0"
+                                                                CornerRadius="5"
+                                                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                                                Style="{StaticResource PlayerIconButtonStyle}">
+                                                            <FontIcon Glyph="&#xE70F;" FontSize="11" Foreground="#B3FFFFFF" />
+                                                        </Button>
+                                                        <Button Grid.Column="2"
+                                                                Click="OnRemoveBookmarkItemClick"
+                                                                Tag="{x:Bind}"
+                                                                ToolTipService.ToolTip="{x:Bind RemoveTooltip, Mode=OneWay}"
+                                                                Width="30" Height="30"
+                                                                Padding="0" MinWidth="0" MinHeight="0"
+                                                                CornerRadius="5"
+                                                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                                                Style="{StaticResource PlayerIconButtonStyle}">
+                                                            <FontIcon Glyph="&#xE74D;" FontSize="11" Foreground="#FF8A8A" />
+                                                        </Button>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Grid>
+                                <!-- Tab 1: mark (or edit) a moment -->
+                                <StackPanel x:Name="MarkMomentPanel" Grid.Row="1" Spacing="10" Padding="14,12" Visibility="Collapsed">
+                                    <TextBlock x:Name="MarkMomentFlyoutTitle" Text="Mark Moment" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <!-- Mode switcher -->
+                                    <Grid ColumnSpacing="6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button x:Name="MarkPointModeButton"
+                                                Grid.Column="0"
+                                                Content="Single Point"
+                                                Click="OnMarkModePointClick"
+                                                HorizontalAlignment="Stretch"
+                                                Padding="0,5"
+                                                FontSize="11"
+                                                CornerRadius="4" />
+                                        <Button x:Name="MarkRangeModeButton"
+                                                Grid.Column="1"
+                                                Content="Time Range"
+                                                Click="OnMarkModeRangeClick"
+                                                HorizontalAlignment="Stretch"
+                                                Padding="0,5"
+                                                FontSize="11"
+                                                CornerRadius="4"
+                                                Style="{ThemeResource SubtleButtonStyle}" />
+                                    </Grid>
 
-                        <Button x:Name="PreviousClipButton"
-                                ToolTipService.ToolTip="Previous Clip"
-                                IsEnabled="{x:Bind ViewModel.HasPreviousClip, Mode=OneWay}"
-                                Command="{x:Bind ViewModel.PlayPreviousCommand}"
-                                Width="32" Height="32"
-                                Padding="0"
-                                MinWidth="0" MinHeight="0"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                IsTabStop="False"
-                                Style="{StaticResource PlayerIconButtonStyle}">
-                            <FontIcon Glyph="&#xE892;" FontSize="13" Foreground="White" />
-                        </Button>
-
-                        <Button x:Name="StopClipButton"
-                                ToolTipService.ToolTip="Stop (S)"
-                                Command="{x:Bind ViewModel.StopCommand}"
-                                Width="32" Height="32"
-                                Padding="0"
-                                MinWidth="0" MinHeight="0"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                IsTabStop="False"
-                                Style="{StaticResource PlayerIconButtonStyle}">
-                            <FontIcon Glyph="&#xE71A;" FontSize="13" Foreground="White" />
-                        </Button>
-
-                        <Button x:Name="NextClipButton"
-                                ToolTipService.ToolTip="Next Clip"
-                                IsEnabled="{x:Bind ViewModel.HasNextClip, Mode=OneWay}"
-                                Command="{x:Bind ViewModel.PlayNextCommand}"
-                                Width="32" Height="32"
-                                Padding="0"
-                                MinWidth="0" MinHeight="0"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                IsTabStop="False"
-                                Style="{StaticResource PlayerIconButtonStyle}">
-                            <FontIcon Glyph="&#xE893;" FontSize="13" Foreground="White" />
-                        </Button>
-
-                        <Button x:Name="RepeatButton"
-                                ToolTipService.ToolTip="{x:Bind ViewModel.RepeatTooltip, Mode=OneWay}"
-                                Command="{x:Bind ViewModel.ToggleRepeatModeCommand}"
-                                Width="32" Height="32"
-                                Padding="0"
-                                MinWidth="0" MinHeight="0"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                IsTabStop="False"
-                                Style="{StaticResource PlayerIconButtonStyle}">
-                            <FontIcon Glyph="{x:Bind ViewModel.RepeatGlyph, Mode=OneWay}" 
-                                      FontSize="13" 
-                                      Foreground="White"
-                                      Opacity="{x:Bind ViewModel.RepeatOpacity, Mode=OneWay}" />
-                        </Button>
-
-                        <AppBarSeparator Height="20" Margin="4,0" />
-
-                        <!-- Section 2: Seek Controls -->
-                        <Button x:Name="SkipBackwardButton"
-                                ToolTipService.ToolTip="Skip 5s Back (Left Arrow)"
-                                Command="{x:Bind ViewModel.SkipBackwardCommand}"
-                                Width="32" Height="32"
-                                Padding="0"
-                                MinWidth="0" MinHeight="0"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                IsTabStop="False"
-                                Style="{StaticResource PlayerIconButtonStyle}">
-                            <FontIcon Glyph="&#xE7A6;" FontSize="13" Foreground="White" />
-                        </Button>
-
-                        <Button x:Name="SkipForwardButton"
-                                ToolTipService.ToolTip="Skip 5s Forward (Right Arrow)"
-                                Command="{x:Bind ViewModel.SkipForwardCommand}"
-                                Width="32" Height="32"
-                                Padding="0"
-                                MinWidth="0" MinHeight="0"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                IsTabStop="False"
-                                Style="{StaticResource PlayerIconButtonStyle}">
-                            <FontIcon Glyph="&#xE7A7;" FontSize="13" Foreground="White" />
-                        </Button>
-
-                        <AppBarSeparator Height="20" Margin="4,0" />
-
-                        <!-- Section 3: Moments Controls -->
-                        <Button x:Name="MarkMomentButton"
-                                ToolTipService.ToolTip="Mark Moment (B)"
-                                Width="32" Height="32"
-                                Padding="0"
-                                MinWidth="0" MinHeight="0"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                IsTabStop="False"
-                                Style="{StaticResource PlayerIconButtonStyle}">
-                            <FontIcon Glyph="&#xE7C1;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                            <Button.Flyout>
-                                <Flyout x:Name="MarkMomentFlyout" Placement="Top" Opened="OnMarkMomentFlyoutOpened" Closed="OnFlyoutClosed" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
-                                     <StackPanel Spacing="10" MinWidth="320" MaxWidth="360" Padding="14,12">
-                                        <!-- Header -->
-                                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                            <FontIcon Glyph="&#xE7C1;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                            <TextBlock x:Name="MarkMomentFlyoutTitle" Text="Mark Moment" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
-                                        </StackPanel>
-
-                                        <!-- Mode switcher -->
-                                        <Grid ColumnSpacing="6">
+                                    <!-- Mode Panels Container with smooth height morphing -->
+                                    <Grid x:Name="MarkModeContainer" SizeChanged="OnElementClipSizeChanged">
+                                        <!-- Point panel -->
+                                        <Grid x:Name="MarkPointPanel" ColumnSpacing="6" VerticalAlignment="Top" RenderTransformOrigin="0.5,0.5">
+                                            <Grid.RenderTransform>
+                                                <TranslateTransform x:Name="MarkPointTranslation" Y="0" />
+                                            </Grid.RenderTransform>
                                             <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <Button x:Name="MarkPointModeButton"
+                                            <Button x:Name="MarkPointSetCurrentButton"
                                                     Grid.Column="0"
-                                                    Content="Single Point"
-                                                    Click="OnMarkModePointClick"
-                                                    HorizontalAlignment="Stretch"
-                                                    Padding="0,5"
-                                                    FontSize="11"
-                                                    CornerRadius="4" />
-                                            <Button x:Name="MarkRangeModeButton"
-                                                    Grid.Column="1"
-                                                    Content="Time Range"
-                                                    Click="OnMarkModeRangeClick"
-                                                    HorizontalAlignment="Stretch"
-                                                    Padding="0,5"
-                                                    FontSize="11"
-                                                    CornerRadius="4"
-                                                    Style="{ThemeResource SubtleButtonStyle}" />
+                                                    Content="Current"
+                                                    Click="OnMarkPointSetCurrentClick"
+                                                    VerticalAlignment="Center" />
+                                            <TextBox x:Name="MarkPointTimeBox"
+                                                     Grid.Column="1"
+                                                     IsReadOnly="True"
+                                                     TextAlignment="Center"
+                                                     VerticalAlignment="Center" />
+                                            <Button x:Name="MarkPointChooseButton"
+                                                    Grid.Column="2"
+                                                    Content="Choose"
+                                                    Click="OnMarkPointChooseClick"
+                                                    VerticalAlignment="Center" />
                                         </Grid>
 
-                                        <!-- Mode Panels Container with smooth height morphing -->
-                                        <Grid x:Name="MarkModeContainer" SizeChanged="OnElementClipSizeChanged">
-                                            <!-- Point panel -->
-                                            <Grid x:Name="MarkPointPanel" ColumnSpacing="6" VerticalAlignment="Top" RenderTransformOrigin="0.5,0.5">
-                                                <Grid.RenderTransform>
-                                                    <TranslateTransform x:Name="MarkPointTranslation" Y="0" />
-                                                </Grid.RenderTransform>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <Button x:Name="MarkPointSetCurrentButton"
-                                                        Grid.Column="0"
-                                                        Content="Current"
-                                                        Click="OnMarkPointSetCurrentClick"
-                                                        VerticalAlignment="Center" />
-                                                <TextBox x:Name="MarkPointTimeBox"
-                                                         Grid.Column="1"
-                                                         IsReadOnly="True"
-                                                         TextAlignment="Center"
-                                                         VerticalAlignment="Center" />
-                                                <Button x:Name="MarkPointChooseButton"
-                                                        Grid.Column="2"
-                                                        Content="Choose"
-                                                        Click="OnMarkPointChooseClick"
-                                                        VerticalAlignment="Center" />
-                                            </Grid>
-
-                                            <!-- Range panel -->
-                                            <StackPanel x:Name="MarkRangePanel" Visibility="Collapsed" Spacing="8" VerticalAlignment="Top" RenderTransformOrigin="0.5,0.5">
-                                                <StackPanel.RenderTransform>
-                                                    <TranslateTransform x:Name="MarkRangeTranslation" Y="0" />
-                                                </StackPanel.RenderTransform>
-                                                <!-- Start row -->
-                                                <StackPanel Spacing="3">
-                                                    <TextBlock x:Name="MarkRangeStartLabel" Text="Start:" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                                    <Grid ColumnSpacing="6">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto" />
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                        </Grid.ColumnDefinitions>
-                                                        <Button x:Name="MarkRangeSetStartButton" Grid.Column="0" Content="Current" Click="OnMarkRangeSetStartClick" VerticalAlignment="Center" />
-                                                        <TextBox x:Name="MarkRangeStartTimeBox" Grid.Column="1" IsReadOnly="True" TextAlignment="Center" VerticalAlignment="Center" />
-                                                        <Button x:Name="MarkRangeChooseStartButton" Grid.Column="2" Content="Choose" Click="OnMarkRangeChooseStartClick" VerticalAlignment="Center" />
-                                                    </Grid>
-                                                </StackPanel>
-
-                                                <!-- End row -->
-                                                <StackPanel Spacing="3">
-                                                    <TextBlock x:Name="MarkRangeEndLabel" Text="End:" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                                    <Grid ColumnSpacing="6">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto" />
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                        </Grid.ColumnDefinitions>
-                                                        <Button x:Name="MarkRangeSetEndButton" Grid.Column="0" Content="Current" Click="OnMarkRangeSetEndClick" VerticalAlignment="Center" />
-                                                        <TextBox x:Name="MarkRangeEndTimeBox" Grid.Column="1" IsReadOnly="True" TextAlignment="Center" VerticalAlignment="Center" />
-                                                        <Button x:Name="MarkRangeChooseEndButton" Grid.Column="2" Content="Choose" Click="OnMarkRangeChooseEndClick" VerticalAlignment="Center" />
-                                                    </Grid>
-                                                </StackPanel>
-
-                                                <!-- Quick duration grid -->
-                                                <Grid ColumnSpacing="6" Margin="0,2,0,0">
+                                        <!-- Range panel -->
+                                        <StackPanel x:Name="MarkRangePanel" Visibility="Collapsed" Spacing="8" VerticalAlignment="Top" RenderTransformOrigin="0.5,0.5">
+                                            <StackPanel.RenderTransform>
+                                                <TranslateTransform x:Name="MarkRangeTranslation" Y="0" />
+                                            </StackPanel.RenderTransform>
+                                            <!-- Start row -->
+                                            <StackPanel Spacing="3">
+                                                <TextBlock x:Name="MarkRangeStartLabel" Text="Start:" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                <Grid ColumnSpacing="6">
                                                     <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
                                                         <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
-                                                    <Button Grid.Column="0" Content="+5s" Tag="5" Click="OnQuickRangeDurationClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-                                                    <Button Grid.Column="1" Content="+10s" Tag="10" Click="OnQuickRangeDurationClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-                                                    <Button Grid.Column="2" Content="+15s" Tag="15" Click="OnQuickRangeDurationClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-                                                    <Button Grid.Column="3" Content="+30s" Tag="30" Click="OnQuickRangeDurationClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                                    <Button x:Name="MarkRangeSetStartButton" Grid.Column="0" Content="Current" Click="OnMarkRangeSetStartClick" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="MarkRangeStartTimeBox" Grid.Column="1" IsReadOnly="True" TextAlignment="Center" VerticalAlignment="Center" />
+                                                    <Button x:Name="MarkRangeChooseStartButton" Grid.Column="2" Content="Choose" Click="OnMarkRangeChooseStartClick" VerticalAlignment="Center" />
                                                 </Grid>
                                             </StackPanel>
-                                        </Grid>
 
-                                        <!-- Title input -->
-                                        <TextBox x:Name="MarkMomentLabelBox" PlaceholderText="Title or note (optional)" Margin="0,2,0,0" />
-
-                                        <!-- Color selector row -->
-                                        <Grid Margin="0,2">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock x:Name="MarkMomentColorLabel" Text="Color" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
-                                            <StackPanel x:Name="MarkMomentColorPanel" Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                                <Button Tag="#FFD700" ToolTipService.ToolTip="Gold" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#FFD700" />
-                                                <Button Tag="#4CC2FF" ToolTipService.ToolTip="Cyan" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#4CC2FF" />
-                                                <Button Tag="#2ECC71" ToolTipService.ToolTip="Emerald" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#2ECC71" />
-                                                <Button Tag="#FF6B6B" ToolTipService.ToolTip="Coral" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#FF6B6B" />
-                                                <Button Tag="#AF52DE" ToolTipService.ToolTip="Violet" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#AF52DE" />
-                                                <Button Tag="#FF9500" ToolTipService.ToolTip="Orange" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#FF9500" />
-                                                <Button x:Name="CustomColorPickerButton"
-                                                        ToolTipService.ToolTip="Custom Color"
-                                                        Tag="Custom"
-                                                        Style="{StaticResource MomentColorCircleButtonStyle}"
-                                                        Background="#2D2D2D"
-                                                        BorderBrush="#60FFFFFF">
-                                                    <FontIcon x:Name="CustomColorPickerPipetteIcon" Glyph="&#xEF3C;" FontSize="10" Foreground="White" />
-                                                    <Button.Flyout>
-                                                        <Flyout x:Name="CustomColorFlyout" Placement="Top" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
-                                                            <StackPanel Padding="12,10" Spacing="8">
-                                                                <ColorPicker x:Name="CustomColorPickerControl"
-                                                                             ColorChanged="OnCustomColorPickerColorChanged"
-                                                                             IsColorSpectrumVisible="True"
-                                                                             IsColorSliderVisible="True"
-                                                                             IsHexInputVisible="False"
-                                                                             IsColorChannelTextInputVisible="False"
-                                                                             IsAlphaEnabled="False"
-                                                                             ColorSpectrumShape="Box" />
-                                                                <TextBox x:Name="CustomColorHexInput"
-                                                                         PlaceholderText="#RRGGBB"
-                                                                         FontSize="11"
-                                                                         TextAlignment="Center"
-                                                                         MaxLength="7"
-                                                                         TextChanged="OnCustomColorHexInputTextChanged"
-                                                                         Margin="0,2,0,0" />
-                                                            </StackPanel>
-                                                        </Flyout>
-                                                    </Button.Flyout>
-                                                </Button>
+                                            <!-- End row -->
+                                            <StackPanel Spacing="3">
+                                                <TextBlock x:Name="MarkRangeEndLabel" Text="End:" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                <Grid ColumnSpacing="6">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Button x:Name="MarkRangeSetEndButton" Grid.Column="0" Content="Current" Click="OnMarkRangeSetEndClick" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="MarkRangeEndTimeBox" Grid.Column="1" IsReadOnly="True" TextAlignment="Center" VerticalAlignment="Center" />
+                                                    <Button x:Name="MarkRangeChooseEndButton" Grid.Column="2" Content="Choose" Click="OnMarkRangeChooseEndClick" VerticalAlignment="Center" />
+                                                </Grid>
                                             </StackPanel>
-                                        </Grid>
 
-                                        <!-- Save button -->
-                                        <Button x:Name="MarkMomentSaveButton"
-                                                Content="Save Moment"
-                                                Click="OnSaveMarkMomentClick"
-                                                Style="{StaticResource AccentButtonStyle}"
-                                                HorizontalAlignment="Stretch"
-                                                CornerRadius="4" />
-                                    </StackPanel>
-                                </Flyout>
-                            </Button.Flyout>
-                        </Button>
-
-                        <Button x:Name="MomentsFlyoutButton"
-                                ToolTipService.ToolTip="Timeline Bookmarks / Moments"
-                                IsTabStop="False"
-                                Padding="6,4"
-                                MinHeight="32" MinWidth="32"
-                                Style="{ThemeResource SubtleButtonStyle}">
-                            <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                                <FontIcon Glyph="&#xE8A4;" FontSize="13" Foreground="#FFD700" />
-                                <controls:RollingCounter Value="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" FontSize="12" Foreground="White" />
-                            </StackPanel>
-                            <Button.Flyout>
-                                <Flyout x:Name="MomentsFlyout" Placement="Top" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
-                                    <Grid MinWidth="300" MaxWidth="360" Padding="14,12" RowSpacing="10">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="*" />
-                                        </Grid.RowDefinitions>
-
-                                        <!-- Moments Flyout Header -->
-                                        <Grid Grid.Row="0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                                <FontIcon Glyph="&#xE8A4;" FontSize="14" Foreground="#FFD700" />
-                                                <TextBlock x:Name="MomentsFlyoutHeaderTitle" Text="Moments" FontWeight="SemiBold" FontSize="14" Foreground="White" />
-                                                <controls:RollingCounter Value="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay}" 
-                                                           FontSize="12" 
-                                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                                           VerticalAlignment="Center" />
-                                            </StackPanel>
-                                            <Button x:Name="MomentsFlyoutAddButton"
-                                                    Grid.Column="1" 
-                                                    ToolTipService.ToolTip="Mark Moment at Current Time (B)"
-                                                    Click="OnAddMarkerClick"
-                                                    Padding="8,4"
-                                                    CornerRadius="4"
-                                                    Style="{ThemeResource SubtleButtonStyle}">
-                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                    <FontIcon Glyph="&#xE710;" FontSize="11" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                                    <TextBlock x:Name="MomentsFlyoutAddText" Text="Add" FontSize="12" Foreground="White" />
-                                                </StackPanel>
-                                            </Button>
-                                        </Grid>
-
-                                        <!-- Empty State -->
-                                        <StackPanel Grid.Row="1" 
-                                                    Spacing="4" 
-                                                    Padding="12,24" 
-                                                    HorizontalAlignment="Center" 
-                                                    VerticalAlignment="Center" 
-                                                    Visibility="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}">
-                                            <FontIcon Glyph="&#xE8A4;" FontSize="24" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,2" />
-                                            <TextBlock x:Name="MomentsFlyoutEmptyTitle" Text="No moments marked yet" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" />
-                                            <TextBlock x:Name="MomentsFlyoutEmptySubtitle" Text="Press 'B' while watching to mark a moment" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" />
-                                        </StackPanel>
-
-                                        <!-- Moments List -->
-                                        <ScrollViewer Grid.Row="1" 
-                                                      MaxHeight="260" 
-                                                      VerticalScrollBarVisibility="Auto"
-                                                      Visibility="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                            <ItemsControl ItemsSource="{x:Bind ViewModel.Bookmarks, Mode=OneWay}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate x:DataType="models:ClipBookmark">
-                                                        <Grid Margin="0,2" Padding="4,2" ColumnSpacing="6">
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="Auto" />
-                                                                <ColumnDefinition Width="*" />
-                                                                <ColumnDefinition Width="Auto" />
-                                                                <ColumnDefinition Width="Auto" />
-                                                            </Grid.ColumnDefinitions>
-
-                                                            <!-- Jump Button -->
-                                                            <Button Grid.Column="0"
-                                                                    Click="OnJumpToBookmarkItemClick"
-                                                                    Tag="{x:Bind}"
-                                                                    Padding="6,4"
-                                                                    CornerRadius="4"
-                                                                    ToolTipService.ToolTip="{x:Bind JumpTooltip, Mode=OneWay}"
-                                                                    Style="{ThemeResource SubtleButtonStyle}">
-                                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                                    <FontIcon Glyph="&#xE768;" FontSize="10" Foreground="#FFD700" VerticalAlignment="Center" />
-                                                                    <TextBlock Text="{x:Bind FormattedTimestamp, Mode=OneWay}" 
-                                                                               FontSize="12" 
-                                                                               Foreground="White" 
-                                                                               VerticalAlignment="Center" />
-                                                                </StackPanel>
-                                                            </Button>
-
-                                                            <!-- Label (No hover tooltip) -->
-                                                            <TextBlock Grid.Column="1" 
-                                                                       Text="{x:Bind Label, Mode=OneWay}" 
-                                                                       FontSize="12" 
-                                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                                                       VerticalAlignment="Center" 
-                                                                       TextTrimming="CharacterEllipsis" />
-
-                                                            <!-- Rename / Edit Button -->
-                                                            <Button Grid.Column="2" 
-                                                                    Click="OnEditBookmarkItemClick"
-                                                                    Tag="{x:Bind}"
-                                                                    ToolTipService.ToolTip="{x:Bind RenameTooltip, Mode=OneWay}"
-                                                                    Width="28" Height="28"
-                                                                    Padding="0" MinWidth="0" MinHeight="0"
-                                                                    CornerRadius="4"
-                                                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                                                    Style="{StaticResource PlayerIconButtonStyle}">
-                                                                <FontIcon Glyph="&#xE70F;" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                                            </Button>
-
-                                                            <!-- Delete / Remove Button -->
-                                                            <Button Grid.Column="3" 
-                                                                    Click="OnRemoveBookmarkItemClick"
-                                                                    Tag="{x:Bind}"
-                                                                    ToolTipService.ToolTip="{x:Bind RemoveTooltip, Mode=OneWay}"
-                                                                    Width="28" Height="28"
-                                                                    Padding="0" MinWidth="0" MinHeight="0"
-                                                                    CornerRadius="4"
-                                                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                                                    Style="{StaticResource PlayerIconButtonStyle}">
-                                                                <FontIcon Glyph="&#xE74D;" FontSize="11" Foreground="#FF6B6B" />
-                                                            </Button>
-                                                        </Grid>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </ScrollViewer>
-                                    </Grid>
-                                </Flyout>
-                            </Button.Flyout>
-                        </Button>
-
-                        <AppBarSeparator Height="20" Margin="4,0" />
-
-                        <!-- Section 4: Queue, Speed & Info Controls -->
-                        <Button x:Name="ClipQueueButton"
-                                ToolTipService.ToolTip="Clip Queue (Q)"
-                                Command="{x:Bind ViewModel.ToggleSidebarCommand}"
-                                Width="32" Height="32"
-                                Padding="0"
-                                MinWidth="0" MinHeight="0"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                IsTabStop="False"
-                                Style="{StaticResource PlayerIconButtonStyle}">
-                            <FontIcon Glyph="&#xE90B;" FontSize="13" Foreground="White" />
-                        </Button>
-
-                        <DropDownButton x:Name="PlaybackSpeedDropDown"
-                                        ToolTipService.ToolTip="Playback Speed" 
-                                        Padding="6,4"
-                                        MinWidth="0" MinHeight="32"
-                                        IsTabStop="False"
-                                        Style="{ThemeResource SubtleButtonStyle}">
-                            <TextBlock Text="{x:Bind ViewModel.FormattedPlaybackRate, Mode=OneWay}" 
-                                       FontSize="12" Foreground="White" />
-                            <DropDownButton.Flyout>
-                                <Flyout x:Name="PlaybackSpeedFlyout" Placement="Top" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
-                                    <StackPanel Spacing="10" MinWidth="250" MaxWidth="300" Padding="14,12">
-                                        <!-- Header -->
-                                        <Grid>
-                                            <TextBlock x:Name="SpeedFlyoutHeaderTitle" Text="Playback Speed" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
-                                        </Grid>
-
-                                        <!-- Speed Presets Grid (2 rows of 3 matching Settings) -->
-                                        <Grid x:Name="SpeedPresetsGrid" ColumnSpacing="6" RowSpacing="6">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                            </Grid.RowDefinitions>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-
-                                            <Button x:Name="PresetSpeed05" Grid.Row="0" Grid.Column="0" Content="0.5x" Click="OnSpeedItemClick" Tag="0.5" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-                                            <Button x:Name="PresetSpeed075" Grid.Row="0" Grid.Column="1" Content="0.75x" Click="OnSpeedItemClick" Tag="0.75" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-                                            <Button x:Name="PresetSpeed10" Grid.Row="0" Grid.Column="2" Content="1.0x (Normal)" Click="OnSpeedItemClick" Tag="1.0" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-
-                                            <Button x:Name="PresetSpeed125" Grid.Row="1" Grid.Column="0" Content="1.25x" Click="OnSpeedItemClick" Tag="1.25" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-                                            <Button x:Name="PresetSpeed15" Grid.Row="1" Grid.Column="1" Content="1.5x" Click="OnSpeedItemClick" Tag="1.5" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-                                            <Button x:Name="PresetSpeed20" Grid.Row="1" Grid.Column="2" Content="2.0x" Click="OnSpeedItemClick" Tag="2.0" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-                                        </Grid>
-
-                                        <!-- Divider line -->
-                                        <Border Height="1" Background="#26FFFFFF" Margin="0,2" />
-
-                                        <!-- Custom Speed Slider & Nudge Buttons -->
-                                        <StackPanel Spacing="6">
-                                            <Grid>
-                                                <TextBlock x:Name="CustomSpeedLabel" Text="Custom Speed" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
-                                                <Button x:Name="ResetSpeedButton" HorizontalAlignment="Right" Content="Reset" Click="OnResetSpeedClick" Padding="6,2" FontSize="10" Style="{ThemeResource SubtleButtonStyle}" />
-                                            </Grid>
-
-                                            <Slider x:Name="CustomSpeedSlider"
-                                                    Minimum="0.25" Maximum="3.0"
-                                                    StepFrequency="0.05"
-                                                    SmallChange="0.05"
-                                                    LargeChange="0.25"
-                                                    Value="{x:Bind ViewModel.PlaybackRate, Mode=OneWay}"
-                                                    ValueChanged="OnCustomSpeedSliderValueChanged"
-                                                    HorizontalAlignment="Stretch"
-                                                    Margin="0" />
-
-                                            <Grid ColumnSpacing="6">
+                                            <!-- Quick duration grid -->
+                                            <Grid ColumnSpacing="6" Margin="0,2,0,0">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
-                                                <Button Grid.Column="0" Content="- 0.05x" Click="OnSpeedStepDownClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
-                                                <Button Grid.Column="1" Content="+ 0.05x" Click="OnSpeedStepUpClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                                <Button Grid.Column="0" Content="+5s" Tag="5" Click="OnQuickRangeDurationClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                                <Button Grid.Column="1" Content="+10s" Tag="10" Click="OnQuickRangeDurationClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                                <Button Grid.Column="2" Content="+15s" Tag="15" Click="OnQuickRangeDurationClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                                <Button Grid.Column="3" Content="+30s" Tag="30" Click="OnQuickRangeDurationClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
                                             </Grid>
                                         </StackPanel>
-                                    </StackPanel>
-                                </Flyout>
-                            </DropDownButton.Flyout>
-                        </DropDownButton>
-
-                        </StackPanel>
-                    </ScrollViewer>
-
-                    <!-- Right: Audio Track Selector, Subtitles Selector, Mute Button, Volume Slider, Percentage Text, Separator, Fullscreen Button (Far Right) -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                        <!-- Video Audio Track Selector -->
-                        <DropDownButton x:Name="AudioTrackDropDown"
-                                        ToolTipService.ToolTip="Audio Tracks"
-                                        Width="32" Height="32"
-                                        Padding="0"
-                                        MinWidth="0" MinHeight="0"
-                                        HorizontalContentAlignment="Center"
-                                        VerticalContentAlignment="Center"
-                                        IsTabStop="False"
-                                        Style="{StaticResource PlayerIconButtonStyle}">
-                            <FontIcon Glyph="&#xE8D4;" FontSize="13" Foreground="White" />
-                            <DropDownButton.Flyout>
-                                <Flyout x:Name="AudioTracksFlyout" Placement="Top" Opening="OnAudioTracksFlyoutOpening" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
-                                     <Grid MinWidth="240" MaxWidth="300" Padding="14,12" RowSpacing="8">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="*" />
-                                        </Grid.RowDefinitions>
-
-                                        <!-- Header -->
-                                        <Grid Grid.Row="0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                                <FontIcon Glyph="&#xE8D4;" FontSize="14" Foreground="White" />
-                                                <TextBlock x:Name="AudioTracksFlyoutHeaderTitle" Text="Audio Tracks" FontWeight="SemiBold" FontSize="14" Foreground="White" />
-                                            </StackPanel>
-                                        </Grid>
-
-                                        <!-- Audio Tracks List -->
-                                        <ScrollViewer Grid.Row="1" MaxHeight="220" VerticalScrollBarVisibility="Auto">
-                                            <StackPanel x:Name="AudioTracksListPanel" Spacing="4" />
-                                        </ScrollViewer>
                                     </Grid>
-                                </Flyout>
-                            </DropDownButton.Flyout>
-                        </DropDownButton>
 
-                        <!-- Subtitles Selector -->
-                        <DropDownButton x:Name="SubtitlesDropDown"
-                                        ToolTipService.ToolTip="Subtitles"
-                                        Width="32" Height="32"
-                                        Padding="0"
-                                        MinWidth="0" MinHeight="0"
-                                        HorizontalContentAlignment="Center"
-                                        VerticalContentAlignment="Center"
-                                        IsTabStop="False"
-                                        Style="{StaticResource PlayerIconButtonStyle}">
-                            <FontIcon Glyph="&#xE134;" FontSize="13" Foreground="White" />
-                            <DropDownButton.Flyout>
-                                <Flyout x:Name="SubtitlesFlyout" Placement="Top" Opening="OnSubtitlesFlyoutOpening" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
-                                    <Grid MinWidth="280" MaxWidth="340" Padding="14,12" RowSpacing="8">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="*" />
-                                        </Grid.RowDefinitions>
+                                    <!-- Title input -->
+                                    <TextBox x:Name="MarkMomentLabelBox" PlaceholderText="Title or note (optional)" Margin="0,2,0,0" />
 
-                                        <!-- Header -->
-                                        <Grid Grid.Row="0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                                <FontIcon Glyph="&#xE134;" FontSize="14" Foreground="White" />
-                                                <TextBlock x:Name="SubtitlesFlyoutHeaderTitle" Text="Subtitles" FontWeight="SemiBold" FontSize="14" Foreground="White" />
-                                            </StackPanel>
-                                            <Button x:Name="AddSubtitleFileButton"
-                                                    Grid.Column="1"
-                                                    ToolTipService.ToolTip="Add Subtitle File"
-                                                    Click="OnAddSubtitleFileClick"
-                                                    Padding="8,4"
-                                                    CornerRadius="4"
-                                                    Style="{ThemeResource SubtleButtonStyle}">
-                                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                                    <FontIcon Glyph="&#xE710;" FontSize="11" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                                    <TextBlock x:Name="AddSubtitleFileText" Text="Add File" FontSize="12" Foreground="White" />
-                                                </StackPanel>
+                                    <!-- Color selector row -->
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="MarkMomentColorLabel" Text="Color" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                        <StackPanel x:Name="MarkMomentColorPanel" Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                                            <Button Tag="#FFD700" ToolTipService.ToolTip="Gold" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#FFD700" />
+                                            <Button Tag="#4CC2FF" ToolTipService.ToolTip="Cyan" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#4CC2FF" />
+                                            <Button Tag="#2ECC71" ToolTipService.ToolTip="Emerald" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#2ECC71" />
+                                            <Button Tag="#FF6B6B" ToolTipService.ToolTip="Coral" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#FF6B6B" />
+                                            <Button Tag="#AF52DE" ToolTipService.ToolTip="Violet" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#AF52DE" />
+                                            <Button Tag="#FF9500" ToolTipService.ToolTip="Orange" Style="{StaticResource MomentColorCircleButtonStyle}" Background="#FF9500" />
+                                            <Button x:Name="CustomColorPickerButton"
+                                                    ToolTipService.ToolTip="Custom Color"
+                                                    Tag="Custom"
+                                                    Style="{StaticResource MomentColorCircleButtonStyle}"
+                                                    Background="#2D2D2D"
+                                                    BorderBrush="#60FFFFFF">
+                                                <FontIcon x:Name="CustomColorPickerPipetteIcon" Glyph="&#xEF3C;" FontSize="10" Foreground="White" />
+                                                <Button.Flyout>
+                                                    <Flyout x:Name="CustomColorFlyout" Placement="Top" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
+                                                        <StackPanel Padding="12,10" Spacing="8">
+                                                            <ColorPicker x:Name="CustomColorPickerControl"
+                                                                         ColorChanged="OnCustomColorPickerColorChanged"
+                                                                         IsColorSpectrumVisible="True"
+                                                                         IsColorSliderVisible="True"
+                                                                         IsHexInputVisible="False"
+                                                                         IsColorChannelTextInputVisible="False"
+                                                                         IsAlphaEnabled="False"
+                                                                         ColorSpectrumShape="Box" />
+                                                            <TextBox x:Name="CustomColorHexInput"
+                                                                     PlaceholderText="#RRGGBB"
+                                                                     FontSize="11"
+                                                                     TextAlignment="Center"
+                                                                     MaxLength="7"
+                                                                     TextChanged="OnCustomColorHexInputTextChanged"
+                                                                     Margin="0,2,0,0" />
+                                                        </StackPanel>
+                                                    </Flyout>
+                                                </Button.Flyout>
                                             </Button>
-                                        </Grid>
-
-                                        <!-- Subtitles List -->
-                                        <ScrollViewer Grid.Row="1" MaxHeight="220" VerticalScrollBarVisibility="Auto">
-                                            <StackPanel x:Name="SubtitlesListPanel" Spacing="4" />
-                                        </ScrollViewer>
+                                        </StackPanel>
                                     </Grid>
-                                </Flyout>
-                            </DropDownButton.Flyout>
-                        </DropDownButton>
 
-                        <Button x:Name="MuteButton"
-                                ToolTipService.ToolTip="Mute / Unmute (M)"
-                                Command="{x:Bind ViewModel.ToggleMuteCommand}"
-                                Width="32" Height="32"
-                                Padding="0"
-                                MinWidth="0" MinHeight="0"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                IsTabStop="False"
-                                Style="{StaticResource PlayerIconButtonStyle}">
-                            <FontIcon x:Name="MuteButtonIcon"
-                                      Glyph="{x:Bind ViewModel.VolumeGlyph, Mode=OneWay}" 
-                                      FontSize="14" 
-                                      Foreground="White"
-                                      RenderTransformOrigin="0.5,0.5">
-                                <FontIcon.RenderTransform>
-                                    <ScaleTransform x:Name="MuteButtonScale" ScaleX="1" ScaleY="1" />
-                                </FontIcon.RenderTransform>
-                            </FontIcon>
-                        </Button>
-
-                        <StackPanel x:Name="VolumeControlGroup" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                            <Slider x:Name="VolumeSlider" 
-                                    Minimum="0" Maximum="100" 
-                                    StepFrequency="5"
-                                    SmallChange="5"
-                                    LargeChange="5"
-                                    SnapsTo="StepValues"
-                                    Value="{x:Bind ViewModel.SliderVolume, Mode=OneWay}" 
-                                    ValueChanged="OnVolumeSliderValueChanged"
-                                    PointerWheelChanged="OnPlayerPointerWheelChanged"
-                                    Loaded="OnVolumeSliderLoaded"
-                                    IsTabStop="False"
-                                    Width="90" 
-                                    VerticalAlignment="Center"
-                                    Margin="0" />
-
-                            <TextBlock x:Name="VolumeValueText"
-                                       Text="{x:Bind ViewModel.Volume, Mode=OneWay}" 
-                                       FontSize="12" 
-                                       FontWeight="SemiBold"
-                                       VerticalAlignment="Center" 
-                                       MinWidth="24" 
-                                       TextAlignment="Right" />
-                            <TextBlock x:Name="VolumePercentText"
-                                       Text="%" FontSize="11" 
-                                       VerticalAlignment="Center" Margin="-4,0,0,0" />
-                        </StackPanel>
-
-
-
-                        <AppBarSeparator Height="20" Margin="4,0" />
-
-                        <Button x:Name="FullscreenButton"
-                                ToolTipService.ToolTip="Fullscreen (F)"
-                                Click="OnFullscreenButtonClick"
-                                Width="32" Height="32"
-                                Padding="0"
-                                MinWidth="0" MinHeight="0"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                IsTabStop="False"
-                                Style="{StaticResource PlayerIconButtonStyle}">
-                            <FontIcon Glyph="{x:Bind ViewModel.FullscreenGlyph, Mode=OneWay}" 
-                                      FontSize="13" Foreground="White" />
-                        </Button>
-                    </StackPanel>
-                </Grid>
-            </Grid>
-            <Border x:Name="BottomControlBarQueueSpacer" Grid.Column="1" Width="0" />
-        </Grid>
-    </Border>
+                                    <!-- Save button -->
+                                    <Button x:Name="MarkMomentSaveButton"
+                                            Content="Save Moment"
+                                            Click="OnSaveMarkMomentClick"
+                                            Style="{StaticResource AccentButtonStyle}"
+                                            HorizontalAlignment="Stretch"
+                                            CornerRadius="4" />
+                                </StackPanel>
+                            </Grid>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+                <Button x:Name="RepeatButton" Tag="repeat" ToolTipService.ToolTip="{x:Bind ViewModel.RepeatTooltip, Mode=OneWay}" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Command="{x:Bind ViewModel.ToggleRepeatModeCommand}">
+                    <FontIcon Glyph="{x:Bind ViewModel.RepeatGlyph, Mode=OneWay}" FontSize="14" Foreground="White" Opacity="{x:Bind ViewModel.RepeatOpacity, Mode=OneWay}" />
+                </Button>
+                <Button x:Name="ShuffleButton" Tag="shuffle" ToolTipService.ToolTip="Shuffle" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Click="OnShuffleClick">
+                    <FontIcon x:Name="ShuffleButtonIcon" Glyph="&#xE8B1;" FontSize="14" Foreground="White" Opacity="0.45" />
+                </Button>
+                <Button x:Name="PreviousClipButton" Tag="prev" ToolTipService.ToolTip="Previous Clip" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Command="{x:Bind ViewModel.PlayPreviousCommand}" IsEnabled="{x:Bind ViewModel.HasPreviousClip, Mode=OneWay}">
+                    <FontIcon Glyph="&#xE892;" FontSize="14" Foreground="White" />
+                </Button>
+                <Button x:Name="PlayPauseButton" Tag="play" ToolTipService.ToolTip="Play / Pause (Space)" Command="{x:Bind ViewModel.TogglePlayPauseCommand}" Width="48" Height="34" Padding="0" Margin="4,0" MinWidth="0" MinHeight="0" CornerRadius="17" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource AccentButtonStyle}" RenderTransformOrigin="0.5,0.5">
+                    <FontIcon x:Name="PlayPauseIcon" Glyph="{x:Bind ViewModel.IsPlaying, Mode=OneWay, Converter={StaticResource PlayPauseGlyphConverter}}" FontSize="15" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                </Button>
+                <Button x:Name="NextClipButton" Tag="next" ToolTipService.ToolTip="Next Clip" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Command="{x:Bind ViewModel.PlayNextCommand}" IsEnabled="{x:Bind ViewModel.HasNextClip, Mode=OneWay}">
+                    <FontIcon Glyph="&#xE893;" FontSize="14" Foreground="White" />
+                </Button>
+                <Button x:Name="StopClipButton" Tag="stop" ToolTipService.ToolTip="Stop (S)" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Command="{x:Bind ViewModel.StopCommand}">
+                    <FontIcon Glyph="&#xE71A;" FontSize="14" Foreground="White" />
+                </Button>
+                <Button x:Name="SkipBackwardButton" Tag="skipback" ToolTipService.ToolTip="Skip back" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Command="{x:Bind ViewModel.SkipBackwardCommand}">
+                    <FontIcon Glyph="&#xE7A6;" FontSize="14" Foreground="White" />
+                </Button>
+                <Button x:Name="SkipForwardButton" Tag="skipforward" ToolTipService.ToolTip="Skip forward" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Command="{x:Bind ViewModel.SkipForwardCommand}">
+                    <FontIcon Glyph="&#xE7A7;" FontSize="14" Foreground="White" />
+                </Button>
+                <Button x:Name="FrameBackButton" Tag="frameback" ToolTipService.ToolTip="Previous frame (,)" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Click="OnFrameBackClick">
+                    <FontIcon Glyph="&#xE76B;" FontSize="14" Foreground="White" />
+                </Button>
+                <Button x:Name="FrameForwardButton" Tag="frameforward" ToolTipService.ToolTip="Next frame (.)" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Click="OnFrameForwardClick">
+                    <FontIcon Glyph="&#xE76C;" FontSize="14" Foreground="White" />
+                </Button>
+                <Button x:Name="SnapshotButton" Tag="snapshot" ToolTipService.ToolTip="Save a snapshot" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Click="OnSnapshotClick">
+                    <FontIcon Glyph="&#xE722;" FontSize="14" Foreground="White" />
+                </Button>
+                <Button x:Name="SpeedButton" Tag="speed" ToolTipService.ToolTip="Playback speed" Click="OnSpeedButtonClick" Padding="8,0" Height="34" MinWidth="40" MinHeight="0" IsTabStop="False" Style="{ThemeResource SubtleButtonStyle}">
+                    <TextBlock Text="{x:Bind ViewModel.FormattedPlaybackRate, Mode=OneWay}" FontSize="12.5" FontWeight="SemiBold" Foreground="White" />
+                </Button>
+                <Button x:Name="TracksButton" Tag="tracks" ToolTipService.ToolTip="Audio &amp; subtitles" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}">
+                    <FontIcon Glyph="&#xED1E;" FontSize="15" Foreground="White" />
+                    <Button.Flyout>
+                        <Flyout x:Name="TracksFlyout" Placement="TopEdgeAlignedRight" Opening="OnTracksFlyoutOpening" Opened="OnFlyoutOpened" Closed="OnFlyoutClosed" FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
+                            <Grid Width="300">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <controls:TabStrip x:Name="TracksTabs" Margin="6,4,6,0" />
+                                <ScrollViewer Grid.Row="1" MaxHeight="340" VerticalScrollBarVisibility="Auto">
+                                    <Grid Padding="10,8,10,6">
+                                        <StackPanel x:Name="TracksVideoPanel" Spacing="2" Visibility="Collapsed" />
+                                        <StackPanel x:Name="TracksAudioPanel" Spacing="2" />
+                                        <StackPanel x:Name="TracksSubtitlesPanel" Spacing="2" Visibility="Collapsed" />
+                                    </Grid>
+                                </ScrollViewer>
+                                <Button x:Name="TracksMoreButton" Grid.Row="2" Click="OnTracksMoreClick" HorizontalAlignment="Stretch" Margin="10,2,10,10" Padding="0,6" FontSize="12" Content="More settings" />
+                            </Grid>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+                <Button x:Name="ClipQueueButton" Tag="queue" ToolTipService.ToolTip="Clip Queue (Q)" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Command="{x:Bind ViewModel.ToggleSidebarCommand}">
+                    <FontIcon Glyph="&#xE90B;" FontSize="14" Foreground="White" />
+                </Button>
+                <Button x:Name="SessionBarButton" Tag="session" ToolTipService.ToolTip="Playback &amp; video settings" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Click="OnSessionButtonClick">
+                    <FontIcon Glyph="&#xE9E9;" FontSize="14" Foreground="White" />
+                </Button>
+                <Button x:Name="PipButton" Tag="pip" ToolTipService.ToolTip="Mini player (always on top)" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Click="OnPipClick">
+                    <FontIcon Glyph="&#xEE49;" FontSize="14" Foreground="White" />
+                </Button>
+                <StackPanel x:Name="VolumeControlGroup" Tag="volume" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Button x:Name="MuteButton" ToolTipService.ToolTip="Mute / Unmute (M)" Command="{x:Bind ViewModel.ToggleMuteCommand}" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}">
+                        <FontIcon x:Name="MuteButtonIcon" Glyph="{x:Bind ViewModel.VolumeGlyph, Mode=OneWay}" FontSize="14" Foreground="White" RenderTransformOrigin="0.5,0.5">
+                            <FontIcon.RenderTransform>
+                                <ScaleTransform x:Name="MuteButtonScale" ScaleX="1" ScaleY="1" />
+                            </FontIcon.RenderTransform>
+                        </FontIcon>
+                    </Button>
+                    <controls:VolumeWedge x:Name="VolumeWedgeControl" VerticalAlignment="Center" />
+                    <TextBlock x:Name="VolumeValueText" FontSize="12" FontWeight="SemiBold" Foreground="#E6FFFFFF" VerticalAlignment="Center" MinWidth="38" TextAlignment="Left" />
+                </StackPanel>
+                <Button x:Name="FullscreenButton" Tag="fullscreen" ToolTipService.ToolTip="Fullscreen (F)" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Click="OnFullscreenButtonClick">
+                    <FontIcon Glyph="{x:Bind ViewModel.FullscreenGlyph, Mode=OneWay}" FontSize="14" Foreground="White" />
+                </Button>
+        </StackPanel>
 
         <!-- Moments Jump Suggestion Popup (Bottom-Left) -->
         <Border x:Name="MomentsJumpPopup"
@@ -1185,7 +770,7 @@
                                                  Fill="{x:Bind ColorHex, Mode=OneWay, Converter={StaticResource HexToBrushConverter}}" />
 
                                         <TextBlock Grid.Column="1"
-                                                   Text="{x:Bind Label, Mode=OneWay}"
+                                                   Text="{x:Bind DisplayLabel, Mode=OneWay}"
                                                    FontSize="12.5"
                                                    Foreground="White"
                                                    VerticalAlignment="Center"
@@ -1205,108 +790,372 @@
             </StackPanel>
         </Border>
 
-        <!-- Collapsible Playlist Queue Sidebar (Slide-in Right) -->
+        <!-- Right-hand panels: the clip queue and session settings (one at a time) -->
         <Border x:Name="PlaylistQueueSidebar"
-                HorizontalAlignment="Right" 
-                Width="320" 
-                Background="{StaticResource PlayerBarBackdropBrush}" 
-                BorderBrush="#1FFFFFFF" 
+                HorizontalAlignment="Right"
+                Width="340"
+                Background="{StaticResource PlayerBarBackdropBrush}"
+                BorderBrush="#1FFFFFFF"
                 BorderThickness="1,0,0,0"
                 Opacity="0"
                 Visibility="Collapsed">
             <Border.RenderTransform>
-                <TranslateTransform x:Name="SidebarTranslation" X="320" />
+                <TranslateTransform x:Name="SidebarTranslation" X="340" />
             </Border.RenderTransform>
-            <Grid Padding="16,44,16,12">
+            <Grid Padding="14,44,14,12" RowSpacing="8">
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-
-                <!-- Header situated safely below the 36px OS titlebar / caption buttons -->
-                <Grid Grid.Row="0" Margin="0,0,0,12">
+                <Grid Margin="2,0,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <FontIcon Glyph="&#xE90B;" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                        <TextBlock x:Name="ClipQueueHeaderTitle" Text="Clip Queue" Style="{ThemeResource SubtitleTextBlockStyle}" FontSize="15" FontWeight="SemiBold" Foreground="White" />
-                        <controls:RollingCounter Value="{x:Bind ViewModel.Playlist.Count, Mode=OneWay}" FontSize="12" Foreground="#808080" VerticalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE90B;" FontSize="15" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        <TextBlock x:Name="ClipQueueHeaderTitle" Text="Clip Queue" FontSize="15" FontWeight="SemiBold" Foreground="White" />
                     </StackPanel>
-
-                    <Button x:Name="CloseQueueButton"
-                            Grid.Column="1" 
-                            ToolTipService.ToolTip="Close Queue (Esc / Q)"
-                            Command="{x:Bind ViewModel.ToggleSidebarCommand}" 
-                            Width="32" Height="32"
-                            Padding="0"
-                            MinWidth="0" MinHeight="0"
-                            HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center"
-                            IsTabStop="False"
-                            Style="{StaticResource PlayerIconButtonStyle}">
+                    <Button x:Name="CloseQueueButton" Grid.Column="1" Click="OnCloseQueueClick" Width="32" Height="32" Padding="0" MinWidth="0" MinHeight="0" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}">
                         <FontIcon Glyph="&#xE711;" FontSize="12" Foreground="White" />
                     </Button>
                 </Grid>
+                <!-- Summary + tools -->
+                <Grid Grid.Row="1" Margin="2,0,0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="QueueSummaryText" FontSize="12" Foreground="#99FFFFFF" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0">
+                        <Button x:Name="QueueSortButton" Width="30" Height="30" Padding="0" MinWidth="0" MinHeight="0" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" ToolTipService.ToolTip="Sort">
+                            <FontIcon Glyph="&#xE8CB;" FontSize="13" Foreground="White" />
+                            <Button.Flyout>
+                                <MenuFlyout x:Name="QueueSortMenu" Placement="BottomEdgeAlignedRight" />
+                            </Button.Flyout>
+                        </Button>
+                        <Button x:Name="QueueRepeatButton" Command="{x:Bind ViewModel.ToggleRepeatModeCommand}" Width="30" Height="30" Padding="0" MinWidth="0" MinHeight="0" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" ToolTipService.ToolTip="{x:Bind ViewModel.RepeatTooltip, Mode=OneWay}">
+                            <FontIcon Glyph="{x:Bind ViewModel.RepeatGlyph, Mode=OneWay}" FontSize="13" Foreground="White" Opacity="{x:Bind ViewModel.RepeatOpacity, Mode=OneWay}" />
+                        </Button>
+                        <Button x:Name="QueueShuffleButton" Click="OnShuffleClick" Width="30" Height="30" Padding="0" MinWidth="0" MinHeight="0" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" ToolTipService.ToolTip="Shuffle">
+                            <FontIcon x:Name="QueueShuffleIcon" Glyph="&#xE8B1;" FontSize="13" Foreground="White" Opacity="0.45" />
+                        </Button>
+                        <Button x:Name="QueueAddButton" Click="OnQueueAddClick" Width="30" Height="30" Padding="0" MinWidth="0" MinHeight="0" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" ToolTipService.ToolTip="Add files">
+                            <FontIcon Glyph="&#xE710;" FontSize="13" Foreground="White" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
 
                 <ListView x:Name="PlaylistQueueListView"
-                          Grid.Row="1" 
+                          Grid.Row="2"
                           ItemsSource="{x:Bind ViewModel.Playlist, Mode=OneWay}"
-                          SelectedItem="{x:Bind ViewModel.CurrentClip, Mode=OneWay}"
-                          SelectionChanged="OnPlaylistSelectionChanged"
+                          SelectionMode="None"
+                          IsItemClickEnabled="True"
+                          ItemClick="OnQueueItemClick"
+                          CanReorderItems="True"
+                          CanDragItems="True"
+                          AllowDrop="True"
+                          DragItemsCompleted="OnQueueDragCompleted"
                           ContainerContentChanging="OnPlaylistContainerContentChanging"
-                          SelectionMode="Single">
-                    <ListView.Resources>
-                        <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="#28FFFFFF" />
-                        <SolidColorBrush x:Key="ListViewItemBackgroundSelectedUnfocused" Color="#20FFFFFF" />
-                        <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="#32FFFFFF" />
-                        <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="#38FFFFFF" />
-                        <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="#15FFFFFF" />
-                        <SolidColorBrush x:Key="ListViewItemSelectionIndicatorFill" Color="{ThemeResource SystemAccentColor}" />
-                        <SolidColorBrush x:Key="ListViewItemSelectionIndicatorPointerOverFill" Color="{ThemeResource SystemAccentColor}" />
-                        <SolidColorBrush x:Key="ListViewItemSelectionIndicatorPressedFill" Color="{ThemeResource SystemAccentColor}" />
-                    </ListView.Resources>
+                          Margin="-6,0,-6,0">
+                    <ListView.ItemContainerTransitions>
+                        <TransitionCollection>
+                            <RepositionThemeTransition />
+                        </TransitionCollection>
+                    </ListView.ItemContainerTransitions>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                            <Setter Property="Padding" Value="6,0,4,0" />
+                            <Setter Property="Margin" Value="0,1" />
+                            <Setter Property="MinHeight" Value="0" />
+                            <Setter Property="CornerRadius" Value="6" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="models:GameClip">
-                            <Grid Margin="0,4" ColumnSpacing="10">
+                            <Grid Height="50" ColumnSpacing="10" Background="Transparent" RightTapped="OnQueueItemRightTapped">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="64" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="56" />
                                     <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-
-                                <!-- Thumbnail Preview -->
-                                <Grid Grid.Column="0" Height="42" CornerRadius="4">
+                                <!-- Drag handle -->
+                                <FontIcon Glyph="&#xE76F;" FontSize="12" Foreground="#66FFFFFF" VerticalAlignment="Center" />
+                                <!-- Thumbnail; the playing clip gets an accent frame and a play mark -->
+                                <Grid Grid.Column="1" Height="32" CornerRadius="4" Background="#22FFFFFF" VerticalAlignment="Center">
                                     <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="UniformToFill" />
-                                    <Border HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="#B3000000" CornerRadius="3" Padding="3,1" Margin="0,0,2,2">
-                                        <TextBlock Text="{x:Bind FormattedDuration, Mode=OneWay}" FontSize="9" Foreground="White" />
-                                    </Border>
-                                    <!-- Active Clip Indicator Border and Badge -->
-                                    <Border BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
-                                            BorderThickness="1.5"
-                                            CornerRadius="4"
+                                    <Border BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="1.5" CornerRadius="4"
                                             Visibility="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                    <Border HorizontalAlignment="Left" VerticalAlignment="Top"
-                                            Visibility="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
-                                            Background="{ThemeResource AccentFillColorDefaultBrush}"
-                                            CornerRadius="3,0,3,0" Padding="3,2">
-                                        <FontIcon Glyph="&#xE768;" FontSize="8" Foreground="White" />
+                                    <Border Background="#99000000" CornerRadius="4" Visibility="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <FontIcon Glyph="&#xE768;" FontSize="11" Foreground="White" />
                                     </Border>
                                 </Grid>
-
-                                <!-- Info -->
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                                    <TextBlock Text="{x:Bind FileName, Mode=OneWay}" 
-                                               FontSize="12" FontWeight="SemiBold" Foreground="White" 
-                                               TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="{x:Bind FormattedFileSize, Mode=OneWay}" 
-                                               FontSize="11" Foreground="#999" />
-                                </StackPanel>
+                                <TextBlock Grid.Column="2" Text="{x:Bind DisplayName, Mode=OneWay}" FontSize="12.5" Foreground="White" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                           ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}" />
+                                <TextBlock Grid.Column="3" Text="{x:Bind FormattedDuration, Mode=OneWay}" FontSize="12" Foreground="#99FFFFFF" VerticalAlignment="Center" Margin="0,0,6,0" />
                             </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
+            </Grid>
+        </Border>
+
+        <Border x:Name="SessionPanel"
+                HorizontalAlignment="Right"
+                Width="340"
+                Background="{StaticResource PlayerBarBackdropBrush}"
+                BorderBrush="#1FFFFFFF"
+                BorderThickness="1,0,0,0"
+                Opacity="0"
+                Visibility="Collapsed">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="SessionPanelTranslation" X="340" />
+            </Border.RenderTransform>
+            <Grid Padding="14,44,14,12" RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid Margin="2,0,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE9E9;" FontSize="15" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        <TextBlock x:Name="SessionPanelTitle" Text="Playback settings" FontSize="15" FontWeight="SemiBold" Foreground="White" />
+                    </StackPanel>
+                    <Button x:Name="CloseSessionButton" Grid.Column="1" Click="OnCloseSessionClick" Width="32" Height="32" Padding="0" MinWidth="0" MinHeight="0" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}">
+                        <FontIcon Glyph="&#xE711;" FontSize="12" Foreground="White" />
+                    </Button>
+                </Grid>
+                <controls:TabStrip x:Name="SessionTabs" Grid.Row="1" Margin="-6,0,-6,0" />
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="-6,0,-14,0" Padding="6,0,14,0">
+                    <Grid>
+                        <!-- Playback -->
+                        <StackPanel x:Name="SessionPlaybackPanel" Spacing="8" Padding="0,6,0,12">
+                            <TextBlock x:Name="SessionSpeedTitle" Text="Speed" FontSize="12" FontWeight="SemiBold" Foreground="#99FFFFFF" Margin="2,10,0,2" />
+                            <!-- Speed Presets Grid (2 rows of 3 matching Settings) -->
+                            <Grid x:Name="SpeedPresetsGrid" ColumnSpacing="6" RowSpacing="6">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Button x:Name="PresetSpeed05" Grid.Row="0" Grid.Column="0" Content="0.5x" Click="OnSpeedItemClick" Tag="0.5" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                <Button x:Name="PresetSpeed075" Grid.Row="0" Grid.Column="1" Content="0.75x" Click="OnSpeedItemClick" Tag="0.75" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                <Button x:Name="PresetSpeed10" Grid.Row="0" Grid.Column="2" Content="1.0x (Normal)" Click="OnSpeedItemClick" Tag="1.0" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+
+                                <Button x:Name="PresetSpeed125" Grid.Row="1" Grid.Column="0" Content="1.25x" Click="OnSpeedItemClick" Tag="1.25" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                <Button x:Name="PresetSpeed15" Grid.Row="1" Grid.Column="1" Content="1.5x" Click="OnSpeedItemClick" Tag="1.5" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                <Button x:Name="PresetSpeed20" Grid.Row="1" Grid.Column="2" Content="2.0x" Click="OnSpeedItemClick" Tag="2.0" HorizontalAlignment="Stretch" Padding="0,5" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                            </Grid>
+
+                            <!-- Divider line -->
+                            <Border Height="1" Background="#26FFFFFF" Margin="0,2" />
+
+                            <!-- Custom Speed Slider & Nudge Buttons -->
+                            <StackPanel Spacing="6">
+                                <Grid>
+                                    <TextBlock x:Name="CustomSpeedLabel" Text="Custom Speed" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                    <Button x:Name="ResetSpeedButton" HorizontalAlignment="Right" Content="Reset" Click="OnResetSpeedClick" Padding="6,2" FontSize="10" Style="{ThemeResource SubtleButtonStyle}" />
+                                </Grid>
+
+                                <Slider x:Name="CustomSpeedSlider"
+                                        Minimum="0.25" Maximum="3.0"
+                                        StepFrequency="0.05"
+                                        SmallChange="0.05"
+                                        LargeChange="0.25"
+                                        Value="{x:Bind ViewModel.PlaybackRate, Mode=OneWay}"
+                                        ValueChanged="OnCustomSpeedSliderValueChanged"
+                                        HorizontalAlignment="Stretch"
+                                        Margin="0" />
+
+                                <Grid ColumnSpacing="6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0" Content="- 0.05x" Click="OnSpeedStepDownClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                    <Button Grid.Column="1" Content="+ 0.05x" Click="OnSpeedStepUpClick" HorizontalAlignment="Stretch" Padding="0,4" FontSize="11" CornerRadius="4" Style="{ThemeResource SubtleButtonStyle}" />
+                                </Grid>
+                            </StackPanel>
+                            <TextBlock x:Name="SessionRepeatTitle" Text="When a clip ends" FontSize="12" FontWeight="SemiBold" Foreground="#99FFFFFF" Margin="2,10,0,2" />
+                            <ComboBox x:Name="SessionRepeatCombo" HorizontalAlignment="Stretch" SelectionChanged="OnSessionRepeatChanged" />
+                            <TextBlock x:Name="SessionLoopTitle" Text="Loop a section" FontSize="12" FontWeight="SemiBold" Foreground="#99FFFFFF" Margin="2,10,0,2" />
+                            <Grid ColumnSpacing="6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="LoopSetAButton" Click="OnLoopSetAClick" HorizontalAlignment="Stretch" Padding="0,5" FontSize="12" Content="Set A" />
+                                <Button x:Name="LoopSetBButton" Grid.Column="1" Click="OnLoopSetBClick" HorizontalAlignment="Stretch" Padding="0,5" FontSize="12" Content="Set B" />
+                                <Button x:Name="LoopClearButton" Grid.Column="2" Click="OnLoopClearClick" Padding="10,5" FontSize="12" Style="{ThemeResource SubtleButtonStyle}" Content="Clear" />
+                            </Grid>
+                            <TextBlock x:Name="LoopStatusText" FontSize="12" Foreground="#99FFFFFF" Margin="2,0,0,0" />
+                        </StackPanel>
+
+                        <!-- Video -->
+                        <StackPanel x:Name="SessionVideoPanel" Spacing="6" Padding="0,6,0,12" Visibility="Collapsed">
+                            <TextBlock x:Name="SessionAdjustTitle" Text="Picture" FontSize="12" FontWeight="SemiBold" Foreground="#99FFFFFF" Margin="2,10,0,2" />
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="44" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="VideoBrightnessLabel" Text="Brightness" FontSize="12" Foreground="#CCFFFFFF" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <Slider x:Name="VideoBrightnessSlider" Grid.Column="1" Minimum="0" Maximum="2" StepFrequency="0.01" Value="1" VerticalAlignment="Center" ValueChanged="OnSessionSliderChanged" IsThumbToolTipEnabled="False" />
+                                <TextBlock x:Name="VideoBrightnessSliderValue" Grid.Column="2" FontSize="12" Foreground="#99FFFFFF" VerticalAlignment="Center" TextAlignment="Right" />
+                            </Grid>
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="44" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="VideoContrastLabel" Text="Contrast" FontSize="12" Foreground="#CCFFFFFF" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <Slider x:Name="VideoContrastSlider" Grid.Column="1" Minimum="0" Maximum="2" StepFrequency="0.01" Value="1" VerticalAlignment="Center" ValueChanged="OnSessionSliderChanged" IsThumbToolTipEnabled="False" />
+                                <TextBlock x:Name="VideoContrastSliderValue" Grid.Column="2" FontSize="12" Foreground="#99FFFFFF" VerticalAlignment="Center" TextAlignment="Right" />
+                            </Grid>
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="44" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="VideoSaturationLabel" Text="Saturation" FontSize="12" Foreground="#CCFFFFFF" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <Slider x:Name="VideoSaturationSlider" Grid.Column="1" Minimum="0" Maximum="3" StepFrequency="0.01" Value="1" VerticalAlignment="Center" ValueChanged="OnSessionSliderChanged" IsThumbToolTipEnabled="False" />
+                                <TextBlock x:Name="VideoSaturationSliderValue" Grid.Column="2" FontSize="12" Foreground="#99FFFFFF" VerticalAlignment="Center" TextAlignment="Right" />
+                            </Grid>
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="44" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="VideoGammaLabel" Text="Gamma" FontSize="12" Foreground="#CCFFFFFF" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <Slider x:Name="VideoGammaSlider" Grid.Column="1" Minimum="0.1" Maximum="3" StepFrequency="0.01" Value="1" VerticalAlignment="Center" ValueChanged="OnSessionSliderChanged" IsThumbToolTipEnabled="False" />
+                                <TextBlock x:Name="VideoGammaSliderValue" Grid.Column="2" FontSize="12" Foreground="#99FFFFFF" VerticalAlignment="Center" TextAlignment="Right" />
+                            </Grid>
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="44" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="VideoHueLabel" Text="Hue" FontSize="12" Foreground="#CCFFFFFF" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <Slider x:Name="VideoHueSlider" Grid.Column="1" Minimum="-180" Maximum="180" StepFrequency="1" Value="0" VerticalAlignment="Center" ValueChanged="OnSessionSliderChanged" IsThumbToolTipEnabled="False" />
+                                <TextBlock x:Name="VideoHueSliderValue" Grid.Column="2" FontSize="12" Foreground="#99FFFFFF" VerticalAlignment="Center" TextAlignment="Right" />
+                            </Grid>
+                            <TextBlock x:Name="SessionAspectTitle" Text="Aspect ratio" FontSize="12" FontWeight="SemiBold" Foreground="#99FFFFFF" Margin="2,10,0,2" />
+                            <ComboBox x:Name="VideoAspectCombo" HorizontalAlignment="Stretch" SelectionChanged="OnVideoAspectChanged" />
+                            <Button x:Name="VideoResetButton" Click="OnVideoResetClick" Margin="0,8,0,0" Padding="12,5" FontSize="12" Content="Reset picture" />
+                            <Grid Margin="0,12,0,0">
+                                <TextBlock x:Name="VideoRememberLabel" Text="Remember for every clip" FontSize="12.5" Foreground="White" VerticalAlignment="Center" />
+                                <ToggleSwitch x:Name="VideoRememberToggle" HorizontalAlignment="Right" MinWidth="0" OnContent="" OffContent="" Toggled="OnSessionRememberToggled" />
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Audio -->
+                        <StackPanel x:Name="SessionAudioPanel" Spacing="6" Padding="0,6,0,12" Visibility="Collapsed">
+                            <Grid Margin="0,6,0,0">
+                                <TextBlock x:Name="EqualizerTitle" Text="Equalizer" FontSize="12.5" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                                <ToggleSwitch x:Name="EqualizerToggle" HorizontalAlignment="Right" MinWidth="0" OnContent="" OffContent="" Toggled="OnEqualizerToggled" />
+                            </Grid>
+                            <ComboBox x:Name="EqualizerPresetCombo" HorizontalAlignment="Stretch" SelectionChanged="OnEqualizerPresetChanged" />
+                            <!-- Band sliders are built in code (10 bands) -->
+                            <Grid x:Name="EqualizerBandsGrid" Height="150" Margin="0,6,0,0" ColumnSpacing="2" />
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="44" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="EqualizerPreampLabel" Text="Preamp" FontSize="12" Foreground="#CCFFFFFF" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <Slider x:Name="EqualizerPreampSlider" Grid.Column="1" Minimum="-20" Maximum="20" StepFrequency="0.5" Value="0" VerticalAlignment="Center" ValueChanged="OnSessionSliderChanged" IsThumbToolTipEnabled="False" />
+                                <TextBlock x:Name="EqualizerPreampSliderValue" Grid.Column="2" FontSize="12" Foreground="#99FFFFFF" VerticalAlignment="Center" TextAlignment="Right" />
+                            </Grid>
+                            <TextBlock x:Name="SessionAudioDelayTitle" Text="Sync" FontSize="12" FontWeight="SemiBold" Foreground="#99FFFFFF" Margin="2,10,0,2" />
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="44" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="AudioDelayLabel" Text="Audio delay" FontSize="12" Foreground="#CCFFFFFF" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <Slider x:Name="AudioDelaySlider" Grid.Column="1" Minimum="-2000" Maximum="2000" StepFrequency="50" Value="0" VerticalAlignment="Center" ValueChanged="OnSessionSliderChanged" IsThumbToolTipEnabled="False" />
+                                <TextBlock x:Name="AudioDelaySliderValue" Grid.Column="2" FontSize="12" Foreground="#99FFFFFF" VerticalAlignment="Center" TextAlignment="Right" />
+                            </Grid>
+                            <Grid Margin="0,12,0,0">
+                                <TextBlock x:Name="AudioRememberLabel" Text="Remember for every clip" FontSize="12.5" Foreground="White" VerticalAlignment="Center" />
+                                <ToggleSwitch x:Name="AudioRememberToggle" HorizontalAlignment="Right" MinWidth="0" OnContent="" OffContent="" Toggled="OnSessionRememberToggled" />
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Subtitles -->
+                        <StackPanel x:Name="SessionSubtitlesPanel" Spacing="6" Padding="0,6,0,12" Visibility="Collapsed">
+                            <TextBlock x:Name="SessionSubSyncTitle" Text="Sync" FontSize="12" FontWeight="SemiBold" Foreground="#99FFFFFF" Margin="2,10,0,2" />
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="44" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="SubtitleDelayLabel" Text="Subtitle delay" FontSize="12" Foreground="#CCFFFFFF" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <Slider x:Name="SubtitleDelaySlider" Grid.Column="1" Minimum="-5000" Maximum="5000" StepFrequency="100" Value="0" VerticalAlignment="Center" ValueChanged="OnSessionSliderChanged" IsThumbToolTipEnabled="False" />
+                                <TextBlock x:Name="SubtitleDelaySliderValue" Grid.Column="2" FontSize="12" Foreground="#99FFFFFF" VerticalAlignment="Center" TextAlignment="Right" />
+                            </Grid>
+                            <TextBlock x:Name="SessionSubStyleTitle" Text="Style" FontSize="12" FontWeight="SemiBold" Foreground="#99FFFFFF" Margin="2,10,0,2" />
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="44" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="SubtitleSizeLabel" Text="Size" FontSize="12" Foreground="#CCFFFFFF" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                <Slider x:Name="SubtitleSizeSlider" Grid.Column="1" Minimum="50" Maximum="200" StepFrequency="5" Value="100" VerticalAlignment="Center" ValueChanged="OnSessionSliderChanged" IsThumbToolTipEnabled="False" />
+                                <TextBlock x:Name="SubtitleSizeSliderValue" Grid.Column="2" FontSize="12" Foreground="#99FFFFFF" VerticalAlignment="Center" TextAlignment="Right" />
+                            </Grid>
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="SubtitleColorLabel" Text="Color" FontSize="12" Foreground="#CCFFFFFF" VerticalAlignment="Center" />
+                                <StackPanel x:Name="SubtitleColorPanel" Grid.Column="1" Orientation="Horizontal" Spacing="6" />
+                            </Grid>
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="SubtitleBackLabel" Text="Background" FontSize="12" Foreground="#CCFFFFFF" VerticalAlignment="Center" />
+                                <ComboBox x:Name="SubtitleBackCombo" Grid.Column="1" HorizontalAlignment="Stretch" SelectionChanged="OnSubtitleStyleChanged" />
+                            </Grid>
+                            <Grid ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="96" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="SubtitleBoldLabel" Text="Bold" FontSize="12" Foreground="#CCFFFFFF" VerticalAlignment="Center" />
+                                <ToggleSwitch x:Name="SubtitleBoldToggle" Grid.Column="1" MinWidth="0" OnContent="" OffContent="" Toggled="OnSubtitleStyleToggled" />
+                            </Grid>
+                            <TextBlock x:Name="SubtitleStyleHint" Text="Style changes apply when the next clip starts" FontSize="11.5" Foreground="#80FFFFFF" TextWrapping="Wrap" Margin="2,4,0,0" />
+                            <Button x:Name="SubtitleApplyButton" Click="OnSubtitleApplyClick" Padding="12,5" FontSize="12" Content="Apply now" />
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
             </Grid>
         </Border>
     </Grid>

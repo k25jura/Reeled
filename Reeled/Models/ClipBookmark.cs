@@ -16,7 +16,14 @@ public partial class ClipBookmark : ObservableObject
     private string _colorHex = "#FFD700";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayLabel))]
     private string _label = string.Empty;
+
+    /// <summary>The label, or "Moment" when it has none.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string DisplayLabel => !string.IsNullOrWhiteSpace(Label)
+        ? Label
+        : App.GetService<Services.ILocalizationService>()?["Player_UntitledMoment"] ?? "Moment";
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -49,5 +56,6 @@ public partial class ClipBookmark : ObservableObject
         OnPropertyChanged(nameof(JumpTooltip));
         OnPropertyChanged(nameof(RenameTooltip));
         OnPropertyChanged(nameof(RemoveTooltip));
+        OnPropertyChanged(nameof(DisplayLabel));
     }
 }

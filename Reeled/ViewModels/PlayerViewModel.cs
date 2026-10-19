@@ -10,6 +10,21 @@ using Reeled.Services;
 
 namespace Reeled.ViewModels;
 
+/// <summary>What an OSD message is about; the OSD tints its backdrop by it.</summary>
+public enum OsdKind
+{
+    Neutral,
+    Playback,
+    Stop,
+    Seek,
+    Volume,
+    VolumeBoost,
+    Speed,
+    Moment,
+    Tracks,
+    Mode
+}
+
 public partial class PlayerViewModel : ObservableObject
 {
     private readonly ILibVlcPlaybackService _playbackService;
@@ -57,6 +72,20 @@ public partial class PlayerViewModel : ObservableObject
 
     [ObservableProperty]
     private string _statusToast = string.Empty;
+
+    /// <summary>Second OSD line for the message in <see cref="StatusToast"/> (set before it).</summary>
+    public string? OsdDetail { get; private set; }
+    public OsdKind OsdKind { get; private set; }
+
+    [ObservableProperty]
+    private bool _isShuffleEnabled;
+
+    /// <summary>A-B loop: playback jumps back to A on reaching B.</summary>
+    [ObservableProperty]
+    private TimeSpan? _loopStart;
+
+    [ObservableProperty]
+    private TimeSpan? _loopEnd;
 
     [ObservableProperty]
     private ClipBookmark? _activeBookmark;
@@ -187,6 +216,28 @@ public partial class PlayerViewModel : ObservableObject
     public bool HasNextClip =>
         CurrentClip != null && Playlist.Count > 1;
 
+    partial void OnIsShuffleEnabledChanged(bool value)
+    {
+        ShowToast(_localizationService[value ? "Player_Toast_ShuffleOn" : "Player_Toast_ShuffleOff"], kind: OsdKind.Mode);
+    }
+
+    /// <summary>The clip shuffle would play next: random, avoiding the current one.</summary>
+    private GameClip? PickShuffleClip()
+    {
+        if (Playlist.Count < 2 || CurrentClip == null) return null;
+        var candidates = Playlist.Where(c => !ReferenceEquals(c, CurrentClip) && !_shuffleHistory.Contains(c)).ToList();
+        if (candidates.Count == 0)
+        {
+            _shuffleHistory.Clear();
+            candidates = Playlist.Where(c => !ReferenceEquals(c, CurrentClip)).ToList();
+        }
+        var pick = candidates[Random.Shared.Next(candidates.Count)];
+        _shuffleHistory.Add(pick);
+        return pick;
+    }
+
+    private readonly HashSet<GameClip> _shuffleHistory = new();
+
     public PlayerViewModel(
         ILibVlcPlaybackService playbackService,
         ILocalStorageService storageService,
@@ -313,6 +364,12 @@ public partial class PlayerViewModel : ObservableObject
     private void SetClip(GameClip clip, bool allowResume = true)
     {
         SaveResumePosition();
+        if (!ReferenceEquals(clip, CurrentClip))
+        {
+            // A loop belongs to the clip it was set on
+            LoopStart = null;
+            LoopEnd = null;
+        }
 
         UpdateActivePlaylistItem(clip);
         TotalTime = clip.Duration;
@@ -444,6 +501,11 @@ public partial class PlayerViewModel : ObservableObject
         CurrentTime = currentTime;
         OnPropertyChanged(nameof(FormattedCurrentTime));
 
+        if (LoopStart is TimeSpan a && LoopEnd is TimeSpan b && b > a && currentTime >= b && !_isDraggingSlider)
+        {
+            SeekToSeconds(a.TotalSeconds);
+        }
+
         ClipBookmark? matching = null;
         foreach (var bm in Bookmarks)
         {
@@ -487,9 +549,13 @@ public partial class PlayerViewModel : ObservableObject
         CurrentTime = TotalTime;
 
         int idx = Playlist.IndexOf(CurrentClip);
-        if (RepeatMode == RepeatMode.One)
+        if (RepeatMode == RepeatMode.One || (LoopStart.HasValue && LoopEnd.HasValue))
         {
             SetClip(CurrentClip, allowResume: false);
+        }
+        else if (IsShuffleEnabled && PickShuffleClip() is GameClip shuffled)
+        {
+            SetClip(shuffled);
         }
         else if (idx >= 0 && idx < Playlist.Count - 1)
         {
@@ -513,7 +579,7 @@ public partial class PlayerViewModel : ObservableObject
     {
         _playbackService.TogglePlayPause();
         IsPlaying = _playbackService.IsPlaying;
-        ShowToast(IsPlaying ? "▶" : "❚❚");
+        ShowToast(IsPlaying ? "▶" : "❚❚", kind: OsdKind.Playback);
     }
 
     [RelayCommand]
@@ -524,7 +590,7 @@ public partial class PlayerViewModel : ObservableObject
         CurrentTime = TimeSpan.Zero;
         IsPlaying = false;
         OnPropertyChanged(nameof(FormattedCurrentTime));
-        ShowToast("■");
+        ShowToast("■", kind: OsdKind.Stop);
     }
 
     [RelayCommand]
@@ -538,7 +604,7 @@ public partial class PlayerViewModel : ObservableObject
             CurrentTime = TimeSpan.Zero;
             ProgressValue = 0;
             OnPropertyChanged(nameof(FormattedCurrentTime));
-            ShowToast("00:00");
+            ShowToast("00:00", kind: OsdKind.Seek);
             return;
         }
 
@@ -565,6 +631,12 @@ public partial class PlayerViewModel : ObservableObject
     {
         if (CurrentClip == null || Playlist.Count == 0) return;
 
+        if (IsShuffleEnabled && PickShuffleClip() is GameClip shuffled)
+        {
+            SetClip(shuffled);
+            return;
+        }
+
         int idx = Playlist.IndexOf(CurrentClip);
         if (idx >= 0 && idx < Playlist.Count - 1)
         {
@@ -580,8 +652,9 @@ public partial class PlayerViewModel : ObservableObject
     public void SkipForward()
     {
         int step = SkipStepSeconds;
+        string from = FormattedCurrentTime;
         SkipBySeconds(step);
-        ShowToast($"+{step}s");
+        ShowToast($"+{step}s", $"{from}  →  {FormattedCurrentTime}", OsdKind.Seek);
     }
 
     /// <summary>Jump size from Settings (5, 10, 15 or 30 seconds).</summary>
@@ -591,22 +664,25 @@ public partial class PlayerViewModel : ObservableObject
     public void SkipBackward()
     {
         int step = SkipStepSeconds;
+        string from = FormattedCurrentTime;
         SkipBySeconds(-step);
-        ShowToast($"-{step}s");
+        ShowToast($"-{step}s", $"{from}  →  {FormattedCurrentTime}", OsdKind.Seek);
     }
 
     [RelayCommand]
     public void FineForward()
     {
+        string from = FormattedCurrentTime;
         SkipBySeconds(1);
-        ShowToast("+1s");
+        ShowToast("+1s", $"{from}  →  {FormattedCurrentTime}", OsdKind.Seek);
     }
 
     [RelayCommand]
     public void FineBackward()
     {
+        string from = FormattedCurrentTime;
         SkipBySeconds(-1);
-        ShowToast("-1s");
+        ShowToast("-1s", $"{from}  →  {FormattedCurrentTime}", OsdKind.Seek);
     }
 
     private void SkipBySeconds(int seconds)
@@ -639,14 +715,14 @@ public partial class PlayerViewModel : ObservableObject
         if (forward)
         {
             _playbackService.NextFrame();
-            ShowToast(_localizationService["Player_Toast_NextFrame"]);
+            ShowToast(_localizationService["Player_Toast_NextFrame"], kind: OsdKind.Seek);
         }
         else
         {
             // LibVLC has no previous-frame primitive: seek back by one frame duration
             double fps = _playbackService.Fps > 1 ? _playbackService.Fps : 60.0;
             SeekToSeconds(Math.Max(0, CurrentTime.TotalSeconds - 1.0 / fps));
-            ShowToast(_localizationService["Player_Toast_PreviousFrame"]);
+            ShowToast(_localizationService["Player_Toast_PreviousFrame"], FormattedCurrentTime, OsdKind.Seek);
         }
     }
 
@@ -655,8 +731,9 @@ public partial class PlayerViewModel : ObservableObject
         if (TotalTime <= TimeSpan.Zero) return;
         fraction = Math.Clamp(fraction, 0.0, 1.0);
         // Land just short of the end so seeking to 100% doesn't immediately end the clip
+        string from = FormattedCurrentTime;
         SeekToSeconds(Math.Min(TotalTime.TotalSeconds * fraction, Math.Max(0, TotalTime.TotalSeconds - 0.5)));
-        ShowToast(FormattedCurrentTime);
+        ShowToast(FormattedCurrentTime, $"{from}  →  {FormattedCurrentTime}", OsdKind.Seek);
     }
 
     private void SeekToSeconds(double targetSec)
@@ -762,7 +839,7 @@ public partial class PlayerViewModel : ObservableObject
         SortBookmarks();
         App.GetService<HomeViewModel>()?.UpdateBookmarkCounts();
 
-        ShowToast(string.Format(_localizationService["Player_Toast_SavedMarker"], bookmark.FormattedTimestamp));
+        ShowToast(string.Format(_localizationService["Player_Toast_SavedMarker"], bookmark.FormattedTimestamp), kind: OsdKind.Moment);
     }
 
     [RelayCommand]
@@ -791,7 +868,7 @@ public partial class PlayerViewModel : ObservableObject
             await _storageService.SaveSettingsAsync(settings);
         }
         App.GetService<HomeViewModel>()?.UpdateBookmarkCounts();
-        ShowToast(_localizationService["Player_Toast_RemovedMoment"]);
+        ShowToast(_localizationService["Player_Toast_RemovedMoment"], kind: OsdKind.Moment);
     }
 
     public async Task UpdateBookmarkLabelAsync(ClipBookmark bookmark, string newLabel)
@@ -812,7 +889,7 @@ public partial class PlayerViewModel : ObservableObject
             await _storageService.SaveSettingsAsync(settings);
         }
 
-        ShowToast(string.Format(_localizationService["Player_Toast_RenamedMoment"], trimmed));
+        ShowToast(string.Format(_localizationService["Player_Toast_RenamedMoment"], trimmed), kind: OsdKind.Moment);
     }
 
     public async Task UpdateBookmarkDetailsAsync(ClipBookmark bookmark, TimeSpan newStart, TimeSpan? newEnd, string newLabel, string newColor)
@@ -855,7 +932,7 @@ public partial class PlayerViewModel : ObservableObject
         SortBookmarks();
         App.GetService<HomeViewModel>()?.UpdateBookmarkCounts();
 
-        ShowToast(string.Format(_localizationService["Player_Toast_ChangedMoment"], bookmark.Label));
+        ShowToast(string.Format(_localizationService["Player_Toast_ChangedMoment"], bookmark.Label), kind: OsdKind.Moment);
     }
 
     private void SortBookmarks()
@@ -892,7 +969,7 @@ public partial class PlayerViewModel : ObservableObject
         }
         OnPropertyChanged(nameof(FormattedCurrentTime));
         _playbackService.SeekTime((long)bookmark.Timestamp.TotalMilliseconds);
-        ShowToast(string.Format(_localizationService["Player_Toast_JumpedTo"], bookmark.FormattedTimestamp));
+        ShowToast(string.Format(_localizationService["Player_Toast_JumpedTo"], bookmark.FormattedTimestamp), kind: OsdKind.Moment);
     }
 
     [RelayCommand]
@@ -911,10 +988,10 @@ public partial class PlayerViewModel : ObservableObject
         OnPropertyChanged(nameof(VolumeSliderBrush));
         OnPropertyChanged(nameof(VolumeTextBrush));
 
-        string toast = IsMuted 
-            ? _localizationService["Player_Toast_Muted"] 
+        string toast = IsMuted
+            ? _localizationService["Player_Toast_Muted"]
             : string.Format(_localizationService["Player_Toast_Volume"], Volume);
-        ShowToast(toast);
+        ShowToast(toast, Volume > 100 ? _localizationService["Player_Toast_Boosted"] : null, Volume > 100 ? OsdKind.VolumeBoost : OsdKind.Volume);
 
         var settings = _storageService.CurrentSettings;
         settings.Volume = Volume;
@@ -933,7 +1010,7 @@ public partial class PlayerViewModel : ObservableObject
         }
         _playbackService.SetMute(IsMuted);
         OnPropertyChanged(nameof(VolumeGlyph));
-        ShowToast(IsMuted ? _localizationService["Player_Toast_Muted"] : string.Format(_localizationService["Player_Toast_Volume"], Volume));
+        ShowToast(IsMuted ? _localizationService["Player_Toast_Muted"] : string.Format(_localizationService["Player_Toast_Volume"], Volume), kind: OsdKind.Volume);
 
         var settings = _storageService.CurrentSettings;
         settings.IsMuted = IsMuted;
@@ -957,7 +1034,7 @@ public partial class PlayerViewModel : ObservableObject
             RepeatMode.One => _localizationService["Player_Repeat_One_Toast"],
             _ => _localizationService["Player_Repeat_Off_Toast"]
         };
-        ShowToast(toast);
+        ShowToast(toast, kind: OsdKind.Mode);
 
         var settings = _storageService.CurrentSettings;
         settings.RepeatMode = RepeatMode;
@@ -970,7 +1047,7 @@ public partial class PlayerViewModel : ObservableObject
         PlaybackRate = (float)speed;
         _playbackService.SetPlaybackRate(PlaybackRate);
         OnPropertyChanged(nameof(FormattedPlaybackRate));
-        ShowToast(string.Format(_localizationService["Player_Toast_Speed"], $"{speed:0.##}"));
+        ShowToast(string.Format(_localizationService["Player_Toast_Speed"], $"{speed:0.##}"), kind: OsdKind.Speed);
 
         var settings = _storageService.CurrentSettings;
         settings.PlaybackSpeed = speed;
@@ -1145,17 +1222,133 @@ public partial class PlayerViewModel : ObservableObject
         }
     }
 
-    public void ShowToast(string message)
+    public void ShowToast(string message, string? detail = null, OsdKind kind = OsdKind.Neutral)
     {
         if (!_storageService.CurrentSettings.EnableOsdNotifications)
         {
             return;
         }
 
+        OsdDetail = detail;
+        OsdKind = kind;
         if (StatusToast == message)
         {
             StatusToast = string.Empty;
         }
         StatusToast = message;
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // A-B loop, queue editing and snapshots
+    // ---------------------------------------------------------------------------------------------
+
+    public void SetLoopPoint(bool isStart)
+    {
+        if (TotalTime <= TimeSpan.Zero) return;
+        if (isStart)
+        {
+            LoopStart = CurrentTime;
+            if (LoopEnd.HasValue && LoopEnd <= LoopStart) LoopEnd = null;
+        }
+        else
+        {
+            if (!LoopStart.HasValue) LoopStart = TimeSpan.Zero;
+            LoopEnd = CurrentTime > LoopStart ? CurrentTime : null;
+        }
+        string a = LoopStart.HasValue ? FormatTime(LoopStart.Value) : "--:--";
+        string b = LoopEnd.HasValue ? FormatTime(LoopEnd.Value) : "--:--";
+        ShowToast(_localizationService["Player_Toast_Loop"], $"{a}  →  {b}", OsdKind.Mode);
+    }
+
+    /// <summary>Reopens the current clip at the same spot (used to apply subtitle style changes).</summary>
+    public void ReloadCurrentClip()
+    {
+        if (CurrentClip == null) return;
+        long ms = (long)CurrentTime.TotalMilliseconds;
+        _ = _playbackService.PlayMediaAsync(CurrentClip.FilePath, ms);
+        ShowToast(_localizationService["Player_Toast_Reloaded"], kind: OsdKind.Tracks);
+    }
+
+    public void ClearLoop()
+    {
+        if (!LoopStart.HasValue && !LoopEnd.HasValue) return;
+        LoopStart = null;
+        LoopEnd = null;
+        ShowToast(_localizationService["Player_Toast_LoopOff"], kind: OsdKind.Mode);
+    }
+
+    public static string FormatTime(TimeSpan t) => t.Hours > 0 ? t.ToString(@"hh\:mm\:ss") : t.ToString(@"mm\:ss");
+
+    public void RemoveFromPlaylist(GameClip clip)
+    {
+        if (!Playlist.Contains(clip)) return;
+        if (ReferenceEquals(clip, CurrentClip) && Playlist.Count == 1) return; // keep the playing clip
+        bool wasCurrent = ReferenceEquals(clip, CurrentClip);
+        int idx = Playlist.IndexOf(clip);
+        Playlist.Remove(clip);
+        if (wasCurrent && Playlist.Count > 0)
+        {
+            SetClip(Playlist[Math.Min(idx, Playlist.Count - 1)]);
+        }
+        OnPropertyChanged(nameof(HasNextClip));
+        OnPropertyChanged(nameof(HasPreviousClip));
+    }
+
+    public enum PlaylistSort { Name, NameDescending, Newest, Oldest, Longest, Shortest, Reverse }
+
+    public void SortPlaylist(PlaylistSort sort)
+    {
+        var sorted = sort switch
+        {
+            PlaylistSort.Name => Playlist.OrderBy(c => c.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToList(),
+            PlaylistSort.NameDescending => Playlist.OrderByDescending(c => c.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToList(),
+            PlaylistSort.Newest => Playlist.OrderByDescending(c => c.EffectiveDate).ToList(),
+            PlaylistSort.Oldest => Playlist.OrderBy(c => c.EffectiveDate).ToList(),
+            PlaylistSort.Longest => Playlist.OrderByDescending(c => c.Duration).ToList(),
+            PlaylistSort.Shortest => Playlist.OrderBy(c => c.Duration).ToList(),
+            _ => Playlist.Reverse().ToList()
+        };
+        // Move in place so the list animates instead of rebuilding
+        for (int target = 0; target < sorted.Count; target++)
+        {
+            int current = Playlist.IndexOf(sorted[target]);
+            if (current != target) Playlist.Move(current, target);
+        }
+    }
+
+    public void AddFilesToPlaylist(IEnumerable<string> paths)
+    {
+        int added = 0;
+        foreach (var path in paths)
+        {
+            if (Playlist.Any(c => string.Equals(c.FilePath, path, StringComparison.OrdinalIgnoreCase))) continue;
+            try
+            {
+                var info = new System.IO.FileInfo(path);
+                if (!info.Exists) continue;
+                Playlist.Add(GameClip.FromFileInfo(info));
+                added++;
+            }
+            catch { }
+        }
+        if (added > 0)
+        {
+            OnPropertyChanged(nameof(HasNextClip));
+            ShowToast(string.Format(_localizationService["Player_Toast_AddedToQueue"], added), kind: OsdKind.Tracks);
+        }
+    }
+
+    public async Task<string?> TakeSnapshotAsync()
+    {
+        if (CurrentClip == null) return null;
+        var settings = _storageService.CurrentSettings;
+        string folder = !string.IsNullOrWhiteSpace(settings.SnapshotFolder)
+            ? settings.SnapshotFolder
+            : System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "Reeled");
+        string name = System.IO.Path.GetFileNameWithoutExtension(CurrentClip.FileName);
+        var path = await _playbackService.TakeSnapshotAsync(folder, name);
+        ShowToast(_localizationService[path != null ? "Player_Toast_Snapshot" : "Player_Toast_SnapshotFailed"],
+            path != null ? System.IO.Path.GetFileName(path) : null, path != null ? OsdKind.Moment : OsdKind.Stop);
+        return path;
     }
 }

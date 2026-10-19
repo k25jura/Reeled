@@ -290,12 +290,13 @@ public sealed partial class HomePage
         if (snapIndicator) QueueHorizontalIndicator(animate: false);
     }
 
-    private Button CreateHorizontalItemButton(string glyph, string label, int count, out TextBlock labelText, out FontIcon icon)
+    private Button CreateHorizontalItemButton(string glyph, string label, int count, out TextBlock labelText, out FontIcon icon, ImageSource? gameIcon = null)
     {
         icon = new FontIcon { Glyph = glyph, FontSize = 14, VerticalAlignment = VerticalAlignment.Center };
         labelText = new TextBlock { Text = label, FontSize = 13, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 220, TextTrimming = TextTrimming.CharacterEllipsis };
         var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        panel.Children.Add(icon);
+        // A folder with a game icon shows that instead of the glyph (the glyph element stays for the tint logic)
+        panel.Children.Add(gameIcon != null ? CreateGameIconElement(gameIcon, 18) : icon);
         panel.Children.Add(labelText);
         if (count > 0)
         {
@@ -338,7 +339,7 @@ public sealed partial class HomePage
             count = ViewModel.SelectedDirectory.ClipCount;
         }
 
-        var button = CreateHorizontalItemButton("", label, count, out var text, out var icon);
+        var button = CreateHorizontalItemButton("", label, count, out var text, out var icon, root.GameIcon);
         button.Click += async (s, e) =>
         {
             DirectoriesTreeView.SelectedItem = null;
@@ -429,6 +430,7 @@ public sealed partial class HomePage
         copy.Click += (s, e) => ViewModel.CopyFolderPath(root);
         menu.Items.Add(open);
         menu.Items.Add(copy);
+        AddGameIconMenu(menu.Items, root);
         return menu;
     }
 

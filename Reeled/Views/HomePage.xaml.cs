@@ -27,6 +27,7 @@ public sealed partial class HomePage : Page
         ViewModel.RequestScrollToTop += ScrollClipsToTop;
         ViewModel.ViewContentReplaced += OnViewContentReplaced;
         WireTags();
+        WireGameIcons();
 
         Helpers.CursorHelper.SetElementCursor(SidebarResizeHandle, Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast));
 
@@ -3023,6 +3024,7 @@ public sealed partial class HomePage : Page
         flyout.Items.Add(new MenuFlyoutSeparator());
         Item("FolderMenu_RevealExplorer", "\uEC50", () => ViewModel.OpenFolderInExplorer(node));
         Item("FolderMenu_CopyPath", "\uE8C8", () => ViewModel.CopyFolderPath(node));
+        AddGameIconMenu(flyout.Items, node);
 
         // Watch folders can be reordered; subfolders follow the file system order
         int index = ViewModel.Directories.IndexOf(node);

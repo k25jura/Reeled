@@ -70,7 +70,16 @@ public partial class HomeViewModel
                 pending.Add(node);
             }
         }
+        // Views that build folder chips in code re-read the icons
+        GameIconsChanged?.Invoke();
         if (pending.Count > 0) _ = LookUpIconsAsync(pending);
+    }
+
+    /// <summary>Stops automatic lookups in progress; icons already found stay.</summary>
+    public void StopGameIconLookups()
+    {
+        _iconLookupCts?.Cancel();
+        _iconLookupCts = null;
     }
 
     private async Task LookUpIconsAsync(List<DirectoryNode> nodes)

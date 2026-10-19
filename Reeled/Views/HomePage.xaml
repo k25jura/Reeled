@@ -711,11 +711,19 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
-                                        <FontIcon Grid.Column="0" 
-                                                  Glyph="{x:Bind IconGlyph, Mode=OneWay}" 
-                                                  FontSize="15" 
-                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                                  VerticalAlignment="Center" />
+                                        <!-- The folder glyph, or the game's icon once one is known -->
+                                        <Grid Grid.Column="0" Width="18" Height="18" VerticalAlignment="Center">
+                                            <FontIcon Glyph="{x:Bind IconGlyph, Mode=OneWay}"
+                                                      FontSize="15"
+                                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Visibility="{x:Bind FolderGlyphVisibility, Mode=OneWay}" />
+                                            <Grid CornerRadius="4"
+                                                  Visibility="{x:Bind HasGameIcon, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <Image Source="{x:Bind GameIcon, Mode=OneWay}" Stretch="UniformToFill" />
+                                            </Grid>
+                                        </Grid>
 
                                         <TextBlock Grid.Column="1" 
                                                    Text="{x:Bind DisplayName}" 

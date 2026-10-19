@@ -444,7 +444,9 @@ public sealed partial class HomePage : Page
             if (SortNameAZItem != null) SortNameAZItem.Text = loc["Sort_TitleAZ"];
             if (SortNameZAItem != null) SortNameZAItem.Text = loc["Sort_TitleZA"];
             if (SortDurationItem != null) SortDurationItem.Text = loc["Sort_Duration"];
+            if (SortDurationShortestItem != null) SortDurationShortestItem.Text = loc["Sort_DurationShortest"];
             if (SortFileSizeItem != null) SortFileSizeItem.Text = loc["Sort_FileSize"];
+            if (SortFileSizeSmallestItem != null) SortFileSizeSmallestItem.Text = loc["Sort_FileSizeSmallest"];
 
             // View Options Menu Items
             if (ViewOptionsText != null) ViewOptionsText.Text = loc["View_Options"];
@@ -1583,11 +1585,19 @@ public sealed partial class HomePage : Page
                 glyph = "\uE8D2";
                 break;
             case 4:
-                label = loc?["Sort_Duration"] ?? "Duration";
+                label = loc?["Sort_Duration"] ?? "Duration (longest)";
                 glyph = "\uE916";
                 break;
             case 5:
-                label = loc?["Sort_FileSize"] ?? "File Size";
+                label = loc?["Sort_FileSize"] ?? "Size (largest)";
+                glyph = "\uE74C";
+                break;
+            case 6:
+                label = loc?["Sort_DurationShortest"] ?? "Duration (shortest)";
+                glyph = "\uE916";
+                break;
+            case 7:
+                label = loc?["Sort_FileSizeSmallest"] ?? "Size (smallest)";
                 glyph = "\uE74C";
                 break;
             default:

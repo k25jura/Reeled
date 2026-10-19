@@ -392,7 +392,7 @@ public partial class HomeViewModel : ObservableObject
         _indexerService.MetadataBatchCompleted += () => _dispatcherQueue.TryEnqueue(() =>
         {
             // Durations arrive in the background; re-sort once they're known so "Duration" ordering is correct
-            if (SortIndex == 4)
+            if (SortIndex is 4 or 6)
             {
                 ApplyFilterAndSort();
             }
@@ -1224,6 +1224,8 @@ public partial class HomeViewModel : ObservableObject
             3 => query.OrderByDescending(c => c.DisplayName, StringComparer.OrdinalIgnoreCase),
             4 => query.OrderByDescending(c => c.Duration),
             5 => query.OrderByDescending(c => c.FileSizeBytes),
+            6 => query.OrderBy(c => c.Duration),
+            7 => query.OrderBy(c => c.FileSizeBytes),
             _ => query
         };
 
@@ -1272,6 +1274,8 @@ public partial class HomeViewModel : ObservableObject
             3 => groups.OrderByDescending(g => g.Max(c => c.DisplayName), StringComparer.OrdinalIgnoreCase),
             4 => groups.OrderByDescending(g => g.Max(c => c.Duration)),
             5 => groups.OrderByDescending(g => g.Max(c => c.FileSizeBytes)),
+            6 => groups.OrderBy(g => g.Min(c => c.Duration)),
+            7 => groups.OrderBy(g => g.Min(c => c.FileSizeBytes)),
             _ => groups.OrderByDescending(g => g.Max(c => c.EffectiveDate))
         };
 

@@ -1053,7 +1053,14 @@
                                     <MenuFlyoutItem x:Name="SortDurationItem" Click="OnSortMenuItemClick" Tag="4">
                                         <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE916;" FontSize="14" /></MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
+                                    <MenuFlyoutItem x:Name="SortDurationShortestItem" Click="OnSortMenuItemClick" Tag="6">
+                                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE916;" FontSize="14" /></MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutSeparator />
                                     <MenuFlyoutItem x:Name="SortFileSizeItem" Click="OnSortMenuItemClick" Tag="5">
+                                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74C;" FontSize="14" /></MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutItem x:Name="SortFileSizeSmallestItem" Click="OnSortMenuItemClick" Tag="7">
                                         <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74C;" FontSize="14" /></MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
                                 </MenuFlyout>

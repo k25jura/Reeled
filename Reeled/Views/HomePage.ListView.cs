@@ -152,8 +152,9 @@ public sealed partial class HomePage
         {
             "name" => current == 2 ? 3 : 2,
             "date" => current == 0 ? 1 : 0,
-            "duration" => 4,
-            "size" => 5,
+            // Longest / largest first, then the other way round
+            "duration" => current == 4 ? 6 : 4,
+            "size" => current == 5 ? 7 : 5,
             _ => current
         };
         UpdateListSortIndicators();
@@ -170,8 +171,8 @@ public sealed partial class HomePage
         }
         Set(ListSortNameGlyph, sort is 2 or 3, sort == 3);
         Set(ListSortDateGlyph, sort is 0 or 1, sort == 0);
-        Set(ListSortDurationGlyph, sort == 4, true);
-        Set(ListSortSizeGlyph, sort == 5, true);
+        Set(ListSortDurationGlyph, sort is 4 or 6, sort == 4);
+        Set(ListSortSizeGlyph, sort is 5 or 7, sort == 5);
     }
 
     private void LocalizeListHeaders()

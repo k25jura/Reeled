@@ -89,6 +89,12 @@ public partial class SettingsViewModel : ObservableObject
     private bool _lookUpGameIcons = true;
 
     [ObservableProperty]
+    private bool _alwaysShowTabs;
+
+    [ObservableProperty]
+    private bool _reopenTabs = true;
+
+    [ObservableProperty]
     private bool _enableBackdropBlur = true;
 
     [ObservableProperty]
@@ -297,6 +303,8 @@ public partial class SettingsViewModel : ObservableObject
         EnableClipCache = _storageService.CurrentSettings.EnableClipCache;
         ShowMomentsBadges = _storageService.CurrentSettings.ShowMomentsBadges;
         LookUpGameIcons = _storageService.CurrentSettings.LookUpGameIcons;
+        AlwaysShowTabs = _storageService.CurrentSettings.AlwaysShowTabs;
+        ReopenTabs = _storageService.CurrentSettings.ReopenTabs;
         EnableBackdropBlur = _storageService.CurrentSettings.EnableBackdropBlur;
         SelectedThemeIndex = _storageService.CurrentSettings.AppTheme switch
         {
@@ -582,6 +590,23 @@ public partial class SettingsViewModel : ObservableObject
         // Turning it on looks up the folders that have no icon yet; turning it off only stops new lookups
         if (value) _homeViewModel.RefreshGameIcons();
         else _homeViewModel.StopGameIconLookups();
+    }
+
+    partial void OnAlwaysShowTabsChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.AlwaysShowTabs == value) return;
+        settings.AlwaysShowTabs = value;
+        _ = _storageService.SaveSettingsAsync(settings);
+    }
+
+    partial void OnReopenTabsChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.ReopenTabs == value) return;
+        settings.ReopenTabs = value;
+        // Turning it off forgets the saved tabs, turning it on saves the ones that are open now
+        _homeViewModel.PersistTabs();
     }
 
     partial void OnEnableBackdropBlurChanged(bool value)
@@ -1451,6 +1476,8 @@ public partial class SettingsViewModel : ObservableObject
         settings.LibraryViewMode = LibraryViewMode.Grid;
         settings.ShowMomentsBadges = true;
         settings.LookUpGameIcons = true;
+        settings.AlwaysShowTabs = false;
+        settings.ReopenTabs = true;
         settings.EnableBackdropBlur = true;
         settings.ViewDensity = ViewDensityMode.Comfortable;
         settings.DateGrouping = DateGroupingMode.None;

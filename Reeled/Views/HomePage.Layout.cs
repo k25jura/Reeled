@@ -39,6 +39,7 @@ public sealed partial class HomePage
             ApplySidebarPosition(settings.SidebarPosition);
         }
         ApplyNavSectionVisibility();
+        UpdateTabStripVisibility(animate: false);
         if (!_layoutApplied || settings.LibraryViewMode != _libraryViewMode)
         {
             _libraryViewMode = settings.LibraryViewMode == LibraryViewMode.List ? LibraryViewMode.Grid : LibraryViewMode.List;
@@ -118,7 +119,6 @@ public sealed partial class HomePage
             HorizontalNavBar.VerticalAlignment = top ? VerticalAlignment.Top : VerticalAlignment.Bottom;
             HorizontalNavBar.Height = top ? TopBarHeight : BottomBarHeight;
             HorizontalNavBar.BorderThickness = top ? new Thickness(0, 0, 0, 1) : new Thickness(0, 1, 0, 0);
-            HorizontalNavCaptionSpacer.Width = top ? 140 / Helpers.UiZoom.Current : 0;
             MainContentRoot.Margin = top ? new Thickness(0, TopBarHeight, 0, 0) : new Thickness(0, 0, 0, BottomBarHeight);
             LibraryHeaderBorder.Padding = top ? new Thickness(24, 20, 24, 10) : new Thickness(24, 32, 24, 10);
             MoveFooter(toHorizontal: true);
@@ -132,6 +132,9 @@ public sealed partial class HomePage
             MoveFooter(toHorizontal: false);
             AnimateSidebar(ViewModel.IsSidebarOpen, animate: false);
         }
+
+        // The tab strip moves with the navigation: above the bar when it is at the top, else over the content
+        PlaceTabStrip();
 
         _lastCalculatedWidth = -1;
         _lastColumnCount = -1;
@@ -173,10 +176,18 @@ public sealed partial class HomePage
     private void UpdateLibraryTitleBar()
     {
         if (App.Window is not MainWindow mw || !IsLoaded) return;
+        if (_tabStripShown)
+        {
+            // The tab strip is the title bar: the empty stretch right of the tabs drags the window and the
+            // tabs and their buttons stay clickable
+            UpdateTabStripInsets();
+            mw.SetLibraryTitleBar(TabStripDragLeft(mw), 0, TabStripHeight);
+            return;
+        }
         switch (_sidebarPosition)
         {
             case SidebarPosition.Top:
-                HorizontalNavCaptionSpacer.Width = 140 / Helpers.UiZoom.Current;
+                if (_tabStripStoryboard == null) HorizontalNavCaptionSpacer.Width = 140 / Helpers.UiZoom.Current;
                 var (left, right) = TopBarDragGap(mw);
                 mw.SetLibraryTitleBar(left, right, TopBarHeight);
                 break;
@@ -279,7 +290,7 @@ public sealed partial class HomePage
             Padding = new Thickness(9, 7, 9, 7),
             Margin = new Thickness(4, 0, 0, 0),
             VerticalAlignment = VerticalAlignment.Center,
-            Content = new FontIcon { Glyph = "", FontSize = 12 }
+            Content = new FontIcon { Glyph = "\uE8F4", FontSize = 12 }
         };
         ToolTipService.SetToolTip(add, loc["Tooltip_AddWatchFolder"]);
         add.Click += OnAddFolderClick;
@@ -320,8 +331,15 @@ public sealed partial class HomePage
     private void AddHorizontalTab(string glyph, string label, int count, Func<bool> isSelected, Action invoke, NavigationSection? section = null)
     {
         var button = CreateHorizontalItemButton(glyph, label, count, out var text, out var icon);
-        button.Click += (s, e) => invoke();
-        if (section is NavigationSection sec) button.ContextFlyout = CreateSectionVisibilityMenu(sec);
+        NavigationSection target = section ?? NavigationSection.Home;
+        // Ctrl+click and middle-click open the section in a new background tab
+        button.Click += (s, e) =>
+        {
+            if (IsCtrlDown()) OpenSectionInNewTab(target);
+            else invoke();
+        };
+        AttachMiddleClickToOpen(button, () => OpenSectionInNewTab(target));
+        button.ContextFlyout = CreateSectionVisibilityMenu(target);
         _hNavEntries.Add((button, isSelected, text, icon));
         HorizontalNavItems.Children.Add(button);
     }
@@ -342,10 +360,16 @@ public sealed partial class HomePage
         var button = CreateHorizontalItemButton("", label, count, out var text, out var icon, root.GameIcon);
         button.Click += async (s, e) =>
         {
+            if (IsCtrlDown())
+            {
+                OpenFolderInNewTab(root);
+                return;
+            }
             DirectoriesTreeView.SelectedItem = null;
             await ViewModel.SelectDirectoryAsync(root);
             ScrollClipsToTop();
         };
+        AttachMiddleClickToOpen(button, () => OpenFolderInNewTab(root));
         button.ContextFlyout = CreateHorizontalFolderMenu(root);
 
         var group = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0, VerticalAlignment = VerticalAlignment.Center };
@@ -392,6 +416,7 @@ public sealed partial class HomePage
             await ViewModel.SelectDirectoryAsync(node);
             ScrollClipsToTop();
         };
+        self.ContextFlyout = CreateOpenInNewTabMenu(node);
         items.Add(self);
         if (isRoot && node.SubDirectories.Count > 0) items.Add(new MenuFlyoutSeparator());
 
@@ -401,6 +426,7 @@ public sealed partial class HomePage
             {
                 var sub = new MenuFlyoutSubItem { Text = child.DisplayName, Icon = new FontIcon { Glyph = "" } };
                 AddSubfolderItems(sub.Items, child, isRoot: false);
+                sub.ContextFlyout = CreateOpenInNewTabMenu(child);
                 items.Add(sub);
             }
             else
@@ -415,6 +441,7 @@ public sealed partial class HomePage
                 };
                 // Game icons can be set from here too, not only from the sidebar
                 var context = new MenuFlyout();
+                context.Items.Add(CreateOpenInNewTabItem(child));
                 AddGameIconMenu(context.Items, child);
                 if (context.Items.Count > 0 && context.Items[0] is MenuFlyoutSeparator) context.Items.RemoveAt(0);
                 item.ContextFlyout = context;
@@ -432,6 +459,8 @@ public sealed partial class HomePage
     {
         var loc = LayoutLoc;
         var menu = new MenuFlyout();
+        menu.Items.Add(CreateOpenInNewTabItem(root));
+        menu.Items.Add(new MenuFlyoutSeparator());
         var open = new MenuFlyoutItem { Text = loc["FolderMenu_RevealExplorer"], Icon = new FontIcon { Glyph = "" } };
         open.Click += (s, e) => ViewModel.OpenFolderInExplorer(root);
         var copy = new MenuFlyoutItem { Text = loc["FolderMenu_CopyPath"], Icon = new FontIcon { Glyph = "" } };
@@ -644,6 +673,10 @@ public sealed partial class HomePage
     {
         var loc = LayoutLoc;
         var menu = new MenuFlyout();
+        menu.Items.Add(CreateOpenInNewTabItem(() => OpenSectionInNewTab(section)));
+        // Home can't be hidden, so it has nothing but the tab entry
+        if (section == NavigationSection.Home) return menu;
+        menu.Items.Add(new MenuFlyoutSeparator());
         var options = new[]
         {
             (NavSectionVisibility.Always, loc["Nav_ShowAlways"]),
@@ -678,9 +711,6 @@ public sealed partial class HomePage
 
     private void WireLayoutHandlers()
     {
-        FavoritesNavButton.ContextFlyout = CreateSectionVisibilityMenu(NavigationSection.Favorites);
-        SavedMomentsNavButton.ContextFlyout = CreateSectionVisibilityMenu(NavigationSection.SavedMoments);
-
         HorizontalNavItems.SizeChanged += OnHorizontalNavLayoutChanged;
         HorizontalNavScroller.SizeChanged += OnHorizontalNavLayoutChanged;
         HorizontalNavFooterHost.SizeChanged += OnHorizontalNavLayoutChanged;

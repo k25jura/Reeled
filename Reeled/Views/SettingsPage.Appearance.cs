@@ -176,14 +176,15 @@ public sealed partial class SettingsPage
             };
             for (int i = 0; i < 3; i++)
             {
-                cards.Children.Add(new Border
+                var card = new Border
                 {
                     Width = vertical ? 7 : 9,
                     Height = 7,
                     CornerRadius = new CornerRadius(1.5),
-                    Background = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"],
                     Opacity = 0.55
-                });
+                };
+                ThemeBrushes.Bind(card, Border.BackgroundProperty, "TextFillColorTertiaryBrush");
+                cards.Children.Add(card);
             }
 
             var inner = new Grid { Margin = new Thickness(3) };
@@ -196,9 +197,9 @@ public sealed partial class SettingsPage
                 Height = 40,
                 CornerRadius = new CornerRadius(6),
                 BorderThickness = new Thickness(1.5),
-                Background = (Brush)Application.Current.Resources["ControlFillColorSecondaryBrush"],
                 Child = inner
             };
+            ThemeBrushes.Bind(frame, Border.BackgroundProperty, "ControlFillColorSecondaryBrush");
 
             var button = CreateSwatchButton(frame, loc[key]);
             button.Click += (s, e) => SelectNavPosition(pos);
@@ -217,12 +218,16 @@ public sealed partial class SettingsPage
         UpdateNavPositionTiles();
     }
 
-    private void UpdateNavPositionTiles()
+    /// <summary>Repaints the code-built parts of the appearance section after a theme change.</summary>
+    private void UpdateAppearanceThemeVisuals(ElementTheme theme) => UpdateNavPositionTiles(theme);
+
+    private void UpdateNavPositionTiles(ElementTheme? theme = null)
     {
         var current = Storage.CurrentSettings.SidebarPosition;
-        var accent = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
-        var idleStroke = (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"];
-        var idleBar = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        var resolved = theme ?? ThemeBrushes.ThemeOf(this);
+        var accent = ThemeBrushes.Get("AccentFillColorDefaultBrush", resolved);
+        var idleStroke = ThemeBrushes.Get("ControlStrokeColorDefaultBrush", resolved);
+        var idleBar = ThemeBrushes.Get("TextFillColorSecondaryBrush", resolved);
         foreach (var (frame, bar, pos) in _navTiles)
         {
             bool selected = pos == current;

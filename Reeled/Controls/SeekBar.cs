@@ -82,8 +82,8 @@ public sealed class SeekBar : Grid
 
         _track.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(64, 255, 255, 255));
         _hoverFill.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255));
-        _fill.Background = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
-        _halo.Fill = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+        _fill.Background = Helpers.ThemeBrushes.Get("AccentFillColorDefaultBrush", ElementTheme.Dark);
+        _halo.Fill = Helpers.ThemeBrushes.Get("AccentFillColorDefaultBrush", ElementTheme.Dark);
         _thumb.Fill = new SolidColorBrush(Microsoft.UI.Colors.White);
         _thumb.Stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(60, 0, 0, 0));
         _thumb.StrokeThickness = 1;

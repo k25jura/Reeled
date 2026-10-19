@@ -256,6 +256,10 @@ public sealed partial class SettingsPage : Page
             CategoriesNavRoot.RequestedTheme = theme;
         }
         UpdateCategoryButtonColors(theme);
+        // Code-built visuals that hold fixed brushes are repainted for the new theme
+        if (UpdateNotesBlock != null && UpdateNotesBlock.Blocks.Count > 0) RenderUpdateNotes();
+        UpdateSubHeaderBrushes();
+        UpdateAppearanceThemeVisuals(theme);
     }
 
     private void UpdateLogo(ElementTheme theme)
@@ -884,7 +888,7 @@ public sealed partial class SettingsPage : Page
                     Text = loc["Settings" + name],
                     FontSize = 12.5,
                     TextTrimming = TextTrimming.CharacterEllipsis,
-                    Foreground = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"]
+                    Foreground = Helpers.ThemeBrushes.Get("TextFillColorTertiaryBrush", this)
                 };
                 var button = new Button
                 {
@@ -932,8 +936,14 @@ public sealed partial class SettingsPage : Page
     {
         if (_activeSubHeader == name) return;
         _activeSubHeader = name;
-        var primary = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
-        var tertiary = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"];
+        UpdateSubHeaderBrushes();
+    }
+
+    private void UpdateSubHeaderBrushes()
+    {
+        string? name = _activeSubHeader;
+        var primary = Helpers.ThemeBrushes.Get("TextFillColorPrimaryBrush", this);
+        var tertiary = Helpers.ThemeBrushes.Get("TextFillColorTertiaryBrush", this);
         foreach (var (_, label, header, _) in _subNavItems)
         {
             bool active = header.Name == name;

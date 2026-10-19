@@ -66,10 +66,11 @@ public sealed class ToolbarEditor : StackPanel
             ColumnSpacing = 6,
             Padding = new Thickness(6),
             CornerRadius = new CornerRadius(8),
-            BorderThickness = new Thickness(1),
-            BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
-            Background = (Brush)Application.Current.Resources["LayerFillColorAltBrush"]
+            BorderThickness = new Thickness(1)
         };
+        // Brushes are resolved for the theme the editor is shown in (settings follow the app, the player is dark)
+        Helpers.ThemeBrushes.Bind(bar, Grid.BorderBrushProperty, "CardStrokeColorDefaultBrush");
+        Helpers.ThemeBrushes.Bind(bar, Panel.BackgroundProperty, "LayerFillColorAltBrush");
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -86,9 +87,9 @@ public sealed class ToolbarEditor : StackPanel
             Text = loc["Toolbar_Available"],
             FontSize = 12,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
             Margin = new Thickness(2, 4, 0, -4)
         };
+        Helpers.ThemeBrushes.Bind(_trayLabel, TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
         Children.Add(_trayLabel);
         _trayList = ZoneList(_tray, loc["Toolbar_Available"], wrap: true);
         var trayHost = new Border
@@ -96,19 +97,19 @@ public sealed class ToolbarEditor : StackPanel
             Padding = new Thickness(6),
             CornerRadius = new CornerRadius(8),
             BorderThickness = new Thickness(1),
-            BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
             Child = _trayList,
             MinHeight = 52
         };
+        Helpers.ThemeBrushes.Bind(trayHost, Border.BorderBrushProperty, "CardStrokeColorDefaultBrush");
         Children.Add(trayHost);
 
         _hint = new TextBlock
         {
             Text = loc["Toolbar_Hint"],
             FontSize = 12,
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"]
+            TextWrapping = TextWrapping.Wrap
         };
+        Helpers.ThemeBrushes.Bind(_hint, TextBlock.ForegroundProperty, "TextFillColorTertiaryBrush");
         Children.Add(_hint);
     }
 
@@ -137,18 +138,19 @@ public sealed class ToolbarEditor : StackPanel
         var zone = new Grid
         {
             CornerRadius = new CornerRadius(6),
-            Background = (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"],
             MinHeight = 46
         };
-        zone.Children.Add(new TextBlock
+        Helpers.ThemeBrushes.Bind(zone, Panel.BackgroundProperty, "SubtleFillColorSecondaryBrush");
+        var zoneLabel = new TextBlock
         {
             Text = label,
             FontSize = 10.5,
             Opacity = 0.55,
             Margin = new Thickness(8, 4, 0, 0),
-            IsHitTestVisible = false,
-            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]
-        });
+            IsHitTestVisible = false
+        };
+        Helpers.ThemeBrushes.Bind(zoneLabel, TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
+        zone.Children.Add(zoneLabel);
         list.Margin = new Thickness(0, 16, 0, 0);
         zone.Children.Add(list);
         Grid.SetColumn(zone, column);

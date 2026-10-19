@@ -24,8 +24,15 @@ public static partial class ReleaseNotes
     [GeneratedRegex(@"^(installation|installing|requirements|system requirements|verification|checksums?|sha-?256|встановлення|вимоги|перевірка)", RegexOptions.IgnoreCase)]
     private static partial Regex SkippedSectionPattern();
 
+    // The element the notes are rendered into: its theme decides which brushes are used
+    private static FrameworkElement? _themeOwner;
+
+    private static Brush ThemedBrush(string key) => ThemeBrushes.Get(key, _themeOwner);
+
+    /// <summary>Renders the notes. Call again when the theme changes: the run colours are fixed per render.</summary>
     public static void Render(RichTextBlock target, string? markdown)
     {
+        _themeOwner = target;
         target.Blocks.Clear();
         if (string.IsNullOrWhiteSpace(markdown)) return;
 
@@ -66,7 +73,7 @@ public static partial class ReleaseNotes
                 {
                     FontSize = 14,
                     FontWeight = FontWeights.SemiBold,
-                    Foreground = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"],
+                    Foreground = ThemedBrush("TextFillColorPrimaryBrush"),
                     Margin = new Thickness(0, target.Blocks.Count == 0 ? 0 : 12, 0, 4)
                 };
                 AppendInline(heading.Inlines, headingText);
@@ -95,7 +102,7 @@ public static partial class ReleaseNotes
                 var group = new Paragraph
                 {
                     FontWeight = FontWeights.SemiBold,
-                    Foreground = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"],
+                    Foreground = ThemedBrush("TextFillColorPrimaryBrush"),
                     Margin = new Thickness(0, Math.Max(top, 6), 0, 2)
                 };
                 group.Inlines.Add(new Run { Text = trimmed[2..^2] });
@@ -135,7 +142,7 @@ public static partial class ReleaseNotes
         item.Inlines.Add(new Run
         {
             Text = marker + "  ",
-            Foreground = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"]
+            Foreground = ThemedBrush("TextFillColorTertiaryBrush")
         });
         AppendInline(item.Inlines, text);
         return item;
@@ -162,7 +169,7 @@ public static partial class ReleaseNotes
                 {
                     Text = token[1..^1],
                     FontFamily = new FontFamily("Cascadia Mono, Consolas"),
-                    Foreground = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"]
+                    Foreground = ThemedBrush("AccentTextFillColorPrimaryBrush")
                 });
             }
             else if (token.StartsWith('['))

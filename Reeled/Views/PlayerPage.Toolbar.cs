@@ -276,7 +276,7 @@ public sealed partial class PlayerPage
     {
         double opacity = ViewModel.IsShuffleEnabled ? 1.0 : 0.45;
         var brush = ViewModel.IsShuffleEnabled
-            ? (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"]
+            ? Helpers.ThemeBrushes.Get("AccentTextFillColorPrimaryBrush", ElementTheme.Dark)
             : new SolidColorBrush(Microsoft.UI.Colors.White);
         if (ShuffleButtonIcon != null) { ShuffleButtonIcon.Opacity = opacity; ShuffleButtonIcon.Foreground = brush; }
         if (QueueShuffleIcon != null) { QueueShuffleIcon.Opacity = opacity; QueueShuffleIcon.Foreground = brush; }

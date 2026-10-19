@@ -404,7 +404,7 @@ public sealed partial class PlayerPage
             Glyph = glyph ?? "",
             FontSize = 12,
             Width = 16,
-            Foreground = (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"],
+            Foreground = Helpers.ThemeBrushes.Get("AccentTextFillColorPrimaryBrush", ElementTheme.Dark),
             Opacity = selected ? 1 : 0
         };
         var label = new TextBlock

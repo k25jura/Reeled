@@ -42,9 +42,11 @@ public sealed class TabStrip : Grid
     public TabStrip()
     {
         Height = 40;
-        _indicator.Background = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
         _indicator.RenderTransform = new TransformGroup { Children = { _indicatorScale, _indicatorTranslate } };
+        // Brushes follow the theme of the surface the strip sits on (the player is always dark)
+        Helpers.ThemeBrushes.Bind(_indicator, Border.BackgroundProperty, "AccentFillColorDefaultBrush");
         _baseline.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(22, 255, 255, 255));
+        Helpers.ThemeBrushes.Track(this, UpdateTabBrushes);
         Children.Add(_baseline);
         Children.Add(_indicator);
         SizeChanged += (s, e) =>
@@ -107,18 +109,25 @@ public sealed class TabStrip : Grid
         bool changed = index != _selectedIndex;
         _selectedIndex = index;
 
-        var primary = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
-        var secondary = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
-        for (int i = 0; i < _tabs.Count; i++)
-        {
-            bool selected = i == index;
-            _tabs[i].Label.Foreground = selected ? primary : secondary;
-            _tabs[i].Icon.Foreground = selected ? (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"] : secondary;
-            _tabs[i].Label.FontWeight = selected ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
-        }
+        UpdateTabBrushes();
         ApplyCompactLayout();
         PlaceIndicator(animate);
         if (changed && raise) SelectionChanged?.Invoke(this, index);
+    }
+
+    private void UpdateTabBrushes()
+    {
+        if (_selectedIndex < 0) return;
+        var primary = Helpers.ThemeBrushes.Get("TextFillColorPrimaryBrush", this);
+        var secondary = Helpers.ThemeBrushes.Get("TextFillColorSecondaryBrush", this);
+        var accentText = Helpers.ThemeBrushes.Get("AccentTextFillColorPrimaryBrush", this);
+        for (int i = 0; i < _tabs.Count; i++)
+        {
+            bool selected = i == _selectedIndex;
+            _tabs[i].Label.Foreground = selected ? primary : secondary;
+            _tabs[i].Icon.Foreground = selected ? accentText : secondary;
+            _tabs[i].Label.FontWeight = selected ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
+        }
     }
 
     /// <summary>

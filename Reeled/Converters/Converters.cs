@@ -147,18 +147,7 @@ public class SectionActiveBackgroundConverter : IValueConverter
     {
         if (value is bool isActive && isActive)
         {
-            if (Application.Current.Resources.TryGetValue("SubtleFillColorSecondaryBrush", out var brush))
-                return brush;
-
-            bool isLight = false;
-            if (App.Window?.Content is FrameworkElement root)
-            {
-                isLight = (root.ActualTheme == ElementTheme.Light);
-            }
-
-            return isLight
-                ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(20, 0, 0, 0))
-                : new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(20, 255, 255, 255));
+            return Helpers.ThemeBrushes.Get("SubtleFillColorSecondaryBrush", App.Window?.Content as FrameworkElement);
         }
         return new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
     }
@@ -171,25 +160,8 @@ public class SectionActiveForegroundConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         bool isActive = value is bool b && b;
-        if (isActive)
-        {
-            if (Application.Current.Resources.TryGetValue("AccentTextFillColorPrimaryBrush", out var brush))
-                return brush;
-            return new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 96, 205, 255));
-        }
-
-        if (Application.Current.Resources.TryGetValue("TextFillColorPrimaryBrush", out var normalBrush))
-            return normalBrush;
-
-        bool isLight = false;
-        if (App.Window?.Content is FrameworkElement root)
-        {
-            isLight = (root.ActualTheme == ElementTheme.Light);
-        }
-
-        return isLight
-            ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(230, 20, 20, 20))
-            : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
+        var root = App.Window?.Content as FrameworkElement;
+        return Helpers.ThemeBrushes.Get(isActive ? "AccentTextFillColorPrimaryBrush" : "TextFillColorPrimaryBrush", root);
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();

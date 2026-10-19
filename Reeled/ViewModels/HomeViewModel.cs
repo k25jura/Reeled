@@ -220,6 +220,7 @@ public partial class HomeViewModel : ObservableObject
 
     partial void OnSelectedDirectoryChanged(DirectoryNode? value)
     {
+        QueueTabSync();
         OnPropertyChanged(nameof(CurrentDirectoryTitle));
         OnPropertyChanged(nameof(CurrentDirectoryPath));
         OnPropertyChanged(nameof(CanOpenDirectoryInExplorer));
@@ -402,6 +403,11 @@ public partial class HomeViewModel : ObservableObject
         {
             _dispatcherQueue.TryEnqueue(RefreshLocalization);
         };
+
+        InitializeTabs();
+        // Sections can be shown right away; a folder waits for the folder tree to be loaded
+        if (ActiveTab.Section != NavigationSection.Folder) _currentSection = ActiveTab.Section;
+        _searchQuery = ActiveTab.SearchQuery;
     }
 
     public async Task InitializeAsync()
@@ -624,6 +630,9 @@ public partial class HomeViewModel : ObservableObject
         }
 
         IsLoading = false;
+
+        // The first load brings up the tab that was active last time
+        if (await RestoreActiveTabOnFirstSyncAsync()) return;
 
         // Restore last active selection or default to Home
         if (CurrentSection == NavigationSection.Folder && !string.IsNullOrEmpty(settings.LastActiveDirectory))
@@ -1189,7 +1198,8 @@ public partial class HomeViewModel : ObservableObject
 
     partial void OnSearchQueryChanged(string value)
     {
-        ApplyFilterAndSort();
+        if (!_suppressFilter) ApplyFilterAndSort();
+        QueueTabSync();
     }
 
     partial void OnSortIndexChanged(int value)

@@ -37,6 +37,13 @@ public class AppSettings
     public NavSectionVisibility MomentsNavVisibility { get; set; } = NavSectionVisibility.Always;
     /// <summary>Card grid or a details list.</summary>
     public LibraryViewMode LibraryViewMode { get; set; } = LibraryViewMode.Grid;
+    /// <summary>Show the tab bar even with a single tab; otherwise it appears once a second tab is open.</summary>
+    public bool AlwaysShowTabs { get; set; } = false;
+    /// <summary>Open the tabs that were open when the app was closed.</summary>
+    public bool ReopenTabs { get; set; } = true;
+    /// <summary>The library's open tabs, left to right (saved when <see cref="ReopenTabs"/> is on).</summary>
+    public List<LibraryTabState> OpenTabs { get; set; } = new();
+    public int ActiveTabIndex { get; set; }
     /// <summary>Last normal (not maximized) window bounds in physical pixels; 0 width = never saved.</summary>
     public int WindowX { get; set; }
     public int WindowY { get; set; }
@@ -89,6 +96,15 @@ public class AppSettings
     public string? SnapshotFolder { get; set; }
     /// <summary>Last playback position (ms) per clip path, for resuming long clips.</summary>
     public Dictionary<string, long> ResumePositions { get; set; } = new();
+}
+
+/// <summary>One saved library tab: what it shows (a section, or a folder), plus its search.</summary>
+public class LibraryTabState
+{
+    /// <summary>"Home", "Favorites", "SavedMoments" or "Folder".</summary>
+    public string Section { get; set; } = "Home";
+    public string? FolderPath { get; set; }
+    public string? SearchQuery { get; set; }
 }
 
 public enum GameIconSource

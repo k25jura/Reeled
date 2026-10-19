@@ -238,6 +238,41 @@ public static class Motion
         return anim;
     }
 
+    /// <summary>Progress (0..1) of the decelerate curve at linear time t, for animations stepped by hand every frame.</summary>
+    public static double DecelerateAt(double t) => CubicBezierAt(t, DecelerateP1, DecelerateP2);
+
+    /// <summary>Progress (0..1) of the accelerate curve at linear time t, for animations stepped by hand every frame.</summary>
+    public static double AccelerateAt(double t) => CubicBezierAt(t, AccelerateP1, AccelerateP2);
+
+    private static double CubicBezierAt(double x, Windows.Foundation.Point p1, Windows.Foundation.Point p2)
+    {
+        if (x <= 0) return 0;
+        if (x >= 1) return 1;
+        // Newton's method on the x component finds the curve parameter; it is monotonic for control points in 0..1
+        double u = x;
+        for (int i = 0; i < 8; i++)
+        {
+            double error = Bezier(u, p1.X, p2.X) - x;
+            if (Math.Abs(error) < 1e-5) break;
+            double slope = BezierSlope(u, p1.X, p2.X);
+            if (Math.Abs(slope) < 1e-6) break;
+            u = Math.Clamp(u - error / slope, 0, 1);
+        }
+        return Bezier(u, p1.Y, p2.Y);
+    }
+
+    private static double Bezier(double u, double a, double b)
+    {
+        double v = 1 - u;
+        return 3 * v * v * u * a + 3 * v * u * u * b + u * u * u;
+    }
+
+    private static double BezierSlope(double u, double a, double b)
+    {
+        double v = 1 - u;
+        return 3 * v * v * a + 6 * v * u * (b - a) + 3 * u * u * (1 - b);
+    }
+
     /// <summary>Exact decelerate curve for composition animations.</summary>
     public static Microsoft.UI.Composition.CompositionEasingFunction DecelerateCurve(Microsoft.UI.Composition.Compositor c) =>
         c.CreateCubicBezierEasingFunction(new System.Numerics.Vector2(0.32f, 0.72f), new System.Numerics.Vector2(0f, 1f));

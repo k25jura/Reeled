@@ -42,7 +42,7 @@
               RequestedTheme="Dark"
               Visibility="Collapsed" 
               Opacity="0">
-            <views:PlayerPage x:Name="PlayerViewControl" RequestedTheme="Dark" />
+            <views:PlayerPage x:Name="PlayerViewControl" RequestedTheme="Dark" Foreground="White" />
         </Grid>
 
         <!-- Drag and drop dimming and dashed frame overlay -->
@@ -126,7 +126,7 @@
         </Border.RenderTransform>
         <StackPanel Orientation="Horizontal" Spacing="4">
             <FontIcon Glyph="&#xE71E;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
-            <TextBlock x:Name="ZoomIndicatorText" Text="100%" FontSize="13" FontWeight="SemiBold" MinWidth="42" VerticalAlignment="Center" />
+            <TextBlock x:Name="ZoomIndicatorText" Text="100%" FontSize="13" FontWeight="SemiBold" MinWidth="42" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
             <Button x:Name="ZoomOutIndicatorButton" Click="OnZoomOutIndicatorClick" Style="{ThemeResource SubtleButtonStyle}" Width="30" Height="28" Padding="0">
                 <FontIcon Glyph="&#xE738;" FontSize="11" />
             </Button>

@@ -285,7 +285,9 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
-            Helpers.CursorHelper.RestoreGlobalCursor();
+            // Alt+F4 lands here with the cursor possibly hidden: restore it before anything slow runs
+            _isCursorHidden = false;
+            Helpers.CursorHelper.Shutdown();
             FlushStateOnExit();
             try
             {
@@ -302,7 +304,7 @@ public sealed partial class MainWindow : Window
 
         Closed += (s, e) =>
         {
-            Helpers.CursorHelper.RestoreGlobalCursor();
+            Helpers.CursorHelper.Shutdown();
             FlushStateOnExit();
             try
             {
@@ -1324,6 +1326,7 @@ public sealed partial class MainWindow : Window
             {
                 _isWindowActive = false;
                 SetCursorHidden(false);
+                Helpers.CursorHelper.Shutdown();
             }
         }
 

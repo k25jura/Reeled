@@ -25,20 +25,20 @@ public partial class App : Application
 
         UnhandledException += (sender, args) =>
         {
-            Helpers.CursorHelper.RestoreGlobalCursor();
+            Helpers.CursorHelper.RestoreGlobalCursor(force: true);
             Helpers.Log.Error("UnhandledException", $"{args.Message}\n{args.Exception}");
             args.Handled = true;
         };
 
         AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
         {
-            Helpers.CursorHelper.RestoreGlobalCursor();
+            Helpers.CursorHelper.Shutdown();
             Helpers.Log.Error("AppDomain Unhandled", args.ExceptionObject?.ToString() ?? "unknown");
         };
 
         AppDomain.CurrentDomain.ProcessExit += (sender, args) =>
         {
-            Helpers.CursorHelper.RestoreGlobalCursor();
+            Helpers.CursorHelper.Shutdown();
             try { SingleInstanceService.Stop(); } catch { }
         };
 
@@ -78,7 +78,8 @@ public partial class App : Application
             return;
         }
 
-        Helpers.CursorHelper.RestoreGlobalCursor();
+        // Repairs cursors a previous run left blank (it may have been killed while the cursor was hidden)
+        Helpers.CursorHelper.RestoreGlobalCursor(force: true);
         // Before any UI exists, so every control is created with the chosen accent
         Helpers.Accent.ApplyFromSettings();
         Window = new MainWindow();

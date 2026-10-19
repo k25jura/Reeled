@@ -41,6 +41,9 @@ public sealed class VideoGlass
         public SpriteVisual? Sprite;
         public CompositionEffectBrush? Brush;
         public CompositionRoundedRectangleGeometry? ClipGeometry;
+        public EventHandler<object>? LayoutHandler;
+        public System.Numerics.Vector2 LastSize;
+        public System.Numerics.Vector2 LastOrigin;
     }
 
     private readonly FrameworkElement _video;
@@ -87,6 +90,13 @@ public sealed class VideoGlass
         };
         SetCornerRadius(glass, Math.Max(0, border.CornerRadius.TopLeft - border.BorderThickness.Left));
         SetKind(glass, kind);
+        // The layer must keep spanning the border's whole inner area when the padding changes later (the
+        // toolbar's Compact mode does): a stale margin leaves an unblurred, dark strip along an edge
+        border.RegisterPropertyChangedCallback(Microsoft.UI.Xaml.Controls.Border.PaddingProperty, (_, _) =>
+        {
+            var p = border.Padding;
+            glass.Margin = new Thickness(-p.Left, -p.Top, -p.Right, -p.Bottom);
+        });
         var grid = new Microsoft.UI.Xaml.Controls.Grid { Tag = "VideoGlassWrap" };
         grid.Children.Add(glass);
         if (content != null) grid.Children.Add(content);
@@ -266,6 +276,11 @@ public sealed class VideoGlass
         };
         _panes.Add(pane);
         host.SizeChanged += OnHostSizeChanged;
+        // SizeChanged alone isn't enough: a popup is re-placed after its layout pass (a flyout that grows
+        // upward moves without the host being resized) and panels animate their height, so any layout pass
+        // re-checks the host's size and position
+        pane.LayoutHandler = (_, _) => SyncIfChanged(pane);
+        host.LayoutUpdated += pane.LayoutHandler;
         Build(pane);
         UpdateTimer();
         // Flyouts open with a slide, so follow them for the length of the open animation
@@ -278,6 +293,7 @@ public sealed class VideoGlass
         if (pane == null) return;
         _panes.Remove(pane);
         host.SizeChanged -= OnHostSizeChanged;
+        if (pane.LayoutHandler != null) host.LayoutUpdated -= pane.LayoutHandler;
         ElementCompositionPreview.SetElementChildVisual(host, null);
         pane.Brush?.Dispose();
         pane.Sprite?.Dispose();
@@ -285,7 +301,31 @@ public sealed class VideoGlass
         UpdateTimer();
     }
 
-    private void OnHostSizeChanged(object sender, SizeChangedEventArgs e) => SyncAll();
+    private void OnHostSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        SyncAll();
+        // The popup / panel may still be settling (placement, height animation) after this layout pass
+        Track(300);
+    }
+
+    /// <summary>Cheap per-layout-pass check: re-syncs and keeps following when the host's size or position moved.</summary>
+    private void SyncIfChanged(Pane pane)
+    {
+        if (pane.Container == null || pane.Host.XamlRoot == null || _video.XamlRoot == null) return;
+        try
+        {
+            var origin = pane.Host.TransformToVisual(_video).TransformPoint(new Windows.Foundation.Point(0, 0));
+            var origin2 = new System.Numerics.Vector2((float)origin.X, (float)origin.Y);
+            var size = new System.Numerics.Vector2((float)pane.Host.ActualWidth, (float)pane.Host.ActualHeight);
+            if (size == pane.LastSize && origin2 == pane.LastOrigin) return;
+        }
+        catch (ArgumentException)
+        {
+            return;
+        }
+        Sync(pane);
+        Track(300);
+    }
 
     private void Build(Pane pane)
     {
@@ -381,6 +421,8 @@ public sealed class VideoGlass
         {
             var origin = pane.Host.TransformToVisual(_video).TransformPoint(new Windows.Foundation.Point(0, 0));
             var hostSize = new System.Numerics.Vector2((float)pane.Host.ActualWidth, (float)pane.Host.ActualHeight);
+            pane.LastSize = hostSize;
+            pane.LastOrigin = new System.Numerics.Vector2((float)origin.X, (float)origin.Y);
             pane.Container.Size = hostSize;
             pane.ClipGeometry.Size = hostSize;
             float radius = (float)GetCornerRadius(pane.Host);

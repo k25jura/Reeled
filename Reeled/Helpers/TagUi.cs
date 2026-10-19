@@ -19,20 +19,7 @@ internal static class TagUi
 {
     private const int MaxTagLength = 40;
 
-    private static Brush ThemeBrush(string key, ElementTheme theme)
-    {
-        var active = theme != ElementTheme.Default ? theme : App.CurrentTheme;
-        string themeKey = active == ElementTheme.Light ? "Light" : "Dark";
-        foreach (var md in Application.Current.Resources.MergedDictionaries)
-        {
-            if (md.ThemeDictionaries.TryGetValue(themeKey, out var dict) && dict is ResourceDictionary rd && rd.TryGetValue(key, out var val) && val is Brush b)
-            {
-                return b;
-            }
-        }
-        if (Application.Current.Resources.TryGetValue(key, out var fallback) && fallback is Brush fallbackBrush) return fallbackBrush;
-        return new SolidColorBrush(Microsoft.UI.Colors.Gray);
-    }
+    private static Brush ThemeBrush(string key, ElementTheme theme) => ThemeBrushes.Get(key, theme);
 
     private static string ClipCountText(ILocalizationService loc, int count) => $"{count} {loc.FormatPlural("Plural_Clip", count)}";
 

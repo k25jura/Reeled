@@ -268,7 +268,7 @@ public sealed partial class HomePage
                 Height = 20,
                 Margin = new Thickness(8, 0, 8, 0),
                 VerticalAlignment = VerticalAlignment.Center,
-                Background = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"]
+                Background = Helpers.ThemeBrushes.Get("DividerStrokeColorDefaultBrush", this)
             });
             foreach (var root in ViewModel.Directories) AddHorizontalFolder(root);
         }
@@ -304,7 +304,7 @@ public sealed partial class HomePage
             {
                 Text = count.ToString(),
                 FontSize = 11.5,
-                Foreground = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"],
+                Foreground = Helpers.ThemeBrushes.Get("TextFillColorTertiaryBrush", this),
                 VerticalAlignment = VerticalAlignment.Center
             });
         }
@@ -358,7 +358,7 @@ public sealed partial class HomePage
                 Padding = new Thickness(5, 9, 5, 9),
                 Margin = new Thickness(-4, 0, 2, 0),
                 VerticalAlignment = VerticalAlignment.Center,
-                Content = new FontIcon { Glyph = "", FontSize = 9, Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"] }
+                Content = new FontIcon { Glyph = "", FontSize = 9, Foreground = Helpers.ThemeBrushes.Get("TextFillColorSecondaryBrush", this) }
             };
             ToolTipService.SetToolTip(chevron, LayoutLoc["Nav_Subfolders"]);
             chevron.Click += (s, e) =>
@@ -445,8 +445,8 @@ public sealed partial class HomePage
     private void UpdateHorizontalNavVisuals()
     {
         if (!IsHorizontalNav) return;
-        var primary = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
-        var secondary = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        var primary = Helpers.ThemeBrushes.Get("TextFillColorPrimaryBrush", this);
+        var secondary = Helpers.ThemeBrushes.Get("TextFillColorSecondaryBrush", this);
         foreach (var (_, isSelected, label, icon) in _hNavEntries)
         {
             bool selected = isSelected();

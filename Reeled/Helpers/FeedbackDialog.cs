@@ -63,7 +63,7 @@ public static class FeedbackDialog
             Text = loc["Feedback_Note"],
             TextWrapping = TextWrapping.Wrap,
             FontSize = 12,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorTertiaryBrush"]
+            Foreground = Helpers.ThemeBrushes.Get("TextFillColorTertiaryBrush", App.CurrentTheme)
         };
 
         kind.SelectionChanged += (s, e) =>

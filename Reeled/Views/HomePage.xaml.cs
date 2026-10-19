@@ -194,6 +194,8 @@ public sealed partial class HomePage : Page
         this.RequestedTheme = theme;
         UpdateLogo(theme);
         UpdateNavTabVisuals();
+        // The top/bottom bar is built in code with theme-resolved brushes
+        if (IsHorizontalNav) BuildHorizontalNav(snapIndicator: false);
 
         if (ClipsSearchBox != null)
         {

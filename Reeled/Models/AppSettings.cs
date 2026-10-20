@@ -23,8 +23,14 @@ public class AppSettings
     public List<string> TagLibrary { get; set; } = new();
     /// <summary>Game icons per folder name (lower-case), found on Steam or picked by the user.</summary>
     public Dictionary<string, GameIconInfo> FolderGameIcons { get; set; } = new();
-    /// <summary>Look up icons for game folders on the Steam store.</summary>
+    /// <summary>Look up icons for game folders (Steam first, then SteamGridDB and IGDB when set up).</summary>
     public bool LookUpGameIcons { get; set; } = true;
+    /// <summary>SteamGridDB API key, encrypted for this Windows user (DPAPI, base64). Empty = not set up.</summary>
+    public string? ProtectedSteamGridDbKey { get; set; }
+    /// <summary>IGDB (Twitch) client id; an identifier rather than a secret.</summary>
+    public string? IgdbClientId { get; set; }
+    /// <summary>IGDB (Twitch) client secret, encrypted for this Windows user (DPAPI, base64).</summary>
+    public string? ProtectedIgdbClientSecret { get; set; }
     public Dictionary<string, List<ClipBookmark>> Bookmarks { get; set; } = new();
     public RepeatMode RepeatMode { get; set; } = RepeatMode.Off;
     public RepeatMode DefaultRepeatMode { get; set; } = RepeatMode.Off;
@@ -111,8 +117,9 @@ public enum GameIconSource
 {
     /// <summary>Looked up and nothing confident was found.</summary>
     None = 0,
+    /// <summary>Found automatically; <see cref="GameIconInfo.Provider"/> says where (the name is historical).</summary>
     Steam = 1,
-    /// <summary>Picked by the user from Steam search results.</summary>
+    /// <summary>Picked by the user from search results of any provider.</summary>
     SteamManual = 2,
     /// <summary>An image or program icon the user chose.</summary>
     Custom = 3,
@@ -120,9 +127,19 @@ public enum GameIconSource
     Disabled = 4
 }
 
+/// <summary>Where a game icon comes from. Steam is 0 so icons saved before providers existed stay Steam.</summary>
+public enum IconProvider
+{
+    Steam = 0,
+    SteamGridDb = 1,
+    Igdb = 2
+}
+
 public class GameIconInfo
 {
     public GameIconSource Source { get; set; }
+    public IconProvider Provider { get; set; } = IconProvider.Steam;
+    /// <summary>The game's id at <see cref="Provider"/> (Steam app id, SteamGridDB game id or IGDB id).</summary>
     public int? AppId { get; set; }
     public string? GameName { get; set; }
     /// <summary>Cached image on disk.</summary>

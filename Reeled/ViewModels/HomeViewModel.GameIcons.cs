@@ -43,6 +43,7 @@ public partial class HomeViewModel
     public void RefreshGameIcons()
     {
         var settings = _storageService.CurrentSettings;
+        GameIconCredentials.Load(settings);
         var pending = new List<DirectoryNode>();
         foreach (var node in AllNodes())
         {
@@ -110,7 +111,7 @@ public partial class HomeViewModel
             }
             catch (Exception ex)
             {
-                // Offline or the store said no; try again another day
+                // Offline or the providers said no; try again another day
                 Helpers.Log.Error("GameIcon lookup", $"{node.DisplayName}: {ex.Message}");
                 settings.FolderGameIcons[key] = new GameIconInfo { Source = GameIconSource.None, CheckedUtc = DateTime.UtcNow - RetryNotFoundAfter + TimeSpan.FromDays(1) };
             }
@@ -131,15 +132,29 @@ public partial class HomeViewModel
         GameIconsChanged?.Invoke();
     }
 
-    /// <summary>Applies a game picked from Steam search results.</summary>
-    public async Task SetSteamIconAsync(DirectoryNode node, SteamGame game)
+    /// <summary>Applies a game picked from the search results of any provider; throws when its icon can't be downloaded.</summary>
+    public async Task SetIconAsync(DirectoryNode node, GameIconResult game)
     {
         string key = GameIconService.KeyFor(node.DisplayName);
-        var path = await Task.Run(() => GameIconService.DownloadIconAsync(game.AppId));
-        var info = new GameIconInfo { Source = GameIconSource.SteamManual, AppId = game.AppId, GameName = game.Name, ImagePath = path, CheckedUtc = DateTime.UtcNow };
+        var path = await Task.Run(() => GameIconService.DownloadAsync(game));
+        var info = new GameIconInfo { Source = GameIconSource.SteamManual, Provider = game.Provider, AppId = game.Id, GameName = game.Name, ImagePath = path, CheckedUtc = DateTime.UtcNow };
         _storageService.CurrentSettings.FolderGameIcons[key] = info;
         _ = _storageService.SaveSettingsAsync(_storageService.CurrentSettings);
         ApplyIconToNodes(key, info);
+    }
+
+    /// <summary>
+    /// The icon sources (keys) changed: folders that were looked up without luck get another go, now
+    /// that there may be more places to look.
+    /// </summary>
+    public void OnIconSourcesChanged()
+    {
+        var settings = _storageService.CurrentSettings;
+        GameIconCredentials.Load(settings);
+        var notFound = settings.FolderGameIcons.Where(kv => kv.Value.Source == GameIconSource.None).Select(kv => kv.Key).ToList();
+        foreach (var key in notFound) settings.FolderGameIcons.Remove(key);
+        if (notFound.Count > 0) _ = _storageService.SaveSettingsAsync(settings);
+        if (settings.LookUpGameIcons) RefreshGameIcons();
     }
 
     public void SetCustomIcon(DirectoryNode node, string imagePath)

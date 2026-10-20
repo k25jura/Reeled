@@ -592,6 +592,35 @@ public partial class SettingsViewModel : ObservableObject
         else _homeViewModel.StopGameIconLookups();
     }
 
+    /// <summary>The icon provider keys as stored (decrypted).</summary>
+    public (string SteamGridDbKey, string IgdbClientId, string IgdbClientSecret) GetIconSources()
+    {
+        var settings = _storageService.CurrentSettings;
+        return (GameIconCredentials.Unprotect(settings.ProtectedSteamGridDbKey) ?? string.Empty,
+                settings.IgdbClientId ?? string.Empty,
+                GameIconCredentials.Unprotect(settings.ProtectedIgdbClientSecret) ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Stores the icon provider keys (secrets encrypted). When they changed, folders that were looked up
+    /// without luck are tried again.
+    /// </summary>
+    public void SetIconSources(string steamGridDbKey, string igdbClientId, string igdbClientSecret)
+    {
+        var (key, id, secret) = GetIconSources();
+        steamGridDbKey = steamGridDbKey.Trim();
+        igdbClientId = igdbClientId.Trim();
+        igdbClientSecret = igdbClientSecret.Trim();
+        if (steamGridDbKey == key && igdbClientId == id && igdbClientSecret == secret) return;
+
+        var settings = _storageService.CurrentSettings;
+        settings.ProtectedSteamGridDbKey = GameIconCredentials.Protect(steamGridDbKey);
+        settings.IgdbClientId = string.IsNullOrEmpty(igdbClientId) ? null : igdbClientId;
+        settings.ProtectedIgdbClientSecret = GameIconCredentials.Protect(igdbClientSecret);
+        _ = _storageService.SaveSettingsAsync(settings);
+        _homeViewModel.OnIconSourcesChanged();
+    }
+
     partial void OnAlwaysShowTabsChanged(bool value)
     {
         var settings = _storageService.CurrentSettings;

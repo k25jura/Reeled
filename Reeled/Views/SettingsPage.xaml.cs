@@ -134,6 +134,7 @@ public sealed partial class SettingsPage : Page
         UpdateTitleBarDragArea();
 
         SyncControlsToViewModel();
+        LoadIconSources();
     }
 
     private void SyncControlsToViewModel()
@@ -191,6 +192,7 @@ public sealed partial class SettingsPage : Page
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
+        CommitIconSources();
         _isInitializing = true;
     }
 
@@ -1461,6 +1463,7 @@ public sealed partial class SettingsPage : Page
         if (MomentsBadgesSubtitleText != null) MomentsBadgesSubtitleText.Text = loc["Appearance_MomentsBadgesSubtitle"];
         if (GameIconsTitleText != null) GameIconsTitleText.Text = loc["Appearance_GameIconsTitle"];
         if (GameIconsSubtitleText != null) GameIconsSubtitleText.Text = loc["Appearance_GameIconsSubtitle"];
+        LocalizeIconSources(loc);
         if (AlwaysShowTabsTitleText != null) AlwaysShowTabsTitleText.Text = loc["Appearance_TabsAlwaysTitle"];
         if (AlwaysShowTabsSubtitleText != null) AlwaysShowTabsSubtitleText.Text = loc["Appearance_TabsAlwaysSubtitle"];
         if (ReopenTabsTitleText != null) ReopenTabsTitleText.Text = loc["Appearance_TabsReopenTitle"];

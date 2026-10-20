@@ -392,6 +392,7 @@ public sealed partial class HomePage
                     Placement = _sidebarPosition == SidebarPosition.Bottom ? FlyoutPlacementMode.TopEdgeAlignedLeft : FlyoutPlacementMode.BottomEdgeAlignedLeft
                 };
                 AddSubfolderItems(menu.Items, root, isRoot: true);
+                TrackFolderDropdown(menu);
                 menu.ShowAt(button);
             };
             group.Children.Add(chevron);

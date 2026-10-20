@@ -1398,6 +1398,76 @@
                             </Grid>
                         </Border>
 
+                        <!-- Card: Icon sources (optional extra icon providers) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="16">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <FontIcon Grid.Column="0" Glyph="&#xE774;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="IconSourcesTitleText" Text="Icon sources" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="IconSourcesSubtitleText" Text="Steam is always searched first. Add SteamGridDB or IGDB to also find games Steam does not have. Keys are stored encrypted for your Windows account"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+
+                                    <Button x:Name="IconSourcesToggle"
+                                            Grid.Column="2"
+                                            Style="{ThemeResource SubtleButtonStyle}"
+                                            Padding="10,8"
+                                            VerticalAlignment="Center"
+                                            Click="OnIconSourcesToggleClick"
+                                            AutomationProperties.Name="Show or hide icon sources">
+                                        <FontIcon x:Name="IconSourcesChevron" Glyph="&#xE70D;" FontSize="12" />
+                                    </Button>
+                                </Grid>
+
+                                <StackPanel x:Name="IconSourcesBody" Spacing="20" Margin="40,0,0,0" Visibility="Collapsed">
+                                    <!-- SteamGridDB -->
+                                    <StackPanel Spacing="4">
+                                        <PasswordBox x:Name="SgdbKeyBox"
+                                                     Header="SteamGridDB API key"
+                                                     PlaceholderText="API key"
+                                                     LostFocus="OnIconSourcesLostFocus" />
+                                        <HyperlinkButton x:Name="SgdbKeyLink"
+                                                         Content="Get a key"
+                                                         NavigateUri="https://www.steamgriddb.com/profile/preferences/api"
+                                                         Padding="0" />
+                                    </StackPanel>
+
+                                    <!-- IGDB (Twitch credentials) -->
+                                    <StackPanel Spacing="8">
+                                        <TextBox x:Name="IgdbIdBox"
+                                                 Header="IGDB Client ID"
+                                                 LostFocus="OnIconSourcesLostFocus" />
+                                        <PasswordBox x:Name="IgdbSecretBox"
+                                                     Header="IGDB Client Secret"
+                                                     LostFocus="OnIconSourcesLostFocus" />
+                                        <TextBlock x:Name="IgdbHintText"
+                                                   Text="IGDB uses Twitch credentials: register an application in the Twitch developer console to get both"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                        <HyperlinkButton x:Name="IgdbCredentialsLink"
+                                                         Content="Get credentials"
+                                                         NavigateUri="https://dev.twitch.tv/console/apps"
+                                                         Padding="0" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Card: Tab bar -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"

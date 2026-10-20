@@ -12,21 +12,24 @@ using Reeled.Models;
 
 namespace Reeled.Services;
 
-/// <summary>A Steam store search result.</summary>
-public sealed record SteamGame(int AppId, string Name, string? CapsuleUrl);
-
 /// <summary>
 /// Game icons for clip folders (Shadowplay, OBS etc. name folders after the game). Folder names are
-/// matched against the Steam store; only confident matches are applied automatically, everything else
-/// can be picked by hand. Icons are cached on disk and keyed by folder name, so the same game folder in
+/// matched against Steam, then SteamGridDB and IGDB when those are set up; only confident matches are
+/// applied automatically, everything else can be picked by hand. Icons are cached on disk and keyed by folder name, so the same game folder in
 /// different watch roots shares one icon.
 /// </summary>
 public static partial class GameIconService
 {
-    private static readonly HttpClient Http = CreateClient();
     private static readonly SemaphoreSlim Gate = new(1, 1);
-    private static readonly string CacheFolder = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Reeled", "GameIcons");
+    private static readonly string CacheFolder = GameIconHttp.CacheFolder;
+
+    /// <summary>The providers in priority order: automatic lookups try them one after another.</summary>
+    public static IReadOnlyList<IGameIconProvider> Providers { get; } = new IGameIconProvider[]
+    {
+        new SteamIconProvider(), new SteamGridDbIconProvider(), new IgdbIconProvider()
+    };
+
+    public static IGameIconProvider GetProvider(IconProvider id) => Providers.First(p => p.Id == id);
 
     /// <summary>Folders that are never games (desktop recordings, tools...).</summary>
     private static readonly HashSet<string> NotGames = new(StringComparer.OrdinalIgnoreCase)
@@ -34,13 +37,6 @@ public static partial class GameIconService
         "desktop", "videos", "captures", "clips", "recordings", "replays", "highlights", "screen recordings",
         "nvidia", "shadowplay", "obs", "temp", "other", "misc", "new folder"
     };
-
-    private static HttpClient CreateClient()
-    {
-        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(12) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("Reeled/2.0 (+https://github.com/k25jura/Reeled)");
-        return client;
-    }
 
     public static string KeyFor(string folderName) => folderName.Trim().ToLowerInvariant();
 
@@ -109,9 +105,9 @@ public static partial class GameIconService
     }
 
     /// <summary>The search result that clearly is this folder's game, or null when unsure.</summary>
-    public static SteamGame? PickConfident(string folderName, IReadOnlyList<SteamGame> results)
+    public static GameIconResult? PickConfident(string folderName, IReadOnlyList<GameIconResult> results)
     {
-        SteamGame? best = null;
+        GameIconResult? best = null;
         double bestScore = 0;
         foreach (var r in results.Take(8))
         {
@@ -130,68 +126,40 @@ public static partial class GameIconService
     }
 
     // ---------------------------------------------------------------------------------------------
-    // Steam
+    // Providers
     // ---------------------------------------------------------------------------------------------
 
-    public static async Task<List<SteamGame>> SearchAsync(string term, CancellationToken ct = default)
-    {
-        var results = new List<SteamGame>();
-        if (string.IsNullOrWhiteSpace(term)) return results;
-        string url = $"https://store.steampowered.com/api/storesearch/?term={Uri.EscapeDataString(term.Trim())}&l=english&cc=US";
-        using var doc = JsonDocument.Parse(await Http.GetStringAsync(url, ct));
-        if (!doc.RootElement.TryGetProperty("items", out var items)) return results;
-        foreach (var item in items.EnumerateArray())
-        {
-            if (item.TryGetProperty("type", out var type) && type.GetString() != "app") continue;
-            int id = item.GetProperty("id").GetInt32();
-            string name = item.GetProperty("name").GetString() ?? string.Empty;
-            string? img = item.TryGetProperty("tiny_image", out var t) ? t.GetString() : null;
-            results.Add(new SteamGame(id, name, img));
-        }
-        return results;
-    }
-
-    /// <summary>Downloads the game's square community icon (or a capsule as fallback) into the cache.</summary>
-    public static async Task<string?> DownloadIconAsync(int appId, CancellationToken ct = default)
-    {
-        Directory.CreateDirectory(CacheFolder);
-        string target = Path.Combine(CacheFolder, $"{appId}.jpg");
-        if (File.Exists(target) && new FileInfo(target).Length > 0) return target;
-
-        string? iconUrl = null;
-        try
-        {
-            string input = $"{{\"ids\":[{{\"appid\":{appId}}}],\"context\":{{\"language\":\"english\",\"country_code\":\"US\",\"steam_realm\":1}},\"data_request\":{{\"include_assets\":true}}}}";
-            string url = "https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json=" + Uri.EscapeDataString(input);
-            using var doc = JsonDocument.Parse(await Http.GetStringAsync(url, ct));
-            var item = doc.RootElement.GetProperty("response").GetProperty("store_items")[0];
-            if (item.TryGetProperty("assets", out var assets))
-            {
-                if (assets.TryGetProperty("community_icon", out var icon) && !string.IsNullOrEmpty(icon.GetString()))
-                {
-                    iconUrl = $"https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/{appId}/{icon.GetString()}.jpg";
-                }
-                else if (assets.TryGetProperty("asset_url_format", out var format) && assets.TryGetProperty("small_capsule", out var capsule))
-                {
-                    iconUrl = "https://shared.cloudflare.steamstatic.com/store_item_assets/" +
-                              format.GetString()!.Replace("${FILENAME}", capsule.GetString());
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Helpers.Log.Error("GameIcon assets", ex.Message);
-        }
-        iconUrl ??= $"https://cdn.cloudflare.steamstatic.com/steam/apps/{appId}/capsule_sm_120.jpg";
-
-        var bytes = await Http.GetByteArrayAsync(iconUrl, ct);
-        await File.WriteAllBytesAsync(target, bytes, ct);
-        return target;
-    }
+    public static Task<List<GameIconResult>> SearchAsync(IconProvider provider, string term, CancellationToken ct = default) =>
+        GetProvider(provider).SearchAsync(term, ct);
 
     /// <summary>
-    /// Finds an icon for a folder automatically. Returns null when nothing confident turned up (that's
-    /// remembered too, so the store isn't asked again for a while).
+    /// Searches every configured provider at once; Steam's results come first. A provider that is down is
+    /// skipped as long as another one answered.
+    /// </summary>
+    public static async Task<List<GameIconResult>> SearchAllAsync(string term, CancellationToken ct = default)
+    {
+        var active = Providers.Where(p => p.IsConfigured).ToList();
+        var tasks = active.Select(async p =>
+        {
+            try { return (Results: await p.SearchAsync(term, ct), Error: (Exception?)null); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { return (Results: new List<GameIconResult>(), Error: ex); }
+        }).ToList();
+        var outcomes = await Task.WhenAll(tasks);
+        if (outcomes.Length > 0 && outcomes.All(o => o.Error != null)) throw outcomes[0].Error!;
+        foreach (var o in outcomes.Where(o => o.Error != null)) Helpers.Log.Error("GameIcon search", o.Error!.Message);
+        return outcomes.SelectMany(o => o.Results).ToList();
+    }
+
+    /// <summary>Downloads the chosen game's icon; throws when the provider has no usable image for it.</summary>
+    public static async Task<string> DownloadAsync(GameIconResult game, CancellationToken ct = default) =>
+        await GetProvider(game.Provider).DownloadAsync(game, ct)
+        ?? throw new InvalidOperationException($"{game.Provider} has no icon for {game.Name}");
+
+    /// <summary>
+    /// Finds an icon for a folder automatically: Steam first, then SteamGridDB, then IGDB (each only when
+    /// configured). A provider whose match can't be downloaded hands over to the next one. When nothing is
+    /// found the result says so, and that is remembered so the stores aren't asked again for a while.
+    /// Throws when nothing was found and a provider could not be reached.
     /// </summary>
     public static async Task<GameIconInfo> LookUpAsync(string folderName, CancellationToken ct = default)
     {
@@ -199,15 +167,33 @@ public static partial class GameIconService
         try
         {
             var info = new GameIconInfo { Source = GameIconSource.None, CheckedUtc = DateTime.UtcNow };
-            var results = await SearchAsync(Normalize(folderName), ct);
-            var match = PickConfident(folderName, results);
-            if (match == null) return info;
-            info.ImagePath = await DownloadIconAsync(match.AppId, ct);
-            info.AppId = match.AppId;
-            info.GameName = match.Name;
-            info.Source = info.ImagePath != null ? GameIconSource.Steam : GameIconSource.None;
-            // Be gentle with the store between lookups
+            string term = Normalize(folderName);
+            Exception? unreachable = null;
+            foreach (var provider in Providers.Where(p => p.IsConfigured))
+            {
+                try
+                {
+                    var results = await provider.SearchAsync(term, ct);
+                    var match = PickConfident(folderName, results);
+                    if (match == null) continue;
+                    string? path = await provider.DownloadAsync(match, ct);
+                    if (path == null) continue;
+                    info.ImagePath = path;
+                    info.Provider = provider.Id;
+                    info.AppId = match.Id;
+                    info.GameName = match.Name;
+                    info.Source = GameIconSource.Steam;
+                    break;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    Helpers.Log.Error("GameIcon lookup", $"{provider.DisplayName}, {folderName}: {ex.Message}");
+                    unreachable = ex;
+                }
+            }
+            // Be gentle with the stores between lookups
             await Task.Delay(350, ct);
+            if (info.Source == GameIconSource.None && unreachable != null) throw unreachable;
             return info;
         }
         finally

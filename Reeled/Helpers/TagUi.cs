@@ -72,7 +72,7 @@ internal static class TagUi
         box.TextChanged += (s, e) => dialog.IsPrimaryButtonEnabled = box.Text.Trim().Length > 0;
         box.Loaded += (s, e) => box.Focus(FocusState.Programmatic);
 
-        var result = await dialog.ShowAsync();
+        var result = await dialog.ShowSafeAsync();
         string name = box.Text.Trim();
         return result == ContentDialogResult.Primary && name.Length > 0 ? name : null;
     }
@@ -288,6 +288,6 @@ internal static class TagUi
             CloseButtonText = loc["Tags_Done"],
             DefaultButton = ContentDialogButton.Close
         };
-        await dialog.ShowAsync();
+        await dialog.ShowSafeAsync();
     }
 }

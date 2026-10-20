@@ -1,3 +1,4 @@
+using Reeled.Helpers;
 using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -178,7 +179,7 @@ public sealed partial class SettingsPage : Page
             DefaultButton = ContentDialogButton.Close
         };
 
-        var result = await dialog.ShowAsync();
+        var result = await dialog.ShowSafeAsync();
         if (result == ContentDialogResult.Primary)
         {
             await ViewModel.ResetOptionsToDefaultAsync();

@@ -1,3 +1,4 @@
+using Reeled.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -301,7 +302,7 @@ public sealed partial class HomePage
             }
         };
 
-        await dialog.ShowAsync();
+        await dialog.ShowSafeAsync();
     }
 
     /// <summary>Some providers (SteamGridDB) only tell the picture when asked per game; fetch a few at a time.</summary>

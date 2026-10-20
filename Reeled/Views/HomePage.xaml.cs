@@ -1,3 +1,4 @@
+using Reeled.Helpers;
 using System;
 using System.Collections.Generic;
 using Microsoft.UI.Xaml;
@@ -3955,7 +3956,7 @@ public sealed partial class HomePage : Page
             DefaultButton = ContentDialogButton.Close
         };
 
-        await dialog.ShowAsync();
+        await dialog.ShowSafeAsync();
     }
 
     private async System.Threading.Tasks.Task ShowLocalRenameDialogAsync(GameClip clip)
@@ -4011,7 +4012,7 @@ public sealed partial class HomePage : Page
             DefaultButton = ContentDialogButton.Primary
         };
 
-        var result = await dialog.ShowAsync();
+        var result = await dialog.ShowSafeAsync();
         if (result == ContentDialogResult.Primary)
         {
             string newTitle = textBox.Text.Trim();
@@ -4086,7 +4087,7 @@ public sealed partial class HomePage : Page
             }
         };
 
-        await dialog.ShowAsync();
+        await dialog.ShowSafeAsync();
     }
 
     private async System.Threading.Tasks.Task ShowErrorDialogAsync(string message)
@@ -4101,7 +4102,7 @@ public sealed partial class HomePage : Page
             CloseButtonText = loc?["Dialog_Error_Close"] ?? "OK",
             DefaultButton = ContentDialogButton.Close
         };
-        await dialog.ShowAsync();
+        await dialog.ShowSafeAsync();
     }
 
     private async System.Threading.Tasks.Task ShowDeleteConfirmDialogAsync(GameClip clip)
@@ -4120,7 +4121,7 @@ public sealed partial class HomePage : Page
             DefaultButton = ContentDialogButton.Close
         };
 
-        var result = await dialog.ShowAsync();
+        var result = await dialog.ShowSafeAsync();
         if (result == ContentDialogResult.Primary && !ViewModel.DeleteClip(clip))
         {
             await ShowErrorDialogAsync(loc?["Dialog_Delete_Failed"] ?? "Couldn't move the file to the Recycle Bin.");

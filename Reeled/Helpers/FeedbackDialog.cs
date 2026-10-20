@@ -101,7 +101,7 @@ public static class FeedbackDialog
         title.TextChanged += (s, e) => Validate();
         details.TextChanged += (s, e) => Validate();
 
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await dialog.ShowSafeAsync() != ContentDialogResult.Primary) return;
 
         string diagnostics = includeDiagnostics.IsChecked == true ? settings.BuildDiagnosticsReport(includeLogPath: false) : string.Empty;
         string url = BuildIssueUrl(kind.SelectedIndex, title.Text.Trim(), details.Text.Trim(), steps.Text.Trim(), diagnostics, settings.CurrentVersionTag);

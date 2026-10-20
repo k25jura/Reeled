@@ -214,7 +214,7 @@ public sealed partial class PlayerPage
             {
                 Child = content,
                 MaxWidth = 760,
-                Margin = new Thickness(24, 0, 24, 128),
+                Margin = new Thickness(24, 0, 24, BarClearance + 12),
                 Padding = new Thickness(18, 16, 18, 16),
                 CornerRadius = new CornerRadius(10),
                 BorderThickness = new Thickness(1),

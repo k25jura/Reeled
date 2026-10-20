@@ -68,6 +68,7 @@ public sealed partial class PlayerPage : Page
         }
 
         InitializeToolbar();
+        InitializeBarAnchors();
         InitializePanels();
 
         int initialTimeout = 2;
@@ -354,6 +355,7 @@ public sealed partial class PlayerPage : Page
         ViewModel.IsControlsVisible = true;
         _areControlsShowing = false;
         UpdateControlsVisibility(true, animate: false);
+        UpdateBarAnchors(animate: false);
         SetFullscreenLayout(ViewModel.IsFullscreen);
         AnimateSidePanel(PlaylistQueueSidebar, SidebarTranslation, ViewModel.IsSidebarOpen, animate: false);
         RestartInactivityTimer();
@@ -997,7 +999,7 @@ public sealed partial class PlayerPage : Page
             BottomControlBar.Opacity = visible ? 1.0 : 0.0;
             if (ActiveMomentBadgeTranslation != null)
             {
-                ActiveMomentBadgeTranslation.Y = visible ? -64.0 : 0.0;
+                ActiveMomentBadgeTranslation.Y = ActiveBadgeLift(visible);
             }
             return;
         }
@@ -1029,7 +1031,7 @@ public sealed partial class PlayerPage : Page
                 var badgeAnim = new DoubleAnimation
                 {
                     From = ActiveMomentBadgeTranslation.Y,
-                    To = -64.0,
+                    To = ActiveBadgeLift(true),
                     Duration = duration,
                     EasingFunction = easeOut
                 };
@@ -1044,7 +1046,7 @@ public sealed partial class PlayerPage : Page
                 BottomControlBar.Opacity = 1.0;
                 if (ActiveMomentBadgeTranslation != null)
                 {
-                    ActiveMomentBadgeTranslation.Y = -64.0;
+                    ActiveMomentBadgeTranslation.Y = ActiveBadgeLift(true);
                 }
             };
         }
@@ -1431,7 +1433,7 @@ public sealed partial class PlayerPage : Page
             ActiveMomentPromptBadge.Visibility = Visibility.Visible;
             if (ActiveMomentBadgeTranslation != null)
             {
-                ActiveMomentBadgeTranslation.Y = _areControlsShowing ? -64.0 : 0.0;
+                ActiveMomentBadgeTranslation.Y = ActiveBadgeLift(_areControlsShowing);
             }
             var sb = new Storyboard();
             var fadeIn = new DoubleAnimation

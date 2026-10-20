@@ -119,6 +119,185 @@
             </Grid>
         </Border>
 
+        <!-- Floating Active Moment Badge (Prominent moment indicator; remains visible when controls auto-hide) -->
+        <Border x:Name="ActiveMomentPromptBadge"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom"
+                Margin="0,0,0,48"
+                Background="{StaticResource PlayerFlyoutBackdropBrush}"
+                BorderBrush="#33FFFFFF"
+                BorderThickness="1"
+                CornerRadius="18"
+                Padding="16,6"
+                Opacity="0"
+                Visibility="Collapsed"
+                IsHitTestVisible="True">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="ActiveMomentBadgeTranslation" Y="-64" />
+            </Border.RenderTransform>
+            <Grid ColumnSpacing="10" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Ellipse x:Name="ActiveMomentDot" Grid.Column="0" Width="10" Height="10" Fill="#FFD700" VerticalAlignment="Center" Margin="0,0,2,0" />
+                <TextBlock x:Name="ActiveMomentText" Grid.Column="1" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                <TextBlock x:Name="ActiveMomentRange" Grid.Column="2" FontSize="12" Foreground="#C8C8C8" VerticalAlignment="Center" />
+
+                <Button x:Name="DismissActiveMomentButton"
+                        Grid.Column="3"
+                        Click="OnDismissActiveMomentClick"
+                        ToolTipService.ToolTip="Dismiss"
+                        Style="{ThemeResource SubtleButtonStyle}"
+                        Width="22" Height="22"
+                        Padding="0" MinWidth="0" MinHeight="0"
+                        CornerRadius="11"
+                        VerticalAlignment="Center">
+                    <FontIcon Glyph="&#xE711;" FontSize="9" Foreground="#A0A0A0" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Interactive Timeline Picker Prompt Badge -->
+        <Border x:Name="TimelinePickerPromptBadge"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom"
+                Margin="0"
+                Background="{StaticResource PlayerFlyoutBackdropBrush}"
+                BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="18"
+                Padding="16,6"
+                Opacity="0"
+                Visibility="Collapsed"
+                IsHitTestVisible="True">
+            <!-- Lifted above the control bar by PlayerPage.BarAnchors.cs -->
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="TimelinePickerBadgeTranslation" Y="-100" />
+            </Border.RenderTransform>
+            <Grid ColumnSpacing="10" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <FontIcon Grid.Column="0" Glyph="&#xE7C1;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TimelinePickerPromptText" Grid.Column="1" Text="Choose moment time:" FontSize="13" Foreground="White" VerticalAlignment="Center" />
+                <TextBlock x:Name="TimelinePickerCurrentTimeText" Grid.Column="2" Text="00:00" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+
+                <Button x:Name="TimelinePickerConfirmButton"
+                        Grid.Column="3"
+                        Click="OnConfirmTimelinePickerClick"
+                        Content="Set"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Padding="10,3" MinWidth="0" MinHeight="26"
+                        FontSize="12" CornerRadius="13"
+                        VerticalAlignment="Center" />
+
+                <Button x:Name="TimelinePickerCancelButton"
+                        Grid.Column="4"
+                        Click="OnCancelTimelinePickerClick"
+                        Content="Cancel"
+                        Style="{ThemeResource SubtleButtonStyle}"
+                        Padding="8,3" MinWidth="0" MinHeight="26"
+                        FontSize="12" CornerRadius="13"
+                        VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <!-- Moments Jump Suggestion Popup (Bottom-Left) -->
+        <Border x:Name="MomentsJumpPopup"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Bottom"
+                Margin="20,0,0,0"
+                Width="300"
+                Background="{StaticResource PlayerFlyoutBackdropBrush}"
+                BorderBrush="#33FFFFFF"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="6,10,6,6"
+                Opacity="0"
+                Visibility="Collapsed"
+                RenderTransformOrigin="0,1"
+                PointerEntered="OnMomentsPopupPointerEntered"
+                PointerExited="OnMomentsPopupPointerExited">
+            <Border.RenderTransform>
+                <CompositeTransform x:Name="MomentsPopupTranslation" TranslateX="-16" TranslateY="-100" ScaleX="0.98" ScaleY="0.98" />
+            </Border.RenderTransform>
+            <!-- Auto rows only: the list sizes to its content, so the card can never render as a bare header -->
+            <StackPanel Spacing="6">
+                <Grid Margin="10,0,2,0" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock x:Name="MomentsPromptTitle" Text="Moments in this clip" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
+                        <TextBlock x:Name="MomentsPromptCount" FontSize="12" Foreground="#99FFFFFF" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Button x:Name="MomentsPromptDismissButton"
+                            Grid.Column="1"
+                            Click="OnDismissMomentsPopupClick"
+                            Width="24" Height="24"
+                            Padding="0" MinWidth="0" MinHeight="0"
+                            CornerRadius="12"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            ToolTipService.ToolTip="Dismiss"
+                            Style="{StaticResource PlayerIconButtonStyle}">
+                        <FontIcon Glyph="&#xE711;" FontSize="9" Foreground="#B3FFFFFF" />
+                    </Button>
+                </Grid>
+
+                <ScrollViewer MaxHeight="196" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl x:Name="MomentsPopupItemsList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:ClipBookmark">
+                                <Button HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Stretch"
+                                        Padding="10,7"
+                                        CornerRadius="6"
+                                        Click="OnPopupBookmarkItemClick"
+                                        Tag="{x:Bind}"
+                                        Style="{ThemeResource SubtleButtonStyle}">
+                                    <Grid ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- The moment's own color, matching its timeline marker -->
+                                        <Ellipse Grid.Column="0" Width="8" Height="8" VerticalAlignment="Center"
+                                                 Fill="{x:Bind ColorHex, Mode=OneWay, Converter={StaticResource HexToBrushConverter}}" />
+
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{x:Bind DisplayLabel, Mode=OneWay}"
+                                                   FontSize="12.5"
+                                                   Foreground="White"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{x:Bind FormattedRange, Mode=OneWay}"
+                                                   FontSize="12"
+                                                   Foreground="#99FFFFFF"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </StackPanel>
+        </Border>
+
+        <!-- The OSD is momentary feedback and is declared after the transient pills above so it always draws over them. -->
         <!-- OSD: large text over a soft gradient band whose tint follows the action (volume, seek,
              speed, moments...). Position, size and the band are customizable (Settings > Player). -->
         <Grid x:Name="OsdToastContainer" IsHitTestVisible="False" Visibility="Collapsed" Opacity="0">
@@ -188,94 +367,6 @@
                         <TextBlock x:Name="SessionHeaderText" Text="Settings" FontSize="13" Foreground="White" />
                     </StackPanel>
                 </Button>
-            </Grid>
-        </Border>
-
-        <!-- Floating Active Moment Badge (Prominent moment indicator; remains visible when controls auto-hide) -->
-        <Border x:Name="ActiveMomentPromptBadge"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Bottom"
-                Margin="0,0,0,48"
-                Background="{StaticResource PlayerFlyoutBackdropBrush}"
-                BorderBrush="#33FFFFFF"
-                BorderThickness="1"
-                CornerRadius="18"
-                Padding="16,6"
-                Opacity="0"
-                Visibility="Collapsed"
-                IsHitTestVisible="True">
-            <Border.RenderTransform>
-                <TranslateTransform x:Name="ActiveMomentBadgeTranslation" Y="-64" />
-            </Border.RenderTransform>
-            <Grid ColumnSpacing="10" VerticalAlignment="Center">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <Ellipse x:Name="ActiveMomentDot" Grid.Column="0" Width="10" Height="10" Fill="#FFD700" VerticalAlignment="Center" Margin="0,0,2,0" />
-                <TextBlock x:Name="ActiveMomentText" Grid.Column="1" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
-                <TextBlock x:Name="ActiveMomentRange" Grid.Column="2" FontSize="12" Foreground="#C8C8C8" VerticalAlignment="Center" />
-
-                <Button x:Name="DismissActiveMomentButton"
-                        Grid.Column="3"
-                        Click="OnDismissActiveMomentClick"
-                        ToolTipService.ToolTip="Dismiss"
-                        Style="{ThemeResource SubtleButtonStyle}"
-                        Width="22" Height="22"
-                        Padding="0" MinWidth="0" MinHeight="0"
-                        CornerRadius="11"
-                        VerticalAlignment="Center">
-                    <FontIcon Glyph="&#xE711;" FontSize="9" Foreground="#A0A0A0" />
-                </Button>
-            </Grid>
-        </Border>
-
-        <!-- Interactive Timeline Picker Prompt Badge -->
-        <Border x:Name="TimelinePickerPromptBadge"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Bottom"
-                Margin="0,0,0,112"
-                Background="{StaticResource PlayerFlyoutBackdropBrush}"
-                BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
-                BorderThickness="1"
-                CornerRadius="18"
-                Padding="16,6"
-                Opacity="0"
-                Visibility="Collapsed"
-                IsHitTestVisible="True">
-            <Grid ColumnSpacing="10" VerticalAlignment="Center">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <FontIcon Grid.Column="0" Glyph="&#xE7C1;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
-                <TextBlock x:Name="TimelinePickerPromptText" Grid.Column="1" Text="Choose moment time:" FontSize="13" Foreground="White" VerticalAlignment="Center" />
-                <TextBlock x:Name="TimelinePickerCurrentTimeText" Grid.Column="2" Text="00:00" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
-
-                <Button x:Name="TimelinePickerConfirmButton"
-                        Grid.Column="3"
-                        Click="OnConfirmTimelinePickerClick"
-                        Content="Set"
-                        Style="{StaticResource AccentButtonStyle}"
-                        Padding="10,3" MinWidth="0" MinHeight="26"
-                        FontSize="12" CornerRadius="13"
-                        VerticalAlignment="Center" />
-
-                <Button x:Name="TimelinePickerCancelButton"
-                        Grid.Column="4"
-                        Click="OnCancelTimelinePickerClick"
-                        Content="Cancel"
-                        Style="{ThemeResource SubtleButtonStyle}"
-                        Padding="8,3" MinWidth="0" MinHeight="26"
-                        FontSize="12" CornerRadius="13"
-                        VerticalAlignment="Center" />
             </Grid>
         </Border>
 
@@ -636,92 +727,6 @@
                     <FontIcon Glyph="{x:Bind ViewModel.FullscreenGlyph, Mode=OneWay}" FontSize="14" Foreground="White" />
                 </Button>
         </StackPanel>
-
-        <!-- Moments Jump Suggestion Popup (Bottom-Left) -->
-        <Border x:Name="MomentsJumpPopup"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Bottom"
-                Margin="20,0,0,116"
-                Width="300"
-                Background="{StaticResource PlayerFlyoutBackdropBrush}"
-                BorderBrush="#33FFFFFF"
-                BorderThickness="1"
-                CornerRadius="10"
-                Padding="6,10,6,6"
-                Opacity="0"
-                Visibility="Collapsed"
-                RenderTransformOrigin="0,1"
-                PointerEntered="OnMomentsPopupPointerEntered"
-                PointerExited="OnMomentsPopupPointerExited">
-            <Border.RenderTransform>
-                <CompositeTransform x:Name="MomentsPopupTranslation" TranslateX="-16" ScaleX="0.98" ScaleY="0.98" />
-            </Border.RenderTransform>
-            <!-- Auto rows only: the list sizes to its content, so the card can never render as a bare header -->
-            <StackPanel Spacing="6">
-                <Grid Margin="10,0,2,0" ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock x:Name="MomentsPromptTitle" Text="Moments in this clip" FontSize="13" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center" />
-                        <TextBlock x:Name="MomentsPromptCount" FontSize="12" Foreground="#99FFFFFF" VerticalAlignment="Center" />
-                    </StackPanel>
-                    <Button x:Name="MomentsPromptDismissButton"
-                            Grid.Column="1"
-                            Click="OnDismissMomentsPopupClick"
-                            Width="24" Height="24"
-                            Padding="0" MinWidth="0" MinHeight="0"
-                            CornerRadius="12"
-                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                            ToolTipService.ToolTip="Dismiss"
-                            Style="{StaticResource PlayerIconButtonStyle}">
-                        <FontIcon Glyph="&#xE711;" FontSize="9" Foreground="#B3FFFFFF" />
-                    </Button>
-                </Grid>
-
-                <ScrollViewer MaxHeight="196" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <ItemsControl x:Name="MomentsPopupItemsList">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="models:ClipBookmark">
-                                <Button HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Stretch"
-                                        Padding="10,7"
-                                        CornerRadius="6"
-                                        Click="OnPopupBookmarkItemClick"
-                                        Tag="{x:Bind}"
-                                        Style="{ThemeResource SubtleButtonStyle}">
-                                    <Grid ColumnSpacing="10">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <!-- The moment's own color, matching its timeline marker -->
-                                        <Ellipse Grid.Column="0" Width="8" Height="8" VerticalAlignment="Center"
-                                                 Fill="{x:Bind ColorHex, Mode=OneWay, Converter={StaticResource HexToBrushConverter}}" />
-
-                                        <TextBlock Grid.Column="1"
-                                                   Text="{x:Bind DisplayLabel, Mode=OneWay}"
-                                                   FontSize="12.5"
-                                                   Foreground="White"
-                                                   VerticalAlignment="Center"
-                                                   TextTrimming="CharacterEllipsis" />
-
-                                        <TextBlock Grid.Column="2"
-                                                   Text="{x:Bind FormattedRange, Mode=OneWay}"
-                                                   FontSize="12"
-                                                   Foreground="#99FFFFFF"
-                                                   VerticalAlignment="Center" />
-                                    </Grid>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </StackPanel>
-        </Border>
 
         <!-- Right-hand panels: the clip queue and session settings (one at a time) -->
         <Border x:Name="PlaylistQueueSidebar"

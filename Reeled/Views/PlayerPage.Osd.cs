@@ -228,7 +228,7 @@ public sealed partial class PlayerPage
                 break;
             case OsdPosition.Bottom:
                 OsdContent.VerticalAlignment = VerticalAlignment.Bottom;
-                OsdContent.Margin = new Thickness(0, 0, 0, 120);
+                OsdContent.Margin = new Thickness(0, 0, 0, BarClearance + 16);
                 OsdGradient.VerticalAlignment = VerticalAlignment.Bottom;
                 OsdGradient.Height = 280;
                 SetOsdStops(endA: 0, mirror: 0.5, start: 1, middle: 0.5, endB: 0);

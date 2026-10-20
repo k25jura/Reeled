@@ -90,7 +90,7 @@ public sealed class ColorChooser : UserControl
 
     // Picker state
     private Flyout? _flyout;
-    private ColorPicker? _picker;
+    private ColorPad? _picker;
     private StackPanel? _panel;
     private TextBlock? _title;
     private Grid? _buttons;
@@ -99,8 +99,6 @@ public sealed class ColorChooser : UserControl
     private bool _pickerOpen;
     private bool _committed;
     private bool _seeding;
-    private bool _hasSeed;
-    private Color _seed;
     private bool _dirty;
     private Color _pending;
     private long _lastFlush;
@@ -466,16 +464,8 @@ public sealed class ColorChooser : UserControl
     {
         if (_flyout != null) return;
 
-        _picker = new ColorPicker
-        {
-            IsAlphaEnabled = false,
-            IsMoreButtonVisible = false,
-            IsColorChannelTextInputVisible = false,
-            IsHexInputVisible = true,
-            IsColorSliderVisible = true,
-            ColorSpectrumShape = ColorSpectrumShape.Box,
-            Width = 300
-        };
+        // A lightweight picker: WinUI's ColorPicker builds a colour-name tooltip on every pointer move
+        _picker = new ColorPad(280);
         _picker.ColorChanged += OnPickerColorChanged;
 
         _title = new TextBlock { Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] };
@@ -524,9 +514,8 @@ public sealed class ColorChooser : UserControl
         // Starting the picker on the current colour must not count as a change
         _seeding = true;
         var seed = ResolveColor(_selected);
-        _picker!.Color = _seed = seed.A == 0 ? Accent.Current : seed;
+        _picker!.SetColor(seed.A == 0 ? Accent.Current : seed);
         _seeding = false;
-        _hasSeed = true;
 
         _pickerOpen = true;
         _flyout.ShowAt(anchor);
@@ -539,18 +528,11 @@ public sealed class ColorChooser : UserControl
         PickerOpened?.Invoke(this, EventArgs.Empty);
     }
 
-    private void OnPickerColorChanged(ColorPicker sender, ColorChangedEventArgs e)
+    private void OnPickerColorChanged(Color color)
     {
         if (_seeding) return;
-        if (_hasSeed)
-        {
-            // The picker re-reports the starting colour (rounded through HSV) when it loads; that isn't a pick
-            var c = e.NewColor;
-            if (Math.Abs(c.R - _seed.R) <= 1 && Math.Abs(c.G - _seed.G) <= 1 && Math.Abs(c.B - _seed.B) <= 1) return;
-            _hasSeed = false;
-        }
         // Only remember the latest colour; it is delivered once per frame
-        _pending = e.NewColor;
+        _pending = color;
         _dirty = true;
     }
 

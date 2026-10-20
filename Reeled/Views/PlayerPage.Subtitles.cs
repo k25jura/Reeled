@@ -86,11 +86,11 @@ public sealed partial class PlayerPage
         }
     }
 
-    /// <summary>Keeps subtitles clear of the bottom bar while it's showing.</summary>
+    /// <summary>Keeps subtitles clear of the bottom bar while it's showing (the bar's measured height, so Classic and Compact both get the same gap).</summary>
     private void AnimateSubtitleLift(bool controlsVisible, bool animate)
     {
         if (SubtitleOverlayTranslation == null) return;
-        double lift = controlsVisible ? -Math.Max(0, BottomControlBar.ActualHeight - 24) : 0;
+        double lift = controlsVisible ? -Math.Max(0, BarClearance - SubtitleBaseMargin) : 0;
         if (!animate || Helpers.Motion.IsReduced)
         {
             SubtitleOverlayTranslation.Y = lift;

@@ -19,6 +19,9 @@ public class ThumbnailService : IThumbnailService
     private readonly string _cacheDirectory;
     private readonly ConcurrentDictionary<string, Lazy<Task<BitmapImage?>>> _inFlightThumbnails = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _diskExtractionThrottler = new(4, 4);
+    // Requests made for something on screen get their own lane so they never wait behind the
+    // library-wide background warm-up that queues an extraction for every clip.
+    private readonly SemaphoreSlim _interactiveThrottler = new(3, 3);
 
     // Bounded LRU in-memory cache for BitmapImages (~290 KB each at 360px decode width, ~45 MB max).
     // Grid cards release their bitmap when recycled, so this is the only long-lived owner.
@@ -89,7 +92,7 @@ public class ThumbnailService : IThumbnailService
         }
     }
 
-    public async Task<string?> EnsureThumbnailOnDiskAsync(string videoPath)
+    public async Task<string?> EnsureThumbnailOnDiskAsync(string videoPath, bool highPriority = false)
     {
         if (string.IsNullOrEmpty(videoPath) || !File.Exists(videoPath))
             return null;
@@ -102,7 +105,8 @@ public class ThumbnailService : IThumbnailService
             if (File.Exists(cacheFile))
                 return cacheFile;
 
-            await _diskExtractionThrottler.WaitAsync();
+            var throttler = highPriority ? _interactiveThrottler : _diskExtractionThrottler;
+            await throttler.WaitAsync();
             try
             {
                 if (File.Exists(cacheFile))
@@ -137,7 +141,7 @@ public class ThumbnailService : IThumbnailService
             }
             finally
             {
-                _diskExtractionThrottler.Release();
+                throttler.Release();
             }
         }
         catch (Exception)
@@ -148,7 +152,7 @@ public class ThumbnailService : IThumbnailService
         return null;
     }
 
-    public Task<BitmapImage?> GetThumbnailAsync(string videoPath)
+    public Task<BitmapImage?> GetThumbnailAsync(string videoPath, bool highPriority = false)
     {
         if (string.IsNullOrEmpty(videoPath) || !File.Exists(videoPath))
             return Task.FromResult<BitmapImage?>(null);
@@ -160,14 +164,14 @@ public class ThumbnailService : IThumbnailService
 
         // Lazy guarantees a single load per path. The entry is removed only after the load has been
         // published, so a synchronously completing load can't leave a stale entry behind.
-        var lazy = _inFlightThumbnails.GetOrAdd(videoPath, path => new Lazy<Task<BitmapImage?>>(() => LoadThumbnailAsync(path)));
+        var lazy = _inFlightThumbnails.GetOrAdd(videoPath, path => new Lazy<Task<BitmapImage?>>(() => LoadThumbnailAsync(path, highPriority)));
         var task = lazy.Value;
         _ = task.ContinueWith(_ => _inFlightThumbnails.TryRemove(new KeyValuePair<string, Lazy<Task<BitmapImage?>>>(videoPath, lazy)),
             TaskScheduler.Default);
         return task;
     }
 
-    private async Task<BitmapImage?> LoadThumbnailAsync(string path)
+    private async Task<BitmapImage?> LoadThumbnailAsync(string path, bool highPriority)
     {
         try
         {
@@ -176,7 +180,7 @@ public class ThumbnailService : IThumbnailService
                 return doubleCheckBitmap;
             }
 
-            string? cacheFile = await EnsureThumbnailOnDiskAsync(path);
+            string? cacheFile = await EnsureThumbnailOnDiskAsync(path, highPriority);
             if (cacheFile != null && File.Exists(cacheFile))
             {
                 var bmp = await LoadBitmapFromDiskAsync(cacheFile);

@@ -29,6 +29,7 @@ public class ClipMetadataService : IClipMetadataService
         FileInfo fileInfo;
         TimeSpan? duration = null;
         uint width = 0, height = 0;
+        double framerate = 0;
         try
         {
             fileInfo = new FileInfo(path);
@@ -37,6 +38,7 @@ public class ClipMetadataService : IClipMetadataService
                 duration = TimeSpan.FromTicks(cached.DurationTicks);
                 width = cached.VideoWidth;
                 height = cached.VideoHeight;
+                framerate = cached.Framerate;
             }
             else
             {
@@ -47,6 +49,7 @@ public class ClipMetadataService : IClipMetadataService
                     duration = videoProps.Duration;
                     width = videoProps.Width;
                     height = videoProps.Height;
+                    framerate = await ReadFramerateAsync(storageFile);
 
                     _cacheService.Set(new CachedClipMetadata
                     {
@@ -56,6 +59,7 @@ public class ClipMetadataService : IClipMetadataService
                         DurationTicks = videoProps.Duration.Ticks,
                         VideoWidth = videoProps.Width,
                         VideoHeight = videoProps.Height,
+                        Framerate = framerate > 0 ? framerate : -1,
                         CreatedDateUtc = fileInfo.CreationTimeUtc,
                         ModifiedDateUtc = fileInfo.LastWriteTimeUtc
                     });
@@ -93,6 +97,65 @@ public class ClipMetadataService : IClipMetadataService
             }
             catch { }
         });
+    }
+
+    public async Task<double> GetFramerateAsync(GameClip clip)
+    {
+        string path = clip.FilePath;
+        if (clip.Framerate > 0) return clip.Framerate;
+        if (string.IsNullOrEmpty(path) || !File.Exists(path)) return 0;
+
+        try
+        {
+            var fileInfo = new FileInfo(path);
+            CachedClipMetadata? cached = null;
+            if (_cacheService.TryGet(path, fileInfo.Length, fileInfo.LastWriteTimeUtc.Ticks, out var hit)) cached = hit;
+
+            if (cached != null && cached.Framerate > 0) return cached.Framerate;
+            if (cached != null && cached.Framerate < 0) return 0; // probed before: the container reports none
+
+            var storageFile = await StorageFile.GetFileFromPathAsync(path);
+            double framerate = await ReadFramerateAsync(storageFile);
+
+            if (cached != null)
+            {
+                cached.Framerate = framerate > 0 ? framerate : -1;
+                _cacheService.Set(cached);
+            }
+            return framerate;
+        }
+        catch (Exception)
+        {
+            return 0;
+        }
+    }
+
+    /// <summary>System.Video.FrameRate is stored in frames per 1000 seconds.</summary>
+    private static async Task<double> ReadFramerateAsync(StorageFile file)
+    {
+        try
+        {
+            const string key = "System.Video.FrameRate";
+            var props = await file.Properties.RetrievePropertiesAsync(new[] { key });
+            if (props.TryGetValue(key, out var value) && value != null)
+            {
+                double fps = Convert.ToDouble(value) / 1000.0;
+                if (fps > 0 && fps < 1000) return fps;
+            }
+        }
+        catch (Exception)
+        {
+            // Not every container exposes it
+        }
+        return 0;
+    }
+
+    /// <summary>"60" when within 0.05 of a whole number, otherwise up to two decimals ("59.94", "23.98").</summary>
+    public static string FormatFramerate(double fps, IFormatProvider? provider = null)
+    {
+        double rounded = Math.Round(fps);
+        if (Math.Abs(fps - rounded) <= 0.05) return rounded.ToString("0", provider);
+        return Math.Round(fps, 2).ToString("0.##", provider);
     }
 
     private static void RunOnUiThread(Action action)

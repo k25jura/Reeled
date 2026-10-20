@@ -5,8 +5,8 @@ namespace Reeled.Services;
 
 public interface IThumbnailService
 {
-    Task<BitmapImage?> GetThumbnailAsync(string videoPath);
+    Task<BitmapImage?> GetThumbnailAsync(string videoPath, bool highPriority = false);
     bool TryGetFromMemoryCache(string videoPath, out BitmapImage? bitmap);
-    Task<string?> EnsureThumbnailOnDiskAsync(string videoPath);
+    Task<string?> EnsureThumbnailOnDiskAsync(string videoPath, bool highPriority = false);
     void ClearMemoryCache();
 }

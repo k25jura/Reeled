@@ -21,6 +21,12 @@ public interface IClipIndexerService : IDisposable
     Task<List<GameClip>> ScanDirectoryClipsAsync(string directoryPath, bool recursive = false);
     Task<List<DirectoryNode>> BuildDirectoryTreesAsync(IEnumerable<string> watchRoots);
     void UpdateWatchers(IEnumerable<string> watchRoots);
+
+    /// <summary>
+    /// Folder changes the app makes itself (a new folder) update the tree directly: the full rescan that
+    /// the watcher would ask for in the next moments is skipped.
+    /// </summary>
+    void SuppressLibraryChanged(TimeSpan duration);
     bool DeleteClipToRecycleBin(string filePath);
     bool RenameClip(string filePath, string newFileName, out string newPath);
 }

@@ -73,6 +73,17 @@ public partial class GameClip : ObservableObject
     [ObservableProperty]
     private bool _isActive;
 
+    /// <summary>Part of the library's multi-selection (Ctrl/Shift+click).</summary>
+    [ObservableProperty]
+    private bool _isSelected;
+
+    /// <summary>Cut to the clipboard and waiting to be pasted: shown dimmed until then.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ContentOpacity))]
+    private bool _isCut;
+
+    public double ContentOpacity => IsCut ? 0.45 : 1.0;
+
     /// <summary>User tags (sorted as in the tag library).</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasTags))]

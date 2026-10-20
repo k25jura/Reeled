@@ -428,7 +428,7 @@ public sealed partial class HomePage
             await ViewModel.SelectDirectoryAsync(node);
             ScrollClipsToTop();
         };
-        self.ContextFlyout = CreateOpenInNewTabMenu(node);
+        self.ContextFlyout = CreateFolderMenu(node);
         WireFolderDropTarget(self, () => node);
         items.Add(self);
         if (isRoot && node.SubDirectories.Count > 0) items.Add(new MenuFlyoutSeparator());
@@ -439,7 +439,7 @@ public sealed partial class HomePage
             {
                 var sub = new MenuFlyoutSubItem { Text = child.DisplayName, Icon = new FontIcon { Glyph = "" } };
                 AddSubfolderItems(sub.Items, child, isRoot: false);
-                sub.ContextFlyout = CreateOpenInNewTabMenu(child);
+                sub.ContextFlyout = CreateFolderMenu(child);
                 items.Add(sub);
             }
             else
@@ -456,6 +456,7 @@ public sealed partial class HomePage
                 var context = new MenuFlyout();
                 context.Items.Add(CreateOpenInNewTabItem(child));
                 AddGameIconMenu(context.Items, child);
+                AddFolderFileMenuItems(context.Items, child);
                 if (context.Items.Count > 0 && context.Items[0] is MenuFlyoutSeparator) context.Items.RemoveAt(0);
                 item.ContextFlyout = context;
                 WireFolderDropTarget(item, () => child);
@@ -481,6 +482,7 @@ public sealed partial class HomePage
         copy.Click += (s, e) => ViewModel.CopyFolderPath(root);
         menu.Items.Add(open);
         menu.Items.Add(copy);
+        AddFolderFileMenuItems(menu.Items, root);
         AddGameIconMenu(menu.Items, root);
         return menu;
     }

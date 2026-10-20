@@ -207,6 +207,11 @@ public sealed partial class HomePage
             ClearSelection();
             return true;
         });
+        add(VirtualKey.N, VirtualKeyModifiers.Control | VirtualKeyModifiers.Shift, () =>
+        {
+            _ = NewFolderFromShortcutAsync();
+            return true;
+        });
         add(VirtualKey.C, VirtualKeyModifiers.Control, () => ClipboardShortcut(cut: false));
         add(VirtualKey.X, VirtualKeyModifiers.Control, () => ClipboardShortcut(cut: true));
         add(VirtualKey.V, VirtualKeyModifiers.Control, () =>
@@ -254,6 +259,7 @@ public sealed partial class HomePage
         }
 
         Item("ContextMenu_Paste", "", () => _ = PasteAsync(), folder != null && ClipboardHasFiles(), "Ctrl+V");
+        Item("FolderMenu_NewFolder", "", () => _ = NewFolderInAsync(folder!), folder != null, "Ctrl+Shift+N");
         flyout.Items.Add(new MenuFlyoutSeparator());
         Item("ContextMenu_SelectAll", "", SelectAllClips, ViewModel.FilteredClips.Count > 0, "Ctrl+A");
 

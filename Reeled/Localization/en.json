@@ -291,6 +291,7 @@
   "Dialog_ClipInfo_Duration": "Duration",
   "Dialog_ClipInfo_FileSize": "File Size",
   "Dialog_ClipInfo_Resolution": "Resolution",
+  "Dialog_ClipInfo_ResolutionFps": "{0} × {1} @ {2} fps",
   "Dialog_ClipInfo_Unknown": "Unknown",
   "Dialog_ClipInfo_Moments": "Saved Moments",
   "Dialog_ClipInfo_MomentsMarked": "{0} marked",

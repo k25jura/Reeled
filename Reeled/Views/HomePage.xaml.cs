@@ -3874,7 +3874,26 @@ public sealed partial class HomePage : Page
 
         var resBlock = new StackPanel { Spacing = 2 };
         resBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_Resolution"] ?? "Resolution", FontSize = 11, Foreground = GetThemeResourceBrush("TextFillColorSecondaryBrush") });
-        string resText = clip.VideoWidth > 0 ? $"{clip.VideoWidth} x {clip.VideoHeight}" + (clip.Framerate > 0 ? $" ({clip.Framerate:F0} fps)" : "") : (loc?["Dialog_ClipInfo_Unknown"] ?? "Unknown");
+        var culture = loc?.CurrentCulture ?? System.Globalization.CultureInfo.CurrentCulture;
+        string resText;
+        if (clip.VideoWidth > 0)
+        {
+            double fps = 0;
+            try
+            {
+                var metadata = App.GetService<Services.IClipMetadataService>();
+                if (metadata != null) fps = await metadata.GetFramerateAsync(clip);
+            }
+            catch { }
+
+            resText = fps > 0
+                ? string.Format(culture, loc?["Dialog_ClipInfo_ResolutionFps"] ?? "{0} × {1} @ {2} fps", clip.VideoWidth, clip.VideoHeight, Services.ClipMetadataService.FormatFramerate(fps, culture))
+                : $"{clip.VideoWidth} × {clip.VideoHeight}";
+        }
+        else
+        {
+            resText = loc?["Dialog_ClipInfo_Unknown"] ?? "Unknown";
+        }
         resBlock.Children.Add(new TextBlock { Text = resText, FontSize = 13 });
         Grid.SetColumn(resBlock, 0);
         grid2.Children.Add(resBlock);

@@ -291,6 +291,7 @@
   "Dialog_ClipInfo_Duration": "Тривалість",
   "Dialog_ClipInfo_FileSize": "Розмір файлу",
   "Dialog_ClipInfo_Resolution": "Роздільна здатність",
+  "Dialog_ClipInfo_ResolutionFps": "{0} × {1} @ {2} кадр/с",
   "Dialog_ClipInfo_Unknown": "Невідомо",
   "Dialog_ClipInfo_Moments": "Збережені моменти",
   "Dialog_ClipInfo_MomentsMarked": "Позначено: {0}",

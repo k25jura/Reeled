@@ -819,7 +819,7 @@
                                 <FontIcon Glyph="&#xE76F;" FontSize="12" Foreground="#66FFFFFF" VerticalAlignment="Center" />
                                 <!-- Thumbnail; the playing clip gets an accent frame and a play mark -->
                                 <Grid Grid.Column="1" Height="32" CornerRadius="4" Background="#22FFFFFF" VerticalAlignment="Center">
-                                    <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="UniformToFill" />
+                                    <Image Stretch="UniformToFill" Opacity="0" />
                                     <Border BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="1.5" CornerRadius="4"
                                             Visibility="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                     <Border Background="#99000000" CornerRadius="4" Visibility="{x:Bind IsActive, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">

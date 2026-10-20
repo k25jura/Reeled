@@ -1736,39 +1736,6 @@ public sealed partial class PlayerPage : Page
         }
     }
 
-    private void OnPlaylistContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
-    {
-        if (args.InRecycleQueue) return;
-        if (args.Item is Models.GameClip clip && clip.Thumbnail == null)
-        {
-            var thumbnailService = App.GetService<Services.IThumbnailService>();
-            if (thumbnailService != null)
-            {
-                if (thumbnailService.TryGetFromMemoryCache(clip.FilePath, out var cached))
-                {
-                    clip.Thumbnail = cached;
-                }
-                else
-                {
-                    _ = Task.Run(async () =>
-                    {
-                        var thumb = await thumbnailService.GetThumbnailAsync(clip.FilePath);
-                        if (thumb != null)
-                        {
-                            DispatcherQueue.TryEnqueue(() =>
-                            {
-                                if (clip.Thumbnail == null)
-                                {
-                                    clip.Thumbnail = thumb;
-                                }
-                            });
-                        }
-                    });
-                }
-            }
-        }
-    }
-
     private void OnPlayerPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
         var pointerPoint = e.GetCurrentPoint(this);

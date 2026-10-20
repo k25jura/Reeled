@@ -313,6 +313,17 @@ public sealed class FileOperationService : IFileOperationService
     /// </summary>
     private static bool RecycleCore(IReadOnlyList<string> paths, IntPtr owner)
     {
+        // The shell is happiest on an STA thread, and the pool's threads are not
+        bool result = false;
+        var thread = new Thread(() => result = RecycleOnThisThread(paths, owner)) { IsBackground = true, Name = "Recycle" };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        return result;
+    }
+
+    private static bool RecycleOnThisThread(IReadOnlyList<string> paths, IntPtr owner)
+    {
         var existing = paths.Where(p => !string.IsNullOrEmpty(p) && (File.Exists(p) || Directory.Exists(p))).ToList();
         if (existing.Count == 0) return true;
 

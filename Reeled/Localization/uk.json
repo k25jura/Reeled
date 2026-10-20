@@ -335,7 +335,7 @@
   "FileOps_Moved_To": "Переміщено: {0} → {1}",
   "FileOps_Cancelled": "Скасовано",
   "FileOps_CancelledNothing": "Скасовано",
-  "FileOps_NothingDone": "Нічого не скопійовано",
+  "FileOps_NothingDone": "Нічого не передано",
   "FileOps_SkippedCount": "пропущено: {0}",
   "FileOps_FailedCount": "не вдалося: {0}",
   "FileOps_Copied": "Скопійовано: {0}",

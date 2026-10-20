@@ -135,6 +135,8 @@ public sealed partial class HomePage
 
         // The tab strip moves with the navigation: above the bar when it is at the top, else over the content
         PlaceTabStrip();
+        // The floating selection bar / progress card clears the bottom bar
+        FileOpHost.Margin = new Thickness(16, 0, 16, position == SidebarPosition.Bottom ? BottomBarHeight + 16 : 24);
 
         _lastCalculatedWidth = -1;
         _lastColumnCount = -1;

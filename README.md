@@ -24,9 +24,10 @@ Built with unpackaged WinUI 3 (Windows App SDK), .NET 8, and LibVLC 3.0.
 - **Folder Watching**: Add your recording directories (e.g. Shadowplay or OBS output folders). Newly recorded, renamed, or deleted clips update automatically.
 - **Organization**: Filter clips by date, group by month, and search by title or tags.
 - **Tags**: Label clips with your own tags and filter the library by tag or by game.
-- **Game Icons**: Game folders get their icon from the Steam store automatically (only confident matches; can be turned off), or pick one yourself.
+- **Game Icons**: Game folders get their icon automatically from Steam, then SteamGridDB or IGDB if you add your own keys (only confident matches; can be turned off), or pick one yourself.
 - **Tabs**: Keep several folders open side by side in tabs, reopened on the next start.
 - **Grid or List**: Browse as cards or as a sortable details list.
+- **File Management**: Select several clips, copy, cut and paste them (also to and from File Explorer), drag them onto folders or out to other apps, and create, rename or delete folders. Deletes always go to the Recycle Bin.
 - **Clip Context Menu**: View video metadata (resolution, bitrate, codecs, audio tracks), favorite clips, tag, rename, open in File Explorer, or delete to the Windows Recycle Bin.
 
 ### Customization
@@ -88,6 +89,11 @@ Built with unpackaged WinUI 3 (Windows App SDK), .NET 8, and LibVLC 3.0.
 | --- | --- |
 | `Ctrl + F` | Open search |
 | `Ctrl + O` | Open a video file |
+| `Ctrl + Click` / `Shift + Click` (clips) | Select clips / select a range |
+| `Ctrl + A` / `Escape` | Select all clips / clear the selection |
+| `Ctrl + C` / `Ctrl + X` / `Ctrl + V` | Copy / cut / paste clips (works with File Explorer too) |
+| `Ctrl + Shift + N` | New folder |
+| `Drag` (clips) | Move onto a folder (hold `Ctrl` to copy), or drag out to Explorer or Discord |
 | `Ctrl + T` / `Ctrl + W` | New tab / close tab |
 | `Ctrl + Tab` / `Ctrl + Shift + Tab` | Next / previous tab |
 | `Ctrl + 1` – `9` | Go to tab 1–8 / last tab |

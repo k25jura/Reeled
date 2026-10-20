@@ -153,6 +153,7 @@ public sealed partial class HomePage
     {
         var item = new TabViewItem { Tag = tab };
         RefreshTabItem(tab, item);
+        AttachTabDrop(item);
         return item;
     }
 

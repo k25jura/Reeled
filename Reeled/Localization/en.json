@@ -324,6 +324,9 @@
   "Dialog_DeleteMany_Message": "Are you sure you want to move these {0} {1} to the Windows Recycle Bin?",
   "Dialog_DeleteMany_Failed": "{0} of the clips couldn't be moved to the Recycle Bin. They may be open in another app.",
 
+  "Drag_CopyTo": "Copy to {0}",
+  "Drag_MoveTo": "Move to {0}",
+  "Drag_NoFolder": "Open a folder to drop files into it",
   "FileOps_Copying": "Copying {0} to {1}",
   "FileOps_Moving": "Moving {0} to {1}",
   "FileOps_Progress": "{0} of {1}",

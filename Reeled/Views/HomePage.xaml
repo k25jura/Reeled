@@ -727,6 +727,10 @@
                                               IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
                                               Loading="OnTreeViewItemLoading"
                                               RightTapped="OnFolderRowRightTapped"
+                                              AllowDrop="True"
+                                              DragOver="OnFolderRowDragOver"
+                                              DragLeave="OnFolderRowDragLeave"
+                                              Drop="OnFolderRowDrop"
                                               Style="{StaticResource CustomTreeViewItemStyle}">
                                     <Grid Margin="0,0,8,0" ColumnSpacing="8" VerticalAlignment="Center"
                                           Loaded="OnFolderItemGridLoaded">
@@ -1180,6 +1184,10 @@
             <!-- Clip Cards Grid Container (fades/slides in when the sidebar view changes) -->
             <Grid Grid.Row="2" x:Name="ClipsHost"
                   Background="Transparent"
+                  AllowDrop="True"
+                  DragOver="OnClipsAreaDragOver"
+                  DragLeave="OnClipsAreaDragLeave"
+                  Drop="OnClipsAreaDrop"
                   PointerPressed="OnClipsAreaPointerPressed"
                   RightTapped="OnClipsAreaRightTapped">
                 <Grid.RenderTransform>
@@ -1190,6 +1198,9 @@
                 <GridView x:Name="ClipsGridView"
                           ItemClick="OnClipItemClick"
                           IsItemClickEnabled="True"
+                          CanDragItems="True"
+                          DragItemsStarting="OnClipDragItemsStarting"
+                          DragItemsCompleted="OnClipDragItemsCompleted"
                           ContainerContentChanging="OnClipContainerContentChanging"
                           SelectionMode="None"
                           Padding="24,14,24,24"
@@ -1571,6 +1582,9 @@
                               ItemTemplate="{StaticResource ClipListRowTemplate}"
                               ItemClick="OnClipItemClick"
                               IsItemClickEnabled="True"
+                              CanDragItems="True"
+                              DragItemsStarting="OnClipDragItemsStarting"
+                              DragItemsCompleted="OnClipDragItemsCompleted"
                               SelectionMode="None"
                               ContainerContentChanging="OnClipContainerContentChanging"
                               Padding="24,4,24,24"

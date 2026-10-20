@@ -374,7 +374,26 @@ public sealed partial class HomePage
 
         var group = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0, VerticalAlignment = VerticalAlignment.Center };
         group.Children.Add(button);
-        if (root.HasSubDirectories || root.SubDirectories.Count > 0)
+        bool hasSubfolders = root.HasSubDirectories || root.SubDirectories.Count > 0;
+
+        void ShowSubfolderMenu()
+        {
+            var menu = new MenuFlyout
+            {
+                Placement = _sidebarPosition == SidebarPosition.Bottom ? FlyoutPlacementMode.TopEdgeAlignedLeft : FlyoutPlacementMode.BottomEdgeAlignedLeft
+            };
+            AddSubfolderItems(menu.Items, root, isRoot: true);
+            _openSubfolderMenu = menu;
+            menu.Closed += (s, e) =>
+            {
+                if (ReferenceEquals(_openSubfolderMenu, menu)) _openSubfolderMenu = null;
+            };
+            menu.ShowAt(button);
+        }
+
+        // Clips can be dropped on a folder chip; resting on one opens its subfolders to drop into
+        WireFolderDropTarget(button, () => root, hasSubfolders ? () => ArmDwell(button, ShowSubfolderMenu) : null);
+        if (hasSubfolders)
         {
             var chevron = new Button
             {
@@ -385,15 +404,8 @@ public sealed partial class HomePage
                 Content = new FontIcon { Glyph = "", FontSize = 9, Foreground = Helpers.ThemeBrushes.Get("TextFillColorSecondaryBrush", this) }
             };
             ToolTipService.SetToolTip(chevron, LayoutLoc["Nav_Subfolders"]);
-            chevron.Click += (s, e) =>
-            {
-                var menu = new MenuFlyout
-                {
-                    Placement = _sidebarPosition == SidebarPosition.Bottom ? FlyoutPlacementMode.TopEdgeAlignedLeft : FlyoutPlacementMode.BottomEdgeAlignedLeft
-                };
-                AddSubfolderItems(menu.Items, root, isRoot: true);
-                menu.ShowAt(button);
-            };
+            chevron.Click += (s, e) => ShowSubfolderMenu();
+            WireFolderDropTarget(chevron, () => root, () => ArmDwell(button, ShowSubfolderMenu));
             group.Children.Add(chevron);
         }
         _hNavEntries.Add((button, InThisRoot, text, icon));
@@ -417,6 +429,7 @@ public sealed partial class HomePage
             ScrollClipsToTop();
         };
         self.ContextFlyout = CreateOpenInNewTabMenu(node);
+        WireFolderDropTarget(self, () => node);
         items.Add(self);
         if (isRoot && node.SubDirectories.Count > 0) items.Add(new MenuFlyoutSeparator());
 
@@ -445,6 +458,7 @@ public sealed partial class HomePage
                 AddGameIconMenu(context.Items, child);
                 if (context.Items.Count > 0 && context.Items[0] is MenuFlyoutSeparator) context.Items.RemoveAt(0);
                 item.ContextFlyout = context;
+                WireFolderDropTarget(item, () => child);
                 item.Click += async (s, e) =>
                 {
                     await ViewModel.SelectDirectoryAsync(child);

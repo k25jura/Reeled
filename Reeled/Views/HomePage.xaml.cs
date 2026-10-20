@@ -30,6 +30,7 @@ public sealed partial class HomePage : Page
         WireTags();
         WireGameIcons();
         WireTabs();
+        WireFileOps();
 
         Helpers.CursorHelper.SetElementCursor(SidebarResizeHandle, Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast));
 
@@ -2545,20 +2546,34 @@ public sealed partial class HomePage : Page
 
         Add(Windows.System.VirtualKey.Delete, Windows.System.VirtualKeyModifiers.None, () =>
         {
-            var clip = GetShortcutTargetClip();
-            if (clip == null || IsTextInputFocused()) return false;
-            _ = ShowDeleteConfirmDialogAsync(clip);
+            if (IsTextInputFocused()) return false;
+            // Selected clips go first; only without a selection does a focused folder in the tree get the key
+            var clips = IsSelecting ? _selection.ToList() : GetShortcutTargetClip() is { } target ? new List<GameClip> { target } : new List<GameClip>();
+            if (!IsSelecting && TryGetFocusedTreeFolder(out var folder))
+            {
+                _ = DeleteFolderAsync(folder);
+                return true;
+            }
+            if (clips.Count == 0) return false;
+            _ = ShowDeleteConfirmDialogAsync(clips);
             return true;
         });
 
         Add(Windows.System.VirtualKey.F2, Windows.System.VirtualKeyModifiers.None, () =>
         {
-            var clip = GetShortcutTargetClip();
-            if (clip == null || IsTextInputFocused()) return false;
+            if (IsTextInputFocused()) return false;
+            if (!IsSelecting && TryGetFocusedTreeFolder(out var folder))
+            {
+                _ = RenameFolderAsync(folder);
+                return true;
+            }
+            var clip = IsSelecting ? (_selection.Count == 1 ? _selection[0] : null) : GetShortcutTargetClip();
+            if (clip == null) return false;
             _ = ShowLocalRenameDialogAsync(clip);
             return true;
         });
 
+        RegisterFileOpShortcuts(Add);
         RegisterTabShortcuts(Add);
 
         // Accelerator tooltips would otherwise be appended to the page's tooltips
@@ -3050,6 +3065,7 @@ public sealed partial class HomePage : Page
         flyout.Items.Add(new MenuFlyoutSeparator());
         Item("FolderMenu_RevealExplorer", "\uEC50", () => ViewModel.OpenFolderInExplorer(node));
         Item("FolderMenu_CopyPath", "\uE8C8", () => ViewModel.CopyFolderPath(node));
+        AddFolderFileMenuItems(flyout.Items, node);
         AddGameIconMenu(flyout.Items, node);
 
         // Watch folders can be reordered; subfolders follow the file system order
@@ -3587,6 +3603,8 @@ public sealed partial class HomePage : Page
     {
         if (e.ClickedItem is GameClip clip)
         {
+            // Ctrl/Shift+click and clicks while clips are selected pick clips; otherwise a click plays
+            if (HandleSelectionClick(clip)) return;
             ViewModel.PlayClip(clip);
         }
     }
@@ -3743,10 +3761,27 @@ public sealed partial class HomePage : Page
                 AnimateCardHover(element, isHovered: false);
             };
 
-            // Section 1: Playback
+            var targets = ContextTargets(clip);
+            if (targets.Count > 1)
+            {
+                AddMultiSelectionMenuItems(flyout, targets);
+                flyout.ShowAt(element, e.GetPosition(element));
+                e.Handled = true;
+                return;
+            }
+
+            // Section 1: Playback and selecting
             var playItem = new MenuFlyoutItem { Text = loc?["ContextMenu_Play"] ?? "Play", Icon = new FontIcon { Glyph = "\uE768" } };
             playItem.Click += (s, args) => ViewModel.PlayClip(clip);
             flyout.Items.Add(playItem);
+
+            var selectItem = new MenuFlyoutItem
+            {
+                Text = loc?[clip.IsSelected ? "ContextMenu_Deselect" : "ContextMenu_Select"] ?? "Select",
+                Icon = new FontIcon { Glyph = "\uE73A" }
+            };
+            selectItem.Click += (s, args) => ToggleSelection(clip);
+            flyout.Items.Add(selectItem);
 
             flyout.Items.Add(new MenuFlyoutSeparator());
 
@@ -3794,6 +3829,16 @@ public sealed partial class HomePage : Page
             flyout.Items.Add(renameDiskItem);
 
             flyout.Items.Add(CreateClipTagsMenu(clip));
+
+            flyout.Items.Add(new MenuFlyoutSeparator());
+
+            // Clipboard: the file itself goes on the clipboard, so it can be pasted into Explorer or a chat
+            var cutItem = new MenuFlyoutItem { Text = loc?["ContextMenu_Cut"] ?? "Cut", Icon = new FontIcon { Glyph = "" }, KeyboardAcceleratorTextOverride = "Ctrl+X" };
+            cutItem.Click += (s, args) => _ = CopyClipsToClipboardAsync(new[] { clip }, cut: true);
+            flyout.Items.Add(cutItem);
+            var copyFileItem = new MenuFlyoutItem { Text = loc?["ContextMenu_Copy"] ?? "Copy", Icon = new FontIcon { Glyph = "" }, KeyboardAcceleratorTextOverride = "Ctrl+C" };
+            copyFileItem.Click += (s, args) => _ = CopyClipsToClipboardAsync(new[] { clip }, cut: false);
+            flyout.Items.Add(copyFileItem);
 
             flyout.Items.Add(new MenuFlyoutSeparator());
 
@@ -4105,28 +4150,8 @@ public sealed partial class HomePage : Page
         await dialog.ShowSafeAsync();
     }
 
-    private async System.Threading.Tasks.Task ShowDeleteConfirmDialogAsync(GameClip clip)
-    {
-        var loc = App.GetService<Services.ILocalizationService>();
-        var currentTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme;
-        string message = string.Format(loc?["Dialog_Delete_Message"] ?? "Are you sure you want to move '{0}' to the Windows Recycle Bin?", clip.FileName);
-        var dialog = new ContentDialog
-        {
-            XamlRoot = this.XamlRoot,
-            RequestedTheme = currentTheme,
-            Title = loc?["Dialog_Delete_Title"] ?? "Delete to Recycle Bin?",
-            Content = message,
-            PrimaryButtonText = loc?["Dialog_Delete_Confirm"] ?? "Delete",
-            CloseButtonText = loc?["Dialog_Delete_Cancel"] ?? "Cancel",
-            DefaultButton = ContentDialogButton.Close
-        };
-
-        var result = await dialog.ShowSafeAsync();
-        if (result == ContentDialogResult.Primary && !ViewModel.DeleteClip(clip))
-        {
-            await ShowErrorDialogAsync(loc?["Dialog_Delete_Failed"] ?? "Couldn't move the file to the Recycle Bin.");
-        }
-    }
+    private System.Threading.Tasks.Task ShowDeleteConfirmDialogAsync(GameClip clip) =>
+        ShowDeleteConfirmDialogAsync(new[] { clip });
 
     private static T? FindDescendant<T>(DependencyObject parent) where T : DependencyObject
     {

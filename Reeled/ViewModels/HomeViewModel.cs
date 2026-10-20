@@ -547,7 +547,8 @@ public partial class HomeViewModel : ObservableObject
             return;
         }
 
-        IsLoading = true;
+        // A quiet rescan (after a folder was renamed or deleted from here) keeps the clips on screen
+        if (!_quietSync) IsLoading = true;
         StatusMessage = "Loading watch directories...";
 
         var expandedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -988,6 +989,11 @@ public partial class HomeViewModel : ObservableObject
             settings.ResumePositions[newPath] = position;
             changed = true;
         }
+        if (settings.ClipTags.Remove(oldPath, out var tags))
+        {
+            settings.ClipTags[newPath] = tags;
+            changed = true;
+        }
 
         if (changed)
         {
@@ -1002,6 +1008,7 @@ public partial class HomeViewModel : ObservableObject
         changed |= settings.Bookmarks.Remove(path);
         changed |= settings.CustomClipTitles.Remove(path);
         changed |= settings.ResumePositions.Remove(path);
+        changed |= settings.ClipTags.Remove(path);
         if (changed)
         {
             _ = _storageService.SaveSettingsAsync(settings);
@@ -1015,9 +1022,22 @@ public partial class HomeViewModel : ObservableObject
         var clip = FindClip(oldPath);
         if (clip == null) return;
 
+        string oldDirectory = clip.DirectoryPath;
         clip.FilePath = newPath;
         clip.FileName = Path.GetFileName(newPath);
         clip.DirectoryPath = Path.GetDirectoryName(newPath) ?? clip.DirectoryPath;
+
+        if (!PathUtil.PathEquals(oldDirectory, clip.DirectoryPath))
+        {
+            // A move to another folder: the folder counts follow, and the clip leaves (or joins) the folder on screen
+            AdjustFolderCounts(oldPath, -1);
+            AdjustFolderCounts(newPath, +1);
+            bool shown = Clips.Contains(clip);
+            bool belongs = ClipBelongsToCurrentView(clip);
+            if (shown && !belongs) Clips.Remove(clip);
+            else if (!shown && belongs) Clips.Insert(0, clip);
+            UpdateCounts();
+        }
         ApplyFilterAndSort();
     }
 
@@ -1381,34 +1401,40 @@ public partial class HomeViewModel : ObservableObject
                 _ = SyncDirectoriesAsync(forceReload: true);
                 return;
             }
-            if (FindClip(filePath) != null) return;
-            if (!_loadedWatchDirectories.Any(root => PathUtil.IsUnder(filePath, root))) return;
-
-            FileInfo fileInfo;
-            try
-            {
-                fileInfo = new FileInfo(filePath);
-                if (!fileInfo.Exists) return;
-            }
-            catch
-            {
-                return;
-            }
-
-            var clip = GameClip.FromFileInfo(fileInfo);
-            ApplyPersistedState(clip, _storageService.CurrentSettings);
-            AllClips.Insert(0, clip);
-            AdjustFolderCounts(filePath, +1);
-
-            if (ClipBelongsToCurrentView(clip))
-            {
-                Clips.Insert(0, clip);
-                ApplyFilterAndSort();
-            }
-            UpdateCounts();
-
-            _ = Task.Run(() => _metadataService.PopulateMetadataAsync(clip));
+            AddClipCore(filePath);
         });
+    }
+
+    /// <summary>Adds a clip that appeared on disk to the library (no-op if it is known or outside the watch folders). UI thread.</summary>
+    private void AddClipCore(string filePath)
+    {
+        if (FindClip(filePath) != null) return;
+        if (!_loadedWatchDirectories.Any(root => PathUtil.IsUnder(filePath, root))) return;
+
+        FileInfo fileInfo;
+        try
+        {
+            fileInfo = new FileInfo(filePath);
+            if (!fileInfo.Exists) return;
+        }
+        catch
+        {
+            return;
+        }
+
+        var clip = GameClip.FromFileInfo(fileInfo);
+        ApplyPersistedState(clip, _storageService.CurrentSettings);
+        AllClips.Insert(0, clip);
+        AdjustFolderCounts(filePath, +1);
+
+        if (ClipBelongsToCurrentView(clip))
+        {
+            Clips.Insert(0, clip);
+            ApplyFilterAndSort();
+        }
+        UpdateCounts();
+
+        _ = Task.Run(() => _metadataService.PopulateMetadataAsync(clip));
     }
 
     private void OnClipDeleted(string filePath)

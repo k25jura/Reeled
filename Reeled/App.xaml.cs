@@ -55,6 +55,7 @@ public partial class App : Application
         services.AddSingleton<IThumbnailService, ThumbnailService>();
         services.AddSingleton<IClipMetadataService, ClipMetadataService>();
         services.AddSingleton<IClipIndexerService, ClipIndexerService>();
+        services.AddSingleton<IFileOperationService, FileOperationService>();
         services.AddSingleton<ILibVlcPlaybackService, LibVlcPlaybackService>();
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();

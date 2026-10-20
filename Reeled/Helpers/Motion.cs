@@ -286,6 +286,11 @@ public static class Motion
     /// measured size, and the element fades and rises 8px into the space it just made. The reverse
     /// (<paramref name="show"/> = false) fades it out and then closes the gap. Used for banners, cards and
     /// anything that appears inside a layout, so nothing below it ever jumps.
+    ///
+    /// Inside a StackPanel with Spacing, a visible element at Height 0 still takes a spacing gap, which
+    /// would appear at the start of opening and vanish at the end of closing. Give the element a negative
+    /// top margin of that spacing and the same amount of top padding: the gap is absorbed while it is
+    /// collapsed to zero height, and the padding restores it as the element grows.
     /// </summary>
     public static void Reveal(FrameworkElement element, bool show, Action? completed = null)
     {
@@ -315,7 +320,8 @@ public static class Motion
                 : (element.Parent as FrameworkElement)?.ActualWidth ?? 400;
             element.Height = double.NaN;
             element.Measure(new Windows.Foundation.Size(width, double.PositiveInfinity));
-            double target = element.DesiredSize.Height;
+            // DesiredSize includes the element's own margin, but Height does not
+            double target = Math.Max(0, element.DesiredSize.Height - element.Margin.Top - element.Margin.Bottom);
             element.Height = start;
 
             sb.Children.Add(Spline(element, "Height", target, Long, from: start, dependent: true));

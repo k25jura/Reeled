@@ -288,6 +288,12 @@
                                     Opacity="0" 
                                     IsHitTestVisible="False" />
 
+                            <!-- Files are being dragged over the folder: they would land in it -->
+                            <Grid x:Name="DropHighlight" Opacity="0" IsHitTestVisible="False">
+                                <Border Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="6" Opacity="0.2" />
+                                <Border BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="1.5" CornerRadius="6" />
+                            </Grid>
+
                             <!-- Static SelectionIndicator hidden in favor of unified sliding ActiveIndicatorPill -->
                             <Rectangle x:Name="SelectionIndicator" 
                                        Visibility="Collapsed"
@@ -357,6 +363,7 @@
         <!-- Library list row (Explorer "Details" style). Folder and date columns fold into a subtitle when narrow. -->
         <DataTemplate x:Key="ClipListRowTemplate" x:DataType="models:GameClip">
             <Grid Height="52" ColumnSpacing="14" Background="Transparent" RightTapped="OnClipCardRightTapped"
+                  Opacity="{x:Bind ContentOpacity, Mode=OneWay}"
                   PointerEntered="OnClipRowPointerEntered" PointerExited="OnClipRowPointerExited"
                   Loaded="OnClipRowLoaded" Unloaded="OnClipRowUnloaded">
                 <Grid.ColumnDefinitions>
@@ -367,6 +374,13 @@
                     <ColumnDefinition Width="88" />
                     <ColumnDefinition Width="84" />
                 </Grid.ColumnDefinitions>
+
+                <!-- Part of the multi-selection -->
+                <Grid Grid.ColumnSpan="6" Margin="-8,0" IsHitTestVisible="False"
+                      Visibility="{x:Bind IsSelected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Border CornerRadius="6" Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="0.2" />
+                    <Border CornerRadius="6" BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="1.5" />
+                </Grid>
 
                 <Grid Width="64" Height="36" CornerRadius="4" Background="{ThemeResource LayerFillColorAltBrush}" VerticalAlignment="Center">
                     <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="UniformToFill" />
@@ -1164,7 +1178,10 @@
             </Border>
 
             <!-- Clip Cards Grid Container (fades/slides in when the sidebar view changes) -->
-            <Grid Grid.Row="2" x:Name="ClipsHost">
+            <Grid Grid.Row="2" x:Name="ClipsHost"
+                  Background="Transparent"
+                  PointerPressed="OnClipsAreaPointerPressed"
+                  RightTapped="OnClipsAreaRightTapped">
                 <Grid.RenderTransform>
                     <TranslateTransform x:Name="ClipsHostTranslate" Y="0" />
                 </Grid.RenderTransform>
@@ -1277,6 +1294,7 @@
                                   HorizontalAlignment="Stretch"
                                   VerticalAlignment="Stretch"
                                   RenderTransformOrigin="0.5,0.5"
+                                  Opacity="{x:Bind ContentOpacity, Mode=OneWay}"
                                   Loaded="OnClipCardLoaded"
                                   Unloaded="OnClipCardUnloaded"
                                   PointerEntered="OnClipCardPointerEntered"
@@ -1491,6 +1509,14 @@
                                         BorderThickness="1.5"
                                         Opacity="0"
                                         IsHitTestVisible="False" />
+
+                                <!-- Part of the multi-selection: an accent tint and outline -->
+                                <Grid x:Name="SelectionOverlay"
+                                      IsHitTestVisible="False"
+                                      Visibility="{x:Bind IsSelected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <Border CornerRadius="10" Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="0.2" />
+                                    <Border CornerRadius="10" BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="2.5" />
+                                </Grid>
                             </Grid>
                         </DataTemplate>
                     </GridView.ItemTemplate>
@@ -1740,6 +1766,16 @@
                         </StackPanel>
                     </Button>
                 </StackPanel>
+
+                <!-- Shown while files are dragged over the folder that is open: they would be dropped into it -->
+                <Grid x:Name="ClipsDropOverlay"
+                      Margin="12,4,12,12"
+                      IsHitTestVisible="False"
+                      Opacity="0"
+                      Visibility="Collapsed">
+                    <Border CornerRadius="10" Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="0.08" />
+                    <Border CornerRadius="10" BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="2" />
+                </Grid>
             </Grid>
 
             <!-- The tab strip sits in the title-bar row at the top of the content (built in HomePage.Tabs.cs) -->
@@ -1752,6 +1788,15 @@
                 Opacity="0" 
                 IsHitTestVisible="False" 
                 Visibility="Visible" />
+
+        <!-- File operations: the selection bar, and progress / result of copies, moves and deletes (HomePage.FileOps.cs) -->
+        <Grid x:Name="FileOpHost"
+              Grid.ColumnSpan="2"
+              Grid.RowSpan="2"
+              Canvas.ZIndex="6"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Bottom"
+              Margin="16,0,16,24" />
 
         <!-- Middle-Click Pan Autoscroll Indicator Overlay -->
         <Canvas x:Name="AutoscrollCanvas" Grid.RowSpan="2" IsHitTestVisible="False" Visibility="Collapsed">

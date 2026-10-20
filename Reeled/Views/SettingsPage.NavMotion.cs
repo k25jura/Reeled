@@ -131,8 +131,14 @@ public sealed partial class SettingsPage
         if (shown != null)
         {
             // The old items leave first, then the gap closes and the new list opens in a single layout pass
+            // A list that hasn't faded in yet (or is mostly gone) doesn't need the full wait: retarget at once
             double from = shown.Opacity;
-            AddNavTween(k => shown.Opacity = from * (1 - k), NavFadeOutMs, accelerate: true, done: () => SwapSubNav(next, nextTag, flip: true));
+            if (from < 0.05)
+            {
+                SwapSubNav(next, nextTag, flip: true);
+                return;
+            }
+            AddNavTween(k => shown.Opacity = from * (1 - k), Math.Max(40, NavFadeOutMs * from), accelerate: true, done: () => SwapSubNav(next, nextTag, flip: true));
             SettleNavShifts();
         }
         else

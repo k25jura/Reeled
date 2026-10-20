@@ -83,6 +83,10 @@ public sealed partial class SettingsPage : Page
         Loaded += (s, e) =>
         {
             BuildSubNavigation();
+            // Scrolling with the wheel is the user taking over, so it ends any programmatic-scroll lock
+            // (a click on a category that is already in view never produces a final ViewChanged to clear it)
+            SettingsScrollViewer.AddHandler(UIElement.PointerWheelChangedEvent,
+                new PointerEventHandler((_, _) => _isProgrammaticScroll = false), true);
             ApplyLocalization(ViewModel.Loc);
             // An update may have been found in the background while this page wasn't shown
             RenderUpdateNotes();
@@ -1038,7 +1042,29 @@ public sealed partial class SettingsPage : Page
             return;
         }
 
-        UpdateActiveCategoryFromScroll();
+        QueueScrollSpy();
+    }
+
+    private bool _scrollSpyQueued;
+
+    /// <summary>
+    /// Scroll-spy runs once per dispatcher turn instead of inside ViewChanged. ViewChanged can be raised from
+    /// within a layout pass, where the nav's UpdateLayout() does nothing: the sub-list then changed on the
+    /// next layout with no measured difference to glide from, so it snapped. Out here layout is safe, and
+    /// rapid events collapse into one update that reads the latest scroll position.
+    /// </summary>
+    private void QueueScrollSpy()
+    {
+        if (_scrollSpyQueued) return;
+        _scrollSpyQueued = true;
+        if (!DispatcherQueue.TryEnqueue(() =>
+            {
+                _scrollSpyQueued = false;
+                if (!_isProgrammaticScroll) UpdateActiveCategoryFromScroll();
+            }))
+        {
+            _scrollSpyQueued = false;
+        }
     }
 
     private void UpdateActiveCategoryFromScroll()

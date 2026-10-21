@@ -7,11 +7,18 @@ namespace Reeled.Views;
 /// <summary>Appearance, Library: the keys for the optional game icon providers (SteamGridDB, IGDB).</summary>
 public sealed partial class SettingsPage
 {
+    private bool _iconSourcesOpen;
+
     private void OnIconSourcesToggleClick(object sender, RoutedEventArgs e)
     {
-        bool open = IconSourcesBody.Visibility != Visibility.Visible;
-        IconSourcesBody.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
-        IconSourcesChevron.Glyph = open ? "\uE70E" : "\uE70D";
+        // Open when closed or on its way closed (Opacity is 0 only once fully hidden or while fading out)
+        bool open = !_iconSourcesOpen;
+        _iconSourcesOpen = open;
+        Helpers.Motion.Reveal(IconSourcesBody, open);
+
+        var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
+        sb.Children.Add(Helpers.Motion.Spline(IconSourcesChevronRotation, "Angle", open ? 180 : 0, Helpers.Motion.Medium));
+        Helpers.Motion.BeginExact(sb);
     }
 
     /// <summary>Shows the stored keys (as dots for the secrets).</summary>

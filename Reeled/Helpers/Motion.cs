@@ -287,10 +287,10 @@ public static class Motion
     /// (<paramref name="show"/> = false) fades it out and then closes the gap. Used for banners, cards and
     /// anything that appears inside a layout, so nothing below it ever jumps.
     ///
-    /// Inside a StackPanel with Spacing, a visible element at Height 0 still takes a spacing gap, which
-    /// would appear at the start of opening and vanish at the end of closing. Give the element a negative
-    /// top margin of that spacing and the same amount of top padding: the gap is absorbed while it is
-    /// collapsed to zero height, and the padding restores it as the element grows.
+    /// Do not put a revealed element in a StackPanel with Spacing: a visible element always takes a spacing
+    /// gap (a negative margin cannot cancel it, desired size never goes below zero), so the gap would pop in
+    /// at the start of opening and vanish at the end of closing. Put it in a zero-spacing host instead and
+    /// give the element its own padding for the gap, which animates with the height.
     /// </summary>
     public static void Reveal(FrameworkElement element, bool show, Action? completed = null)
     {
@@ -312,6 +312,24 @@ public static class Motion
         }
 
         var sb = new Storyboard();
+        var token = new object();
+        RevealTokens.Remove(element);
+        RevealTokens.Add(element, token);
+
+        // Finishes on the exact geometry the animation ended on. The storyboard is stopped first because a
+        // held animation value outranks local values, then every property is set to its resting state in
+        // the same dispatch, so no frame sits between the last animated frame and the final state.
+        void Finish(bool shown)
+        {
+            if (!RevealTokens.TryGetValue(element, out var current) || !ReferenceEquals(current, token)) return; // superseded
+            if (!shown) element.Visibility = Visibility.Collapsed;
+            sb.Stop();
+            element.Height = double.NaN;
+            element.Opacity = shown ? 1 : 0;
+            translate.Y = 0;
+            completed?.Invoke();
+        }
+
         if (show)
         {
             element.Visibility = Visibility.Visible;
@@ -327,11 +345,7 @@ public static class Motion
             sb.Children.Add(Spline(element, "Height", target, Long, from: start, dependent: true));
             sb.Children.Add(Spline(element, "Opacity", 1, Medium, from: element.Opacity, delayMs: 90));
             sb.Children.Add(Spline(translate, "Y", 0, Medium, from: 8, delayMs: 90));
-            sb.Completed += (s, e) =>
-            {
-                element.Height = double.NaN;
-                completed?.Invoke();
-            };
+            sb.Completed += (s, e) => Finish(true);
         }
         else
         {
@@ -339,13 +353,10 @@ public static class Motion
             sb.Children.Add(Spline(element, "Opacity", 0, 160, accelerate: true));
             sb.Children.Add(Spline(translate, "Y", -4, 160, accelerate: true));
             sb.Children.Add(Spline(element, "Height", 0, Medium, from: start, delayMs: 120, dependent: true));
-            sb.Completed += (s, e) =>
-            {
-                element.Visibility = Visibility.Collapsed;
-                element.Height = double.NaN;
-                completed?.Invoke();
-            };
+            sb.Completed += (s, e) => Finish(false);
         }
         sb.Begin();
     }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<FrameworkElement, object> RevealTokens = new();
 }

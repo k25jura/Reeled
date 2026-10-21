@@ -1404,7 +1404,7 @@
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="16,14">
-                            <StackPanel Spacing="16">
+                            <StackPanel Spacing="0">
                                 <Grid ColumnSpacing="16">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
@@ -1429,11 +1429,15 @@
                                             VerticalAlignment="Center"
                                             Click="OnIconSourcesToggleClick"
                                             AutomationProperties.Name="Show or hide icon sources">
-                                        <FontIcon x:Name="IconSourcesChevron" Glyph="&#xE70D;" FontSize="12" />
+                                        <FontIcon x:Name="IconSourcesChevron" Glyph="&#xE70D;" FontSize="12" RenderTransformOrigin="0.5,0.5">
+                                            <FontIcon.RenderTransform>
+                                                <RotateTransform x:Name="IconSourcesChevronRotation" Angle="0" />
+                                            </FontIcon.RenderTransform>
+                                        </FontIcon>
                                     </Button>
                                 </Grid>
 
-                                <StackPanel x:Name="IconSourcesBody" Spacing="20" Margin="40,0,0,0" Visibility="Collapsed">
+                                <StackPanel x:Name="IconSourcesBody" Spacing="20" Margin="40,0,0,0" Padding="0,16,0,0" Visibility="Collapsed" Opacity="0">
                                     <!-- SteamGridDB -->
                                     <StackPanel Spacing="4">
                                         <PasswordBox x:Name="SgdbKeyBox"
@@ -2374,8 +2378,9 @@
                                             </Grid>
                                         </Border>
 
-                                        <!-- Diagnostics details: hidden until asked for (Show details below) -->
-                                        <Grid x:Name="DiagnosticsDetails" RowSpacing="10" ColumnSpacing="20" Visibility="Collapsed" Opacity="0" Margin="0,-12,0,0" Padding="0,12,0,0">
+                                        <!-- Details + toggle live in a zero-spacing host: collapsed details add no gap, and the 12px above/below them is their own padding, so the reveal animates the exact geometry -->
+                                        <StackPanel Spacing="0">
+                                        <Grid x:Name="DiagnosticsDetails" RowSpacing="10" ColumnSpacing="20" Visibility="Collapsed" Opacity="0" Padding="0,12,0,12">
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
@@ -2441,6 +2446,7 @@
                                                 </FontIcon>
                                             </StackPanel>
                                         </Button>
+                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
 

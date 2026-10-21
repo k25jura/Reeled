@@ -67,6 +67,7 @@ public sealed partial class HomePage
         {
             if (e.Tab?.Tag is LibraryTab tab) _ = CloseTabAsync(tab);
         };
+        WireTabStripDrop();
         _tabView.TabDragStarting += (s, e) => _tabDragging = true;
         _tabView.TabDragCompleted += (s, e) => DispatcherQueue.TryEnqueue(OnTabDragSettled);
         _tabView.Loaded += OnTabViewLoaded;

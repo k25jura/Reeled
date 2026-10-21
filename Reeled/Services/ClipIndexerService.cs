@@ -164,7 +164,8 @@ public class ClipIndexerService : IClipIndexerService
                 try
                 {
                     var subNode = CreateDirectoryNode(subDir.FullName, isWatchRoot: false);
-                    if (subNode.ClipCount > 0 || subNode.SubDirectories.Count > 0)
+                    // A folder with nothing in it is kept too: it's a place to move clips to (a new folder starts empty)
+                    if (subNode.ClipCount > 0 || subNode.SubDirectories.Count > 0 || IsEmptyDirectory(subDir))
                     {
                         node.SubDirectories.Add(subNode);
                     }
@@ -183,6 +184,18 @@ public class ClipIndexerService : IClipIndexerService
         }
 
         return node;
+    }
+
+    private static bool IsEmptyDirectory(DirectoryInfo directory)
+    {
+        try
+        {
+            return !directory.EnumerateFileSystemInfos().Any();
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public void UpdateWatchers(IEnumerable<string> watchRoots)
@@ -349,12 +362,21 @@ public class ClipIndexerService : IClipIndexerService
         }
     }
 
+    private long _libraryChangedSuppressedUntil;
+
+    public void SuppressLibraryChanged(TimeSpan duration) =>
+        Interlocked.Exchange(ref _libraryChangedSuppressedUntil, Environment.TickCount64 + (long)duration.TotalMilliseconds);
+
     private void RaiseLibraryChangedDebounced()
     {
         lock (_lock)
         {
             _libraryChangedTimer?.Dispose();
-            _libraryChangedTimer = new Timer(_ => LibraryChanged?.Invoke(), null, LibraryChangedDebounce, Timeout.InfiniteTimeSpan);
+            _libraryChangedTimer = new Timer(_ =>
+            {
+                if (Environment.TickCount64 < Interlocked.Read(ref _libraryChangedSuppressedUntil)) return;
+                LibraryChanged?.Invoke();
+            }, null, LibraryChangedDebounce, Timeout.InfiniteTimeSpan);
         }
     }
 

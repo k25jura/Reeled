@@ -1,3 +1,4 @@
+using Reeled.Helpers;
 using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -77,9 +78,16 @@ public sealed partial class SettingsPage : Page
             }
         };
 
+        Helpers.UiZoom.Changed += (s, e) => DispatcherQueue.TryEnqueue(UpdateZoomControls);
+        Helpers.Accent.Changed += (s, e) => DispatcherQueue.TryEnqueue(UpdateAccentSelection);
+
         Loaded += (s, e) =>
         {
             BuildSubNavigation();
+            // Scrolling with the wheel is the user taking over, so it ends any programmatic-scroll lock
+            // (a click on a category that is already in view never produces a final ViewChanged to clear it)
+            SettingsScrollViewer.AddHandler(UIElement.PointerWheelChangedEvent,
+                new PointerEventHandler((_, _) => _isProgrammaticScroll = false), true);
             ApplyLocalization(ViewModel.Loc);
             // An update may have been found in the background while this page wasn't shown
             RenderUpdateNotes();
@@ -127,6 +135,7 @@ public sealed partial class SettingsPage : Page
         UpdateTitleBarDragArea();
 
         SyncControlsToViewModel();
+        LoadIconSources();
     }
 
     private void SyncControlsToViewModel()
@@ -170,7 +179,7 @@ public sealed partial class SettingsPage : Page
             DefaultButton = ContentDialogButton.Close
         };
 
-        var result = await dialog.ShowAsync();
+        var result = await dialog.ShowSafeAsync();
         if (result == ContentDialogResult.Primary)
         {
             await ViewModel.ResetOptionsToDefaultAsync();
@@ -184,6 +193,7 @@ public sealed partial class SettingsPage : Page
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         base.OnNavigatedFrom(e);
+        CommitIconSources();
         _isInitializing = true;
     }
 
@@ -253,6 +263,10 @@ public sealed partial class SettingsPage : Page
             CategoriesNavRoot.RequestedTheme = theme;
         }
         UpdateCategoryButtonColors(theme);
+        // Code-built visuals that hold fixed brushes are repainted for the new theme
+        if (UpdateNotesBlock != null && UpdateNotesBlock.Blocks.Count > 0) RenderUpdateNotes();
+        UpdateSubHeaderBrushes();
+        UpdateAppearanceThemeVisuals(theme);
     }
 
     private void UpdateLogo(ElementTheme theme)
@@ -361,7 +375,7 @@ public sealed partial class SettingsPage : Page
     {
         _isDiagnosticsOpen = !_isDiagnosticsOpen;
         if (_isDiagnosticsOpen) ViewModel.UpdateDiagnostics();
-        Helpers.Motion.Reveal(DiagnosticsDetails, _isDiagnosticsOpen);
+        Helpers.Motion.Reveal(DiagnosticsDetails, _isDiagnosticsOpen, null, SettingsScrollViewer, OnRevealScrolling);
         DiagnosticsToggleText.Text = ViewModel.Loc[_isDiagnosticsOpen ? "About_DiagnosticsHide" : "About_DiagnosticsShow"];
 
         var sb = new Storyboard();
@@ -847,8 +861,8 @@ public sealed partial class SettingsPage : Page
 
     private static readonly (string Section, string[] Headers)[] SubCategories =
     {
-        ("PlaybackSection", new[] { "SubPlaybackSpeed", "SubPlaybackBehavior", "SubPlaybackControls", "SubPlaybackDecoding" }),
-        ("AppearanceSection", new[] { "SubAppearanceTheme", "SubAppearanceLibrary", "SubAppearanceEffects" }),
+        ("PlaybackSection", new[] { "SubPlaybackSpeed", "SubPlaybackBehavior", "SubPlaybackControls", "SubPlaybackBar", "SubPlaybackOsd", "SubPlaybackDecoding" }),
+        ("AppearanceSection", new[] { "SubAppearanceTheme", "SubAppearanceLayout", "SubAppearanceLibrary", "SubAppearanceEffects" }),
         ("StorageSection", new[] { "SubStoragePerformance", "SubStorageCaches" }),
         ("UpdateSection", new[] { "SubUpdatesStatus", "SubUpdatesPreferences" }),
     };
@@ -872,7 +886,7 @@ public sealed partial class SettingsPage : Page
             }
             if (index < 0) continue;
 
-            var panel = new StackPanel { Spacing = 1, Margin = new Thickness(28, 0, 0, 2), Visibility = Visibility.Collapsed, Opacity = 0 };
+            var panel = new StackPanel { Spacing = 1, Margin = new Thickness(28, 0, 0, 2), Visibility = Visibility.Collapsed, Opacity = 0, RenderTransform = new TranslateTransform() };
             foreach (var name in headers)
             {
                 if (FindName(name) is not TextBlock header) continue;
@@ -881,7 +895,7 @@ public sealed partial class SettingsPage : Page
                     Text = loc["Settings" + name],
                     FontSize = 12.5,
                     TextTrimming = TextTrimming.CharacterEllipsis,
-                    Foreground = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"]
+                    Foreground = Helpers.ThemeBrushes.Get("TextFillColorTertiaryBrush", this)
                 };
                 var button = new Button
                 {
@@ -915,37 +929,6 @@ public sealed partial class SettingsPage : Page
         catch { }
     }
 
-    /// <summary>Opens the active category's sub-list (space first, then the items) and closes the previous one.</summary>
-    private void UpdateSubNavigation(string sectionTag, bool animate)
-    {
-        if (_expandedSubSection == sectionTag) return;
-        string? previous = _expandedSubSection;
-        _expandedSubSection = sectionTag;
-
-        void Realign()
-        {
-            if (FindCategoryButton(_activeSectionTag) is Button active) AnimateIndicatorTo(active, animate: true);
-        }
-
-        if (previous != null && _subNavPanels.TryGetValue(previous, out var oldPanel))
-        {
-            if (animate) Helpers.Motion.Reveal(oldPanel, false, Realign);
-            else { oldPanel.Visibility = Visibility.Collapsed; oldPanel.Opacity = 0; }
-        }
-        // Start on the section's first group until the scroll position says otherwise
-        foreach (var (_, _, header, section) in _subNavItems)
-        {
-            if (section == sectionTag) { SetActiveSubHeader(header.Name); break; }
-        }
-
-        if (_subNavPanels.TryGetValue(sectionTag, out var panel))
-        {
-            if (animate) Helpers.Motion.Reveal(panel, true, Realign);
-            else { panel.Visibility = Visibility.Visible; panel.Opacity = 1; }
-        }
-        if (!animate) DispatcherQueue.TryEnqueue(Realign);
-    }
-
     private Button? FindCategoryButton(string tag)
     {
         if (CategoriesStackPanel == null) return null;
@@ -960,8 +943,14 @@ public sealed partial class SettingsPage : Page
     {
         if (_activeSubHeader == name) return;
         _activeSubHeader = name;
-        var primary = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
-        var tertiary = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"];
+        UpdateSubHeaderBrushes();
+    }
+
+    private void UpdateSubHeaderBrushes()
+    {
+        string? name = _activeSubHeader;
+        var primary = Helpers.ThemeBrushes.Get("TextFillColorPrimaryBrush", this);
+        var tertiary = Helpers.ThemeBrushes.Get("TextFillColorTertiaryBrush", this);
         foreach (var (_, label, header, _) in _subNavItems)
         {
             bool active = header.Name == name;
@@ -1045,8 +1034,14 @@ public sealed partial class SettingsPage : Page
     }
 
 
+    private bool _isRevealScrolling;
+
+    /// <summary>Scroll that follows an expander opening: keeps scroll-spy from reacting to it.</summary>
+    private void OnRevealScrolling(bool active) => _isRevealScrolling = active;
+
     private void OnSettingsScrollViewerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
     {
+        if (_isRevealScrolling) return;
         if (_isProgrammaticScroll)
         {
             if (!e.IsIntermediate)
@@ -1056,7 +1051,29 @@ public sealed partial class SettingsPage : Page
             return;
         }
 
-        UpdateActiveCategoryFromScroll();
+        QueueScrollSpy();
+    }
+
+    private bool _scrollSpyQueued;
+
+    /// <summary>
+    /// Scroll-spy runs once per dispatcher turn instead of inside ViewChanged. ViewChanged can be raised from
+    /// within a layout pass, where the nav's UpdateLayout() does nothing: the sub-list then changed on the
+    /// next layout with no measured difference to glide from, so it snapped. Out here layout is safe, and
+    /// rapid events collapse into one update that reads the latest scroll position.
+    /// </summary>
+    private void QueueScrollSpy()
+    {
+        if (_scrollSpyQueued) return;
+        _scrollSpyQueued = true;
+        if (!DispatcherQueue.TryEnqueue(() =>
+            {
+                _scrollSpyQueued = false;
+                if (!_isProgrammaticScroll && !_isRevealScrolling) UpdateActiveCategoryFromScroll();
+            }))
+        {
+            _scrollSpyQueued = false;
+        }
     }
 
     private void UpdateActiveCategoryFromScroll()
@@ -1451,10 +1468,35 @@ public sealed partial class SettingsPage : Page
         if (AppThemeSubtitleText != null) AppThemeSubtitleText.Text = loc["Appearance_ThemeSubtitle"];
         if (MomentsBadgesTitleText != null) MomentsBadgesTitleText.Text = loc["Appearance_MomentsBadgesTitle"];
         if (MomentsBadgesSubtitleText != null) MomentsBadgesSubtitleText.Text = loc["Appearance_MomentsBadgesSubtitle"];
+        if (GameIconsTitleText != null) GameIconsTitleText.Text = loc["Appearance_GameIconsTitle"];
+        if (GameIconsSubtitleText != null) GameIconsSubtitleText.Text = loc["Appearance_GameIconsSubtitle"];
+        LocalizeIconSources(loc);
+        if (AlwaysShowTabsTitleText != null) AlwaysShowTabsTitleText.Text = loc["Appearance_TabsAlwaysTitle"];
+        if (AlwaysShowTabsSubtitleText != null) AlwaysShowTabsSubtitleText.Text = loc["Appearance_TabsAlwaysSubtitle"];
+        if (ReopenTabsTitleText != null) ReopenTabsTitleText.Text = loc["Appearance_TabsReopenTitle"];
+        if (ReopenTabsSubtitleText != null) ReopenTabsSubtitleText.Text = loc["Appearance_TabsReopenSubtitle"];
         if (BackdropBlurTitleText != null) BackdropBlurTitleText.Text = loc["Appearance_BackdropBlurTitle"];
         if (BackdropBlurSubtitleText != null) BackdropBlurSubtitleText.Text = loc["Appearance_BackdropBlurSubtitle"];
         if (ReduceMotionTitleText != null) ReduceMotionTitleText.Text = loc["Appearance_ReduceMotionTitle"];
         if (ReduceMotionSubtitleText != null) ReduceMotionSubtitleText.Text = loc["Appearance_ReduceMotionSubtitle"];
+        if (AccentTitleText != null) AccentTitleText.Text = loc["Appearance_AccentTitle"];
+        if (AccentSubtitleText != null) AccentSubtitleText.Text = loc["Appearance_AccentSubtitle"];
+        if (ZoomTitleText != null) ZoomTitleText.Text = loc["Appearance_ZoomTitle"];
+        if (ZoomSubtitleText != null) ZoomSubtitleText.Text = loc["Appearance_ZoomSubtitle"];
+        if (ZoomResetButton != null) ZoomResetButton.Content = loc["Zoom_Reset"];
+        if (CloseToLibraryTitleText != null) CloseToLibraryTitleText.Text = loc["Playback_CloseToLibraryTitle"];
+        if (CloseToLibrarySubtitleText != null) CloseToLibrarySubtitleText.Text = loc["Playback_CloseToLibrarySubtitle"];
+        BuildAccentSwatches();
+        UpdateZoomControls();
+        if (NavPositionTitleText != null) NavPositionTitleText.Text = loc["Appearance_NavPositionTitle"];
+        if (NavPositionSubtitleText != null) NavPositionSubtitleText.Text = loc["Appearance_NavPositionSubtitle"];
+        if (NavSectionsTitleText != null) NavSectionsTitleText.Text = loc["Appearance_NavSectionsTitle"];
+        if (NavSectionsSubtitleText != null) NavSectionsSubtitleText.Text = loc["Appearance_NavSectionsSubtitle"];
+        if (NavFavoritesLabel != null) NavFavoritesLabel.Text = loc["Nav_Favorites"];
+        if (NavMomentsLabel != null) NavMomentsLabel.Text = loc["Nav_SavedMoments"];
+        BuildNavPositionTiles();
+        FillNavSectionCombos();
+        LocalizePlayerSettings(loc);
 
         // 4. Language & Region Section
         if (LocalizationSectionTitle != null) LocalizationSectionTitle.Text = loc["Language_SectionTitle"];

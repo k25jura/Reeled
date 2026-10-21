@@ -43,6 +43,9 @@ public static class CursorHelper
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool SetSystemCursor(IntPtr hcur, uint id);
 
+    [DllImport("user32.dll")]
+    private static extern int ShowCursor(bool bShow);
+
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool SystemParametersInfo(uint uiAction, uint uiParam, IntPtr pvParam, uint fWinIni);
 
@@ -57,6 +60,7 @@ public static class CursorHelper
     private static InputCursor? _blankInputCursor;
     private static bool _initAttempted;
     private static bool _isGlobalHidden;
+    private static volatile bool _isShutDown;
     private static readonly object _syncLock = new();
 
     static CursorHelper()
@@ -121,6 +125,7 @@ public static class CursorHelper
     {
         lock (_syncLock)
         {
+            if (_isShutDown) return;
             if (_isGlobalHidden && !force) return;
             if (App.Window is MainWindow mw && !mw.IsWindowActive) return;
 
@@ -149,17 +154,48 @@ public static class CursorHelper
         }
     }
 
-    public static void RestoreGlobalCursor()
+    /// <summary>
+    /// Puts the system cursors back. <paramref name="force"/> reloads them even when this process believes
+    /// nothing is hidden (a previous run that died while the cursor was hidden leaves them blank).
+    /// </summary>
+    public static void RestoreGlobalCursor(bool force = false)
     {
         lock (_syncLock)
         {
-            if (!_isGlobalHidden) return;
+            if (!_isGlobalHidden && !force) return;
             _isGlobalHidden = false;
             try
             {
                 SystemParametersInfo(SPI_SETCURSORS, 0, IntPtr.Zero, 0);
             }
             catch { }
+            EnsureCursorVisible();
         }
+    }
+
+    /// <summary>
+    /// The display counter behind ShowCursor must end up at 0 or more or no cursor is drawn at all. This
+    /// only raises it when it is negative, and settles it at 0 if something left it above.
+    /// </summary>
+    private static void EnsureCursorVisible()
+    {
+        try
+        {
+            int count = ShowCursor(true);
+            for (int i = 0; count < 0 && i < 64; i++) count = ShowCursor(true);
+            for (int i = 0; count > 0 && i < 64; i++) count = ShowCursor(false);
+            SetCursor(LoadCursorW(IntPtr.Zero, new IntPtr(32512)));
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Final restore when the app is closing (Alt+F4, window close, process exit, crash). Afterwards the
+    /// cursor can no longer be hidden, so a late pointer or timer event can't blank it again mid-shutdown.
+    /// </summary>
+    public static void Shutdown()
+    {
+        _isShutDown = true;
+        RestoreGlobalCursor(force: true);
     }
 }

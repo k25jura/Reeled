@@ -187,6 +187,8 @@
             <!-- Standard Typography Styles using Century Gothic -->
             <Style x:Key="BaseTextBlockStyle" TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <!-- Re-declared here because this style replaces the WinUI one, which carries the primary text colour -->
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
                 <Setter Property="FontSize" Value="{StaticResource BodyTextBlockFontSize}" />
                 <Setter Property="FontWeight" Value="SemiBold" />
                 <Setter Property="TextTrimming" Value="CharacterEllipsis" />
@@ -235,6 +237,8 @@
             </Style>
             <Style TargetType="Page">
                 <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+                <!-- Text without its own colour inherits it from the page, so it follows the page's theme -->
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
             </Style>
             <Style TargetType="RichTextBlock">
                 <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />

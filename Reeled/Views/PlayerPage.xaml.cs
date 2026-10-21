@@ -21,8 +21,6 @@ public sealed partial class PlayerPage : Page
 
     private Storyboard? _controlsStoryboard;
     private bool _areControlsShowing = true;
-    private Storyboard? _osdStoryboard;
-    private DispatcherTimer? _osdHideTimer;
     private DispatcherTimer? _momentsDismissTimer;
     private Storyboard? _momentsPopupStoryboard;
     private string? _lastPromptClipPath;
@@ -34,23 +32,19 @@ public sealed partial class PlayerPage : Page
     private Storyboard? _activeMomentBadgeStoryboard;
     private Storyboard? _markModeSwitchStoryboard;
     private Guid? _dismissedMomentId;
-    private bool _colorButtonsInitialized;
     private enum TimelinePickTarget { None, Point, RangeStart, RangeEnd }
     private TimelinePickTarget _activePickTarget = TimelinePickTarget.None;
     private ClipBookmark? _editingBookmark;
     private bool _isRenderingTimeline;
 
-    private readonly SolidColorBrush _volumeDynamicBrush = new(Windows.UI.Color.FromArgb(255, 255, 255, 255));
-    private DispatcherTimer? _volumeColorTransitionTimer;
-    private DateTime _volumeColorTransitionStart;
-    private Windows.UI.Color _volumeColorFrom;
-    private Windows.UI.Color _volumeColorTo;
-    private const double VolumeColorTransitionDurationMs = 220.0;
 
     private bool AreFlyoutsOrPopupsOpen =>
         _openFlyoutsCount > 0 ||
+        _isSessionPanelOpen ||
+        _isToolbarEditorOpen ||
+        _isPickingOnTimeline ||
         (MomentsJumpPopup != null && MomentsJumpPopup.Visibility == Visibility.Visible) ||
-        (MarkMomentFlyout != null && MarkMomentFlyout.IsOpen);
+        (MomentsFlyout != null && MomentsFlyout.IsOpen);
 
     private static bool IsReduceMotionEnabled() => Helpers.Motion.IsReduced;
 
@@ -64,24 +58,18 @@ public sealed partial class PlayerPage : Page
         Helpers.VideoGlass.Wrap(TopHeaderBar, "Bar");
         Helpers.VideoGlass.Wrap(BottomControlBar, "Bar");
         Helpers.VideoGlass.Wrap(PlaylistQueueSidebar, "Bar");
+        Helpers.VideoGlass.Wrap(SessionPanel, "Bar");
         Helpers.VideoGlass.Wrap(MomentsJumpPopup, "Flyout");
         Helpers.VideoGlass.Wrap(ActiveMomentPromptBadge, "Flyout");
         Helpers.VideoGlass.Wrap(TimelinePickerPromptBadge, "Flyout");
-        foreach (var flyout in new[] { MarkMomentFlyout, CustomColorFlyout, MomentsFlyout, PlaybackSpeedFlyout, AudioTracksFlyout, SubtitlesFlyout })
+        foreach (var flyout in new[] { MomentsFlyout, TracksFlyout })
         {
             Helpers.VideoGlass.Wrap(flyout, 7);
         }
 
-        VolumeSlider.Resources["SliderTrackValueFill"] = _volumeDynamicBrush;
-        VolumeSlider.Resources["SliderTrackValueFillPointerOver"] = _volumeDynamicBrush;
-        VolumeSlider.Resources["SliderTrackValueFillPressed"] = _volumeDynamicBrush;
-        VolumeSlider.Resources["SliderThumbBackground"] = _volumeDynamicBrush;
-        VolumeSlider.Resources["SliderThumbBackgroundPointerOver"] = _volumeDynamicBrush;
-        VolumeSlider.Resources["SliderThumbBackgroundPressed"] = _volumeDynamicBrush;
-        VolumeSlider.Foreground = _volumeDynamicBrush;
-        if (VolumeValueText != null) VolumeValueText.Foreground = _volumeDynamicBrush;
-        if (VolumePercentText != null) VolumePercentText.Foreground = _volumeDynamicBrush;
-        AnimateVolumeColor(ViewModel.IsVolumeBoosted, immediate: true);
+        InitializeToolbar();
+        InitializeBarAnchors();
+        InitializePanels();
 
         int initialTimeout = 2;
         try
@@ -111,7 +99,27 @@ public sealed partial class PlayerPage : Page
             }
             else if (e.PropertyName == nameof(PlayerViewModel.IsSidebarOpen))
             {
-                AnimateSidebar(ViewModel.IsSidebarOpen);
+                if (ViewModel.IsSidebarOpen && _isSessionPanelOpen) SetSessionPanelOpen(false);
+                AnimateSidePanel(PlaylistQueueSidebar, SidebarTranslation, ViewModel.IsSidebarOpen);
+                UpdateQueueSummary();
+            }
+            else if (e.PropertyName == nameof(PlayerViewModel.ProgressValue))
+            {
+                if (!TimelineSeekBar.IsDragging && !_isRenderingTimeline) TimelineSeekBar.Value = ViewModel.ProgressValue;
+            }
+            else if (e.PropertyName == nameof(PlayerViewModel.IsShuffleEnabled))
+            {
+                UpdateShuffleVisual();
+            }
+            else if (e.PropertyName == nameof(PlayerViewModel.IsExternalSubtitleActive))
+            {
+                ApplySubtitleOverlayStyle();
+                UpdateSubtitleOverlay(ViewModel.CurrentTime);
+            }
+            else if (e.PropertyName == nameof(PlayerViewModel.CurrentTime))
+            {
+                // Paused seeks and frame steps (playback itself is tracked per frame)
+                if (!_isRenderingTimeline && ViewModel.IsExternalSubtitleActive) UpdateSubtitleOverlay(ViewModel.CurrentTime);
             }
             else if (e.PropertyName == nameof(PlayerViewModel.StatusToast))
             {
@@ -160,10 +168,7 @@ public sealed partial class PlayerPage : Page
                      e.PropertyName == nameof(PlayerViewModel.VolumeGlyph))
             {
                 AnimateVolumeIconPop();
-            }
-            else if (e.PropertyName == nameof(PlayerViewModel.IsVolumeBoosted))
-            {
-                AnimateVolumeColor(ViewModel.IsVolumeBoosted);
+                UpdateVolumeVisuals();
             }
         };
 
@@ -178,16 +183,12 @@ public sealed partial class PlayerPage : Page
             if (Visibility == Visibility.Visible)
             {
                 RefreshVideoLayout();
+                ApplySubtitleOverlayStyle();
                 DispatcherQueue.TryEnqueue(RenderTimelineMarkers);
                 UpdateResponsiveLayout(e.NewSize.Width);
             }
         };
 
-        // Wire up pointer handlers on TimelineSlider with handledEventsToo = true to detect manual scrubbing
-        TimelineSlider.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnTimelineSliderPointerPressed), true);
-        TimelineSlider.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(OnTimelineSliderPointerReleased), true);
-        TimelineSlider.AddHandler(UIElement.PointerCanceledEvent, new PointerEventHandler(OnTimelineSliderPointerReleased), true);
-        TimelineSlider.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(OnTimelineSliderPointerReleased), true);
 
         // Catch pointer movements even if handled by inner controls to wake up cursor & controls
         this.AddHandler(UIElement.PointerMovedEvent, new PointerEventHandler(OnPagePointerMoved), true);
@@ -202,6 +203,7 @@ public sealed partial class PlayerPage : Page
             }
             ApplyLocalization();
             HookButtonPulses();
+            ApplyToolbarLayout();
             var loc = App.GetService<Services.ILocalizationService>();
             if (loc != null)
             {
@@ -256,38 +258,21 @@ public sealed partial class PlayerPage : Page
             if (NextClipButton != null) ToolTipService.SetToolTip(NextClipButton, loc["Player_Tooltip_NextClip"]);
             if (RepeatButton != null) ToolTipService.SetToolTip(RepeatButton, ViewModel.RepeatTooltip);
             UpdateSkipTooltips(loc);
-            if (MarkMomentButton != null) ToolTipService.SetToolTip(MarkMomentButton, loc["Player_Tooltip_MarkMoment"]);
-            if (MomentsFlyoutButton != null) ToolTipService.SetToolTip(MomentsFlyoutButton, loc["Player_Tooltip_TimelineBookmarks"]);
             if (ClipQueueButton != null) ToolTipService.SetToolTip(ClipQueueButton, loc["Player_Tooltip_ClipQueue"]);
-            if (PlaybackSpeedDropDown != null) ToolTipService.SetToolTip(PlaybackSpeedDropDown, loc["Player_Tooltip_PlaybackSpeed"]);
-            if (AudioTrackDropDown != null) ToolTipService.SetToolTip(AudioTrackDropDown, loc["Player_Tooltip_AudioTrack"]);
-            if (SubtitlesDropDown != null) ToolTipService.SetToolTip(SubtitlesDropDown, loc["Player_Tooltip_Subtitles"]);
             if (MuteButton != null) ToolTipService.SetToolTip(MuteButton, loc["Player_Tooltip_MuteUnmute"]);
             if (FullscreenButton != null) ToolTipService.SetToolTip(FullscreenButton, loc["Player_Tooltip_Fullscreen"]);
             if (MomentsPromptDismissButton != null) ToolTipService.SetToolTip(MomentsPromptDismissButton, loc["Player_Dismiss"]);
             if (CloseQueueButton != null) ToolTipService.SetToolTip(CloseQueueButton, loc["Player_Tooltip_CloseQueue"]);
 
             // Moments Flyout
-            if (MomentsFlyoutHeaderTitle != null) MomentsFlyoutHeaderTitle.Text = loc["Player_MomentsTitle"];
-            if (MomentsFlyoutAddText != null) MomentsFlyoutAddText.Text = loc["Player_MomentsAdd"];
-            if (MomentsFlyoutAddButton != null) ToolTipService.SetToolTip(MomentsFlyoutAddButton, loc["Player_Tooltip_MarkMomentCurrentTime"]);
             if (MomentsFlyoutEmptyTitle != null) MomentsFlyoutEmptyTitle.Text = loc["Player_NoMomentsMarked"];
             if (MomentsFlyoutEmptySubtitle != null) MomentsFlyoutEmptySubtitle.Text = loc["Player_PressBToMark"];
 
-            // Speed Flyout
-            if (SpeedFlyoutHeaderTitle != null) SpeedFlyoutHeaderTitle.Text = loc["Player_PlaybackSpeedTitle"];
+            // Speed (session panel)
             if (PresetSpeed10 != null) PresetSpeed10.Content = loc["Player_PresetNormal"];
             if (CustomSpeedLabel != null) CustomSpeedLabel.Text = loc["Player_CustomSpeed"];
             if (ResetSpeedButton != null) ResetSpeedButton.Content = loc["Player_Reset"];
 
-            // Audio Tracks Flyout
-            if (AudioTracksFlyoutHeaderTitle != null) AudioTracksFlyoutHeaderTitle.Text = loc["Player_AudioTracksTitle"];
-
-
-            // Subtitles Flyout
-            if (SubtitlesFlyoutHeaderTitle != null) SubtitlesFlyoutHeaderTitle.Text = loc["Player_SubtitlesTitle"];
-            if (AddSubtitleFileText != null) AddSubtitleFileText.Text = loc["Player_AddSubtitleFile"];
-            if (AddSubtitleFileButton != null) ToolTipService.SetToolTip(AddSubtitleFileButton, loc["Player_Tooltip_AddSubtitleFile"]);
 
             // Mark Moment Flyout
             if (MarkMomentFlyoutTitle != null) MarkMomentFlyoutTitle.Text = _editingBookmark != null ? (loc["Player_EditMomentTitle"] ?? "Edit Moment") : loc["Player_MarkMoment_Title"];
@@ -303,7 +288,6 @@ public sealed partial class PlayerPage : Page
             if (MarkRangeChooseEndButton != null) MarkRangeChooseEndButton.Content = loc["Player_ChooseOnTimeline"];
             if (MarkMomentLabelBox != null) MarkMomentLabelBox.PlaceholderText = loc["Player_MarkMoment_TitlePlaceholder"];
             if (MarkMomentColorLabel != null) MarkMomentColorLabel.Text = loc["Player_MarkMoment_Color"];
-            if (CustomColorPickerButton != null) ToolTipService.SetToolTip(CustomColorPickerButton, loc["Player_CustomColorTooltip"]);
             if (MarkMomentSaveButton != null) MarkMomentSaveButton.Content = _editingBookmark != null ? (loc["Player_EditMomentSave"] ?? "Save Changes") : loc["Player_MarkMoment_Save"];
 
             // Moments Jump Prompt & Active Moment Prompt
@@ -317,6 +301,7 @@ public sealed partial class PlayerPage : Page
 
             // Queue Drawer
             if (ClipQueueHeaderTitle != null) ClipQueueHeaderTitle.Text = loc["Player_ClipQueueTitle"];
+            LocalizePlayerExtras(loc);
         }
         catch { }
     }
@@ -346,148 +331,6 @@ public sealed partial class PlayerPage : Page
         catch { }
     }
 
-    private Storyboard? _sidebarStoryboard;
-
-    private void AnimateSidebar(bool open, bool animate = true)
-    {
-        _videoGlass?.Track(450);
-        _sidebarStoryboard?.Stop();
-
-        if (!animate)
-        {
-            PlaylistQueueSidebar.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
-            PlaylistQueueSidebar.Opacity = open ? 1.0 : 0.0;
-            SidebarTranslation.X = open ? 0 : 320;
-            BottomControlBarQueueSpacer.Width = open ? 320 : 0;
-            if (open && PlaylistQueueListView != null && ViewModel.CurrentClip != null)
-            {
-                PlaylistQueueListView.SelectedItem = ViewModel.CurrentClip;
-                PlaylistQueueListView.ScrollIntoView(ViewModel.CurrentClip);
-            }
-            return;
-        }
-
-        var sb = new Storyboard();
-        bool reduceMotion = IsReduceMotionEnabled();
-        var duration = TimeSpan.FromMilliseconds(reduceMotion ? 140 : 260);
-
-        if (open)
-        {
-            PlaylistQueueSidebar.Visibility = Visibility.Visible;
-            if (PlaylistQueueListView != null && ViewModel.CurrentClip != null)
-            {
-                PlaylistQueueListView.SelectedItem = ViewModel.CurrentClip;
-                PlaylistQueueListView.ScrollIntoView(ViewModel.CurrentClip);
-            }
-
-            var easeOut = new QuarticEase { EasingMode = EasingMode.EaseOut };
-
-            if (!reduceMotion)
-            {
-                var transAnim = new DoubleAnimation
-                {
-                    From = SidebarTranslation.X,
-                    To = 0,
-                    Duration = duration,
-                    EasingFunction = easeOut
-                };
-                Storyboard.SetTarget(transAnim, SidebarTranslation);
-                Storyboard.SetTargetProperty(transAnim, "X");
-                sb.Children.Add(transAnim);
-            }
-            else
-            {
-                SidebarTranslation.X = 0;
-            }
-
-            var opAnim = new DoubleAnimation
-            {
-                From = PlaylistQueueSidebar.Opacity,
-                To = 1.0,
-                Duration = duration,
-                EasingFunction = easeOut
-            };
-            Storyboard.SetTarget(opAnim, PlaylistQueueSidebar);
-            Storyboard.SetTargetProperty(opAnim, "Opacity");
-
-            var spacerAnim = new DoubleAnimation
-            {
-                From = BottomControlBarQueueSpacer.Width,
-                To = 320,
-                Duration = duration,
-                EasingFunction = easeOut,
-                EnableDependentAnimation = true
-            };
-            Storyboard.SetTarget(spacerAnim, BottomControlBarQueueSpacer);
-            Storyboard.SetTargetProperty(spacerAnim, "Width");
-
-            sb.Children.Add(opAnim);
-            sb.Children.Add(spacerAnim);
-
-            sb.Completed += (s, e) =>
-            {
-                _sidebarStoryboard = null;
-                SidebarTranslation.X = 0;
-                PlaylistQueueSidebar.Opacity = 1.0;
-                BottomControlBarQueueSpacer.Width = 320;
-            };
-        }
-        else
-        {
-            var easeIn = new QuarticEase { EasingMode = EasingMode.EaseIn };
-
-            if (!reduceMotion)
-            {
-                var transAnim = new DoubleAnimation
-                {
-                    From = SidebarTranslation.X,
-                    To = 320,
-                    Duration = duration,
-                    EasingFunction = easeIn
-                };
-                Storyboard.SetTarget(transAnim, SidebarTranslation);
-                Storyboard.SetTargetProperty(transAnim, "X");
-                sb.Children.Add(transAnim);
-            }
-
-            var opAnim = new DoubleAnimation
-            {
-                From = PlaylistQueueSidebar.Opacity,
-                To = 0.0,
-                Duration = duration,
-                EasingFunction = easeIn
-            };
-            Storyboard.SetTarget(opAnim, PlaylistQueueSidebar);
-            Storyboard.SetTargetProperty(opAnim, "Opacity");
-
-            var spacerAnim = new DoubleAnimation
-            {
-                From = BottomControlBarQueueSpacer.Width,
-                To = 0,
-                Duration = duration,
-                EasingFunction = easeIn,
-                EnableDependentAnimation = true
-            };
-            Storyboard.SetTarget(spacerAnim, BottomControlBarQueueSpacer);
-            Storyboard.SetTargetProperty(spacerAnim, "Width");
-
-            sb.Children.Add(opAnim);
-            sb.Children.Add(spacerAnim);
-
-            sb.Completed += (s, e) =>
-            {
-                _sidebarStoryboard = null;
-                PlaylistQueueSidebar.Visibility = Visibility.Collapsed;
-                SidebarTranslation.X = 320;
-                PlaylistQueueSidebar.Opacity = 0.0;
-                BottomControlBarQueueSpacer.Width = 0;
-            };
-        }
-
-        _sidebarStoryboard = sb;
-        Helpers.Motion.Begin(sb);
-    }
-
     public void RefreshVideoLayout()
     {
         DispatcherQueue.TryEnqueue(() =>
@@ -499,10 +342,10 @@ public sealed partial class PlayerPage : Page
 
     private void UpdateResponsiveLayout(double width)
     {
-        if (VolumeControlGroup != null)
-        {
-            VolumeControlGroup.Visibility = width < 760 ? Visibility.Collapsed : Visibility.Visible;
-        }
+        // The wedge folds away on narrow windows; the mute button stays
+        bool narrow = width < 760;
+        VolumeWedgeControl.Visibility = narrow ? Visibility.Collapsed : Visibility.Visible;
+        VolumeValueText.Visibility = narrow ? Visibility.Collapsed : Visibility.Visible;
     }
 
     public void Activate()
@@ -512,9 +355,14 @@ public sealed partial class PlayerPage : Page
         ViewModel.IsControlsVisible = true;
         _areControlsShowing = false;
         UpdateControlsVisibility(true, animate: false);
+        UpdateBarAnchors(animate: false);
         SetFullscreenLayout(ViewModel.IsFullscreen);
-        AnimateSidebar(ViewModel.IsSidebarOpen, animate: false);
+        AnimateSidePanel(PlaylistQueueSidebar, SidebarTranslation, ViewModel.IsSidebarOpen, animate: false);
         RestartInactivityTimer();
+        TimelineSeekBar.Value = ViewModel.ProgressValue;
+        ApplyToolbarLayout();
+        UpdateVolumeVisuals();
+        UpdateQueueSummary();
         RefreshVideoLayout();
         UpdateResponsiveLayout(ActualWidth);
         CheckAndShowMomentsPrompt();
@@ -579,7 +427,8 @@ public sealed partial class PlayerPage : Page
             {
                 double currentSec = ViewModel.AnchorSeconds + (elapsed * ViewModel.PlaybackRate);
                 double pct = (currentSec / ViewModel.TotalTime.TotalSeconds) * 100.0;
-                TimelineSlider.Value = Math.Clamp(pct, 0.0, 100.0);
+                TimelineSeekBar.Value = Math.Clamp(pct, 0.0, 100.0);
+                if (ViewModel.IsExternalSubtitleActive) UpdateSubtitleOverlay(TimeSpan.FromSeconds(currentSec));
             }
         }
     }
@@ -591,10 +440,9 @@ public sealed partial class PlayerPage : Page
         _isActive = false;
         StopTimelineRendering();
         _inactivityTimer.Stop();
-        _osdHideTimer?.Stop();
-        _osdStoryboard?.Stop();
+        HideOsdNow();
         _controlsStoryboard?.Stop();
-        _sidebarStoryboard?.Stop();
+        StopSidePanelAnimations();
         _momentsDismissTimer?.Stop();
         _momentsPopupStoryboard?.Stop();
         _lastPromptClipPath = null;
@@ -724,112 +572,6 @@ public sealed partial class PlayerPage : Page
         }
     }
 
-    private void OnTimelineSliderPointerPressed(object sender, PointerRoutedEventArgs e)
-    {
-        _isUserDraggingSlider = true;
-        ViewModel.OnSliderDragStarted();
-    }
-
-    private void OnTimelineSliderPointerReleased(object sender, PointerRoutedEventArgs e)
-    {
-        if (_isUserDraggingSlider)
-        {
-            _isUserDraggingSlider = false;
-            ViewModel.OnSliderDragCompleted(TimelineSlider.Value);
-        }
-    }
-
-    private void OnTimelineSliderValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
-    {
-        if (_isUserDraggingSlider)
-        {
-            ViewModel.OnSliderDeltaChanged(e.NewValue);
-        }
-
-        if (_activePickTarget != TimelinePickTarget.None && TimelinePickerCurrentTimeText != null)
-        {
-            TimelinePickerCurrentTimeText.Text = ViewModel.FormattedCurrentTime;
-        }
-    }
-
-    private void OnVolumeSliderValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
-    {
-        int newVol = (int)Math.Round(e.NewValue / 5.0) * 5;
-        newVol = Math.Clamp(newVol, 0, 100);
-        if (ViewModel.Volume > 100 && newVol == 100)
-        {
-            return;
-        }
-        if (ViewModel.Volume != newVol)
-        {
-            ViewModel.SetVolume(newVol);
-        }
-    }
-
-    private void OnVolumeSliderLoaded(object sender, RoutedEventArgs e)
-    {
-        var thumb = FindVisualChild<Microsoft.UI.Xaml.Controls.Primitives.Thumb>(VolumeSlider);
-        if (thumb != null)
-        {
-            thumb.Background = _volumeDynamicBrush;
-        }
-    }
-
-    private void AnimateVolumeColor(bool isBoosted, bool immediate = false)
-    {
-        var targetColor = isBoosted
-            ? Windows.UI.Color.FromArgb(255, 255, 160, 0)
-            : Windows.UI.Color.FromArgb(255, 255, 255, 255);
-
-        if (_volumeDynamicBrush.Color == targetColor && _volumeColorTransitionTimer == null)
-        {
-            return;
-        }
-
-        if (immediate || IsReduceMotionEnabled())
-        {
-            _volumeColorTransitionTimer?.Stop();
-            _volumeColorTransitionTimer = null;
-            _volumeDynamicBrush.Color = targetColor;
-            return;
-        }
-
-        _volumeColorFrom = _volumeDynamicBrush.Color;
-        _volumeColorTo = targetColor;
-        _volumeColorTransitionStart = DateTime.UtcNow;
-
-        if (_volumeColorTransitionTimer == null)
-        {
-            _volumeColorTransitionTimer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(16)
-            };
-            _volumeColorTransitionTimer.Tick += OnVolumeColorTransitionTick;
-        }
-        _volumeColorTransitionTimer.Start();
-    }
-
-    private void OnVolumeColorTransitionTick(object? sender, object e)
-    {
-        double elapsed = (DateTime.UtcNow - _volumeColorTransitionStart).TotalMilliseconds;
-        double progress = Math.Clamp(elapsed / VolumeColorTransitionDurationMs, 0.0, 1.0);
-
-        double ease = 1.0 - Math.Pow(1.0 - progress, 3.0);
-
-        byte a = (byte)(_volumeColorFrom.A + (_volumeColorTo.A - _volumeColorFrom.A) * ease);
-        byte r = (byte)(_volumeColorFrom.R + (_volumeColorTo.R - _volumeColorFrom.R) * ease);
-        byte g = (byte)(_volumeColorFrom.G + (_volumeColorTo.G - _volumeColorFrom.G) * ease);
-        byte b = (byte)(_volumeColorFrom.B + (_volumeColorTo.B - _volumeColorFrom.B) * ease);
-
-        _volumeDynamicBrush.Color = Windows.UI.Color.FromArgb(a, r, g, b);
-
-        if (progress >= 1.0)
-        {
-            _volumeColorTransitionTimer?.Stop();
-            _volumeDynamicBrush.Color = _volumeColorTo;
-        }
-    }
-
     private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
     {
         int count = VisualTreeHelper.GetChildrenCount(parent);
@@ -886,19 +628,11 @@ public sealed partial class PlayerPage : Page
         _openFlyoutsCount++;
         _inactivityTimer.Stop();
         ViewModel.IsControlsVisible = true;
-        if (ReferenceEquals(sender, PlaybackSpeedFlyout))
-        {
-            UpdateSpeedPresetHighlight();
-        }
     }
 
     private void OnFlyoutClosed(object sender, object e)
     {
         _openFlyoutsCount = Math.Max(0, _openFlyoutsCount - 1);
-        if (_activePickTarget == TimelinePickTarget.None && ReferenceEquals(sender, MarkMomentFlyout))
-        {
-            _editingBookmark = null;
-        }
         if (!AreFlyoutsOrPopupsOpen && ViewModel.IsPlaying)
         {
             RestartInactivityTimer();
@@ -945,16 +679,27 @@ public sealed partial class PlayerPage : Page
             NextClipButton,
             StopClipButton,
             RepeatButton,
+            ShuffleButton,
             SkipBackwardButton,
             SkipForwardButton,
-            MarkMomentButton,
-            MomentsFlyoutButton,
+            FrameBackButton,
+            FrameForwardButton,
+            SnapshotButton,
+            SpeedButton,
+            MomentsButton,
+            TracksButton,
             ClipQueueButton,
+            SessionBarButton,
+            SessionHeaderButton,
+            PipButton,
             BackToLibraryButton,
             CloseQueueButton,
+            CloseSessionButton,
             FullscreenButton,
-            AddSubtitleFileButton,
-            MomentsFlyoutAddButton,
+            QueueRepeatButton,
+            QueueShuffleButton,
+            QueueAddButton,
+            QueueSortButton,
             PresetSpeed05,
             PresetSpeed075,
             PresetSpeed10,
@@ -963,11 +708,7 @@ public sealed partial class PlayerPage : Page
             PresetSpeed20,
             ResetSpeedButton,
             MarkPointModeButton,
-            MarkRangeModeButton,
-            CustomColorPickerButton,
-            PlaybackSpeedDropDown,
-            AudioTrackDropDown,
-            SubtitlesDropDown
+            MarkRangeModeButton
         };
 
         foreach (var btn in buttons)
@@ -1176,149 +917,6 @@ public sealed partial class PlayerPage : Page
         Helpers.Motion.Begin(sb);
     }
 
-    private readonly Dictionary<int, CheckBox> _audioTrackCheckBoxes = new();
-    private CheckBox? _disableAudioCheckBox;
-
-    private void OnAudioTracksFlyoutOpening(object sender, object e)
-    {
-        ViewModel.RefreshAudioTracks();
-        _audioTrackCheckBoxes.Clear();
-        _disableAudioCheckBox = null;
-        AudioTracksListPanel.Children.Clear();
-        PopulateAudioTracksList();
-    }
-
-    private void PopulateAudioTracksList()
-    {
-        if (AudioTracksListPanel == null) return;
-        var loc = App.GetService<Services.ILocalizationService>();
-        var appFont = Application.Current.Resources["AppFontFamily"] as Microsoft.UI.Xaml.Media.FontFamily;
-
-        var tracks = ViewModel.AudioTracks;
-        if (tracks.Count == 0)
-        {
-            _audioTrackCheckBoxes.Clear();
-            _disableAudioCheckBox = null;
-            AudioTracksListPanel.Children.Clear();
-
-            var emptyText = new TextBlock
-            {
-                Text = loc?["Player_NoAudioTracks"] ?? "No audio tracks",
-                FontSize = 12,
-                Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
-                Margin = new Thickness(4, 8, 4, 8)
-            };
-            if (appFont != null) emptyText.FontFamily = appFont;
-            AudioTracksListPanel.Children.Add(emptyText);
-            return;
-        }
-
-        bool needsRebuild = _audioTrackCheckBoxes.Count != tracks.Count ||
-                            tracks.Any(t => !_audioTrackCheckBoxes.TryGetValue(t.Id, out var cb) || cb.Content is not TextBlock tb || tb.Text != t.DisplayName);
-        if (needsRebuild)
-        {
-            _audioTrackCheckBoxes.Clear();
-            _disableAudioCheckBox = null;
-            AudioTracksListPanel.Children.Clear();
-
-            var activeIds = ViewModel.ActiveAudioTracks;
-
-            foreach (var track in tracks)
-            {
-                var textBlock = new TextBlock
-                {
-                    Text = track.DisplayName,
-                    FontSize = 12,
-                    Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, -2, 0, 0),
-                    TextTrimming = TextTrimming.CharacterEllipsis
-                };
-                if (appFont != null) textBlock.FontFamily = appFont;
-
-                var cb = new CheckBox
-                {
-                    Content = textBlock,
-                    IsChecked = activeIds.Contains(track.Id),
-                    VerticalContentAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(4, 2, 4, 2),
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                    Tag = track.Id
-                };
-
-                int trackId = track.Id;
-                cb.Click += (s, args) =>
-                {
-                    ViewModel.ToggleAudioTrack(trackId);
-                    UpdateAudioTrackRowsState();
-                };
-
-                AudioTracksListPanel.Children.Add(cb);
-                _audioTrackCheckBoxes[track.Id] = cb;
-            }
-
-            var separator = new Border
-            {
-                Height = 1,
-                Background = new SolidColorBrush(Windows.UI.Color.FromArgb(26, 255, 255, 255)),
-                Margin = new Thickness(0, 4, 0, 4)
-            };
-            AudioTracksListPanel.Children.Add(separator);
-
-            var disableText = new TextBlock
-            {
-                Text = loc?["Player_DisableAudio"] ?? "Disable Audio",
-                FontSize = 12,
-                Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, -2, 0, 0)
-            };
-            if (appFont != null) disableText.FontFamily = appFont;
-
-            var disableCb = new CheckBox
-            {
-                Content = disableText,
-                IsChecked = activeIds.Count == 0,
-                VerticalContentAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(4, 2, 4, 2)
-            };
-            disableCb.Click += (s, args) =>
-            {
-                ViewModel.DisableAudio();
-                UpdateAudioTrackRowsState();
-            };
-            _disableAudioCheckBox = disableCb;
-            AudioTracksListPanel.Children.Add(disableCb);
-        }
-        else
-        {
-            UpdateAudioTrackRowsState();
-        }
-    }
-
-    private void UpdateAudioTrackRowsState()
-    {
-        var activeIds = ViewModel.ActiveAudioTracks;
-
-        foreach (var (trackId, cb) in _audioTrackCheckBoxes)
-        {
-            bool isChecked = activeIds.Contains(trackId);
-            if (cb.IsChecked != isChecked)
-            {
-                cb.IsChecked = isChecked;
-            }
-        }
-
-        if (_disableAudioCheckBox != null)
-        {
-            bool disableChecked = activeIds.Count == 0;
-            if (_disableAudioCheckBox.IsChecked != disableChecked)
-            {
-                _disableAudioCheckBox.IsChecked = disableChecked;
-            }
-        }
-    }
-
     private void OnElementClipSizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (sender is UIElement uie)
@@ -1330,106 +928,6 @@ public sealed partial class PlayerPage : Page
         }
     }
 
-
-    private void OnSubtitlesFlyoutOpening(object sender, object e)
-    {
-        PopulateSubtitlesList();
-    }
-
-    private void PopulateSubtitlesList()
-    {
-        if (SubtitlesListPanel == null) return;
-        var loc = App.GetService<Services.ILocalizationService>();
-        var appFont = Application.Current.Resources["AppFontFamily"] as Microsoft.UI.Xaml.Media.FontFamily;
-        SubtitlesListPanel.Children.Clear();
-
-        var tracks = ViewModel.SubtitleTracks;
-        if (tracks.Count > 0)
-        {
-            foreach (var track in tracks)
-            {
-                var textBlock = new TextBlock
-                {
-                    Text = track.DisplayName,
-                    FontSize = 12,
-                    Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, -2, 0, 0)
-                };
-                if (appFont != null) textBlock.FontFamily = appFont;
-
-                var rb = new RadioButton
-                {
-                    GroupName = "SubtitlesFlyoutGroup",
-                    Content = textBlock,
-                    IsChecked = track.IsSelected,
-                    VerticalContentAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(4, 2, 4, 2),
-                    Tag = track.Id
-                };
-                int trackId = track.Id;
-                rb.Click += (s, args) =>
-                {
-                    ViewModel.SelectSubtitleTrack(trackId);
-                    PopulateSubtitlesList();
-                };
-                SubtitlesListPanel.Children.Add(rb);
-            }
-        }
-        else
-        {
-            var hintText = new TextBlock
-            {
-                Text = loc?["Player_NoSubtitlesHint"] ?? "Load an external subtitle file (.ass, .ssa, .srt, .vtt)",
-                FontSize = 11,
-                Foreground = (Brush)Application.Current.Resources["TextFillColorTertiaryBrush"],
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(4, 6, 4, 6)
-            };
-            if (appFont != null) hintText.FontFamily = appFont;
-            SubtitlesListPanel.Children.Add(hintText);
-        }
-
-        var separator = new Border
-        {
-            Height = 1,
-            Background = new SolidColorBrush(Windows.UI.Color.FromArgb(26, 255, 255, 255)),
-            Margin = new Thickness(0, 4, 0, 4)
-        };
-        SubtitlesListPanel.Children.Add(separator);
-
-        var disableText = new TextBlock
-        {
-            Text = loc?["Player_DisableSubtitles"] ?? "Disable Subtitles",
-            FontSize = 12,
-            Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, -2, 0, 0)
-        };
-        if (appFont != null) disableText.FontFamily = appFont;
-
-        var disableRb = new RadioButton
-        {
-            GroupName = "SubtitlesFlyoutGroup",
-            Content = disableText,
-            IsChecked = ViewModel.SelectedSubtitleTrack == null,
-            VerticalContentAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(4, 2, 4, 2)
-        };
-        disableRb.Click += (s, args) =>
-        {
-            ViewModel.SelectSubtitleTrack(-1);
-            PopulateSubtitlesList();
-        };
-        SubtitlesListPanel.Children.Add(disableRb);
-    }
-
-    private async void OnAddSubtitleFileClick(object sender, RoutedEventArgs e)
-    {
-        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.Window);
-        await ViewModel.AddSubtitleFileAsync(hwnd);
-        PopulateSubtitlesList();
-    }
 
     private void OnFullscreenButtonClick(object sender, RoutedEventArgs e)
     {
@@ -1491,6 +989,7 @@ public sealed partial class PlayerPage : Page
         }
 
         _controlsStoryboard?.Stop();
+        AnimateSubtitleLift(visible, animate);
 
         if (!animate)
         {
@@ -1500,7 +999,7 @@ public sealed partial class PlayerPage : Page
             BottomControlBar.Opacity = visible ? 1.0 : 0.0;
             if (ActiveMomentBadgeTranslation != null)
             {
-                ActiveMomentBadgeTranslation.Y = visible ? -64.0 : 0.0;
+                ActiveMomentBadgeTranslation.Y = ActiveBadgeLift(visible);
             }
             return;
         }
@@ -1532,7 +1031,7 @@ public sealed partial class PlayerPage : Page
                 var badgeAnim = new DoubleAnimation
                 {
                     From = ActiveMomentBadgeTranslation.Y,
-                    To = -64.0,
+                    To = ActiveBadgeLift(true),
                     Duration = duration,
                     EasingFunction = easeOut
                 };
@@ -1547,7 +1046,7 @@ public sealed partial class PlayerPage : Page
                 BottomControlBar.Opacity = 1.0;
                 if (ActiveMomentBadgeTranslation != null)
                 {
-                    ActiveMomentBadgeTranslation.Y = -64.0;
+                    ActiveMomentBadgeTranslation.Y = ActiveBadgeLift(true);
                 }
             };
         }
@@ -1597,95 +1096,6 @@ public sealed partial class PlayerPage : Page
         Helpers.Motion.Begin(sb);
     }
 
-    private void SetOsdText(string message)
-    {
-        foreach (var child in OsdToastContainer.Children)
-        {
-            if (child is TextBlock tb)
-            {
-                tb.Text = message;
-            }
-        }
-    }
-
-    private void UpdateOsdToast(string message)
-    {
-        if (string.IsNullOrEmpty(message)) return;
-
-        SetOsdText(message);
-
-        // If already visible and holding/stacking keys, keep at full opacity and just reset hide timer
-        if (OsdToastContainer.Visibility == Visibility.Visible && OsdToastContainer.Opacity >= 0.7 && _osdStoryboard == null)
-        {
-            OsdToastContainer.Opacity = 1.0;
-            StartOsdHideTimer();
-            return;
-        }
-
-        _osdStoryboard?.Stop();
-        _osdStoryboard = null;
-        _osdHideTimer?.Stop();
-
-        OsdToastContainer.Visibility = Visibility.Visible;
-
-        var sbIn = new Storyboard();
-        var easeOut = new CubicEase { EasingMode = EasingMode.EaseOut };
-        var opIn = new DoubleAnimation
-        {
-            From = OsdToastContainer.Opacity,
-            To = 1.0,
-            Duration = TimeSpan.FromMilliseconds(140),
-            EasingFunction = easeOut
-        };
-        Storyboard.SetTarget(opIn, OsdToastContainer);
-        Storyboard.SetTargetProperty(opIn, "Opacity");
-
-        sbIn.Children.Add(opIn);
-        sbIn.Completed += (s, e) =>
-        {
-            _osdStoryboard = null;
-            OsdToastContainer.Opacity = 1.0;
-            StartOsdHideTimer();
-        };
-
-        _osdStoryboard = sbIn;
-        Helpers.Motion.Begin(sbIn);
-    }
-
-    private void StartOsdHideTimer()
-    {
-        _osdHideTimer?.Stop();
-        _osdHideTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
-        _osdHideTimer.Tick += (s, e) =>
-        {
-            _osdHideTimer?.Stop();
-
-            var sbOut = new Storyboard();
-            var easeIn = new CubicEase { EasingMode = EasingMode.EaseIn };
-            var opOut = new DoubleAnimation
-            {
-                From = OsdToastContainer.Opacity,
-                To = 0.0,
-                Duration = TimeSpan.FromMilliseconds(160),
-                EasingFunction = easeIn
-            };
-            Storyboard.SetTarget(opOut, OsdToastContainer);
-            Storyboard.SetTargetProperty(opOut, "Opacity");
-
-            sbOut.Children.Add(opOut);
-            sbOut.Completed += (s2, e2) =>
-            {
-                _osdStoryboard = null;
-                OsdToastContainer.Visibility = Visibility.Collapsed;
-                OsdToastContainer.Opacity = 0.0;
-            };
-
-            _osdStoryboard = sbOut;
-            Helpers.Motion.Begin(sbOut);
-        };
-        _osdHideTimer.Start();
-    }
-
     public void SetFullscreenLayout(bool isFullscreen)
     {
         RefreshVideoLayout();
@@ -1718,18 +1128,9 @@ public sealed partial class PlayerPage : Page
         }
     }
 
-    private void OnAddMarkerClick(object sender, RoutedEventArgs e)
+    /// <summary>Fills the mark form for a new moment (not when editing or returning from the timeline).</summary>
+    private void PrepareMarkForm()
     {
-        if (MarkMomentButton?.Flyout != null)
-        {
-            MarkMomentButton.Flyout.ShowAt(MarkMomentButton);
-        }
-    }
-
-    private void OnMarkMomentFlyoutOpened(object sender, object e)
-    {
-        OnFlyoutOpened(sender, e);
-
         if (_activePickTarget == TimelinePickTarget.None && _editingBookmark == null)
         {
             var loc = App.GetService<Services.ILocalizationService>();
@@ -1853,7 +1254,8 @@ public sealed partial class PlayerPage : Page
     private void StartTimelinePicking(TimelinePickTarget target)
     {
         _activePickTarget = target;
-        MarkMomentFlyout?.Hide();
+        _isPickingOnTimeline = true;
+        MomentsFlyout?.Hide();
 
         var loc = App.GetService<Services.ILocalizationService>();
         if (TimelinePickerPromptText != null)
@@ -1904,25 +1306,27 @@ public sealed partial class PlayerPage : Page
         }
 
         _activePickTarget = TimelinePickTarget.None;
+        _isPickingOnTimeline = false;
         if (TimelinePickerPromptBadge != null)
         {
             TimelinePickerPromptBadge.Visibility = Visibility.Collapsed;
             TimelinePickerPromptBadge.Opacity = 0.0;
         }
 
-        MarkMomentFlyout?.ShowAt(MarkMomentButton);
+        ShowMomentsFlyout(MomentsTabMark, keepForm: true);
     }
 
     private void OnCancelTimelinePickerClick(object sender, RoutedEventArgs e)
     {
         _activePickTarget = TimelinePickTarget.None;
+        _isPickingOnTimeline = false;
         if (TimelinePickerPromptBadge != null)
         {
             TimelinePickerPromptBadge.Visibility = Visibility.Collapsed;
             TimelinePickerPromptBadge.Opacity = 0.0;
         }
 
-        MarkMomentFlyout?.ShowAt(MarkMomentButton);
+        ShowMomentsFlyout(MomentsTabMark, keepForm: true);
     }
 
     private void OnQuickRangeDurationClick(object sender, RoutedEventArgs e)
@@ -1939,133 +1343,7 @@ public sealed partial class PlayerPage : Page
         }
     }
 
-    private void UpdateMarkColorButtons()
-    {
-        if (MarkMomentColorPanel == null) return;
-        if (!_colorButtonsInitialized)
-        {
-            _colorButtonsInitialized = true;
-            foreach (var child in MarkMomentColorPanel.Children)
-            {
-                if (child is Button colorBtn && colorBtn.Tag is string hex)
-                {
-                    if (hex == "Custom") continue;
-                    colorBtn.Click += (s, e) =>
-                    {
-                        _selectedMarkColor = hex;
-                        UpdateMarkColorSelectionHighlight();
-                    };
-                }
-            }
-        }
-        UpdateMarkColorSelectionHighlight();
-    }
-
-    private void UpdateMarkColorSelectionHighlight()
-    {
-        if (MarkMomentColorPanel == null) return;
-        bool matchedPreset = false;
-        foreach (var child in MarkMomentColorPanel.Children)
-        {
-            if (child is Button colorBtn && colorBtn.Tag is string hex)
-            {
-                if (hex == "Custom") continue;
-                bool isSelected = string.Equals(hex, _selectedMarkColor, StringComparison.OrdinalIgnoreCase);
-                if (isSelected) matchedPreset = true;
-                colorBtn.BorderThickness = new Thickness(isSelected ? 2 : 1);
-                colorBtn.BorderBrush = isSelected
-                    ? new SolidColorBrush(Microsoft.UI.Colors.White)
-                    : new SolidColorBrush(Windows.UI.Color.FromArgb(64, 255, 255, 255));
-            }
-        }
-        if (CustomColorPickerButton != null)
-        {
-            bool isCustomSelected = !matchedPreset && !string.IsNullOrEmpty(_selectedMarkColor);
-            CustomColorPickerButton.BorderThickness = new Thickness(isCustomSelected ? 2 : 1);
-            CustomColorPickerButton.BorderBrush = isCustomSelected
-                ? new SolidColorBrush(Microsoft.UI.Colors.White)
-                : new SolidColorBrush(Windows.UI.Color.FromArgb(64, 255, 255, 255));
-            if (isCustomSelected)
-            {
-                var parsed = ParseColor(_selectedMarkColor);
-                CustomColorPickerButton.Background = new SolidColorBrush(parsed);
-                if (CustomColorHexInput != null && CustomColorHexInput.Text != _selectedMarkColor)
-                {
-                    CustomColorHexInput.Text = _selectedMarkColor;
-                }
-                if (CustomColorPickerControl != null)
-                {
-                    CustomColorPickerControl.Color = parsed;
-                }
-                if (CustomColorPickerPipetteIcon != null)
-                {
-                    double luminance = (0.299 * parsed.R + 0.587 * parsed.G + 0.114 * parsed.B) / 255.0;
-                    CustomColorPickerPipetteIcon.Foreground = luminance > 0.55
-                        ? new SolidColorBrush(Microsoft.UI.Colors.Black)
-                        : new SolidColorBrush(Microsoft.UI.Colors.White);
-                }
-            }
-        }
-    }
-
-    private void OnCustomColorPickerColorChanged(ColorPicker sender, ColorChangedEventArgs args)
-    {
-        var col = args.NewColor;
-        _selectedMarkColor = $"#{col.R:X2}{col.G:X2}{col.B:X2}";
-        if (CustomColorHexInput != null && CustomColorHexInput.Text != _selectedMarkColor)
-        {
-            CustomColorHexInput.Text = _selectedMarkColor;
-        }
-        if (CustomColorPickerButton != null)
-        {
-            CustomColorPickerButton.Background = new SolidColorBrush(col);
-            CustomColorPickerButton.BorderThickness = new Thickness(2);
-            CustomColorPickerButton.BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.White);
-        }
-        if (CustomColorPickerPipetteIcon != null)
-        {
-            double luminance = (0.299 * col.R + 0.587 * col.G + 0.114 * col.B) / 255.0;
-            CustomColorPickerPipetteIcon.Foreground = luminance > 0.55
-                ? new SolidColorBrush(Microsoft.UI.Colors.Black)
-                : new SolidColorBrush(Microsoft.UI.Colors.White);
-        }
-    }
-
-    private void OnCustomColorHexInputTextChanged(object sender, TextChangedEventArgs e)
-    {
-        if (CustomColorHexInput == null) return;
-        string text = CustomColorHexInput.Text.Trim();
-        if (!text.StartsWith('#') && text.Length == 6)
-        {
-            text = "#" + text;
-        }
-        if (text.Length == 7 && text.StartsWith('#'))
-        {
-            try
-            {
-                var col = ParseColor(text);
-                _selectedMarkColor = text;
-                if (CustomColorPickerControl != null && CustomColorPickerControl.Color != col)
-                {
-                    CustomColorPickerControl.Color = col;
-                }
-                if (CustomColorPickerButton != null)
-                {
-                    CustomColorPickerButton.Background = new SolidColorBrush(col);
-                    CustomColorPickerButton.BorderThickness = new Thickness(2);
-                    CustomColorPickerButton.BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.White);
-                }
-                if (CustomColorPickerPipetteIcon != null)
-                {
-                    double luminance = (0.299 * col.R + 0.587 * col.G + 0.114 * col.B) / 255.0;
-                    CustomColorPickerPipetteIcon.Foreground = luminance > 0.55
-                        ? new SolidColorBrush(Microsoft.UI.Colors.Black)
-                        : new SolidColorBrush(Microsoft.UI.Colors.White);
-                }
-            }
-            catch { }
-        }
-    }
+    private void UpdateMarkColorButtons() => MarkMomentColorChooser.SelectedValue = _selectedMarkColor;
 
     private async void OnSaveMarkMomentClick(object sender, RoutedEventArgs e)
     {
@@ -2089,10 +1367,8 @@ public sealed partial class PlayerPage : Page
                 await ViewModel.AddBookmarkWithDetailsAsync(label, null, _selectedMarkColor);
             }
         }
-        if (MarkMomentFlyout != null)
-        {
-            MarkMomentFlyout.Hide();
-        }
+        _editingBookmark = null;
+        MomentsFlyout?.Hide();
     }
 
     private void OnDismissActiveMomentClick(object sender, RoutedEventArgs e)
@@ -2148,7 +1424,7 @@ public sealed partial class PlayerPage : Page
 
         var color = ParseColor(bookmark.ColorHex);
         ActiveMomentDot.Fill = new SolidColorBrush(color);
-        ActiveMomentText.Text = bookmark.Label;
+        ActiveMomentText.Text = bookmark.DisplayLabel;
         ActiveMomentRange.Text = bookmark.FormattedRange;
 
         if (ActiveMomentPromptBadge.Visibility != Visibility.Visible || ActiveMomentPromptBadge.Opacity < 0.9)
@@ -2157,7 +1433,7 @@ public sealed partial class PlayerPage : Page
             ActiveMomentPromptBadge.Visibility = Visibility.Visible;
             if (ActiveMomentBadgeTranslation != null)
             {
-                ActiveMomentBadgeTranslation.Y = _areControlsShowing ? -64.0 : 0.0;
+                ActiveMomentBadgeTranslation.Y = ActiveBadgeLift(_areControlsShowing);
             }
             var sb = new Storyboard();
             var fadeIn = new DoubleAnimation
@@ -2207,11 +1483,6 @@ public sealed partial class PlayerPage : Page
         if (sender is FrameworkElement fe && fe.Tag is ClipBookmark bm)
         {
             _editingBookmark = bm;
-
-            if (MomentsFlyoutButton?.Flyout != null && MomentsFlyoutButton.Flyout.IsOpen)
-            {
-                MomentsFlyoutButton.Flyout.Hide();
-            }
 
             _markStartTime = bm.Timestamp;
             _selectedMarkColor = string.IsNullOrEmpty(bm.ColorHex) ? "#FFD700" : bm.ColorHex;
@@ -2267,10 +1538,8 @@ public sealed partial class PlayerPage : Page
 
             UpdateMarkColorButtons();
 
-            if (MarkMomentFlyout != null && MarkMomentButton != null)
-            {
-                MarkMomentFlyout.ShowAt(MarkMomentButton);
-            }
+            // Same flyout, other tab: the form slides in where the list was
+            ShowMomentsFlyout(MomentsTabMark, keepForm: true);
         }
     }
 
@@ -2469,39 +1738,6 @@ public sealed partial class PlayerPage : Page
         }
     }
 
-    private void OnPlaylistContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
-    {
-        if (args.InRecycleQueue) return;
-        if (args.Item is Models.GameClip clip && clip.Thumbnail == null)
-        {
-            var thumbnailService = App.GetService<Services.IThumbnailService>();
-            if (thumbnailService != null)
-            {
-                if (thumbnailService.TryGetFromMemoryCache(clip.FilePath, out var cached))
-                {
-                    clip.Thumbnail = cached;
-                }
-                else
-                {
-                    _ = Task.Run(async () =>
-                    {
-                        var thumb = await thumbnailService.GetThumbnailAsync(clip.FilePath);
-                        if (thumb != null)
-                        {
-                            DispatcherQueue.TryEnqueue(() =>
-                            {
-                                if (clip.Thumbnail == null)
-                                {
-                                    clip.Thumbnail = thumb;
-                                }
-                            });
-                        }
-                    });
-                }
-            }
-        }
-    }
-
     private void OnPlayerPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
         var pointerPoint = e.GetCurrentPoint(this);
@@ -2539,7 +1775,15 @@ public sealed partial class PlayerPage : Page
         var shift = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift);
         bool isShift = shift.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
         bool isCtrl = ctrl.HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-        if (isCtrl) return;
+        if (isCtrl)
+        {
+            if (e.Key == VirtualKey.O)
+            {
+                OpenMediaFromPlayer();
+                e.Handled = true;
+            }
+            return;
+        }
 
         if (e.Key is >= VirtualKey.Number0 and <= VirtualKey.Number9 || e.Key is >= VirtualKey.NumberPad0 and <= VirtualKey.NumberPad9)
         {
@@ -2602,6 +1846,22 @@ public sealed partial class PlayerPage : Page
                 e.Handled = true;
                 break;
 
+            case VirtualKey.H:
+                // Hide the controls right away (move the mouse to bring them back)
+                _inactivityTimer.Stop();
+                ViewModel.IsControlsVisible = false;
+                e.Handled = true;
+                break;
+
+            case VirtualKey.L:
+                // A-B loop: first press sets A, second sets B, third clears
+                if (!ViewModel.LoopStart.HasValue) ViewModel.SetLoopPoint(isStart: true);
+                else if (!ViewModel.LoopEnd.HasValue) ViewModel.SetLoopPoint(isStart: false);
+                else ViewModel.ClearLoop();
+                UpdateLoopStatus();
+                e.Handled = true;
+                break;
+
             case VirtualKey.S:
                 ViewModel.Stop();
                 AnimateElementClickPulse(StopClipButton, 0.92);
@@ -2647,11 +1907,8 @@ public sealed partial class PlayerPage : Page
                 break;
 
             case VirtualKey.B:
-                if (MarkMomentButton?.Flyout != null)
-                {
-                    MarkMomentButton.Flyout.ShowAt(MarkMomentButton);
-                }
-                AnimateElementClickPulse(MarkMomentButton, 0.92);
+                ShowMomentsFlyout(MomentsTabMark);
+                AnimateElementClickPulse(MomentsButton, 0.92);
                 e.Handled = true;
                 break;
 
@@ -2691,7 +1948,15 @@ public sealed partial class PlayerPage : Page
                 break;
 
             case VirtualKey.Escape:
-                if (ViewModel.IsSidebarOpen)
+                if (_isToolbarEditorOpen)
+                {
+                    CloseToolbarEditor();
+                }
+                else if (_isSessionPanelOpen)
+                {
+                    SetSessionPanelOpen(false);
+                }
+                else if (ViewModel.IsSidebarOpen)
                 {
                     ViewModel.IsSidebarOpen = false;
                     AnimateElementClickPulse(CloseQueueButton, 0.92);
@@ -2722,14 +1987,7 @@ public sealed partial class PlayerPage : Page
         HandleKeyDown(e);
     }
 
-    private Canvas? _timelineMarkersCanvas;
-    private Canvas? TimelineMarkersCanvas => _timelineMarkersCanvas ??= FindDescendantByName<Canvas>(TimelineSlider, "TimelineMarkersCanvas");
-
-    private void OnTimelineSliderLoaded(object sender, RoutedEventArgs e)
-    {
-        _timelineMarkersCanvas = FindDescendantByName<Canvas>(TimelineSlider, "TimelineMarkersCanvas");
-        RenderTimelineMarkers();
-    }
+    private Canvas TimelineMarkersCanvas => TimelineSeekBar.MarkersCanvas;
 
     private static T? FindDescendantByName<T>(DependencyObject parent, string name) where T : FrameworkElement
     {
@@ -2745,10 +2003,6 @@ public sealed partial class PlayerPage : Page
         return null;
     }
 
-    private void OnTimelineSliderSizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        RenderTimelineMarkers();
-    }
 
     private void RenderTimelineMarkers()
     {
@@ -2756,11 +2010,10 @@ public sealed partial class PlayerPage : Page
         if (canvas == null) return;
         canvas.Children.Clear();
         if (ViewModel.CurrentClip == null || ViewModel.TotalTime <= TimeSpan.Zero) return;
-        double sliderWidth = TimelineSlider.ActualWidth;
+        double sliderWidth = TimelineSeekBar.ActualWidth;
         if (sliderWidth <= 24) return;
 
-        const double thumbWidth = 18.0;
-        double trackPadding = thumbWidth / 2.0;
+        const double trackPadding = 0.0;
         double usableTrackWidth = sliderWidth - (trackPadding * 2.0);
         if (usableTrackWidth <= 0) return;
 

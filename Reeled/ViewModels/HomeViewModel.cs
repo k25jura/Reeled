@@ -220,6 +220,7 @@ public partial class HomeViewModel : ObservableObject
 
     partial void OnSelectedDirectoryChanged(DirectoryNode? value)
     {
+        QueueTabSync();
         OnPropertyChanged(nameof(CurrentDirectoryTitle));
         OnPropertyChanged(nameof(CurrentDirectoryPath));
         OnPropertyChanged(nameof(CanOpenDirectoryInExplorer));
@@ -392,7 +393,7 @@ public partial class HomeViewModel : ObservableObject
         _indexerService.MetadataBatchCompleted += () => _dispatcherQueue.TryEnqueue(() =>
         {
             // Durations arrive in the background; re-sort once they're known so "Duration" ordering is correct
-            if (SortIndex == 4)
+            if (SortIndex is 4 or 6)
             {
                 ApplyFilterAndSort();
             }
@@ -402,6 +403,11 @@ public partial class HomeViewModel : ObservableObject
         {
             _dispatcherQueue.TryEnqueue(RefreshLocalization);
         };
+
+        InitializeTabs();
+        // Sections can be shown right away; a folder waits for the folder tree to be loaded
+        if (ActiveTab.Section != NavigationSection.Folder) _currentSection = ActiveTab.Section;
+        _searchQuery = ActiveTab.SearchQuery;
     }
 
     public async Task InitializeAsync()
@@ -541,7 +547,8 @@ public partial class HomeViewModel : ObservableObject
             return;
         }
 
-        IsLoading = true;
+        // A quiet rescan (after a folder was renamed or deleted from here) keeps the clips on screen
+        if (!_quietSync) IsLoading = true;
         StatusMessage = "Loading watch directories...";
 
         var expandedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -615,6 +622,7 @@ public partial class HomeViewModel : ObservableObject
         // so folders blinked out and back in on each refresh and lost their realized containers
         MergeDirectoryNodes(Directories, processedTrees);
         OnPropertyChanged(nameof(HasDirectories));
+        RefreshGameIcons();
 
         _loadedWatchDirectories.Clear();
         foreach (var d in settings.WatchDirectories)
@@ -623,6 +631,9 @@ public partial class HomeViewModel : ObservableObject
         }
 
         IsLoading = false;
+
+        // The first load brings up the tab that was active last time
+        if (await RestoreActiveTabOnFirstSyncAsync()) return;
 
         // Restore last active selection or default to Home
         if (CurrentSection == NavigationSection.Folder && !string.IsNullOrEmpty(settings.LastActiveDirectory))
@@ -932,6 +943,7 @@ public partial class HomeViewModel : ObservableObject
 
     private static void ApplyPersistedState(GameClip clip, AppSettings settings)
     {
+        ApplyPersistedTags(clip, settings);
         if (settings.Favorites.Contains(clip.FilePath))
         {
             clip.IsFavorite = true;
@@ -977,6 +989,11 @@ public partial class HomeViewModel : ObservableObject
             settings.ResumePositions[newPath] = position;
             changed = true;
         }
+        if (settings.ClipTags.Remove(oldPath, out var tags))
+        {
+            settings.ClipTags[newPath] = tags;
+            changed = true;
+        }
 
         if (changed)
         {
@@ -991,6 +1008,7 @@ public partial class HomeViewModel : ObservableObject
         changed |= settings.Bookmarks.Remove(path);
         changed |= settings.CustomClipTitles.Remove(path);
         changed |= settings.ResumePositions.Remove(path);
+        changed |= settings.ClipTags.Remove(path);
         if (changed)
         {
             _ = _storageService.SaveSettingsAsync(settings);
@@ -1004,9 +1022,22 @@ public partial class HomeViewModel : ObservableObject
         var clip = FindClip(oldPath);
         if (clip == null) return;
 
+        string oldDirectory = clip.DirectoryPath;
         clip.FilePath = newPath;
         clip.FileName = Path.GetFileName(newPath);
         clip.DirectoryPath = Path.GetDirectoryName(newPath) ?? clip.DirectoryPath;
+
+        if (!PathUtil.PathEquals(oldDirectory, clip.DirectoryPath))
+        {
+            // A move to another folder: the folder counts follow, and the clip leaves (or joins) the folder on screen
+            AdjustFolderCounts(oldPath, -1);
+            AdjustFolderCounts(newPath, +1);
+            bool shown = Clips.Contains(clip);
+            bool belongs = ClipBelongsToCurrentView(clip);
+            if (shown && !belongs) Clips.Remove(clip);
+            else if (!shown && belongs) Clips.Insert(0, clip);
+            UpdateCounts();
+        }
         ApplyFilterAndSort();
     }
 
@@ -1187,7 +1218,8 @@ public partial class HomeViewModel : ObservableObject
 
     partial void OnSearchQueryChanged(string value)
     {
-        ApplyFilterAndSort();
+        if (!_suppressFilter) ApplyFilterAndSort();
+        QueueTabSync();
     }
 
     partial void OnSortIndexChanged(int value)
@@ -1209,8 +1241,10 @@ public partial class HomeViewModel : ObservableObject
             query = query.Where(c => c.FileName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                                      c.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
                                      Path.GetFileName(c.DirectoryPath).Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                                     c.Tags.Any(t => t.Contains(term, StringComparison.CurrentCultureIgnoreCase)) ||
                                      c.Bookmarks.Any(b => b.Label.Contains(term, StringComparison.OrdinalIgnoreCase)));
         }
+        query = ApplyTagFilters(query);
 
         query = SortIndex switch
         {
@@ -1220,6 +1254,8 @@ public partial class HomeViewModel : ObservableObject
             3 => query.OrderByDescending(c => c.DisplayName, StringComparer.OrdinalIgnoreCase),
             4 => query.OrderByDescending(c => c.Duration),
             5 => query.OrderByDescending(c => c.FileSizeBytes),
+            6 => query.OrderBy(c => c.Duration),
+            7 => query.OrderBy(c => c.FileSizeBytes),
             _ => query
         };
 
@@ -1268,6 +1304,8 @@ public partial class HomeViewModel : ObservableObject
             3 => groups.OrderByDescending(g => g.Max(c => c.DisplayName), StringComparer.OrdinalIgnoreCase),
             4 => groups.OrderByDescending(g => g.Max(c => c.Duration)),
             5 => groups.OrderByDescending(g => g.Max(c => c.FileSizeBytes)),
+            6 => groups.OrderBy(g => g.Min(c => c.Duration)),
+            7 => groups.OrderBy(g => g.Min(c => c.FileSizeBytes)),
             _ => groups.OrderByDescending(g => g.Max(c => c.EffectiveDate))
         };
 
@@ -1363,34 +1401,40 @@ public partial class HomeViewModel : ObservableObject
                 _ = SyncDirectoriesAsync(forceReload: true);
                 return;
             }
-            if (FindClip(filePath) != null) return;
-            if (!_loadedWatchDirectories.Any(root => PathUtil.IsUnder(filePath, root))) return;
-
-            FileInfo fileInfo;
-            try
-            {
-                fileInfo = new FileInfo(filePath);
-                if (!fileInfo.Exists) return;
-            }
-            catch
-            {
-                return;
-            }
-
-            var clip = GameClip.FromFileInfo(fileInfo);
-            ApplyPersistedState(clip, _storageService.CurrentSettings);
-            AllClips.Insert(0, clip);
-            AdjustFolderCounts(filePath, +1);
-
-            if (ClipBelongsToCurrentView(clip))
-            {
-                Clips.Insert(0, clip);
-                ApplyFilterAndSort();
-            }
-            UpdateCounts();
-
-            _ = Task.Run(() => _metadataService.PopulateMetadataAsync(clip));
+            AddClipCore(filePath);
         });
+    }
+
+    /// <summary>Adds a clip that appeared on disk to the library (no-op if it is known or outside the watch folders). UI thread.</summary>
+    private void AddClipCore(string filePath)
+    {
+        if (FindClip(filePath) != null) return;
+        if (!_loadedWatchDirectories.Any(root => PathUtil.IsUnder(filePath, root))) return;
+
+        FileInfo fileInfo;
+        try
+        {
+            fileInfo = new FileInfo(filePath);
+            if (!fileInfo.Exists) return;
+        }
+        catch
+        {
+            return;
+        }
+
+        var clip = GameClip.FromFileInfo(fileInfo);
+        ApplyPersistedState(clip, _storageService.CurrentSettings);
+        AllClips.Insert(0, clip);
+        AdjustFolderCounts(filePath, +1);
+
+        if (ClipBelongsToCurrentView(clip))
+        {
+            Clips.Insert(0, clip);
+            ApplyFilterAndSort();
+        }
+        UpdateCounts();
+
+        _ = Task.Run(() => _metadataService.PopulateMetadataAsync(clip));
     }
 
     private void OnClipDeleted(string filePath)

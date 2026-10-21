@@ -60,4 +60,24 @@ public interface ILibVlcPlaybackService : IDisposable
     void SetMute(bool isMuted);
     void ToggleMute();
     void SetPlaybackRate(float rate);
+
+    // Session effects (LibVlcPlaybackService.Effects.cs)
+    Reeled.Models.VideoAdjustments VideoAdjust { get; }
+    string? AspectRatio { get; }
+    long AudioDelayMs { get; }
+    long SubtitleDelayMs { get; }
+    void SetVideoAdjustments(Reeled.Models.VideoAdjustments adjust);
+    void SetAspectRatio(string? ratio);
+    int EqualizerPresetCount { get; }
+    string EqualizerPresetName(int index);
+    float[] EqualizerBandFrequencies();
+    (float[] Bands, float Preamp) EqualizerPreset(int index);
+    void SetEqualizer(float[]? bands, float preamp);
+    void SetAudioDelay(long delayMs);
+    IReadOnlyList<(string Id, string Name)> GetAudioOutputDevices();
+    string? CurrentAudioOutputDevice { get; }
+    bool SetAudioOutputDevice(string deviceId);
+    Task<string?> TakeSnapshotAsync(string folder, string baseName);
+    Reeled.Models.SubtitleStyle SubtitleStyle { get; }
+    void SetSubtitleStyle(Reeled.Models.SubtitleStyle style);
 }

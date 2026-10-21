@@ -17,12 +17,39 @@ public class AppSettings
     public double DefaultPlaybackSpeed { get; set; } = 1.0;
     public bool RememberPlaybackSpeed { get; set; } = true;
     public HashSet<string> Favorites { get; set; } = new();
+    /// <summary>User tags per clip path.</summary>
+    public Dictionary<string, List<string>> ClipTags { get; set; } = new();
+    /// <summary>Every tag the user has made, in their order (kept even when no clip uses it).</summary>
+    public List<string> TagLibrary { get; set; } = new();
+    /// <summary>Game icons per folder name (lower-case), found on Steam or picked by the user.</summary>
+    public Dictionary<string, GameIconInfo> FolderGameIcons { get; set; } = new();
+    /// <summary>Look up icons for game folders (Steam first, then SteamGridDB and IGDB when set up).</summary>
+    public bool LookUpGameIcons { get; set; } = true;
+    /// <summary>SteamGridDB API key, encrypted for this Windows user (DPAPI, base64). Empty = not set up.</summary>
+    public string? ProtectedSteamGridDbKey { get; set; }
+    /// <summary>IGDB (Twitch) client id; an identifier rather than a secret.</summary>
+    public string? IgdbClientId { get; set; }
+    /// <summary>IGDB (Twitch) client secret, encrypted for this Windows user (DPAPI, base64).</summary>
+    public string? ProtectedIgdbClientSecret { get; set; }
     public Dictionary<string, List<ClipBookmark>> Bookmarks { get; set; } = new();
     public RepeatMode RepeatMode { get; set; } = RepeatMode.Off;
     public RepeatMode DefaultRepeatMode { get; set; } = RepeatMode.Off;
     public bool EnableClipCache { get; set; } = true;
     public bool EnableSkeletonLoading { get; set; } = true;
     public double SidebarWidth { get; set; } = 316;
+    /// <summary>Which window edge the library navigation sits on.</summary>
+    public SidebarPosition SidebarPosition { get; set; } = SidebarPosition.Left;
+    public NavSectionVisibility FavoritesNavVisibility { get; set; } = NavSectionVisibility.Always;
+    public NavSectionVisibility MomentsNavVisibility { get; set; } = NavSectionVisibility.Always;
+    /// <summary>Card grid or a details list.</summary>
+    public LibraryViewMode LibraryViewMode { get; set; } = LibraryViewMode.Grid;
+    /// <summary>Show the tab bar even with a single tab; otherwise it appears once a second tab is open.</summary>
+    public bool AlwaysShowTabs { get; set; } = false;
+    /// <summary>Open the tabs that were open when the app was closed.</summary>
+    public bool ReopenTabs { get; set; } = true;
+    /// <summary>The library's open tabs, left to right (saved when <see cref="ReopenTabs"/> is on).</summary>
+    public List<LibraryTabState> OpenTabs { get; set; } = new();
+    public int ActiveTabIndex { get; set; }
     /// <summary>Last normal (not maximized) window bounds in physical pixels; 0 width = never saved.</summary>
     public int WindowX { get; set; }
     public int WindowY { get; set; }
@@ -30,6 +57,14 @@ public class AppSettings
     public int WindowHeight { get; set; }
     public bool WindowMaximized { get; set; }
     public string AppTheme { get; set; } = "Default";
+    /// <summary>"System" follows the Windows accent; otherwise a #RRGGBB colour (preset or custom).</summary>
+    public string AccentColor { get; set; } = "System";
+    /// <summary>Colours picked with the custom picker, newest first, so they can be reused.</summary>
+    public List<string> RecentAccentColors { get; set; } = new();
+    /// <summary>Interface zoom (Ctrl + / Ctrl - / Ctrl 0), 1.0 = 100%.</summary>
+    public double UiZoom { get; set; } = 1.0;
+    /// <summary>The window's close button returns to the library while a clip is playing.</summary>
+    public bool CloseButtonReturnsToLibrary { get; set; } = false;
     public string Language { get; set; } = "System";
     public bool AutoCheckUpdates { get; set; } = true;
     public int AutoHideControlsSeconds { get; set; } = 2;
@@ -43,6 +78,7 @@ public class AppSettings
     public DateGroupingMode DateGrouping { get; set; } = DateGroupingMode.None;
     public ViewDensityMode ViewDensity { get; set; } = ViewDensityMode.Comfortable;
     public bool MetadataHoverOnly { get; set; } = false;
+    /// <summary>0 newest, 1 oldest, 2 A-Z, 3 Z-A, 4 longest, 5 largest, 6 shortest, 7 smallest.</summary>
     public int SortIndex { get; set; } = 0;
     public bool ReduceMotion { get; set; } = false;
     public string? GitHubToken { get; set; }
@@ -59,8 +95,77 @@ public class AppSettings
     public WheelAction PlayerWheelAction { get; set; } = WheelAction.Volume;
     /// <summary>GPU video decoding; turning it off helps with files that show artifacts or green frames.</summary>
     public bool HardwareDecoding { get; set; } = true;
+    public PlayerToolbarLayout PlayerToolbar { get; set; } = PlayerToolbarLayout.Default;
+    public OsdPreferences Osd { get; set; } = new();
+    public PlayerSessionPreferences PlayerSession { get; set; } = new();
+    /// <summary>Where snapshots go; empty = Pictures\Reeled.</summary>
+    public string? SnapshotFolder { get; set; }
     /// <summary>Last playback position (ms) per clip path, for resuming long clips.</summary>
     public Dictionary<string, long> ResumePositions { get; set; } = new();
+}
+
+/// <summary>One saved library tab: what it shows (a section, or a folder), plus its search.</summary>
+public class LibraryTabState
+{
+    /// <summary>"Home", "Favorites", "SavedMoments" or "Folder".</summary>
+    public string Section { get; set; } = "Home";
+    public string? FolderPath { get; set; }
+    public string? SearchQuery { get; set; }
+}
+
+public enum GameIconSource
+{
+    /// <summary>Looked up and nothing confident was found.</summary>
+    None = 0,
+    /// <summary>Found automatically; <see cref="GameIconInfo.Provider"/> says where (the name is historical).</summary>
+    Steam = 1,
+    /// <summary>Picked by the user from search results of any provider.</summary>
+    SteamManual = 2,
+    /// <summary>An image or program icon the user chose.</summary>
+    Custom = 3,
+    /// <summary>The user removed the icon; never look it up again.</summary>
+    Disabled = 4
+}
+
+/// <summary>Where a game icon comes from. Steam is 0 so icons saved before providers existed stay Steam.</summary>
+public enum IconProvider
+{
+    Steam = 0,
+    SteamGridDb = 1,
+    Igdb = 2
+}
+
+public class GameIconInfo
+{
+    public GameIconSource Source { get; set; }
+    public IconProvider Provider { get; set; } = IconProvider.Steam;
+    /// <summary>The game's id at <see cref="Provider"/> (Steam app id, SteamGridDB game id or IGDB id).</summary>
+    public int? AppId { get; set; }
+    public string? GameName { get; set; }
+    /// <summary>Cached image on disk.</summary>
+    public string? ImagePath { get; set; }
+    public DateTime CheckedUtc { get; set; }
+}
+
+public enum SidebarPosition
+{
+    Left = 0,
+    Right = 1,
+    Top = 2,
+    Bottom = 3
+}
+
+public enum NavSectionVisibility
+{
+    Always = 0,
+    WhenNotEmpty = 1,
+    Hidden = 2
+}
+
+public enum LibraryViewMode
+{
+    Grid = 0,
+    List = 1
 }
 
 public enum WheelAction

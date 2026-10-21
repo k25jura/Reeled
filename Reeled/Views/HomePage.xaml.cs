@@ -1,3 +1,4 @@
+using Reeled.Helpers;
 using System;
 using System.Collections.Generic;
 using Microsoft.UI.Xaml;
@@ -26,6 +27,11 @@ public sealed partial class HomePage : Page
         InitializeComponent();
         ViewModel.RequestScrollToTop += ScrollClipsToTop;
         ViewModel.ViewContentReplaced += OnViewContentReplaced;
+        WireTags();
+        WireGameIcons();
+        WireTabs();
+        WireFileOps();
+        WireMarquee();
 
         Helpers.CursorHelper.SetElementCursor(SidebarResizeHandle, Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast));
 
@@ -40,8 +46,10 @@ public sealed partial class HomePage : Page
             {
                 _sidebarWidth = ViewModel.SidebarWidth;
             }
+            ApplyLayoutSettings();
             UpdateActiveIndicator(animate: false);
-            AnimateSidebar(ViewModel.IsSidebarOpen, animate: false);
+            if (!IsHorizontalNav) AnimateSidebar(ViewModel.IsSidebarOpen, animate: false);
+            UpdateLibraryTitleBar();
             UpdateLogo(ActualTheme);
             UpdateNavTabVisuals();
             ApplyLocalization();
@@ -64,6 +72,7 @@ public sealed partial class HomePage : Page
 
             RegisterLibraryShortcuts();
             WireUpdateNotifications();
+            WireLayoutHandlers();
 
             if (ClipsGridView != null)
             {
@@ -137,7 +146,9 @@ public sealed partial class HomePage : Page
             else if (e.PropertyName == nameof(HomeViewModel.SortIndex))
             {
                 UpdateSortButtonUI();
+                UpdateListSortIndicators();
                 ScrollClipsToTop();
+                PlayContentEnter();
             }
             else if (e.PropertyName == nameof(HomeViewModel.ViewDensity))
             {
@@ -165,7 +176,7 @@ public sealed partial class HomePage : Page
             }
             else if (e.PropertyName == nameof(HomeViewModel.ShowSkeletonLoading) || e.PropertyName == nameof(HomeViewModel.IsLoading))
             {
-                UpdateSkeletonAnimations();
+                ApplyLoadingState(animate: true);
                 if (!ViewModel.ShowSkeletonLoading)
                 {
                     _clipsScrollViewer = null;
@@ -187,6 +198,8 @@ public sealed partial class HomePage : Page
         this.RequestedTheme = theme;
         UpdateLogo(theme);
         UpdateNavTabVisuals();
+        // The top/bottom bar is built in code with theme-resolved brushes
+        if (IsHorizontalNav) BuildHorizontalNav(snapIndicator: false);
 
         if (ClipsSearchBox != null)
         {
@@ -196,6 +209,12 @@ public sealed partial class HomePage : Page
         if (SortOptionsButton != null)
         {
             SortOptionsButton.RequestedTheme = theme;
+        }
+
+        if (TagsFilterButton != null)
+        {
+            TagsFilterButton.RequestedTheme = theme;
+            UpdateTagsFilterButton();
         }
 
         if (ViewOptionsButton != null)
@@ -327,7 +346,7 @@ public sealed partial class HomePage : Page
 
         ClipsGroupedSource.Source = null;
         ClipsGroupedSource.Source = ViewModel.GroupedClips;
-        ClipsGridView.ItemsSource = ClipsGroupedSource.View;
+        SetClipsItemsSource(ClipsGroupedSource.View);
 
         _activeGroupWrapGrids.Clear();
         _lastCalculatedWidth = -1;
@@ -408,7 +427,6 @@ public sealed partial class HomePage : Page
             if (HomeNavText != null) HomeNavText.Text = loc["Nav_Home"];
             if (FavoritesNavText != null) FavoritesNavText.Text = loc["Nav_Favorites"];
             if (SavedMomentsNavText != null) SavedMomentsNavText.Text = loc["Nav_SavedMoments"];
-            if (OpenFileNavText != null) OpenFileNavText.Text = loc["Nav_OpenFile"];
             if (FoldersHeaderNavText != null) FoldersHeaderNavText.Text = loc["Nav_Folders"];
             if (FoldersAddNavText != null) FoldersAddNavText.Text = loc["Nav_AddFolder"];
             if (SettingsNavText != null) SettingsNavText.Text = loc["Nav_Settings"];
@@ -417,7 +435,9 @@ public sealed partial class HomePage : Page
             if (CollapseSidebarButton != null) ToolTipService.SetToolTip(CollapseSidebarButton, loc["Tooltip_CollapseSidebar"]);
             if (ShowSidebarButton != null) ToolTipService.SetToolTip(ShowSidebarButton, loc["Tooltip_ShowSidebar"]);
             if (AddWatchFolderButton != null) ToolTipService.SetToolTip(AddWatchFolderButton, loc["Tooltip_AddWatchFolder"]);
-            if (OpenFileNavButton != null) ToolTipService.SetToolTip(OpenFileNavButton, loc["Tooltip_OpenFile"]);
+            if (OpenFileHeaderButton != null) ToolTipService.SetToolTip(OpenFileHeaderButton, loc["Tooltip_OpenFile"] + " (Ctrl+O)");
+            BuildHorizontalNav();
+            RefreshTabsLocalization();
             if (RefreshClipsButton != null) ToolTipService.SetToolTip(RefreshClipsButton, loc["Tooltip_RefreshClips"]);
             if (FeedbackButton != null) ToolTipService.SetToolTip(FeedbackButton, loc["Feedback_Tooltip"]);
             if (ExplorerHyperlinkButton != null) ToolTipService.SetToolTip(ExplorerHyperlinkButton, loc["Tooltip_OpenInExplorer"]);
@@ -440,7 +460,9 @@ public sealed partial class HomePage : Page
             if (SortNameAZItem != null) SortNameAZItem.Text = loc["Sort_TitleAZ"];
             if (SortNameZAItem != null) SortNameZAItem.Text = loc["Sort_TitleZA"];
             if (SortDurationItem != null) SortDurationItem.Text = loc["Sort_Duration"];
+            if (SortDurationShortestItem != null) SortDurationShortestItem.Text = loc["Sort_DurationShortest"];
             if (SortFileSizeItem != null) SortFileSizeItem.Text = loc["Sort_FileSize"];
+            if (SortFileSizeSmallestItem != null) SortFileSizeSmallestItem.Text = loc["Sort_FileSizeSmallest"];
 
             // View Options Menu Items
             if (ViewOptionsText != null) ViewOptionsText.Text = loc["View_Options"];
@@ -459,6 +481,7 @@ public sealed partial class HomePage : Page
 
             UpdateSortButtonUI();
             UpdateViewOptionsMenuUI();
+            UpdateTagsFilterButton();
 
             // Folders Empty Fallback Prompt
             if (FoldersFallbackTitleText != null) FoldersFallbackTitleText.Text = loc["Folders_FallbackTitle"];
@@ -517,6 +540,10 @@ public sealed partial class HomePage : Page
         if (SidebarLogoSvg.UriSource != uri)
         {
             SidebarLogoSvg.UriSource = uri;
+        }
+        if (HorizontalNavLogoSvg != null && HorizontalNavLogoSvg.UriSource != uri)
+        {
+            HorizontalNavLogoSvg.UriSource = uri;
         }
     }
 
@@ -1213,6 +1240,7 @@ public sealed partial class HomePage : Page
 
     private void OnPageSizeChanged(object sender, SizeChangedEventArgs e)
     {
+        if (IsHorizontalNav) return;
         double scale = XamlRoot?.RasterizationScale ?? 1.0;
         if (scale <= 0) scale = 1.0;
 
@@ -1246,6 +1274,7 @@ public sealed partial class HomePage : Page
 
     private void AnimateSidebar(bool isOpen, bool animate = true)
     {
+        if (IsHorizontalNav) return;
         if (IsReduceMotionEnabled()) animate = false;
         _sidebarStoryboard?.Stop();
         _sidebarStoryboard = null;
@@ -1261,8 +1290,11 @@ public sealed partial class HomePage : Page
         }
 
         // Where things are on screen right now, so an interrupted toggle continues from there
-        double fromSidebarX = SidebarContainer.Visibility == Visibility.Visible ? SidebarTranslate.X : -width;
-        double contentVisualX = SidebarSpacer.Width + MainContentTranslate.X;
+        bool right = IsSidebarRight;
+        double closedX = right ? width : -width;
+        double fromSidebarX = SidebarContainer.Visibility == Visibility.Visible ? SidebarTranslate.X : closedX;
+        double oldSpacer = SidebarSpacer.Width;
+        double contentVisualX = oldSpacer + MainContentTranslate.X;
 
         // Layout changes exactly once, up front: the spacer snaps to its final width and the clip grid
         // reflows to its final column count immediately. Everything that moves afterwards is a
@@ -1273,7 +1305,7 @@ public sealed partial class HomePage : Page
         _lastColumnCount = -1;
         UpdateGridResponsiveLayout(forcedGridWidth: Math.Max(0, ActualWidth - targetSpacer));
 
-        double targetSidebarX = isOpen ? 0.0 : -width;
+        double targetSidebarX = isOpen ? 0.0 : closedX;
         SidebarContainer.Visibility = Visibility.Visible;
 
         if (!animate)
@@ -1295,9 +1327,11 @@ public sealed partial class HomePage : Page
         // Keep the content visually where it was, then let it glide into its new slot with the sidebar.
         // The toolbar is counter-translated by the same amount, so it stays pinned to the window's right edge
         // instead of riding along with the content.
-        double contentFrom = contentVisualX - targetSpacer;
+        // On the right the content's left edge never moves; only the toolbar rides with the sidebar
+        double contentFrom = right ? 0.0 : contentVisualX - targetSpacer;
+        double toolbarFrom = right ? HeaderToolbarTranslate.X + (targetSpacer - oldSpacer) : -contentFrom;
         MainContentTranslate.X = contentFrom;
-        HeaderToolbarTranslate.X = -contentFrom;
+        HeaderToolbarTranslate.X = toolbarFrom;
         SidebarTranslate.X = fromSidebarX;
 
         double duration = isOpen ? Helpers.Motion.Long + 60 : Helpers.Motion.Long;
@@ -1328,6 +1362,8 @@ public sealed partial class HomePage : Page
             MainContentTranslate.X = 0.0;
             HeaderToolbarTranslate.X = 0.0;
             SidebarContentBorder.Opacity = 1.0;
+            // The content has settled where it will stay: the tab strip knows where the title bar drags
+            UpdateLibraryTitleBar();
             if (!isOpen)
             {
                 SidebarContainer.Visibility = Visibility.Collapsed;
@@ -1401,6 +1437,11 @@ public sealed partial class HomePage : Page
         SearchToggleButton.Width = h - 2;
         SearchClosedWidth = h;
         if (!_isSearchOpen) SearchHost.Width = h;
+        if (OpenFileHeaderButton != null)
+        {
+            OpenFileHeaderButton.Height = h;
+            OpenFileHeaderButton.Width = h;
+        }
     }
 
     private void OnSearchToggleClick(object sender, RoutedEventArgs e)
@@ -1481,7 +1522,7 @@ public sealed partial class HomePage : Page
         if (_isResizingSidebar)
         {
             double currentX = e.GetCurrentPoint(this).Position.X;
-            double delta = currentX - _resizeStartPointerX;
+            double delta = (currentX - _resizeStartPointerX) * (IsSidebarRight ? -1 : 1);
             double newWidth = Math.Clamp(_resizeStartWidth + delta, 220.0, 500.0);
 
             _sidebarWidth = newWidth;
@@ -1563,11 +1604,19 @@ public sealed partial class HomePage : Page
                 glyph = "\uE8D2";
                 break;
             case 4:
-                label = loc?["Sort_Duration"] ?? "Duration";
+                label = loc?["Sort_Duration"] ?? "Duration (longest)";
                 glyph = "\uE916";
                 break;
             case 5:
-                label = loc?["Sort_FileSize"] ?? "File Size";
+                label = loc?["Sort_FileSize"] ?? "Size (largest)";
+                glyph = "\uE74C";
+                break;
+            case 6:
+                label = loc?["Sort_DurationShortest"] ?? "Duration (shortest)";
+                glyph = "\uE916";
+                break;
+            case 7:
+                label = loc?["Sort_FileSizeSmallest"] ?? "Size (smallest)";
                 glyph = "\uE74C";
                 break;
             default:
@@ -1584,9 +1633,7 @@ public sealed partial class HomePage : Page
     {
         if (sender is MenuFlyoutItem item && item.Tag is string tagStr && int.TryParse(tagStr, out int sortIndex))
         {
-            ViewModel.SortIndex = sortIndex;
-            UpdateSortButtonUI();
-            ScrollClipsToTop();
+            ChangeSortAnimated(sortIndex);
         }
     }
 
@@ -1828,14 +1875,14 @@ public sealed partial class HomePage : Page
         if (ClipsGridView == null) return;
         if (ViewModel.DateGrouping == DateGroupingMode.None)
         {
-            ClipsGridView.ItemsSource = ViewModel.FilteredClips;
+            SetClipsItemsSource(ViewModel.FilteredClips);
         }
         else
         {
             if (ClipsGroupedSource != null)
             {
                 ClipsGroupedSource.Source = ViewModel.GroupedClips;
-                ClipsGridView.ItemsSource = ClipsGroupedSource.View;
+                SetClipsItemsSource(ClipsGroupedSource.View);
             }
         }
         _lastCalculatedWidth = -1;
@@ -2085,7 +2132,7 @@ public sealed partial class HomePage : Page
                 // visible card, so release only once no container shows the clip anymore.
                 DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
                 {
-                    if (ClipsGridView?.ContainerFromItem(recycledClip) == null)
+                    if (ActiveClipsView?.ContainerFromItem(recycledClip) == null)
                     {
                         recycledClip.Thumbnail = null;
                     }
@@ -2093,6 +2140,8 @@ public sealed partial class HomePage : Page
             }
             return;
         }
+
+        if (args.ItemContainer is Microsoft.UI.Xaml.Controls.Primitives.SelectorItem dragContainer) HookClipDragVisual(dragContainer);
 
         if (args.Item is Models.GameClip clip && clip.Thumbnail == null)
         {
@@ -2391,8 +2440,8 @@ public sealed partial class HomePage : Page
 
     private void StartAutoscroll(Windows.Foundation.Point origin)
     {
-        _clipsScrollViewer ??= FindVisualChild<ScrollViewer>(ClipsGridView);
-        if (_clipsScrollViewer == null) return;
+        _autoscrollViewer = ActiveScrollViewer();
+        if (_autoscrollViewer == null) return;
 
         _isAutoscrolling = true;
         _autoscrollOrigin = origin;
@@ -2486,6 +2535,12 @@ public sealed partial class HomePage : Page
             return true;
         });
 
+        Add(Windows.System.VirtualKey.O, Windows.System.VirtualKeyModifiers.Control, () =>
+        {
+            OnOpenVideoFileClick(this, new RoutedEventArgs());
+            return true;
+        });
+
         Add(Windows.System.VirtualKey.F5, Windows.System.VirtualKeyModifiers.None, () =>
         {
             _ = ViewModel.RefreshClipsAsync();
@@ -2494,19 +2549,35 @@ public sealed partial class HomePage : Page
 
         Add(Windows.System.VirtualKey.Delete, Windows.System.VirtualKeyModifiers.None, () =>
         {
-            var clip = GetShortcutTargetClip();
-            if (clip == null || IsTextInputFocused()) return false;
-            _ = ShowDeleteConfirmDialogAsync(clip);
+            if (IsTextInputFocused()) return false;
+            // Selected clips go first; only without a selection does a focused folder in the tree get the key
+            var clips = IsSelecting ? _selection.ToList() : GetShortcutTargetClip() is { } target ? new List<GameClip> { target } : new List<GameClip>();
+            if (!IsSelecting && TryGetFocusedTreeFolder(out var folder))
+            {
+                _ = DeleteFolderAsync(folder);
+                return true;
+            }
+            if (clips.Count == 0) return false;
+            _ = ShowDeleteConfirmDialogAsync(clips);
             return true;
         });
 
         Add(Windows.System.VirtualKey.F2, Windows.System.VirtualKeyModifiers.None, () =>
         {
-            var clip = GetShortcutTargetClip();
-            if (clip == null || IsTextInputFocused()) return false;
+            if (IsTextInputFocused()) return false;
+            if (!IsSelecting && TryGetFocusedTreeFolder(out var folder))
+            {
+                _ = RenameFolderAsync(folder);
+                return true;
+            }
+            var clip = IsSelecting ? (_selection.Count == 1 ? _selection[0] : null) : GetShortcutTargetClip();
+            if (clip == null) return false;
             _ = ShowLocalRenameDialogAsync(clip);
             return true;
         });
+
+        RegisterFileOpShortcuts(Add);
+        RegisterTabShortcuts(Add);
 
         // Accelerator tooltips would otherwise be appended to the page's tooltips
         KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
@@ -2538,33 +2609,37 @@ public sealed partial class HomePage : Page
 
     private void OnAutoscrollRendering(object? sender, object e)
     {
-        if (!_isAutoscrolling || _clipsScrollViewer == null) return;
+        if (!_isAutoscrolling || _autoscrollViewer == null) return;
 
         const double DeadZone = 12.0;
         if (Math.Abs(_autoscrollDeltaY) <= DeadZone) return;
 
         double effectiveDelta = _autoscrollDeltaY > 0 ? _autoscrollDeltaY - DeadZone : _autoscrollDeltaY + DeadZone;
         double speed = Math.Sign(effectiveDelta) * Math.Min(50.0, Math.Pow(Math.Abs(effectiveDelta) / 8.0, 1.35));
-        double targetOffset = _clipsScrollViewer.VerticalOffset + speed;
-        _clipsScrollViewer.ChangeView(null, targetOffset, null, disableAnimation: true);
+        double targetOffset = _autoscrollViewer.VerticalOffset + speed;
+        _autoscrollViewer.ChangeView(null, targetOffset, null, disableAnimation: true);
     }
 
     private void ScrollClipsToTop()
     {
-        if (ClipsGridView == null) return;
-        EnsureScrollViewerHooked();
-        _clipsScrollViewer?.ChangeView(null, 0.0, null, disableAnimation: true);
+        // A tab that is being shown holds its own scroll position (see BeginScrollRestore)
+        if (ClipsGridView == null || ScrollRestoreActive) return;
+        ActiveScrollViewer()?.ChangeView(null, 0.0, null, disableAnimation: true);
 
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
-            if (ClipsGridView == null) return;
-            EnsureScrollViewerHooked();
-            _clipsScrollViewer?.ChangeView(null, 0.0, null, disableAnimation: true);
+            if (ClipsGridView == null || ScrollRestoreActive) return;
+            ActiveScrollViewer()?.ChangeView(null, 0.0, null, disableAnimation: true);
         });
     }
 
     private async void OnHomeTabClick(object sender, RoutedEventArgs e)
     {
+        if (sender is Button && IsCtrlDown())
+        {
+            OpenSectionInNewTab(NavigationSection.Home);
+            return;
+        }
         DirectoriesTreeView.SelectedItem = null;
         await ViewModel.SelectHomeAsync();
         ScrollClipsToTop();
@@ -2573,6 +2648,11 @@ public sealed partial class HomePage : Page
 
     private async void OnFavoritesTabClick(object sender, RoutedEventArgs e)
     {
+        if (sender is Button && IsCtrlDown())
+        {
+            OpenSectionInNewTab(NavigationSection.Favorites);
+            return;
+        }
         DirectoriesTreeView.SelectedItem = null;
         await ViewModel.SelectFavoritesAsync();
         ScrollClipsToTop();
@@ -2581,6 +2661,11 @@ public sealed partial class HomePage : Page
 
     private async void OnSavedMomentsTabClick(object sender, RoutedEventArgs e)
     {
+        if (sender is Button && IsCtrlDown())
+        {
+            OpenSectionInNewTab(NavigationSection.SavedMoments);
+            return;
+        }
         DirectoriesTreeView.SelectedItem = null;
         await ViewModel.SelectSavedMomentsAsync();
         ScrollClipsToTop();
@@ -2969,6 +3054,7 @@ public sealed partial class HomePage : Page
         }
 
         Item("FolderMenu_Open", "\uE8E5", () => SelectFolderFromMenu(node));
+        Item("Tabs_OpenInNewTab", "\uE8A7", () => OpenFolderInNewTab(node));
         if (node.HasSubDirectories)
         {
             bool expanded = node.IsExpanded && !_collapsingNodes.Contains(node);
@@ -2982,6 +3068,8 @@ public sealed partial class HomePage : Page
         flyout.Items.Add(new MenuFlyoutSeparator());
         Item("FolderMenu_RevealExplorer", "\uEC50", () => ViewModel.OpenFolderInExplorer(node));
         Item("FolderMenu_CopyPath", "\uE8C8", () => ViewModel.CopyFolderPath(node));
+        AddFolderFileMenuItems(flyout.Items, node);
+        AddGameIconMenu(flyout.Items, node);
 
         // Watch folders can be reordered; subfolders follow the file system order
         int index = ViewModel.Directories.IndexOf(node);
@@ -3421,6 +3509,14 @@ public sealed partial class HomePage : Page
 
         if (targetNode != null)
         {
+            // Ctrl+click opens the folder in a new tab and leaves this one as it is
+            if (IsCtrlDown())
+            {
+                OpenFolderInNewTab(targetNode);
+                SelectTreeFolderFor(ViewModel.ActiveTab);
+                return;
+            }
+
             sender.SelectedItem = targetNode;
             bool isAlreadySelected = (ViewModel.CurrentSection == NavigationSection.Folder && ViewModel.SelectedDirectory == targetNode);
 
@@ -3510,6 +3606,8 @@ public sealed partial class HomePage : Page
     {
         if (e.ClickedItem is GameClip clip)
         {
+            // Ctrl/Shift+click and clicks while clips are selected pick clips; otherwise a click plays
+            if (HandleSelectionClick(clip)) return;
             ViewModel.PlayClip(clip);
         }
     }
@@ -3666,10 +3764,27 @@ public sealed partial class HomePage : Page
                 AnimateCardHover(element, isHovered: false);
             };
 
-            // Section 1: Playback
+            var targets = ContextTargets(clip);
+            if (targets.Count > 1)
+            {
+                AddMultiSelectionMenuItems(flyout, targets);
+                flyout.ShowAt(element, e.GetPosition(element));
+                e.Handled = true;
+                return;
+            }
+
+            // Section 1: Playback and selecting
             var playItem = new MenuFlyoutItem { Text = loc?["ContextMenu_Play"] ?? "Play", Icon = new FontIcon { Glyph = "\uE768" } };
             playItem.Click += (s, args) => ViewModel.PlayClip(clip);
             flyout.Items.Add(playItem);
+
+            var selectItem = new MenuFlyoutItem
+            {
+                Text = loc?[clip.IsSelected ? "ContextMenu_Deselect" : "ContextMenu_Select"] ?? "Select",
+                Icon = new FontIcon { Glyph = "\uE73A" }
+            };
+            selectItem.Click += (s, args) => ToggleSelection(clip);
+            flyout.Items.Add(selectItem);
 
             flyout.Items.Add(new MenuFlyoutSeparator());
 
@@ -3715,6 +3830,18 @@ public sealed partial class HomePage : Page
             };
             renameDiskItem.Click += async (s, args) => await ShowRenameDialogAsync(clip);
             flyout.Items.Add(renameDiskItem);
+
+            flyout.Items.Add(CreateClipTagsMenu(clip));
+
+            flyout.Items.Add(new MenuFlyoutSeparator());
+
+            // Clipboard: the file itself goes on the clipboard, so it can be pasted into Explorer or a chat
+            var cutItem = new MenuFlyoutItem { Text = loc?["ContextMenu_Cut"] ?? "Cut", Icon = new FontIcon { Glyph = "" }, KeyboardAcceleratorTextOverride = "Ctrl+X" };
+            cutItem.Click += (s, args) => _ = CopyClipsToClipboardAsync(new[] { clip }, cut: true);
+            flyout.Items.Add(cutItem);
+            var copyFileItem = new MenuFlyoutItem { Text = loc?["ContextMenu_Copy"] ?? "Copy", Icon = new FontIcon { Glyph = "" }, KeyboardAcceleratorTextOverride = "Ctrl+C" };
+            copyFileItem.Click += (s, args) => _ = CopyClipsToClipboardAsync(new[] { clip }, cut: false);
+            flyout.Items.Add(copyFileItem);
 
             flyout.Items.Add(new MenuFlyoutSeparator());
 
@@ -3796,7 +3923,26 @@ public sealed partial class HomePage : Page
 
         var resBlock = new StackPanel { Spacing = 2 };
         resBlock.Children.Add(new TextBlock { Text = loc?["Dialog_ClipInfo_Resolution"] ?? "Resolution", FontSize = 11, Foreground = GetThemeResourceBrush("TextFillColorSecondaryBrush") });
-        string resText = clip.VideoWidth > 0 ? $"{clip.VideoWidth} x {clip.VideoHeight}" + (clip.Framerate > 0 ? $" ({clip.Framerate:F0} fps)" : "") : (loc?["Dialog_ClipInfo_Unknown"] ?? "Unknown");
+        var culture = loc?.CurrentCulture ?? System.Globalization.CultureInfo.CurrentCulture;
+        string resText;
+        if (clip.VideoWidth > 0)
+        {
+            double fps = 0;
+            try
+            {
+                var metadata = App.GetService<Services.IClipMetadataService>();
+                if (metadata != null) fps = await metadata.GetFramerateAsync(clip);
+            }
+            catch { }
+
+            resText = fps > 0
+                ? string.Format(culture, loc?["Dialog_ClipInfo_ResolutionFps"] ?? "{0} × {1} @ {2} fps", clip.VideoWidth, clip.VideoHeight, Services.ClipMetadataService.FormatFramerate(fps, culture))
+                : $"{clip.VideoWidth} × {clip.VideoHeight}";
+        }
+        else
+        {
+            resText = loc?["Dialog_ClipInfo_Unknown"] ?? "Unknown";
+        }
         resBlock.Children.Add(new TextBlock { Text = resText, FontSize = 13 });
         Grid.SetColumn(resBlock, 0);
         grid2.Children.Add(resBlock);
@@ -3858,7 +4004,7 @@ public sealed partial class HomePage : Page
             DefaultButton = ContentDialogButton.Close
         };
 
-        await dialog.ShowAsync();
+        await dialog.ShowSafeAsync();
     }
 
     private async System.Threading.Tasks.Task ShowLocalRenameDialogAsync(GameClip clip)
@@ -3914,7 +4060,7 @@ public sealed partial class HomePage : Page
             DefaultButton = ContentDialogButton.Primary
         };
 
-        var result = await dialog.ShowAsync();
+        var result = await dialog.ShowSafeAsync();
         if (result == ContentDialogResult.Primary)
         {
             string newTitle = textBox.Text.Trim();
@@ -3989,7 +4135,7 @@ public sealed partial class HomePage : Page
             }
         };
 
-        await dialog.ShowAsync();
+        await dialog.ShowSafeAsync();
     }
 
     private async System.Threading.Tasks.Task ShowErrorDialogAsync(string message)
@@ -4004,31 +4150,11 @@ public sealed partial class HomePage : Page
             CloseButtonText = loc?["Dialog_Error_Close"] ?? "OK",
             DefaultButton = ContentDialogButton.Close
         };
-        await dialog.ShowAsync();
+        await dialog.ShowSafeAsync();
     }
 
-    private async System.Threading.Tasks.Task ShowDeleteConfirmDialogAsync(GameClip clip)
-    {
-        var loc = App.GetService<Services.ILocalizationService>();
-        var currentTheme = this.ActualTheme != ElementTheme.Default ? this.ActualTheme : App.CurrentTheme;
-        string message = string.Format(loc?["Dialog_Delete_Message"] ?? "Are you sure you want to move '{0}' to the Windows Recycle Bin?", clip.FileName);
-        var dialog = new ContentDialog
-        {
-            XamlRoot = this.XamlRoot,
-            RequestedTheme = currentTheme,
-            Title = loc?["Dialog_Delete_Title"] ?? "Delete to Recycle Bin?",
-            Content = message,
-            PrimaryButtonText = loc?["Dialog_Delete_Confirm"] ?? "Delete",
-            CloseButtonText = loc?["Dialog_Delete_Cancel"] ?? "Cancel",
-            DefaultButton = ContentDialogButton.Close
-        };
-
-        var result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.Primary && !ViewModel.DeleteClip(clip))
-        {
-            await ShowErrorDialogAsync(loc?["Dialog_Delete_Failed"] ?? "Couldn't move the file to the Recycle Bin.");
-        }
-    }
+    private System.Threading.Tasks.Task ShowDeleteConfirmDialogAsync(GameClip clip) =>
+        ShowDeleteConfirmDialogAsync(new[] { clip });
 
     private static T? FindDescendant<T>(DependencyObject parent) where T : DependencyObject
     {

@@ -6,6 +6,7 @@ namespace Reeled.Services;
 
 [JsonSourceGenerationOptions(WriteIndented = true, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(AppSettings))]
+[JsonSerializable(typeof(List<LibraryTabState>))]
 [JsonSerializable(typeof(List<CachedClipMetadata>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 internal partial class AppJsonSerializerContext : JsonSerializerContext

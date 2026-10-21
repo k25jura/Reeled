@@ -6,6 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:viewmodels="using:Reeled.ViewModels"
+    xmlns:controls="using:Reeled.Controls"
     mc:Ignorable="d"
     NavigationCacheMode="Required">
 
@@ -426,7 +427,7 @@
                                         VerticalAlignment="Center"
                                         Style="{ThemeResource AccentButtonStyle}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <FontIcon Glyph="&#xE710;" FontSize="12" />
+                                        <FontIcon Glyph="&#xE8F4;" FontSize="12" />
                                         <TextBlock x:Name="AddFolderButtonText" Text="Add Folder" />
                                     </StackPanel>
                                 </Button>
@@ -978,6 +979,139 @@
                                               VerticalAlignment="Center" />
                             </Grid>
                         </Border>
+
+                        <!-- Card: Close button returns to the library -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE8BB;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="CloseToLibraryTitleText" Text="Close button returns to library" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="CloseToLibrarySubtitleText" Text="While a clip is playing, closing the window goes back to the library instead of quitting"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2"
+                                              IsOn="{x:Bind ViewModel.CloseButtonReturnsToLibrary, Mode=TwoWay}"
+                                              OnContent=""
+                                              OffContent=""
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <TextBlock x:Name="SubPlaybackBar" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Bottom bar" />
+
+                        <!-- Card: toolbar editor -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="14">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE70F;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="ToolbarEditorTitleText" Text="Player controls" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="ToolbarEditorSubtitleText" Text="Drag buttons into the bar or out to the tray. Also from the player: right-click > Customize controls" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                    <Button x:Name="ToolbarResetButton" Grid.Column="2" Click="OnToolbarResetClick" Style="{ThemeResource SubtleButtonStyle}" Padding="12,5" FontSize="12.5" Content="Reset" VerticalAlignment="Center" />
+                                </Grid>
+                                <ContentPresenter x:Name="ToolbarEditorHost" Margin="40,0,0,0" />
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock x:Name="SubPlaybackOsd" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="On-screen display" />
+
+                        <!-- Card: OSD look -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE8E9;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="OsdStyleTitleText" Text="OSD style" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="OsdStyleSubtitleText" Text="Where messages appear and how they look" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                </Grid>
+                                <StackPanel Margin="40,0,0,0" Spacing="2">
+                                    <Grid ColumnSpacing="12" MinHeight="36">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="OsdPositionLabel" Text="Position" FontSize="13" VerticalAlignment="Center" />
+                                        <ComboBox x:Name="OsdPositionCombo" Grid.Column="1" MinWidth="180" SelectionChanged="OnOsdSettingChanged" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12" MinHeight="36">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="OsdSizeLabel" Text="Text size" FontSize="13" VerticalAlignment="Center" />
+                                        <Slider x:Name="OsdSizeSlider" Grid.Column="1" Width="180" Minimum="28" Maximum="88" StepFrequency="2" Value="52" ValueChanged="OnOsdSizeChanged" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12" MinHeight="36">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="OsdDurationLabel" Text="Stays on screen" FontSize="13" VerticalAlignment="Center" />
+                                        <ComboBox x:Name="OsdDurationCombo" Grid.Column="1" MinWidth="180" SelectionChanged="OnOsdSettingChanged" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12" MinHeight="36">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="OsdBackdropLabel" Text="Gradient backdrop" FontSize="13" VerticalAlignment="Center" />
+                                        <ToggleSwitch x:Name="OsdBackdropToggle" Grid.Column="1" MinWidth="0" OnContent="" OffContent="" Toggled="OnOsdToggleChanged" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12" MinHeight="36">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="OsdTintLabel" Text="Tint by action (volume, seek, speed...)" FontSize="13" VerticalAlignment="Center" />
+                                        <ToggleSwitch x:Name="OsdTintToggle" Grid.Column="1" MinWidth="0" OnContent="" OffContent="" Toggled="OnOsdToggleChanged" />
+                                    </Grid>
+                                    <Grid ColumnSpacing="12" MinHeight="36">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="OsdDetailsLabel" Text="Details line (e.g. 01:20 → 01:25 after a skip)" FontSize="13" VerticalAlignment="Center" />
+                                        <ToggleSwitch x:Name="OsdDetailsToggle" Grid.Column="1" MinWidth="0" OnContent="" OffContent="" Toggled="OnOsdToggleChanged" />
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock x:Name="SubPlaybackDecoding" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Decoding" />
 
                         <!-- Card: Hardware decoding -->
@@ -1059,6 +1193,144 @@
                             </Grid>
                         </Border>
 
+
+                        <!-- Card: Accent colour (Windows, presets, recent picks, custom) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="14">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <FontIcon Grid.Column="0" Glyph="&#xE771;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="AccentTitleText" Text="Accent color" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="AccentSubtitleText" Text="Highlights, buttons, toggles and the seek bar"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Swatches, recents and the picker: presets are supplied in code (Windows accent + the app presets) -->
+                                <controls:ColorChooser x:Name="AccentChooser" Margin="40,0,0,0" HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock x:Name="SubAppearanceLayout" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Layout" />
+
+                        <!-- Card: Interface size (zoom) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE71E;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="ZoomTitleText" Text="Interface size" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="ZoomSubtitleText" Text="Scale everything in Reeled. Ctrl + and Ctrl - work anywhere, Ctrl 0 resets"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                    <Button x:Name="ZoomResetButton" Click="OnZoomResetClick" Style="{ThemeResource SubtleButtonStyle}" Padding="10,5" FontSize="12.5" Margin="0,0,6,0"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" Content="Reset" />
+                                    <Button x:Name="ZoomOutButton" Click="OnZoomOutClick" Width="32" Height="32" Padding="0">
+                                        <FontIcon Glyph="&#xE738;" FontSize="11" />
+                                    </Button>
+                                    <TextBlock x:Name="ZoomValueText" Text="100%" FontSize="13" FontWeight="SemiBold" MinWidth="52" TextAlignment="Center" VerticalAlignment="Center" />
+                                    <Button x:Name="ZoomInButton" Click="OnZoomInClick" Width="32" Height="32" Padding="0">
+                                        <FontIcon Glyph="&#xE710;" FontSize="11" />
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+
+                        <!-- Card: Navigation position (sidebar left / right, bar top / bottom) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16" RowSpacing="14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE8A0;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="NavPositionTitleText" Text="Navigation position" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="NavPositionSubtitleText" Text="Sidebar on the left or right, or a bar along the top or bottom"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+
+                                <!-- Mini window previews, built in code -->
+                                <StackPanel x:Name="NavPositionTiles" Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card: Navigation sections -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="12">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE71D;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="NavSectionsTitleText" Text="Navigation sections" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="NavSectionsSubtitleText" Text="Choose which sections appear. You can also right-click a section"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                </Grid>
+                                <Grid Margin="40,0,0,0" ColumnSpacing="12" RowSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                        <FontIcon Glyph="&#xEB52;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock x:Name="NavFavoritesLabel" Text="Favorites" FontSize="13" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <ComboBox x:Name="NavFavoritesComboBox" Grid.Column="1" MinWidth="200" SelectionChanged="OnNavSectionVisibilityChanged" />
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                        <FontIcon Glyph="&#xE8A4;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock x:Name="NavMomentsLabel" Text="Saved Moments" FontSize="13" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <ComboBox x:Name="NavMomentsComboBox" Grid.Row="1" Grid.Column="1" MinWidth="200" SelectionChanged="OnNavSectionVisibilityChanged" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock x:Name="SubAppearanceLibrary" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Library" />
 
                         <!-- Card 2: Saved Moments Badges -->
@@ -1087,6 +1359,179 @@
                                               IsOn="{x:Bind ViewModel.ShowMomentsBadges, Mode=TwoWay}" 
                                               OnContent="" 
                                               OffContent="" 
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card: Game icons from Steam -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE7FC;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="GameIconsTitleText" Text="Look up game icons on Steam" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="GameIconsSubtitleText" Text="Folder names are sent to the Steam store to find matching icons. Turning this off stops automatic lookups; icons already found stay"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2"
+                                              IsOn="{x:Bind ViewModel.LookUpGameIcons, Mode=TwoWay}"
+                                              OnContent=""
+                                              OffContent=""
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card: Icon sources (optional extra icon providers) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="0">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <FontIcon Grid.Column="0" Glyph="&#xE774;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="IconSourcesTitleText" Text="Icon sources" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="IconSourcesSubtitleText" Text="Steam is always searched first. Add SteamGridDB or IGDB to also find games Steam does not have. Keys are stored encrypted for your Windows account"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+
+                                    <Button x:Name="IconSourcesToggle"
+                                            Grid.Column="2"
+                                            Style="{ThemeResource SubtleButtonStyle}"
+                                            Padding="10,8"
+                                            VerticalAlignment="Center"
+                                            Click="OnIconSourcesToggleClick"
+                                            AutomationProperties.Name="Show or hide icon sources">
+                                        <FontIcon x:Name="IconSourcesChevron" Glyph="&#xE70D;" FontSize="12" RenderTransformOrigin="0.5,0.5">
+                                            <FontIcon.RenderTransform>
+                                                <RotateTransform x:Name="IconSourcesChevronRotation" Angle="0" />
+                                            </FontIcon.RenderTransform>
+                                        </FontIcon>
+                                    </Button>
+                                </Grid>
+
+                                <StackPanel x:Name="IconSourcesBody" Spacing="20" Margin="40,0,0,0" Padding="0,16,0,0" Visibility="Collapsed" Opacity="0">
+                                    <!-- SteamGridDB -->
+                                    <StackPanel Spacing="4">
+                                        <PasswordBox x:Name="SgdbKeyBox"
+                                                     Header="SteamGridDB API key"
+                                                     PlaceholderText="API key"
+                                                     LostFocus="OnIconSourcesLostFocus" />
+                                        <HyperlinkButton x:Name="SgdbKeyLink"
+                                                         Content="Get a key"
+                                                         NavigateUri="https://www.steamgriddb.com/profile/preferences/api"
+                                                         Padding="0" />
+                                    </StackPanel>
+
+                                    <!-- IGDB (Twitch credentials) -->
+                                    <StackPanel Spacing="8">
+                                        <TextBox x:Name="IgdbIdBox"
+                                                 Header="IGDB Client ID"
+                                                 LostFocus="OnIconSourcesLostFocus" />
+                                        <PasswordBox x:Name="IgdbSecretBox"
+                                                     Header="IGDB Client Secret"
+                                                     LostFocus="OnIconSourcesLostFocus" />
+                                        <TextBlock x:Name="IgdbHintText"
+                                                   Text="IGDB uses Twitch credentials: register an application in the Twitch developer console to get both"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                        <HyperlinkButton x:Name="IgdbCredentialsLink"
+                                                         Content="Get credentials"
+                                                         NavigateUri="https://dev.twitch.tv/console/apps"
+                                                         Padding="0" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card: Tab bar -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE7C4;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="AlwaysShowTabsTitleText" Text="Always show the tab bar" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="AlwaysShowTabsSubtitleText" Text="Otherwise the tab bar appears once a second tab is open"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2"
+                                              IsOn="{x:Bind ViewModel.AlwaysShowTabs, Mode=TwoWay}"
+                                              OnContent=""
+                                              OffContent=""
+                                              MinWidth="0"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card: Reopen tabs -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE81C;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="ReopenTabsTitleText" Text="Reopen tabs on start" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="ReopenTabsSubtitleText" Text="Brings back the tabs that were open when you closed Reeled"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <ToggleSwitch Grid.Column="2"
+                                              IsOn="{x:Bind ViewModel.ReopenTabs, Mode=TwoWay}"
+                                              OnContent=""
+                                              OffContent=""
                                               MinWidth="0"
                                               HorizontalAlignment="Right"
                                               VerticalAlignment="Center" />
@@ -1933,8 +2378,9 @@
                                             </Grid>
                                         </Border>
 
-                                        <!-- Diagnostics details: hidden until asked for (Show details below) -->
-                                        <Grid x:Name="DiagnosticsDetails" RowSpacing="10" ColumnSpacing="20" Visibility="Collapsed" Opacity="0">
+                                        <!-- Details + toggle live in a zero-spacing host: collapsed details add no gap, and the 12px above/below them is their own padding, so the reveal animates the exact geometry -->
+                                        <StackPanel Spacing="0">
+                                        <Grid x:Name="DiagnosticsDetails" RowSpacing="10" ColumnSpacing="20" Visibility="Collapsed" Opacity="0" Padding="0,12,0,12">
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
@@ -2000,6 +2446,7 @@
                                                 </FontIcon>
                                             </StackPanel>
                                         </Button>
+                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
 

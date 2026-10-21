@@ -27,6 +27,17 @@ public partial class DirectoryNode : ObservableObject
     [ObservableProperty]
     private bool _hasSubDirectories;
 
+    /// <summary>Game icon (Steam or user-picked); the folder glyph shows while it's null.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasGameIcon))]
+    [NotifyPropertyChangedFor(nameof(FolderGlyphVisibility))]
+    private Microsoft.UI.Xaml.Media.ImageSource? _gameIcon;
+
+    public bool HasGameIcon => GameIcon != null;
+
+    public Microsoft.UI.Xaml.Visibility FolderGlyphVisibility =>
+        GameIcon == null ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
     public ObservableCollection<DirectoryNode> SubDirectories { get; set; } = new();
 
     public string DisplayName =>

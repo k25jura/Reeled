@@ -86,6 +86,15 @@ public partial class SettingsViewModel : ObservableObject
     private bool _showMomentsBadges = true;
 
     [ObservableProperty]
+    private bool _lookUpGameIcons = true;
+
+    [ObservableProperty]
+    private bool _alwaysShowTabs;
+
+    [ObservableProperty]
+    private bool _reopenTabs = true;
+
+    [ObservableProperty]
     private bool _enableBackdropBlur = true;
 
     [ObservableProperty]
@@ -197,6 +206,9 @@ public partial class SettingsViewModel : ObservableObject
     private bool _resumePlayback = true;
 
     [ObservableProperty]
+    private bool _closeButtonReturnsToLibrary;
+
+    [ObservableProperty]
     private int _backdropBlurLevel = 1;
 
     partial void OnBackdropBlurLevelChanged(int value)
@@ -290,6 +302,9 @@ public partial class SettingsViewModel : ObservableObject
         EnableOsdNotifications = _storageService.CurrentSettings.EnableOsdNotifications;
         EnableClipCache = _storageService.CurrentSettings.EnableClipCache;
         ShowMomentsBadges = _storageService.CurrentSettings.ShowMomentsBadges;
+        LookUpGameIcons = _storageService.CurrentSettings.LookUpGameIcons;
+        AlwaysShowTabs = _storageService.CurrentSettings.AlwaysShowTabs;
+        ReopenTabs = _storageService.CurrentSettings.ReopenTabs;
         EnableBackdropBlur = _storageService.CurrentSettings.EnableBackdropBlur;
         SelectedThemeIndex = _storageService.CurrentSettings.AppTheme switch
         {
@@ -307,6 +322,7 @@ public partial class SettingsViewModel : ObservableObject
         AutoDownloadUpdates = _storageService.CurrentSettings.AutoDownloadUpdates;
         ReduceMotion = _storageService.CurrentSettings.ReduceMotion;
         ResumePlayback = _storageService.CurrentSettings.ResumePlayback;
+        CloseButtonReturnsToLibrary = _storageService.CurrentSettings.CloseButtonReturnsToLibrary;
         BackdropBlurLevel = _storageService.CurrentSettings.BackdropBlurLevel;
         GitHubToken = _storageService.CurrentSettings.GitHubToken ?? string.Empty;
         if (!IsUpdateAvailable && !IsUpdateReadyToInstall && !IsCheckingForUpdates)
@@ -563,6 +579,63 @@ public partial class SettingsViewModel : ObservableObject
             _ = _storageService.SaveSettingsAsync(settings);
             _homeViewModel.ShowMomentsBadges = value;
         }
+    }
+
+    partial void OnLookUpGameIconsChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.LookUpGameIcons == value) return;
+        settings.LookUpGameIcons = value;
+        _ = _storageService.SaveSettingsAsync(settings);
+        // Turning it on looks up the folders that have no icon yet; turning it off only stops new lookups
+        if (value) _homeViewModel.RefreshGameIcons();
+        else _homeViewModel.StopGameIconLookups();
+    }
+
+    /// <summary>The icon provider keys as stored (decrypted).</summary>
+    public (string SteamGridDbKey, string IgdbClientId, string IgdbClientSecret) GetIconSources()
+    {
+        var settings = _storageService.CurrentSettings;
+        return (GameIconCredentials.Unprotect(settings.ProtectedSteamGridDbKey) ?? string.Empty,
+                settings.IgdbClientId ?? string.Empty,
+                GameIconCredentials.Unprotect(settings.ProtectedIgdbClientSecret) ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Stores the icon provider keys (secrets encrypted). When they changed, folders that were looked up
+    /// without luck are tried again.
+    /// </summary>
+    public void SetIconSources(string steamGridDbKey, string igdbClientId, string igdbClientSecret)
+    {
+        var (key, id, secret) = GetIconSources();
+        steamGridDbKey = steamGridDbKey.Trim();
+        igdbClientId = igdbClientId.Trim();
+        igdbClientSecret = igdbClientSecret.Trim();
+        if (steamGridDbKey == key && igdbClientId == id && igdbClientSecret == secret) return;
+
+        var settings = _storageService.CurrentSettings;
+        settings.ProtectedSteamGridDbKey = GameIconCredentials.Protect(steamGridDbKey);
+        settings.IgdbClientId = string.IsNullOrEmpty(igdbClientId) ? null : igdbClientId;
+        settings.ProtectedIgdbClientSecret = GameIconCredentials.Protect(igdbClientSecret);
+        _ = _storageService.SaveSettingsAsync(settings);
+        _homeViewModel.OnIconSourcesChanged();
+    }
+
+    partial void OnAlwaysShowTabsChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.AlwaysShowTabs == value) return;
+        settings.AlwaysShowTabs = value;
+        _ = _storageService.SaveSettingsAsync(settings);
+    }
+
+    partial void OnReopenTabsChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.ReopenTabs == value) return;
+        settings.ReopenTabs = value;
+        // Turning it off forgets the saved tabs, turning it on saves the ones that are open now
+        _homeViewModel.PersistTabs();
     }
 
     partial void OnEnableBackdropBlurChanged(bool value)
@@ -1231,6 +1304,14 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnIsUpdateReadyToInstallChanged(bool value) => RefreshUpdateStatusText();
     partial void OnIsUpdateAvailableChanged(bool value) => RefreshUpdateStatusText();
 
+    partial void OnCloseButtonReturnsToLibraryChanged(bool value)
+    {
+        var settings = _storageService.CurrentSettings;
+        if (settings.CloseButtonReturnsToLibrary == value) return;
+        settings.CloseButtonReturnsToLibrary = value;
+        _ = _storageService.SaveSettingsAsync(settings);
+    }
+
     partial void OnResumePlaybackChanged(bool value)
     {
         var settings = _storageService.CurrentSettings;
@@ -1415,7 +1496,17 @@ public partial class SettingsViewModel : ObservableObject
         settings.EnableOsdNotifications = true;
 
         settings.AppTheme = "Default";
+        settings.AccentColor = Helpers.Accent.SystemMode;
+        settings.UiZoom = 1.0;
+        settings.CloseButtonReturnsToLibrary = false;
+        settings.SidebarPosition = SidebarPosition.Left;
+        settings.FavoritesNavVisibility = NavSectionVisibility.Always;
+        settings.MomentsNavVisibility = NavSectionVisibility.Always;
+        settings.LibraryViewMode = LibraryViewMode.Grid;
         settings.ShowMomentsBadges = true;
+        settings.LookUpGameIcons = true;
+        settings.AlwaysShowTabs = false;
+        settings.ReopenTabs = true;
         settings.EnableBackdropBlur = true;
         settings.ViewDensity = ViewDensityMode.Comfortable;
         settings.DateGrouping = DateGroupingMode.None;
@@ -1434,6 +1525,8 @@ public partial class SettingsViewModel : ObservableObject
         await _storageService.SaveSettingsAsync(settings);
 
         App.ApplyTheme("Default");
+        Helpers.Accent.Apply(Helpers.Accent.SystemMode);
+        Helpers.UiZoom.Set(1.0);
         _localizationService.SetLanguage("System");
         Initialize();
         UpdateFormattedStrings();

@@ -238,6 +238,41 @@ public static class Motion
         return anim;
     }
 
+    /// <summary>Progress (0..1) of the decelerate curve at linear time t, for animations stepped by hand every frame.</summary>
+    public static double DecelerateAt(double t) => CubicBezierAt(t, DecelerateP1, DecelerateP2);
+
+    /// <summary>Progress (0..1) of the accelerate curve at linear time t, for animations stepped by hand every frame.</summary>
+    public static double AccelerateAt(double t) => CubicBezierAt(t, AccelerateP1, AccelerateP2);
+
+    private static double CubicBezierAt(double x, Windows.Foundation.Point p1, Windows.Foundation.Point p2)
+    {
+        if (x <= 0) return 0;
+        if (x >= 1) return 1;
+        // Newton's method on the x component finds the curve parameter; it is monotonic for control points in 0..1
+        double u = x;
+        for (int i = 0; i < 8; i++)
+        {
+            double error = Bezier(u, p1.X, p2.X) - x;
+            if (Math.Abs(error) < 1e-5) break;
+            double slope = BezierSlope(u, p1.X, p2.X);
+            if (Math.Abs(slope) < 1e-6) break;
+            u = Math.Clamp(u - error / slope, 0, 1);
+        }
+        return Bezier(u, p1.Y, p2.Y);
+    }
+
+    private static double Bezier(double u, double a, double b)
+    {
+        double v = 1 - u;
+        return 3 * v * v * u * a + 3 * v * u * u * b + u * u * u;
+    }
+
+    private static double BezierSlope(double u, double a, double b)
+    {
+        double v = 1 - u;
+        return 3 * v * v * a + 6 * v * u * (b - a) + 3 * u * u * (1 - b);
+    }
+
     /// <summary>Exact decelerate curve for composition animations.</summary>
     public static Microsoft.UI.Composition.CompositionEasingFunction DecelerateCurve(Microsoft.UI.Composition.Compositor c) =>
         c.CreateCubicBezierEasingFunction(new System.Numerics.Vector2(0.32f, 0.72f), new System.Numerics.Vector2(0f, 1f));
@@ -251,8 +286,14 @@ public static class Motion
     /// measured size, and the element fades and rises 8px into the space it just made. The reverse
     /// (<paramref name="show"/> = false) fades it out and then closes the gap. Used for banners, cards and
     /// anything that appears inside a layout, so nothing below it ever jumps.
+    ///
+    /// Do not put a revealed element in a StackPanel with Spacing: a visible element always takes a spacing
+    /// gap (a negative margin cannot cancel it, desired size never goes below zero), so the gap would pop in
+    /// at the start of opening and vanish at the end of closing. Put it in a zero-spacing host instead and
+    /// give the element its own padding for the gap, which animates with the height.
     /// </summary>
-    public static void Reveal(FrameworkElement element, bool show, Action? completed = null)
+    public static void Reveal(FrameworkElement element, bool show, Action? completed = null,
+        Microsoft.UI.Xaml.Controls.ScrollViewer? scrollIntoView = null, Action<bool>? scrolling = null)
     {
         var translate = element.RenderTransform as Microsoft.UI.Xaml.Media.TranslateTransform;
         if (translate == null)
@@ -272,6 +313,24 @@ public static class Motion
         }
 
         var sb = new Storyboard();
+        var token = new object();
+        RevealTokens.Remove(element);
+        RevealTokens.Add(element, token);
+
+        // Finishes on the exact geometry the animation ended on. The storyboard is stopped first because a
+        // held animation value outranks local values, then every property is set to its resting state in
+        // the same dispatch, so no frame sits between the last animated frame and the final state.
+        void Finish(bool shown)
+        {
+            if (!RevealTokens.TryGetValue(element, out var current) || !ReferenceEquals(current, token)) return; // superseded
+            if (!shown) element.Visibility = Visibility.Collapsed;
+            sb.Stop();
+            element.Height = double.NaN;
+            element.Opacity = shown ? 1 : 0;
+            translate.Y = 0;
+            completed?.Invoke();
+        }
+
         if (show)
         {
             element.Visibility = Visibility.Visible;
@@ -280,17 +339,14 @@ public static class Motion
                 : (element.Parent as FrameworkElement)?.ActualWidth ?? 400;
             element.Height = double.NaN;
             element.Measure(new Windows.Foundation.Size(width, double.PositiveInfinity));
-            double target = element.DesiredSize.Height;
+            // DesiredSize includes the element's own margin, but Height does not
+            double target = Math.Max(0, element.DesiredSize.Height - element.Margin.Top - element.Margin.Bottom);
             element.Height = start;
 
             sb.Children.Add(Spline(element, "Height", target, Long, from: start, dependent: true));
             sb.Children.Add(Spline(element, "Opacity", 1, Medium, from: element.Opacity, delayMs: 90));
             sb.Children.Add(Spline(translate, "Y", 0, Medium, from: 8, delayMs: 90));
-            sb.Completed += (s, e) =>
-            {
-                element.Height = double.NaN;
-                completed?.Invoke();
-            };
+            sb.Completed += (s, e) => Finish(true);
         }
         else
         {
@@ -298,13 +354,56 @@ public static class Motion
             sb.Children.Add(Spline(element, "Opacity", 0, 160, accelerate: true));
             sb.Children.Add(Spline(translate, "Y", -4, 160, accelerate: true));
             sb.Children.Add(Spline(element, "Height", 0, Medium, from: start, delayMs: 120, dependent: true));
-            sb.Completed += (s, e) =>
-            {
-                element.Visibility = Visibility.Collapsed;
-                element.Height = double.NaN;
-                completed?.Invoke();
-            };
+            sb.Completed += (s, e) => Finish(false);
         }
         sb.Begin();
+        if (show && scrollIntoView != null) FollowReveal(element, translate, scrollIntoView, scrolling, token);
     }
+
+    /// <summary>
+    /// Scrolls <paramref name="sv"/> in lockstep with a running show-reveal: each frame the offset is the
+    /// start-to-final distance scaled by how far the height animation has got, so the opening block and the
+    /// scroll read as one motion. The final offset is only as far as needed to show the block with a bottom
+    /// margin; if it is taller than the viewport, its top (and the toggle above it) is aligned instead.
+    /// <paramref name="scrolling"/> is raised true/false around the follow so scroll-spy can stay quiet.
+    /// </summary>
+    private static void FollowReveal(FrameworkElement element, Microsoft.UI.Xaml.Media.TranslateTransform translate,
+        Microsoft.UI.Xaml.Controls.ScrollViewer sv, Action<bool>? scrolling, object token)
+    {
+        const double bottomMargin = 24, topMargin = 72; // top leaves room for the toggle row above the block
+        try
+        {
+            double target = Math.Max(1, element.DesiredSize.Height - element.Margin.Top - element.Margin.Bottom);
+            double startH = Math.Max(0, element.Height);
+            double topInViewport = element.TransformToVisual(sv).TransformPoint(new Windows.Foundation.Point(0, 0)).Y - translate.Y;
+            double start = sv.VerticalOffset;
+            double top = start + topInViewport;               // block top in content coordinates
+            double viewport = sv.ViewportHeight;
+            double want = top + target + bottomMargin - viewport; // offset that shows the bottom edge
+            double final = (target + bottomMargin + topMargin > viewport) ? top - topMargin : Math.Max(start, want);
+            final = Math.Max(0, final);
+            if (final <= start + 0.5) return;
+
+            scrolling?.Invoke(true);
+            var started = Environment.TickCount64;
+            void Stop()
+            {
+                Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= OnFrame;
+                sv.ChangeView(null, final, null, true);
+                sv.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => scrolling?.Invoke(false));
+            }
+            void OnFrame(object? s, object e)
+            {
+                bool superseded = !RevealTokens.TryGetValue(element, out var cur) || !ReferenceEquals(cur, token);
+                double h = element.ActualHeight;
+                double p = Math.Clamp((h - startH) / Math.Max(1, target - startH), 0, 1);
+                if (superseded || p >= 1 || Environment.TickCount64 - started > 1500) { Stop(); return; }
+                sv.ChangeView(null, start + (final - start) * p, null, true);
+            }
+            Microsoft.UI.Xaml.Media.CompositionTarget.Rendering += OnFrame;
+        }
+        catch { scrolling?.Invoke(false); }
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<FrameworkElement, object> RevealTokens = new();
 }

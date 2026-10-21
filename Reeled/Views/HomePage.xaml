@@ -288,6 +288,12 @@
                                     Opacity="0" 
                                     IsHitTestVisible="False" />
 
+                            <!-- Files are being dragged over the folder: they would land in it -->
+                            <Grid x:Name="DropHighlight" Opacity="0" IsHitTestVisible="False">
+                                <Border Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="6" Opacity="0.2" />
+                                <Border BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="1.5" CornerRadius="6" />
+                            </Grid>
+
                             <!-- Static SelectionIndicator hidden in favor of unified sliding ActiveIndicatorPill -->
                             <Rectangle x:Name="SelectionIndicator" 
                                        Visibility="Collapsed"
@@ -353,6 +359,76 @@
 
         <!-- CollectionViewSource for fluid Google Photos-style Date Grouping -->
         <CollectionViewSource x:Name="ClipsGroupedSource" IsSourceGrouped="True" />
+
+        <!-- Library list row (Explorer "Details" style). Folder and date columns fold into a subtitle when narrow. -->
+        <DataTemplate x:Key="ClipListRowTemplate" x:DataType="models:GameClip">
+            <Grid Height="52" ColumnSpacing="14" Background="Transparent" RightTapped="OnClipCardRightTapped"
+                  Opacity="{x:Bind ContentOpacity, Mode=OneWay}"
+                  PointerEntered="OnClipRowPointerEntered" PointerExited="OnClipRowPointerExited"
+                  Loaded="OnClipRowLoaded" Unloaded="OnClipRowUnloaded">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="64" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="180" />
+                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="88" />
+                    <ColumnDefinition Width="84" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Part of the multi-selection -->
+                <Grid Grid.ColumnSpan="6" Margin="-8,0" IsHitTestVisible="False"
+                      Visibility="{x:Bind IsSelected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Border CornerRadius="6" Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="0.2" />
+                    <Border CornerRadius="6" BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="1.5" />
+                </Grid>
+
+                <Grid Width="64" Height="36" CornerRadius="4" Background="{ThemeResource LayerFillColorAltBrush}" VerticalAlignment="Center">
+                    <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="UniformToFill" />
+                </Grid>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{x:Bind DisplayName, Mode=OneWay}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="560"
+                                   ToolTipService.ToolTip="{x:Bind DisplayName, Mode=OneWay}" />
+                        <FontIcon Glyph="&#xEB52;" FontSize="11" Foreground="#FF6B81" VerticalAlignment="Center"
+                                  Visibility="{x:Bind IsFavorite, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"
+                                    Visibility="{x:Bind ShowBookmarkBadge, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <FontIcon Glyph="&#xE8A4;" FontSize="10" Foreground="#FFD700" />
+                            <TextBlock Text="{x:Bind BookmarkCount, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <ItemsControl ItemsSource="{x:Bind TagsPreview, Mode=OneWay}" IsTabStop="False" VerticalAlignment="Center"
+                                      Visibility="{x:Bind HasTags, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="4" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <Border Background="{ThemeResource ControlFillColorSecondaryBrush}" CornerRadius="4" Padding="5,0,5,1">
+                                        <TextBlock Text="{x:Bind}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   MaxWidth="120" TextTrimming="CharacterEllipsis" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                    <TextBlock x:Name="RowSubtitle" Text="{x:Bind FolderName, Mode=OneWay}" FontSize="11.5" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                               TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
+                </StackPanel>
+
+                <TextBlock x:Name="RowFolder" Grid.Column="2" Text="{x:Bind FolderName, Mode=OneWay}" FontSize="12.5" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="RowDate" Grid.Column="3" Text="{x:Bind FormattedDate, Mode=OneWay}" FontSize="12.5" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <TextBlock Grid.Column="4" Text="{x:Bind FormattedDuration, Mode=OneWay}" FontSize="12.5" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           VerticalAlignment="Center" HorizontalAlignment="Right" />
+                <TextBlock Grid.Column="5" Text="{x:Bind FormattedFileSize, Mode=OneWay}" FontSize="12.5" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,8,0" />
+            </Grid>
+        </DataTemplate>
+
     </Page.Resources>
 
     <Grid x:Name="MainRootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" SizeChanged="OnPageSizeChanged">
@@ -360,14 +436,77 @@
             <ColumnDefinition x:Name="SidebarColumn" Width="Auto" />
             <ColumnDefinition x:Name="MainContentColumn" Width="*" />
         </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
         <!-- Layout-only spacer that reserves the sidebar's column. Its width changes in a single step;
              the visible sidebar below slides over it on the compositor, so the clip grid relayouts once
              per open/close instead of on every animation frame. -->
-        <Border x:Name="SidebarSpacer" Grid.Column="0" Width="316" />
+        <Border x:Name="SidebarSpacer" Grid.Column="0" Grid.RowSpan="2" Width="316" />
+
+        <!-- Tab strip row of the top navigation layout: the title bar above the horizontal bar. Its height
+             opens when the strip appears (HomePage.Tabs.cs); in the other layouts it stays closed. -->
+        <Grid x:Name="TabStripHostTop"
+              Grid.Row="0"
+              Grid.ColumnSpan="2"
+              Height="0"
+              Canvas.ZIndex="3"
+              SizeChanged="OnTabStripHostTopSizeChanged" />
+
+        <!-- Horizontal navigation: the sidebar docked to the top (as the title bar) or the bottom edge.
+             Items are built in code (HomePage.Layout.cs); the footer buttons are moved in here. -->
+        <Grid x:Name="HorizontalNavBar"
+              Grid.Row="1"
+              Grid.ColumnSpan="2"
+              VerticalAlignment="Top"
+              Height="48"
+              Visibility="Collapsed"
+              Canvas.ZIndex="2"
+              Background="{ThemeResource LayerFillColorDefaultBrush}"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+              BorderThickness="0,0,0,1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Image x:Name="HorizontalNavLogo" Grid.Column="0" Height="20" Margin="18,0,14,0" VerticalAlignment="Center" Stretch="Uniform">
+                <Image.Source>
+                    <SvgImageSource x:Name="HorizontalNavLogoSvg" UriSource="ms-appx:///Assets/light-banner.svg" RasterizePixelHeight="60" />
+                </Image.Source>
+            </Image>
+
+            <ScrollViewer x:Name="HorizontalNavScroller"
+                          Grid.Column="1"
+                          HorizontalScrollMode="Enabled"
+                          HorizontalScrollBarVisibility="Hidden"
+                          VerticalScrollMode="Disabled"
+                          VerticalScrollBarVisibility="Disabled"
+                          PointerWheelChanged="OnHorizontalNavWheel">
+                <Grid x:Name="HorizontalNavItemsHost" HorizontalAlignment="Left">
+                    <StackPanel x:Name="HorizontalNavItems" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center" Padding="0,0,8,0" />
+                    <Border x:Name="HorizontalNavIndicator"
+                            Width="16" Height="3" CornerRadius="1.5"
+                            HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                            Margin="0,0,0,5"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                            IsHitTestVisible="False"
+                            Opacity="0" />
+                </Grid>
+            </ScrollViewer>
+
+            <Border x:Name="HorizontalNavFooterHost" Grid.Column="2" Padding="8,0,10,0" VerticalAlignment="Center" />
+            <!-- Room for the window's caption buttons when the bar is the title bar -->
+            <Border x:Name="HorizontalNavCaptionSpacer" Grid.Column="3" Width="0" />
+        </Grid>
 
         <!-- Left Navigation Sidebar (overlay spanning both columns, drawn above the main content) -->
         <Grid Grid.ColumnSpan="2"
+              Grid.RowSpan="2"
               x:Name="SidebarContainer"
               Width="316"
               HorizontalAlignment="Left"
@@ -393,7 +532,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- Row 0: App Header & Collapse Button -->
-                <Grid Grid.Row="0" Margin="14,10,14,10">
+                <Grid Grid.Row="0" x:Name="SidebarHeaderRow" Margin="14,10,14,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
@@ -531,44 +670,6 @@
                                 </Grid>
                             </Grid>
                         </Button>
-
-                        <!-- Subtle Divider between Navigation Tabs and Utility Actions -->
-                        <MenuFlyoutSeparator Margin="14,3,14,3" />
-
-                        <!-- Open File Button (Secondary Utility Action) -->
-                        <Button x:Name="OpenFileNavButton"
-                                Click="OnOpenVideoFileClick"
-                                Style="{StaticResource NavTabButtonStyle}"
-                                ToolTipService.ToolTip="Open video file"
-                                Opacity="0.85"
-                                PointerPressed="OnItemPointerPressed"
-                                PointerReleased="OnItemPointerReleased"
-                                PointerCanceled="OnItemPointerCanceled">
-                            <Grid Height="34">
-                                <Grid Padding="14,0,12,0" VerticalAlignment="Center">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Icon (Toned-down Secondary Foreground) -->
-                                    <FontIcon x:Name="OpenFileNavIcon" 
-                                              Grid.Column="0" 
-                                              Glyph="&#xE8E5;" 
-                                              FontSize="15" 
-                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                              Margin="0,0,12,0" />
-
-                                    <!-- Label (Toned-down Secondary Foreground) -->
-                                    <TextBlock x:Name="OpenFileNavText" 
-                                               Grid.Column="1" 
-                                               Text="Open File" 
-                                               FontSize="12.5" 
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                               VerticalAlignment="Center" />
-                                </Grid>
-                            </Grid>
-                        </Button>
                     </StackPanel>
                 </Grid>
 
@@ -600,7 +701,7 @@
                             PointerReleased="OnItemPointerReleased"
                             PointerCanceled="OnItemPointerCanceled">
                         <StackPanel Orientation="Horizontal" Spacing="5">
-                            <FontIcon Glyph="&#xE710;" FontSize="11" />
+                            <FontIcon Glyph="&#xE8F4;" FontSize="11" />
                             <TextBlock x:Name="FoldersAddNavText" Text="Add" FontSize="12" />
                         </StackPanel>
                     </Button>
@@ -626,6 +727,10 @@
                                               IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
                                               Loading="OnTreeViewItemLoading"
                                               RightTapped="OnFolderRowRightTapped"
+                                              AllowDrop="True"
+                                              DragOver="OnFolderRowDragOver"
+                                              DragLeave="OnFolderRowDragLeave"
+                                              Drop="OnFolderRowDrop"
                                               Style="{StaticResource CustomTreeViewItemStyle}">
                                     <Grid Margin="0,0,8,0" ColumnSpacing="8" VerticalAlignment="Center"
                                           Loaded="OnFolderItemGridLoaded">
@@ -638,11 +743,19 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
-                                        <FontIcon Grid.Column="0" 
-                                                  Glyph="{x:Bind IconGlyph, Mode=OneWay}" 
-                                                  FontSize="15" 
-                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" 
-                                                  VerticalAlignment="Center" />
+                                        <!-- The folder glyph, or the game's icon once one is known -->
+                                        <Grid Grid.Column="0" Width="18" Height="18" VerticalAlignment="Center">
+                                            <FontIcon Glyph="{x:Bind IconGlyph, Mode=OneWay}"
+                                                      FontSize="15"
+                                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Visibility="{x:Bind FolderGlyphVisibility, Mode=OneWay}" />
+                                            <Grid CornerRadius="4"
+                                                  Visibility="{x:Bind HasGameIcon, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <Image Source="{x:Bind GameIcon, Mode=OneWay}" Stretch="UniformToFill" />
+                                            </Grid>
+                                        </Grid>
 
                                         <TextBlock Grid.Column="1" 
                                                    Text="{x:Bind DisplayName}" 
@@ -681,12 +794,13 @@
                 </Grid>
 
                 <!-- Row 5: Bottom Settings & Refresh (Integrated with Sidebar Background) -->
-                <Border Grid.Row="5" 
+                <Border Grid.Row="5"
+                        x:Name="SidebarFooterBorder"
                         BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
                         BorderThickness="0,1,0,0" 
                         Background="{ThemeResource LayerFillColorDefaultBrush}"
                         Padding="14,10">
-                    <Grid ColumnSpacing="4">
+                    <Grid x:Name="SidebarFooterGrid" ColumnSpacing="4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -803,21 +917,26 @@
     </Grid>
 
     <!-- Column 1: Right Main View (Clip Grid & Header) -->
-    <Grid Grid.Column="1" x:Name="MainContentRoot" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Grid Grid.Column="1" Grid.Row="1" x:Name="MainContentRoot" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
             <Grid.RenderTransform>
                 <TranslateTransform x:Name="MainContentTranslate" X="0" />
             </Grid.RenderTransform>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
+            <!-- Room for the tab strip, which overlaps the header's caption padding: opens as the strip appears -->
+            <Border x:Name="TabSpacerMain" Grid.Row="0" Height="0" />
+
             <!-- Header: title with live library stats on the left, search / sort / view on the right -->
-            <Border Grid.Row="0" Padding="24,32,24,10" BorderThickness="0">
-                <Grid ColumnSpacing="12">
+            <Border Grid.Row="1" x:Name="LibraryHeaderBorder" Padding="24,32,24,10" BorderThickness="0">
+                <Grid x:Name="LibraryHeaderGrid" ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" MinWidth="160" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
@@ -911,6 +1030,16 @@
                             <TranslateTransform x:Name="HeaderToolbarTranslate" X="0" />
                         </StackPanel.RenderTransform>
 
+                        <!-- Open a video file that isn't in the library (Ctrl+O) -->
+                        <Button x:Name="OpenFileHeaderButton"
+                                Click="OnOpenVideoFileClick"
+                                Width="34" Height="32"
+                                Padding="0"
+                                VerticalAlignment="Center"
+                                ToolTipService.ToolTip="Open video file">
+                            <FontIcon Glyph="&#xE8E5;" FontSize="13" />
+                        </Button>
+
                         <!-- Search: a button that morphs into a field (width opens, then the text fades in) -->
                         <Grid x:Name="SearchHost" Width="34" Height="32" VerticalAlignment="Center">
                             <Border x:Name="SearchChrome"
@@ -952,6 +1081,19 @@
                             </Button>
                         </Grid>
 
+                        <!-- Tags filter: the user's tags and games; the label carries the active filter count -->
+                        <DropDownButton x:Name="TagsFilterButton"
+                                        Padding="12,5,10,6"
+                                        VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <FontIcon x:Name="TagsFilterIcon" Glyph="&#xE1CB;" FontSize="13" />
+                                <TextBlock x:Name="TagsFilterText" Text="Tags" FontSize="12.5" />
+                            </StackPanel>
+                            <DropDownButton.Flyout>
+                                <MenuFlyout x:Name="TagsFilterFlyout" Placement="BottomEdgeAlignedRight" Opening="OnTagsFilterOpening" Opened="OnFlyoutOpened" />
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+
                         <!-- Sort DropDown Button -->
                         <DropDownButton x:Name="SortOptionsButton"
                                         Padding="12,5,10,6"
@@ -980,7 +1122,14 @@
                                     <MenuFlyoutItem x:Name="SortDurationItem" Click="OnSortMenuItemClick" Tag="4">
                                         <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE916;" FontSize="14" /></MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
+                                    <MenuFlyoutItem x:Name="SortDurationShortestItem" Click="OnSortMenuItemClick" Tag="6">
+                                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE916;" FontSize="14" /></MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutSeparator />
                                     <MenuFlyoutItem x:Name="SortFileSizeItem" Click="OnSortMenuItemClick" Tag="5">
+                                        <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74C;" FontSize="14" /></MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutItem x:Name="SortFileSizeSmallestItem" Click="OnSortMenuItemClick" Tag="7">
                                         <MenuFlyoutItem.Icon><FontIcon Glyph="&#xE74C;" FontSize="14" /></MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
                                 </MenuFlyout>
@@ -1007,7 +1156,7 @@
                                     <ToggleMenuFlyoutItem x:Name="ViewDensityLargeItem" Click="OnViewDensityItemClick" Tag="2">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE8B9;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>
-                                    <MenuFlyoutSeparator />
+                                    <MenuFlyoutSeparator x:Name="ViewDensitySeparator" />
                                     <MenuFlyoutItem x:Name="ViewGroupingHeader" Text="Group by Date" IsEnabled="False" />
                                     <ToggleMenuFlyoutItem x:Name="ViewGroupingNoneItem" Click="OnViewGroupingItemClick" Tag="0">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE711;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
@@ -1021,7 +1170,7 @@
                                     <ToggleMenuFlyoutItem x:Name="ViewGroupingYearItem" Click="OnViewGroupingItemClick" Tag="3">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xEC92;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>
-                                    <MenuFlyoutSeparator />
+                                    <MenuFlyoutSeparator x:Name="ViewMetadataSeparator" />
                                     <ToggleMenuFlyoutItem x:Name="ViewMetadataHoverItem" Click="OnViewMetadataHoverToggleClick">
                                         <ToggleMenuFlyoutItem.Icon><FontIcon Glyph="&#xE890;" FontSize="14" /></ToggleMenuFlyoutItem.Icon>
                                     </ToggleMenuFlyoutItem>
@@ -1033,15 +1182,24 @@
             </Border>
 
             <!-- Clip Cards Grid Container (fades/slides in when the sidebar view changes) -->
-            <Grid Grid.Row="1" x:Name="ClipsHost">
+            <Grid Grid.Row="2" x:Name="ClipsHost"
+                  Background="Transparent"
+                  AllowDrop="True"
+                  DragOver="OnClipsAreaDragOver"
+                  DragLeave="OnClipsAreaDragLeave"
+                  Drop="OnClipsAreaDrop"
+                  RightTapped="OnClipsAreaRightTapped">
                 <Grid.RenderTransform>
                     <TranslateTransform x:Name="ClipsHostTranslate" Y="0" />
                 </Grid.RenderTransform>
                 <!-- GridView of Clips with Date Grouping and Responsive Edge-to-Edge Wrapping -->
+                <!-- Visibility of the grid, list and skeletons is driven from code (HomePage.Transitions.cs) so loading crossfades -->
                 <GridView x:Name="ClipsGridView"
-                          Visibility="{x:Bind ViewModel.ShowSkeletonLoading, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}"
                           ItemClick="OnClipItemClick"
                           IsItemClickEnabled="True"
+                          CanDragItems="True"
+                          DragItemsStarting="OnClipDragItemsStarting"
+                          DragItemsCompleted="OnClipDragItemsCompleted"
                           ContainerContentChanging="OnClipContainerContentChanging"
                           SelectionMode="None"
                           Padding="24,14,24,24"
@@ -1050,6 +1208,9 @@
                           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                           UseSystemFocusVisuals="False"
                           IsTabStop="False">
+                    <GridView.RenderTransform>
+                        <TranslateTransform x:Name="ClipsGridTranslate" Y="0" />
+                    </GridView.RenderTransform>
 
                     <!-- No item transitions: a RepositionThemeTransition on every card made each resize,
                          sidebar toggle and re-sort glide all cards ~300ms behind the layout (the "lag").
@@ -1067,6 +1228,7 @@
                                             <TransitionCollection />
                                         </Setter.Value>
                                     </Setter>
+                                    <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
                                     <Setter Property="HorizontalAlignment" Value="Stretch" />
                                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                                     <Setter Property="MinHeight" Value="0" />
@@ -1142,6 +1304,7 @@
                                   HorizontalAlignment="Stretch"
                                   VerticalAlignment="Stretch"
                                   RenderTransformOrigin="0.5,0.5"
+                                  Opacity="{x:Bind ContentOpacity, Mode=OneWay}"
                                   Loaded="OnClipCardLoaded"
                                   Unloaded="OnClipCardUnloaded"
                                   PointerEntered="OnClipCardPointerEntered"
@@ -1187,20 +1350,40 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- Left: Saved Moments Frosted Badge -->
-                                    <Border Grid.Column="0" HorizontalAlignment="Left"
-                                            Background="#80000000"
-                                            BorderBrush="#33FFFFFF"
-                                            BorderThickness="1"
-                                            CornerRadius="10"
-                                            Padding="6,2"
-                                            Visibility="{x:Bind ShowBookmarkBadge, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                                            <FontIcon Glyph="&#xE8A4;" FontSize="10" Foreground="#FFD700" VerticalAlignment="Center" />
-                                            <TextBlock Text="{x:Bind FormattedBookmarkCount, Mode=OneWay}" 
-                                                       FontSize="11" FontWeight="SemiBold" Foreground="#FFF0A0" VerticalAlignment="Center" />
-                                        </StackPanel>
-                                    </Border>
+                                    <!-- Left: Saved Moments Frosted Badge, then the clip's tags (at most two and a "+N") -->
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Left" Margin="0,0,6,0">
+                                        <Border VerticalAlignment="Top"
+                                                Background="#80000000"
+                                                BorderBrush="#33FFFFFF"
+                                                BorderThickness="1"
+                                                CornerRadius="10"
+                                                Padding="6,2"
+                                                Visibility="{x:Bind ShowBookmarkBadge, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE8A4;" FontSize="10" Foreground="#FFD700" VerticalAlignment="Center" />
+                                                <TextBlock Text="{x:Bind FormattedBookmarkCount, Mode=OneWay}"
+                                                           FontSize="11" FontWeight="SemiBold" Foreground="#FFF0A0" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Border>
+                                        <ItemsControl ItemsSource="{x:Bind TagsPreview, Mode=OneWay}"
+                                                      IsTabStop="False"
+                                                      VerticalAlignment="Top"
+                                                      Visibility="{x:Bind HasTags, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal" Spacing="4" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="x:String">
+                                                    <Border Background="#59000000" CornerRadius="4" Padding="5,1,5,2">
+                                                        <TextBlock Text="{x:Bind}" FontSize="11" FontWeight="SemiBold" Foreground="White"
+                                                                   MaxWidth="84" TextTrimming="CharacterEllipsis" />
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
 
                                     <!-- Right: Glassmorphic Favorite Button with Pulse Ring & Sparkles -->
                                     <!-- Shown on hover, or always once the clip is a favorite -->
@@ -1336,14 +1519,164 @@
                                         BorderThickness="1.5"
                                         Opacity="0"
                                         IsHitTestVisible="False" />
+
+                                <!-- Part of the multi-selection: an accent tint and outline -->
+                                <Grid x:Name="SelectionOverlay"
+                                      IsHitTestVisible="False"
+                                      Visibility="{x:Bind IsSelected, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <Border CornerRadius="10" Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="0.2" />
+                                    <Border CornerRadius="10" BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="2.5" />
+                                </Grid>
                             </Grid>
                         </DataTemplate>
                     </GridView.ItemTemplate>
                 </GridView>
 
+                <!-- List view: column headers (click to sort) over a details list -->
+                <Grid x:Name="ClipsListHost" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid x:Name="ListHeaderRow" Margin="32,8,40,4" ColumnSpacing="14" Height="30">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="64" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="180" />
+                            <ColumnDefinition Width="150" />
+                            <ColumnDefinition Width="88" />
+                            <ColumnDefinition Width="84" />
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="ListSortName" Grid.Column="1" Tag="name" Click="OnListHeaderClick" Style="{ThemeResource SubtleButtonStyle}" Padding="6,3" Margin="-6,0,0,0" HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock x:Name="ListHeaderNameText" Text="Name" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <FontIcon x:Name="ListSortNameGlyph" Glyph="&#xE70D;" FontSize="9" Opacity="0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Button>
+                        <TextBlock x:Name="ListHeaderFolderText" Grid.Column="2" Text="Folder" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                        <Button x:Name="ListSortDate" Grid.Column="3" Tag="date" Click="OnListHeaderClick" Style="{ThemeResource SubtleButtonStyle}" Padding="6,3" Margin="-6,0,0,0" HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock x:Name="ListHeaderDateText" Text="Date" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <FontIcon x:Name="ListSortDateGlyph" Glyph="&#xE70D;" FontSize="9" Opacity="0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="ListSortDuration" Grid.Column="4" Tag="duration" Click="OnListHeaderClick" Style="{ThemeResource SubtleButtonStyle}" Padding="6,3" Margin="0,0,-6,0" HorizontalAlignment="Right">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon x:Name="ListSortDurationGlyph" Glyph="&#xE70D;" FontSize="9" Opacity="0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock x:Name="ListHeaderDurationText" Text="Length" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="ListSortSize" Grid.Column="5" Tag="size" Click="OnListHeaderClick" Style="{ThemeResource SubtleButtonStyle}" Padding="6,3" Margin="0,0,2,0" HorizontalAlignment="Right">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon x:Name="ListSortSizeGlyph" Glyph="&#xE70D;" FontSize="9" Opacity="0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <TextBlock x:Name="ListHeaderSizeText" Text="Size" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <Border Grid.Row="0" VerticalAlignment="Bottom" Height="1" Margin="30,0,34,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                    <ListView x:Name="ClipsListView"
+                              Grid.Row="1"
+                              ItemTemplate="{StaticResource ClipListRowTemplate}"
+                              ItemClick="OnClipItemClick"
+                              IsItemClickEnabled="True"
+                              CanDragItems="True"
+                              DragItemsStarting="OnClipDragItemsStarting"
+                              DragItemsCompleted="OnClipDragItemsCompleted"
+                              SelectionMode="None"
+                              ContainerContentChanging="OnClipContainerContentChanging"
+                              Padding="24,4,24,24"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              IsTabStop="False">
+                        <ListView.RenderTransform>
+                            <TranslateTransform x:Name="ClipsListTranslate" Y="0" />
+                        </ListView.RenderTransform>
+                        <ListView.ItemContainerTransitions>
+                            <TransitionCollection />
+                        </ListView.ItemContainerTransitions>
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                                <Setter Property="Padding" Value="8,0,8,0" />
+                                <Setter Property="Margin" Value="0,1" />
+                                <Setter Property="MinHeight" Value="0" />
+                                <Setter Property="CornerRadius" Value="6" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderContainerStyle>
+                                    <Style TargetType="ListViewHeaderItem">
+                                        <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                                        <Setter Property="MinHeight" Value="0" />
+                                        <Setter Property="Padding" Value="8,0,0,0" />
+                                        <Setter Property="Margin" Value="0,0,0,4" />
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    </Style>
+                                </GroupStyle.HeaderContainerStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate x:DataType="models:ClipGroup">
+                                        <StackPanel Margin="2,18,0,2" Orientation="Horizontal" Spacing="12">
+                                            <TextBlock Text="{x:Bind Title}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Bottom" />
+                                            <TextBlock Text="{x:Bind Subtitle}" FontSize="12.5" Margin="0,0,0,1.5" Foreground="{ThemeResource TextFillColorTertiaryBrush}" VerticalAlignment="Bottom" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </ListView.GroupStyle>
+                    </ListView>
+
+                    <!-- List skeleton: rows shaped like the list rows, same shimmer as the card skeleton -->
+                    <ScrollViewer x:Name="ListSkeletonScrollViewer"
+                                  Grid.Row="1"
+                                  Visibility="Collapsed"
+                                  Padding="24,4,24,24"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  IsHitTestVisible="False">
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.SkeletonPlaceholders, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Height="52" Margin="8,1" ColumnSpacing="14" Loaded="OnSkeletonRowLoaded" Unloaded="OnSkeletonRowUnloaded">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="64" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="180" />
+                                            <ColumnDefinition Width="150" />
+                                            <ColumnDefinition Width="88" />
+                                            <ColumnDefinition Width="84" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border Width="64" Height="36" CornerRadius="4" VerticalAlignment="Center"
+                                                Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.18" />
+
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="6">
+                                            <Border Height="12" Width="220" HorizontalAlignment="Left" CornerRadius="4"
+                                                    Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.28" />
+                                            <Border x:Name="SkeletonSubtitle" Height="9" Width="90" HorizontalAlignment="Left" CornerRadius="3" Visibility="Collapsed"
+                                                    Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.16" />
+                                        </StackPanel>
+
+                                        <Border x:Name="SkeletonFolder" Grid.Column="2" Height="10" Width="96" HorizontalAlignment="Left" VerticalAlignment="Center" CornerRadius="3"
+                                                Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.2" />
+                                        <Border x:Name="SkeletonDate" Grid.Column="3" Height="10" Width="86" HorizontalAlignment="Left" VerticalAlignment="Center" CornerRadius="3"
+                                                Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.2" />
+                                        <Border Grid.Column="4" Height="10" Width="40" HorizontalAlignment="Right" VerticalAlignment="Center" CornerRadius="3"
+                                                Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.2" />
+                                        <Border Grid.Column="5" Height="10" Width="48" HorizontalAlignment="Right" VerticalAlignment="Center" CornerRadius="3" Margin="0,0,8,0"
+                                                Background="{ThemeResource TextFillColorTertiaryBrush}" Opacity="0.2" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+
                 <!-- Skeleton Loading Grid View (Shown when loading and skeleton loading enabled) -->
                 <ScrollViewer x:Name="SkeletonScrollViewer"
-                              Visibility="{x:Bind ViewModel.ShowSkeletonLoading, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"
+                              Visibility="Collapsed"
                               Padding="24,14,24,24"
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled"
@@ -1446,18 +1779,40 @@
                         </StackPanel>
                     </Button>
                 </StackPanel>
+
+                <!-- Shown while files are dragged over the folder that is open: they would be dropped into it -->
+                <Grid x:Name="ClipsDropOverlay"
+                      Margin="12,4,12,12"
+                      IsHitTestVisible="False"
+                      Opacity="0"
+                      Visibility="Collapsed">
+                    <Border CornerRadius="10" Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="0.08" />
+                    <Border CornerRadius="10" BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="2" />
+                </Grid>
             </Grid>
+
+            <!-- The tab strip sits in the title-bar row at the top of the content (built in HomePage.Tabs.cs) -->
+            <Grid x:Name="TabStripOverlayMain" Grid.RowSpan="3" Height="40" VerticalAlignment="Top" />
         </Grid>
 
         <!-- Invisible Warmup Container for Preloading & JIT Compilation of Storyboards -->
-        <Canvas x:Name="AnimationWarmupCanvas" 
+        <Canvas x:Name="AnimationWarmupCanvas" Grid.RowSpan="2" 
                 Width="0" Height="0" 
                 Opacity="0" 
                 IsHitTestVisible="False" 
                 Visibility="Visible" />
 
+        <!-- File operations: the selection bar, and progress / result of copies, moves and deletes (HomePage.FileOps.cs) -->
+        <Grid x:Name="FileOpHost"
+              Grid.ColumnSpan="2"
+              Grid.RowSpan="2"
+              Canvas.ZIndex="6"
+              HorizontalAlignment="Center"
+              VerticalAlignment="Bottom"
+              Margin="16,0,16,24" />
+
         <!-- Middle-Click Pan Autoscroll Indicator Overlay -->
-        <Canvas x:Name="AutoscrollCanvas" IsHitTestVisible="False" Visibility="Collapsed">
+        <Canvas x:Name="AutoscrollCanvas" Grid.RowSpan="2" IsHitTestVisible="False" Visibility="Collapsed">
             <Grid x:Name="AutoscrollIndicator" Width="36" Height="36" Margin="-18,-18,0,0">
                 <Ellipse Fill="#E6181818" Stroke="{ThemeResource CardStrokeColorDefaultBrush}" StrokeThickness="1.5" />
                 <FontIcon Glyph="&#xE70E;" FontSize="10" Foreground="#C0C0C0" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,4,0,0" />
@@ -1469,6 +1824,7 @@
     <!-- Update prompt: anchored to the sidebar update icon (falls back to a corner when the sidebar is hidden) -->
     <TeachingTip x:Name="UpdateTeachingTip"
                  Grid.ColumnSpan="2"
+                 Grid.RowSpan="2"
                  PreferredPlacement="RightBottom"
                  IsLightDismissEnabled="True"
                  ActionButtonStyle="{ThemeResource AccentButtonStyle}"

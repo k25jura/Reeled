@@ -63,7 +63,7 @@ public static class FeedbackDialog
             Text = loc["Feedback_Note"],
             TextWrapping = TextWrapping.Wrap,
             FontSize = 12,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorTertiaryBrush"]
+            Foreground = Helpers.ThemeBrushes.Get("TextFillColorTertiaryBrush", App.CurrentTheme)
         };
 
         kind.SelectionChanged += (s, e) =>
@@ -101,7 +101,7 @@ public static class FeedbackDialog
         title.TextChanged += (s, e) => Validate();
         details.TextChanged += (s, e) => Validate();
 
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (await dialog.ShowSafeAsync() != ContentDialogResult.Primary) return;
 
         string diagnostics = includeDiagnostics.IsChecked == true ? settings.BuildDiagnosticsReport(includeLogPath: false) : string.Empty;
         string url = BuildIssueUrl(kind.SelectedIndex, title.Text.Trim(), details.Text.Trim(), steps.Text.Trim(), diagnostics, settings.CurrentVersionTag);

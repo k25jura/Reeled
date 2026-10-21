@@ -25,20 +25,20 @@ public partial class App : Application
 
         UnhandledException += (sender, args) =>
         {
-            Helpers.CursorHelper.RestoreGlobalCursor();
+            Helpers.CursorHelper.RestoreGlobalCursor(force: true);
             Helpers.Log.Error("UnhandledException", $"{args.Message}\n{args.Exception}");
             args.Handled = true;
         };
 
         AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
         {
-            Helpers.CursorHelper.RestoreGlobalCursor();
+            Helpers.CursorHelper.Shutdown();
             Helpers.Log.Error("AppDomain Unhandled", args.ExceptionObject?.ToString() ?? "unknown");
         };
 
         AppDomain.CurrentDomain.ProcessExit += (sender, args) =>
         {
-            Helpers.CursorHelper.RestoreGlobalCursor();
+            Helpers.CursorHelper.Shutdown();
             try { SingleInstanceService.Stop(); } catch { }
         };
 
@@ -55,6 +55,7 @@ public partial class App : Application
         services.AddSingleton<IThumbnailService, ThumbnailService>();
         services.AddSingleton<IClipMetadataService, ClipMetadataService>();
         services.AddSingleton<IClipIndexerService, ClipIndexerService>();
+        services.AddSingleton<IFileOperationService, FileOperationService>();
         services.AddSingleton<ILibVlcPlaybackService, LibVlcPlaybackService>();
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
@@ -78,7 +79,10 @@ public partial class App : Application
             return;
         }
 
-        Helpers.CursorHelper.RestoreGlobalCursor();
+        // Repairs cursors a previous run left blank (it may have been killed while the cursor was hidden)
+        Helpers.CursorHelper.RestoreGlobalCursor(force: true);
+        // Before any UI exists, so every control is created with the chosen accent
+        Helpers.Accent.ApplyFromSettings();
         Window = new MainWindow();
         DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
         var storage = GetService<ILocalStorageService>();
@@ -180,6 +184,7 @@ public partial class App : Application
 
             if (Window is MainWindow mainWindow)
             {
+                mainWindow.ContentRoot.RequestedTheme = targetTheme;
                 mainWindow.NavigationFrame.RequestedTheme = targetTheme;
                 if (mainWindow.NavigationFrame.Content is FrameworkElement page)
                 {

@@ -1188,7 +1188,6 @@
                   DragOver="OnClipsAreaDragOver"
                   DragLeave="OnClipsAreaDragLeave"
                   Drop="OnClipsAreaDrop"
-                  PointerPressed="OnClipsAreaPointerPressed"
                   RightTapped="OnClipsAreaRightTapped">
                 <Grid.RenderTransform>
                     <TranslateTransform x:Name="ClipsHostTranslate" Y="0" />

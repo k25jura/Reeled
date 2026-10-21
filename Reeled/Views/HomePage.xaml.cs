@@ -31,6 +31,7 @@ public sealed partial class HomePage : Page
         WireGameIcons();
         WireTabs();
         WireFileOps();
+        WireMarquee();
 
         Helpers.CursorHelper.SetElementCursor(SidebarResizeHandle, Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast));
 
@@ -2139,6 +2140,8 @@ public sealed partial class HomePage : Page
             }
             return;
         }
+
+        if (args.ItemContainer is Microsoft.UI.Xaml.Controls.Primitives.SelectorItem dragContainer) HookClipDragVisual(dragContainer);
 
         if (args.Item is Models.GameClip clip && clip.Thumbnail == null)
         {

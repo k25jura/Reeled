@@ -14,6 +14,12 @@ using Windows.Storage;
 
 namespace Reeled.Views;
 
+/// <summary>True while clips dragged from the library are in flight (the window shows no external-drop overlay then).</summary>
+internal static class InternalDrag
+{
+    public static bool Active;
+}
+
 /// <summary>
 /// Dragging clips: onto a folder in the sidebar, a folder chip in the top or bottom bar, a folder tab or the
 /// open folder moves them (Ctrl copies; the drag caption says which); out of the app they travel as real
@@ -58,16 +64,110 @@ public sealed partial class HomePage
         e.Data.RequestedOperation = DataPackageOperation.Copy | DataPackageOperation.Move;
         e.Data.SetStorageItems(files);
         _dragClips = clips;
+        _dragGhostClip = dragged;
+        InternalDrag.Active = true;
+    }
+
+    private GameClip? _dragGhostClip;
+
+    /// <summary>Hooks the drag image of a clip container (once): a small thumbnail instead of the whole card or row.</summary>
+    private void HookClipDragVisual(Microsoft.UI.Xaml.Controls.Primitives.SelectorItem container)
+    {
+        if (_dragHooked.TryGetValue(container, out _)) return;
+        _dragHooked.Add(container, new object());
+        container.DragStarting += OnClipContainerDragStarting;
+    }
+
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<Microsoft.UI.Xaml.Controls.Primitives.SelectorItem, object> _dragHooked = new();
+
+    private async void OnClipContainerDragStarting(UIElement sender, DragStartingEventArgs args)
+    {
+        var deferral = args.GetDeferral();
         try
         {
-            // The drag image shows how many clips are on their way
-            foreach (var clip in clips.Where(c => !ReferenceEquals(c, dragged))) e.Items.Add(clip);
+            var clip = ActiveClipsView.ItemFromContainer(sender) as GameClip;
+            if (clip != null)
+            {
+                int count = clip.IsSelected ? Math.Max(1, _selection.Count) : 1;
+                var bitmap = await RenderDragGhostAsync(clip, count);
+                if (bitmap != null) args.DragUI.SetContentFromSoftwareBitmap(bitmap, new Windows.Foundation.Point(14, 14));
+            }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log.Error("Drag image", ex);
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+    }
+
+    /// <summary>A 96x54 rounded thumbnail of the clip with a count badge for several clips, rendered off-screen.</summary>
+    private async Task<Windows.Graphics.Imaging.SoftwareBitmap?> RenderDragGhostAsync(GameClip clip, int count)
+    {
+        var ghost = new Grid { Width = 96, Height = 54, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(-4000, 0, 0, 0), IsHitTestVisible = false };
+        var frame = new Border
+        {
+            CornerRadius = new CornerRadius(8),
+            Background = Helpers.ThemeBrushes.Get("SolidBackgroundFillColorSecondaryBrush", this),
+            BorderBrush = Helpers.ThemeBrushes.Get("CardStrokeColorDefaultBrush", this),
+            BorderThickness = new Thickness(1)
+        };
+        if (clip.Thumbnail != null)
+        {
+            frame.Child = new Image { Source = clip.Thumbnail, Stretch = Stretch.UniformToFill };
+        }
+        else
+        {
+            frame.Child = new FontIcon { Glyph = "", FontSize = 20, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = Helpers.ThemeBrushes.Get("TextFillColorSecondaryBrush", this) };
+        }
+        ghost.Children.Add(frame);
+        if (count > 1)
+        {
+            ghost.Children.Add(new Border
+            {
+                MinWidth = 22,
+                Height = 22,
+                CornerRadius = new CornerRadius(11),
+                Padding = new Thickness(6, 0, 6, 0),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(0, 0, 4, 4),
+                Background = Helpers.ThemeBrushes.Get("AccentFillColorDefaultBrush", this),
+                Child = new TextBlock
+                {
+                    Text = count.ToString(),
+                    FontSize = 12,
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = Microsoft.UI.Xaml.VerticalAlignment.Center,
+                    Foreground = Helpers.ThemeBrushes.Get("TextOnAccentFillColorPrimaryBrush", this)
+                }
+            });
+        }
+
+        ClipsHost.Children.Add(ghost);
+        try
+        {
+            ghost.UpdateLayout();
+            var rtb = new Microsoft.UI.Xaml.Media.Imaging.RenderTargetBitmap();
+            await rtb.RenderAsync(ghost);
+            var pixels = await rtb.GetPixelsAsync();
+            if (rtb.PixelWidth <= 0 || rtb.PixelHeight <= 0) return null;
+            return Windows.Graphics.Imaging.SoftwareBitmap.CreateCopyFromBuffer(
+                pixels, Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8, rtb.PixelWidth, rtb.PixelHeight,
+                Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied);
+        }
+        finally
+        {
+            ClipsHost.Children.Remove(ghost);
+        }
     }
 
     private void OnClipDragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs e)
     {
+        InternalDrag.Active = false;
         _dragClips = null;
         CancelDwell();
         ClearDropHighlight();
@@ -293,7 +393,8 @@ public sealed partial class HomePage
         string? folder = ViewModel.CurrentFolderPath;
         bool ok = PrepareDrop(e, folder);
         _dropOverlayHideTimer?.Stop();
-        SetClipsDropOverlay(ok);
+        // A drag that started in this view only highlights its targets: no "drop files here" frame
+        SetClipsDropOverlay(ok && !InternalDrag.Active);
         if (IsFileDrag(e)) e.Handled = true;
     }
 

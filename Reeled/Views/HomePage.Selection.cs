@@ -167,10 +167,13 @@ public sealed partial class HomePage
         return false;
     }
 
-    /// <summary>A click on empty space between and around the clips clears the selection.</summary>
+    /// <summary>
+    /// A press on empty space between and around the clips: clears the selection (Ctrl keeps it) and gets ready
+    /// for a rubber-band drag (HomePage.Marquee.cs).
+    /// </summary>
     private void OnClipsAreaPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (!IsSelecting || IsCtrlDown() || IsShiftDown()) return;
+        if (IsShiftDown()) return;
         if (!e.GetCurrentPoint(ClipsHost).Properties.IsLeftButtonPressed) return;
         if (e.OriginalSource is DependencyObject source &&
             (FindParent<GridViewItem>(source) != null || FindParent<ListViewItem>(source) != null ||
@@ -178,7 +181,9 @@ public sealed partial class HomePage
         {
             return;
         }
-        ClearSelection();
+        bool ctrl = IsCtrlDown();
+        if (!ctrl && IsSelecting) ClearSelection();
+        BeginMarqueeCandidate(e, ctrl);
     }
 
     /// <summary>The clips an action (copy, cut, delete) applies to: the selection, else the card under the pointer.</summary>

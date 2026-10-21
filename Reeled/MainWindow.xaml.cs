@@ -1374,6 +1374,8 @@ public sealed partial class MainWindow : Window
 
     private void OnRootWindowDragEnter(object sender, DragEventArgs e)
     {
+        // Clips dragged from the library are not files arriving from outside: no overlay, no dimming
+        if (Reeled.Views.InternalDrag.Active) return;
         _dragDepth++;
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
@@ -1386,6 +1388,7 @@ public sealed partial class MainWindow : Window
 
     private void OnRootWindowDragOver(object sender, DragEventArgs e)
     {
+        if (Reeled.Views.InternalDrag.Active) return;
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
             e.AcceptedOperation = DataPackageOperation.Copy;
@@ -1404,6 +1407,7 @@ public sealed partial class MainWindow : Window
 
     private void OnRootWindowDragLeave(object sender, DragEventArgs e)
     {
+        if (Reeled.Views.InternalDrag.Active) return;
         _dragDepth--;
         if (_dragDepth <= 0)
         {
@@ -1416,6 +1420,7 @@ public sealed partial class MainWindow : Window
     {
         _dragDepth = 0;
         ShowDropOverlay(false);
+        if (Reeled.Views.InternalDrag.Active) return;
 
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {

@@ -391,6 +391,7 @@ public sealed partial class MainWindow : Window
         };
         UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
 
+        WireDragDrop();
         UpdateDropOverlayLocalization();
         var locService = App.GetService<ILocalizationService>();
         if (locService != null)
@@ -1368,8 +1369,11 @@ public sealed partial class MainWindow : Window
     {
         var loc = App.GetService<ILocalizationService>();
         if (loc == null) return;
-        if (DropOverlayTitleText != null) DropOverlayTitleText.Text = loc["DropOverlay_Title"];
-        if (DropOverlaySubtitleText != null) DropOverlaySubtitleText.Text = loc["DropOverlay_Subtitle"];
+        if (OpenZoneTitle == null) return;
+        OpenZoneTitle.Text = loc["DropOverlay_OpenTitle"];
+        OpenZoneSubtitle.Text = loc["DropOverlay_OpenSubtitle"];
+        AddZoneTitle.Text = loc["DropOverlay_AddTitle"];
+        AddZoneSubtitle.Text = loc[_addZoneEnabled ? "DropOverlay_AddSubtitle" : "DropOverlay_AddNeedFolder"];
     }
 
     private void OnRootWindowDragEnter(object sender, DragEventArgs e)
@@ -1386,25 +1390,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void OnRootWindowDragOver(object sender, DragEventArgs e)
-    {
-        if (Reeled.Views.InternalDrag.Active) return;
-        if (e.DataView.Contains(StandardDataFormats.StorageItems))
-        {
-            e.AcceptedOperation = DataPackageOperation.Copy;
-            e.DragUIOverride.IsCaptionVisible = false;
-            e.DragUIOverride.IsGlyphVisible = false;
-            if (!_isDropOverlayVisible)
-            {
-                ShowDropOverlay(true);
-            }
-        }
-        else
-        {
-            e.AcceptedOperation = DataPackageOperation.None;
-        }
-    }
-
     private void OnRootWindowDragLeave(object sender, DragEventArgs e)
     {
         if (Reeled.Views.InternalDrag.Active) return;
@@ -1413,22 +1398,28 @@ public sealed partial class MainWindow : Window
         {
             _dragDepth = 0;
             ShowDropOverlay(false);
+            ResetDragInfo();
         }
     }
 
     private async void OnRootWindowDrop(object sender, DragEventArgs e)
     {
+        // The overlay and the window both raise this for one drop: only the first handles it
+        if (e.Handled) return;
+        bool add = ZoneAt(e) == DropZone.Add;
         _dragDepth = 0;
         ShowDropOverlay(false);
+        ResetDragInfo();
         if (Reeled.Views.InternalDrag.Active) return;
 
         if (e.DataView.Contains(StandardDataFormats.StorageItems))
         {
+            e.Handled = true;
             var deferral = e.GetDeferral();
             try
             {
                 var items = await e.DataView.GetStorageItemsAsync();
-                await ProcessDroppedStorageItemsAsync(items);
+                await ProcessDroppedStorageItemsAsync(items, add);
             }
             catch { }
             finally
@@ -1442,6 +1433,7 @@ public sealed partial class MainWindow : Window
     {
         if (_isDropOverlayVisible == show) return;
         _isDropOverlayVisible = show;
+        if (show) PrepareZonesForShow();
 
         _dropOverlayStoryboard?.Stop();
         _dropOverlayStoryboard = null;
@@ -1520,7 +1512,7 @@ public sealed partial class MainWindow : Window
         Helpers.Motion.Begin(sb);
     }
 
-    private async Task ProcessDroppedStorageItemsAsync(IReadOnlyList<IStorageItem> items)
+    private async Task ProcessDroppedStorageItemsAsync(IReadOnlyList<IStorageItem> items, bool add = false)
     {
         if (items == null || items.Count == 0) return;
 
@@ -1551,6 +1543,16 @@ public sealed partial class MainWindow : Window
                     videoFilePaths.Add(item.Path);
                 }
             }
+        }
+
+        if (add)
+        {
+            // Videos are copied into the open folder first: adding a folder below opens it and changes which one that is
+            if (videoFilePaths.Count > 0 && RootFrame.Content is HomePage home && CurrentDropFolder() != null)
+            {
+                await home.AddExternalFilesAsync(videoFilePaths);
+            }
+            videoFilePaths.Clear();
         }
 
         if (folderPaths.Count > 0)

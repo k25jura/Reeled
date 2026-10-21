@@ -18,7 +18,6 @@
           Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
           AllowDrop="True"
           DragEnter="OnRootWindowDragEnter"
-          DragOver="OnRootWindowDragOver"
           DragLeave="OnRootWindowDragLeave"
           Drop="OnRootWindowDrop">
         <!-- Solid background transition layer for video playback -->
@@ -53,57 +52,79 @@
               AllowDrop="True"
               Background="#D9000000"
               DragEnter="OnRootWindowDragEnter"
-              DragOver="OnRootWindowDragOver"
               DragLeave="OnRootWindowDragLeave"
               Drop="OnRootWindowDrop">
-            <Grid x:Name="DropContentCard"
-                  Width="480"
-                  Height="230"
-                  HorizontalAlignment="Center"
-                  VerticalAlignment="Center"
-                  RenderTransformOrigin="0.5,0.5">
-                <Grid.RenderTransform>
+            <!-- Two drop zones: Open (play it) and Add to library. Brushes are set in code (accent / success tones, animated) -->
+            <StackPanel x:Name="DropContentCard"
+                        Orientation="Horizontal"
+                        Spacing="20"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        RenderTransformOrigin="0.5,0.5">
+                <StackPanel.RenderTransform>
                     <ScaleTransform x:Name="DropContentScale" ScaleX="0.94" ScaleY="0.94" />
-                </Grid.RenderTransform>
+                </StackPanel.RenderTransform>
 
-                <!-- Dashed border frame with solid card fill -->
-                <Rectangle RadiusX="18" RadiusY="18"
-                           Stroke="{ThemeResource AccentFillColorDefaultBrush}"
-                           StrokeThickness="2"
-                           StrokeDashArray="5,3.5"
-                           Fill="{ThemeResource SolidBackgroundFillColorBaseBrush}" />
-
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" Padding="32">
-                    <!-- Icon badge with subtle accent background -->
-                    <Border Width="60" Height="60"
-                            CornerRadius="30"
-                            Background="{ThemeResource AccentFillColorDefaultBrush}"
-                            Opacity="0.15"
-                            HorizontalAlignment="Center">
-                        <FontIcon Glyph="&#xE8E5;"
-                                  FontSize="26"
-                                  Foreground="{ThemeResource AccentFillColorDefaultBrush}"
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center" />
-                    </Border>
-
-                    <StackPanel Spacing="4" HorizontalAlignment="Center">
-                        <TextBlock x:Name="DropOverlayTitleText"
-                                   Text="Drop files here"
-                                   Style="{ThemeResource SubtitleTextBlockStyle}"
-                                   FontWeight="SemiBold"
-                                   HorizontalAlignment="Center" />
-                        <TextBlock x:Name="DropOverlaySubtitleText"
-                                   Text="Drop video files to play immediately, or folders to add to library"
-                                   Style="{ThemeResource CaptionTextBlockStyle}"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   TextWrapping="Wrap"
-                                   TextAlignment="Center"
-                                   MaxWidth="380"
-                                   HorizontalAlignment="Center" />
+                <Grid x:Name="OpenZone" Width="270" Height="220">
+                    <Rectangle x:Name="OpenZoneRect" RadiusX="18" RadiusY="18" StrokeThickness="2" StrokeDashArray="5,3.5"
+                               Fill="{ThemeResource SolidBackgroundFillColorBaseBrush}" />
+                    <Border x:Name="OpenZoneTint" CornerRadius="18" />
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" Padding="24">
+                        <Border x:Name="OpenZoneBadge" Width="60" Height="60" CornerRadius="30" HorizontalAlignment="Center">
+                            <FontIcon x:Name="OpenZoneIcon" Glyph="&#xE768;" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Spacing="4" HorizontalAlignment="Center">
+                            <TextBlock x:Name="OpenZoneTitle" Text="Open" Style="{ThemeResource SubtitleTextBlockStyle}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="OpenZoneSubtitle" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       TextWrapping="Wrap" TextAlignment="Center" MaxWidth="210" HorizontalAlignment="Center" />
+                        </StackPanel>
                     </StackPanel>
+                </Grid>
+
+                <Grid x:Name="AddZone" Width="270" Height="220">
+                    <Rectangle x:Name="AddZoneRect" RadiusX="18" RadiusY="18" StrokeThickness="2" StrokeDashArray="5,3.5"
+                               Fill="{ThemeResource SolidBackgroundFillColorBaseBrush}" />
+                    <Border x:Name="AddZoneTint" CornerRadius="18" />
+                    <StackPanel x:Name="AddZoneContent" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" Padding="24">
+                        <Border x:Name="AddZoneBadge" Width="60" Height="60" CornerRadius="30" HorizontalAlignment="Center">
+                            <FontIcon x:Name="AddZoneIcon" Glyph="&#xE710;" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Spacing="4" HorizontalAlignment="Center">
+                            <TextBlock x:Name="AddZoneTitle" Text="Add to library" Style="{ThemeResource SubtitleTextBlockStyle}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="AddZoneSubtitle" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       TextWrapping="Wrap" TextAlignment="Center" MaxWidth="210" HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Grid>
+
+        <!-- Floating drag caption that follows the pointer (replaces the system caption while over the window) -->
+        <Grid x:Name="DragPillHost"
+              Canvas.ZIndex="1000"
+              HorizontalAlignment="Left"
+              VerticalAlignment="Top"
+              IsHitTestVisible="False"
+              Visibility="Collapsed">
+            <Grid.RenderTransform>
+                <TranslateTransform x:Name="DragPillMove" />
+            </Grid.RenderTransform>
+            <Border x:Name="DragPill"
+                    CornerRadius="10"
+                    Padding="10,7,14,7"
+                    BorderThickness="1"
+                    BorderBrush="{ThemeResource SurfaceStrokeColorFlyoutBrush}"
+                    Opacity="0"
+                    RenderTransformOrigin="0,0">
+                <Border.RenderTransform>
+                    <ScaleTransform x:Name="DragPillScale" ScaleX="0.9" ScaleY="0.9" />
+                </Border.RenderTransform>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon x:Name="DragPillIcon" FontSize="14" VerticalAlignment="Center" />
+                    <TextBlock x:Name="DragPillText" FontSize="13" MaxWidth="320" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
                 </StackPanel>
-            </Grid>
+            </Border>
         </Grid>
     </Grid>
 

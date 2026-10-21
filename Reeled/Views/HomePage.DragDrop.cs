@@ -18,6 +18,29 @@ namespace Reeled.Views;
 internal static class InternalDrag
 {
     public static bool Active;
+
+    /// <summary>Raised when an internal drag is over (dropped or cancelled) so the window can hide its drag pill.</summary>
+    public static event Action? Ended;
+
+    public static void RaiseEnded() => Ended?.Invoke();
+
+    /// <summary>What the target under the pointer says a drop would do; read (and cleared) by the window once per DragOver.</summary>
+    private static (string Text, string Glyph, bool Allowed)? _pill;
+
+    public const string GlyphMove = "";
+    public const string GlyphCopy = "";
+    public const string GlyphAdd = "";
+    public const string GlyphOpen = "";
+    public const string GlyphBlocked = "";
+
+    public static void SetPill(string text, string glyph, bool allowed) => _pill = (text, glyph, allowed);
+
+    public static (string Text, string Glyph, bool Allowed)? TakePill()
+    {
+        var pill = _pill;
+        _pill = null;
+        return pill;
+    }
 }
 
 /// <summary>
@@ -172,6 +195,23 @@ public sealed partial class HomePage
         CancelDwell();
         ClearDropHighlight();
         SetClipsDropOverlay(false);
+        InternalDrag.RaiseEnded();
+    }
+
+    /// <summary>The folder the library shows right now (the target of "Add to library" for dropped files), or null.</summary>
+    public string? CurrentDropFolder => ViewModel.CurrentFolderPath;
+
+    /// <summary>Copies video files dropped from outside into the open folder (the "Add to library" drop zone).</summary>
+    public async Task AddExternalFilesAsync(IReadOnlyList<string> files)
+    {
+        string? folder = ViewModel.CurrentFolderPath;
+        var videos = files.Where(PathUtil.IsVideoFile).ToList();
+        if (folder == null || videos.Count == 0)
+        {
+            ShowFileOpMessage(LayoutLoc[folder == null ? "FileOps_NeedFolder" : "FileOps_NoVideos"], error: true);
+            return;
+        }
+        await RunTransferAsync(videos, folder, FileTransferKind.Copy);
     }
 
     /// <summary>Storage files for the clips. Resolved on the thread pool and waited for: a drag can't start later.</summary>
@@ -231,7 +271,7 @@ public sealed partial class HomePage
         var loc = LayoutLoc;
         if (destination == null)
         {
-            SetDragCaption(e, loc["Drag_NoFolder"]);
+            SetDragCaption(e, loc["Drag_NoFolder"], InternalDrag.GlyphBlocked, allowed: false);
             return false;
         }
 
@@ -244,17 +284,24 @@ public sealed partial class HomePage
         }
 
         e.AcceptedOperation = kind == FileTransferKind.Copy ? DataPackageOperation.Copy : DataPackageOperation.Move;
-        SetDragCaption(e, string.Format(loc[kind == FileTransferKind.Copy ? "Drag_CopyTo" : "Drag_MoveTo"], FolderDisplayName(destination)));
+        bool copy = kind == FileTransferKind.Copy;
+        SetDragCaption(e, string.Format(loc[copy ? "Drag_CopyTo" : "Drag_MoveTo"], FolderDisplayName(destination)),
+            copy ? InternalDrag.GlyphCopy : InternalDrag.GlyphMove, allowed: true);
         return true;
     }
 
-    private static void SetDragCaption(DragEventArgs e, string caption)
+    /// <summary>
+    /// Describes the drop for the in-app drag pill (see MainWindow) and keeps the system caption and glyph hidden:
+    /// the pill replaces them while the pointer is over Reeled.
+    /// </summary>
+    private static void SetDragCaption(DragEventArgs e, string caption, string glyph, bool allowed)
     {
+        InternalDrag.SetPill(caption, glyph, allowed);
         if (e.DragUIOverride == null) return;
         e.DragUIOverride.Caption = caption;
-        e.DragUIOverride.IsCaptionVisible = true;
+        e.DragUIOverride.IsCaptionVisible = false;
         e.DragUIOverride.IsContentVisible = true;
-        e.DragUIOverride.IsGlyphVisible = true;
+        e.DragUIOverride.IsGlyphVisible = false;
     }
 
     /// <summary>Takes the dropped files into <paramref name="destination"/> (copying or moving, with progress).</summary>
@@ -393,8 +440,8 @@ public sealed partial class HomePage
         string? folder = ViewModel.CurrentFolderPath;
         bool ok = PrepareDrop(e, folder);
         _dropOverlayHideTimer?.Stop();
-        // A drag that started in this view only highlights its targets: no "drop files here" frame
-        SetClipsDropOverlay(ok && !InternalDrag.Active);
+        // Drags from outside get the window's Open / Add overlay, drags from this view only highlight their targets
+        SetClipsDropOverlay(false);
         if (IsFileDrag(e)) e.Handled = true;
     }
 
@@ -499,39 +546,93 @@ public sealed partial class HomePage
     // Tabs
     // ---------------------------------------------------------------------------------------------
 
+    /// <summary>A tab is a drop target through the strip-level handlers (<see cref="WireTabStripDrop"/>); the item only has to allow drops.</summary>
     private void AttachTabDrop(TabViewItem item)
     {
-        string? Destination() => item.Tag is LibraryTab { Section: NavigationSection.Folder, FolderPath: { } path } ? path : null;
-        void Tint(bool on)
+        item.AllowDrop = true;
+    }
+
+    private static string? TabDropDestination(TabViewItem item) =>
+        item.Tag is LibraryTab { Section: NavigationSection.Folder, FolderPath: { } path } ? path : null;
+
+    private void TintTab(TabViewItem item, bool on)
+    {
+        if (item.Header is not Grid header) return;
+        if (!on)
         {
-            if (item.Header is not Grid header) return;
-            if (!on)
+            header.Background = null;
+            return;
+        }
+        var accent = Helpers.ThemeBrushes.Get("AccentFillColorDefaultBrush", item) as SolidColorBrush;
+        var color = accent?.Color ?? Microsoft.UI.Colors.DodgerBlue;
+        header.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x46, color.R, color.G, color.B));
+    }
+
+    /// <summary>The tab under the pointer of a drag over the strip (hit-tested by bounds, whatever element raised the event).</summary>
+    private TabViewItem? TabItemUnderDrag(DragEventArgs e)
+    {
+        foreach (var item in _tabItems.Values)
+        {
+            if (item.ActualWidth <= 0) continue;
+            var p = e.GetPosition(item);
+            if (p.X >= 0 && p.Y >= 0 && p.X <= item.ActualWidth && p.Y <= item.ActualHeight) return item;
+        }
+        return null;
+    }
+
+    private void ClearTabHighlight()
+    {
+        if (_highlightKey is TabViewItem) ClearDropHighlight();
+    }
+
+    /// <summary>
+    /// The tab strip's own list handles drags (to reorder tabs) and answers "not allowed" for anything else
+    /// after the items have spoken, which made tabs refuse files until the pointer had rested on them. These
+    /// handlers sit on the TabView, hear the event last (even when it was handled below) and decide
+    /// synchronously, so a folder tab accepts from the first DragEnter on.
+    /// </summary>
+    private void WireTabStripDrop()
+    {
+        _tabView.AllowDrop = true;
+        DragEventHandler over = (s, e) =>
+        {
+            if (!IsFileDrag(e)) return;
+            var item = TabItemUnderDrag(e);
+            if (item == null)
             {
-                header.Background = null;
+                ClearTabHighlight();
                 return;
             }
-            var accent = Helpers.ThemeBrushes.Get("AccentFillColorDefaultBrush", item) as SolidColorBrush;
-            var color = accent?.Color ?? Microsoft.UI.Colors.DodgerBlue;
-            header.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x46, color.R, color.G, color.B));
-        }
-
-        item.AllowDrop = true;
-        item.DragOver += (s, e) =>
-        {
-            // Dragging tabs around is the strip's own business
-            if (!IsFileDrag(e)) return;
-            bool ok = PrepareDrop(e, Destination());
-            SetHighlight(item, Tint, ok);
+            string? destination = TabDropDestination(item);
+            if (destination == null)
+            {
+                // Home, Favorites and Moments are not places to drop into
+                e.AcceptedOperation = DataPackageOperation.None;
+                if (e.DragUIOverride != null)
+                {
+                    e.DragUIOverride.IsCaptionVisible = false;
+                    e.DragUIOverride.IsGlyphVisible = false;
+                }
+                ClearTabHighlight();
+                e.Handled = true;
+                return;
+            }
+            bool ok = PrepareDrop(e, destination);
+            SetHighlight(item, on => TintTab(item, on), ok);
             e.Handled = true;
         };
-        item.DragLeave += (s, e) => SetHighlight(item, Tint, false);
-        item.Drop += async (s, e) =>
+        _tabView.AddHandler(UIElement.DragEnterEvent, over, true);
+        _tabView.AddHandler(UIElement.DragOverEvent, over, true);
+        _tabView.AddHandler(UIElement.DragLeaveEvent, new DragEventHandler((s, e) => ClearTabHighlight()), true);
+        _tabView.AddHandler(UIElement.DropEvent, new DragEventHandler(async (s, e) =>
         {
-            SetHighlight(item, Tint, false);
-            var destination = Destination();
-            if (destination == null || !IsFileDrag(e)) return;
+            ClearTabHighlight();
+            if (!IsFileDrag(e)) return;
+            var item = TabItemUnderDrag(e);
+            string? destination = item != null ? TabDropDestination(item) : null;
+            if (destination == null) return;
             e.Handled = true;
             await HandleDropAsync(e, destination);
-        };
+        }), true);
     }
 }

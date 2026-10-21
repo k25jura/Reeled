@@ -14,7 +14,7 @@ public sealed partial class SettingsPage
         // Open when closed or on its way closed (Opacity is 0 only once fully hidden or while fading out)
         bool open = !_iconSourcesOpen;
         _iconSourcesOpen = open;
-        Helpers.Motion.Reveal(IconSourcesBody, open);
+        Helpers.Motion.Reveal(IconSourcesBody, open, null, SettingsScrollViewer, OnRevealScrolling);
 
         var sb = new Microsoft.UI.Xaml.Media.Animation.Storyboard();
         sb.Children.Add(Helpers.Motion.Spline(IconSourcesChevronRotation, "Angle", open ? 180 : 0, Helpers.Motion.Medium));

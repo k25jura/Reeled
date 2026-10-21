@@ -375,7 +375,7 @@ public sealed partial class SettingsPage : Page
     {
         _isDiagnosticsOpen = !_isDiagnosticsOpen;
         if (_isDiagnosticsOpen) ViewModel.UpdateDiagnostics();
-        Helpers.Motion.Reveal(DiagnosticsDetails, _isDiagnosticsOpen);
+        Helpers.Motion.Reveal(DiagnosticsDetails, _isDiagnosticsOpen, null, SettingsScrollViewer, OnRevealScrolling);
         DiagnosticsToggleText.Text = ViewModel.Loc[_isDiagnosticsOpen ? "About_DiagnosticsHide" : "About_DiagnosticsShow"];
 
         var sb = new Storyboard();
@@ -1034,8 +1034,14 @@ public sealed partial class SettingsPage : Page
     }
 
 
+    private bool _isRevealScrolling;
+
+    /// <summary>Scroll that follows an expander opening: keeps scroll-spy from reacting to it.</summary>
+    private void OnRevealScrolling(bool active) => _isRevealScrolling = active;
+
     private void OnSettingsScrollViewerViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
     {
+        if (_isRevealScrolling) return;
         if (_isProgrammaticScroll)
         {
             if (!e.IsIntermediate)
@@ -1063,7 +1069,7 @@ public sealed partial class SettingsPage : Page
         if (!DispatcherQueue.TryEnqueue(() =>
             {
                 _scrollSpyQueued = false;
-                if (!_isProgrammaticScroll) UpdateActiveCategoryFromScroll();
+                if (!_isProgrammaticScroll && !_isRevealScrolling) UpdateActiveCategoryFromScroll();
             }))
         {
             _scrollSpyQueued = false;

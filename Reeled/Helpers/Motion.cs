@@ -292,7 +292,8 @@ public static class Motion
     /// at the start of opening and vanish at the end of closing. Put it in a zero-spacing host instead and
     /// give the element its own padding for the gap, which animates with the height.
     /// </summary>
-    public static void Reveal(FrameworkElement element, bool show, Action? completed = null)
+    public static void Reveal(FrameworkElement element, bool show, Action? completed = null,
+        Microsoft.UI.Xaml.Controls.ScrollViewer? scrollIntoView = null, Action<bool>? scrolling = null)
     {
         var translate = element.RenderTransform as Microsoft.UI.Xaml.Media.TranslateTransform;
         if (translate == null)
@@ -356,6 +357,52 @@ public static class Motion
             sb.Completed += (s, e) => Finish(false);
         }
         sb.Begin();
+        if (show && scrollIntoView != null) FollowReveal(element, translate, scrollIntoView, scrolling, token);
+    }
+
+    /// <summary>
+    /// Scrolls <paramref name="sv"/> in lockstep with a running show-reveal: each frame the offset is the
+    /// start-to-final distance scaled by how far the height animation has got, so the opening block and the
+    /// scroll read as one motion. The final offset is only as far as needed to show the block with a bottom
+    /// margin; if it is taller than the viewport, its top (and the toggle above it) is aligned instead.
+    /// <paramref name="scrolling"/> is raised true/false around the follow so scroll-spy can stay quiet.
+    /// </summary>
+    private static void FollowReveal(FrameworkElement element, Microsoft.UI.Xaml.Media.TranslateTransform translate,
+        Microsoft.UI.Xaml.Controls.ScrollViewer sv, Action<bool>? scrolling, object token)
+    {
+        const double bottomMargin = 24, topMargin = 72; // top leaves room for the toggle row above the block
+        try
+        {
+            double target = Math.Max(1, element.DesiredSize.Height - element.Margin.Top - element.Margin.Bottom);
+            double startH = Math.Max(0, element.Height);
+            double topInViewport = element.TransformToVisual(sv).TransformPoint(new Windows.Foundation.Point(0, 0)).Y - translate.Y;
+            double start = sv.VerticalOffset;
+            double top = start + topInViewport;               // block top in content coordinates
+            double viewport = sv.ViewportHeight;
+            double want = top + target + bottomMargin - viewport; // offset that shows the bottom edge
+            double final = (target + bottomMargin + topMargin > viewport) ? top - topMargin : Math.Max(start, want);
+            final = Math.Max(0, final);
+            if (final <= start + 0.5) return;
+
+            scrolling?.Invoke(true);
+            var started = Environment.TickCount64;
+            void Stop()
+            {
+                Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= OnFrame;
+                sv.ChangeView(null, final, null, true);
+                sv.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => scrolling?.Invoke(false));
+            }
+            void OnFrame(object? s, object e)
+            {
+                bool superseded = !RevealTokens.TryGetValue(element, out var cur) || !ReferenceEquals(cur, token);
+                double h = element.ActualHeight;
+                double p = Math.Clamp((h - startH) / Math.Max(1, target - startH), 0, 1);
+                if (superseded || p >= 1 || Environment.TickCount64 - started > 1500) { Stop(); return; }
+                sv.ChangeView(null, start + (final - start) * p, null, true);
+            }
+            Microsoft.UI.Xaml.Media.CompositionTarget.Rendering += OnFrame;
+        }
+        catch { scrolling?.Invoke(false); }
     }
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<FrameworkElement, object> RevealTokens = new();

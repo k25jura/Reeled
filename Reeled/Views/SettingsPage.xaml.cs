@@ -674,7 +674,7 @@ public sealed partial class SettingsPage : Page
         try
         {
             var pt = _indicatorFollowTarget.TransformToVisual(CategoriesNavRoot).TransformPoint(new Windows.Foundation.Point(0, 0));
-            target = pt.Y + (_indicatorFollowTarget.ActualHeight - 18.0) / 2.0;
+            target = pt.Y + (_indicatorFollowTarget.ActualHeight - 16.0) / 2.0;
         }
         catch
         {
@@ -716,7 +716,7 @@ public sealed partial class SettingsPage : Page
         {
             var transform = targetBtn.TransformToVisual(CategoriesNavRoot);
             var pt = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
-            double targetY = pt.Y + (targetBtn.ActualHeight - 18.0) / 2.0;
+            double targetY = pt.Y + (targetBtn.ActualHeight - 16.0) / 2.0;
 
             if (!_isIndicatorVisible)
             {

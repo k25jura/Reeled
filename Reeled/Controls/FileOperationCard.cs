@@ -30,7 +30,7 @@ public sealed class FileOperationCard : UserControl
         {
             CornerRadius = new CornerRadius(8),
             BorderThickness = new Thickness(1),
-            Padding = new Thickness(14, 12, 10, 12),
+            Padding = new Thickness(14, 12, 16, 12),
             Background = acrylic
         };
         ThemeBrushes.Track(root, () =>

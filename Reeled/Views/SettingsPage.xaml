@@ -22,10 +22,10 @@
 
         <!-- Category Navigation Rail Button Style with Smooth Transitions -->
         <Style x:Key="SettingsCategoryButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="42" />
-            <Setter Property="Padding" Value="14,0" />
-            <Setter Property="Margin" Value="0,2" />
-            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Padding" Value="14,0,12,0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="CornerRadius" Value="6" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Stretch" />
@@ -34,7 +34,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Grid x:Name="RootGrid" Background="Transparent" CornerRadius="7">
+                        <Grid x:Name="RootGrid" Background="Transparent" CornerRadius="6">
                             <Grid.RenderTransform>
                                 <ScaleTransform x:Name="ButtonScale" ScaleX="1.0" ScaleY="1.0" />
                             </Grid.RenderTransform>
@@ -74,7 +74,7 @@
                                     </VisualState>
                                     <VisualState x:Name="Disabled">
                                         <VisualState.Setters>
-                                            <Setter Target="RootGrid.Opacity" Value="0.4" />
+                                            <Setter Target="RootGrid.Opacity" Value="0.5" />
                                         </VisualState.Setters>
                                     </VisualState>
                                 </VisualStateGroup>
@@ -83,14 +83,14 @@
                             <!-- Hover background -->
                             <Border x:Name="HoverBorder"
                                     Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                    CornerRadius="7"
+                                    CornerRadius="6"
                                     Opacity="0"
                                     IsHitTestVisible="False" />
 
                             <!-- Selected background highlight (ThemeResource aware - light in light mode, dark in dark mode) -->
                             <Border x:Name="SelectedBorder"
                                     Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                    CornerRadius="7"
+                                    CornerRadius="6"
                                     Opacity="0"
                                     IsHitTestVisible="False" />
 
@@ -225,8 +225,9 @@
                 <!-- Sliding Active Handle Indicator Pill (Matching main page sidebar) -->
                 <Border x:Name="ActiveIndicatorPill"
                         Width="3"
-                        Height="18"
+                        Height="16"
                         CornerRadius="1.5"
+                        Margin="10,0,0,0"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
                         Background="{ThemeResource AccentFillColorDefaultBrush}"
@@ -235,13 +236,13 @@
                     <Border.RenderTransform>
                         <TransformGroup>
                             <TranslateTransform x:Name="IndicatorTranslation" Y="0" />
-                            <ScaleTransform x:Name="IndicatorScale" ScaleY="0" CenterY="9" />
+                            <ScaleTransform x:Name="IndicatorScale" ScaleY="0" CenterY="8" />
                         </TransformGroup>
                     </Border.RenderTransform>
                 </Border>
 
                 <!-- Category Buttons Stack -->
-                <StackPanel x:Name="CategoriesStackPanel" Spacing="4" Margin="10,0,0,0">
+                <StackPanel x:Name="CategoriesStackPanel" Spacing="3" Margin="10,0,0,0">
                     <!-- 1. Folders -->
                     <Button x:Name="CatFoldersBtn"
                             Click="OnCategoryButtonClick"
@@ -668,7 +669,7 @@
                                             SnapsTo="StepValues"
                                             Value="{x:Bind ViewModel.Volume, Mode=OneWay}"
                                             ValueChanged="OnDefaultVolumeSliderValueChanged"
-                                            Width="130"
+                                            Width="150"
                                             VerticalAlignment="Center" />
                                     <TextBlock Text="{x:Bind ViewModel.VolumeFormatted, Mode=OneWay}"
                                                FontSize="12.5"
@@ -713,7 +714,7 @@
                                             SnapsTo="StepValues"
                                             Value="{x:Bind ViewModel.MaxVolume, Mode=OneWay}"
                                             ValueChanged="OnMaxVolumeSliderValueChanged"
-                                            Width="130"
+                                            Width="150"
                                             VerticalAlignment="Center" />
                                     <TextBlock Text="{x:Bind ViewModel.MaxVolumeFormatted, Mode=OneWay}"
                                                FontSize="12.5"
@@ -1074,7 +1075,7 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock x:Name="OsdSizeLabel" Text="Text size" FontSize="13" VerticalAlignment="Center" />
-                                        <Slider x:Name="OsdSizeSlider" Grid.Column="1" Width="180" Minimum="28" Maximum="88" StepFrequency="2" Value="52" ValueChanged="OnOsdSizeChanged" VerticalAlignment="Center" />
+                                        <Slider x:Name="OsdSizeSlider" Grid.Column="1" Width="200" Minimum="28" Maximum="88" StepFrequency="2" Value="52" ValueChanged="OnOsdSizeChanged" VerticalAlignment="Center" />
                                     </Grid>
                                     <Grid ColumnSpacing="12" MinHeight="36">
                                         <Grid.ColumnDefinitions>
@@ -2551,7 +2552,7 @@
                 HorizontalAlignment="Center"
                 VerticalAlignment="Bottom"
                 Margin="0,0,0,28"
-                Padding="16,11,18,12"
+                Padding="14,12,16,12"
                 MaxWidth="560"
                 CornerRadius="8"
                 Background="{ThemeResource SolidBackgroundFillColorQuarternaryBrush}"
@@ -2563,12 +2564,12 @@
             <Border.RenderTransform>
                 <TranslateTransform x:Name="SettingsToastTranslation" Y="16" />
             </Border.RenderTransform>
-            <Grid ColumnSpacing="10">
+            <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <FontIcon x:Name="SettingsToastIcon" Glyph="&#xE73E;" FontSize="14" VerticalAlignment="Center" />
+                <FontIcon x:Name="SettingsToastIcon" Glyph="&#xE73E;" FontSize="16" VerticalAlignment="Center" />
                 <TextBlock x:Name="SettingsToastText" Grid.Column="1" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" />
             </Grid>
         </Border>

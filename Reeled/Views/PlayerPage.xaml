@@ -443,8 +443,8 @@
                                                 VerticalAlignment="Center" 
                                                 Visibility="{x:Bind ViewModel.Bookmarks.Count, Mode=OneWay, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                                         <FontIcon Glyph="&#xE8A4;" FontSize="24" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,2" />
-                                        <TextBlock x:Name="MomentsFlyoutEmptyTitle" Text="No moments marked yet" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" />
-                                        <TextBlock x:Name="MomentsFlyoutEmptySubtitle" Text="Press 'B' while watching to mark a moment" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center" />
+                                        <TextBlock x:Name="MomentsFlyoutEmptyTitle" Text="No moments marked yet" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorPrimaryBrush}" HorizontalAlignment="Center" />
+                                        <TextBlock x:Name="MomentsFlyoutEmptySubtitle" Text="Press 'B' while watching to mark a moment" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" />
                                     </StackPanel>
 
                                     <!-- Moments List -->

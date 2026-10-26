@@ -38,9 +38,9 @@ public interface ILibVlcPlaybackService : IDisposable
     bool AddSubtitleFile(string filePath);
     void SetSubtitleDelay(long delayMs);
 
-    void InitializeEngine(string[]? swapChainOptions = null);
     void DisposeEngine();
-    void AttachToVideoView(LibVLCSharp.Platforms.Windows.VideoView videoView, string[] swapChainOptions);
+    /// <summary>Starts the engine for this swap chain off the UI thread, then hands it to the view.</summary>
+    Task AttachToVideoViewAsync(LibVLCSharp.Platforms.Windows.VideoView videoView, string[] swapChainOptions);
     float Fps { get; }
 
     /// <summary>Loads and plays a file. Overlapping calls are serialized and only the latest one wins.</summary>

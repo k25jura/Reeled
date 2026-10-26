@@ -537,7 +537,7 @@ public sealed partial class PlayerPage : Page
 
     private void OnVideoViewInitialized(object? sender, LibVLCSharp.Platforms.Windows.InitializedEventArgs e)
     {
-        ViewModel.AttachVideoView(PlayerVideoView, e.SwapChainOptions);
+        _ = ViewModel.AttachVideoViewAsync(PlayerVideoView, e.SwapChainOptions);
         _videoGlass?.SetSwapChain(e.SwapChainOptions);
     }
 

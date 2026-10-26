@@ -516,6 +516,7 @@ public sealed partial class MainWindow : Window
         }
 
         _isPlayerClosing = false;
+        App.GetService<IThumbnailService>().SetBackgroundPaused(true);
         playerVM.LoadClip(clip, playlist);
 
         _transitionStoryboard?.Stop();
@@ -582,6 +583,7 @@ public sealed partial class MainWindow : Window
 
     private void OnNavigatedToHome()
     {
+        App.GetService<IThumbnailService>().SetBackgroundPaused(false);
         _isPlayerClosing = true;
         _transitionStoryboard?.Stop();
 
@@ -701,6 +703,7 @@ public sealed partial class MainWindow : Window
 
     private void OnNavigatedToSettings()
     {
+        App.GetService<IThumbnailService>().SetBackgroundPaused(false);
         _isPlayerClosing = true;
         _transitionStoryboard?.Stop();
 

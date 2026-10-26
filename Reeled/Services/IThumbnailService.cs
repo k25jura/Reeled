@@ -9,4 +9,6 @@ public interface IThumbnailService
     bool TryGetFromMemoryCache(string videoPath, out BitmapImage? bitmap);
     Task<string?> EnsureThumbnailOnDiskAsync(string videoPath, bool highPriority = false);
     void ClearMemoryCache();
+    /// <summary>Holds the library-wide background extraction (not on-screen requests) while true.</summary>
+    void SetBackgroundPaused(bool paused);
 }

@@ -32,6 +32,30 @@ public class ThumbnailService : IThumbnailService
 
     private record CacheEntry(string Key, BitmapImage Bitmap);
 
+    // Open while the player is closed; the shell thumbnailer decodes video too, and running four of
+    // them while a clip starts makes the first frames stall on a cold disk.
+    private volatile TaskCompletionSource _backgroundGate = CompletedGate();
+
+    private static TaskCompletionSource CompletedGate()
+    {
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        gate.SetResult();
+        return gate;
+    }
+
+    public void SetBackgroundPaused(bool paused)
+    {
+        if (paused)
+        {
+            if (_backgroundGate.Task.IsCompleted)
+                _backgroundGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+        else
+        {
+            _backgroundGate.TrySetResult();
+        }
+    }
+
     public ThumbnailService()
     {
         string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -104,6 +128,9 @@ public class ThumbnailService : IThumbnailService
 
             if (File.Exists(cacheFile))
                 return cacheFile;
+
+            if (!highPriority)
+                await _backgroundGate.Task;
 
             var throttler = highPriority ? _interactiveThrottler : _diskExtractionThrottler;
             await throttler.WaitAsync();

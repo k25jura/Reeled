@@ -148,6 +148,8 @@
   "Appearance_IconIgdbHint": "IGDB uses Twitch credentials: register an application in the Twitch developer console to get both",
   "Appearance_IconGetKey": "Get a key",
   "Appearance_IconGetCredentials": "Get credentials",
+  "Appearance_IconShowKey": "Show key",
+  "Appearance_IconHideKey": "Hide key",
   "Appearance_IconSourcesToggle": "Show or hide icon sources",
   "Appearance_TabsAlwaysTitle": "Always show the tab bar",
   "Appearance_TabsAlwaysSubtitle": "Otherwise the tab bar appears once a second tab is open",

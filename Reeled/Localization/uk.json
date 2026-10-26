@@ -148,6 +148,8 @@
   "Appearance_IconIgdbHint": "IGDB використовує дані Twitch: зареєструйте застосунок у консолі розробника Twitch, щоб отримати обидва значення",
   "Appearance_IconGetKey": "Отримати ключ",
   "Appearance_IconGetCredentials": "Отримати дані",
+  "Appearance_IconShowKey": "Показати ключ",
+  "Appearance_IconHideKey": "Сховати ключ",
   "Appearance_IconSourcesToggle": "Показати або сховати джерела іконок",
   "Appearance_TabsAlwaysTitle": "Завжди показувати панель вкладок",
   "Appearance_TabsAlwaysSubtitle": "Інакше панель вкладок з'являється, коли відкрито другу вкладку",

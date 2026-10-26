@@ -1654,6 +1654,32 @@ public sealed partial class SettingsPage : Page
         if (ResetDefaultsCardTitle != null) ResetDefaultsCardTitle.Text = loc["About_ResetDefaults_Title"];
         if (ResetDefaultsCardSubtitle != null) ResetDefaultsCardSubtitle.Text = loc["About_ResetDefaults_Subtitle"];
         if (ResetDefaultsCardButton != null) ResetDefaultsCardButton.Content = loc["About_ResetDefaults_Button"];
+
+        // After every list above (and the ones filled by the section partials) has its new strings
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, FitSettingsComboBoxes);
+    }
+
+    // One width for every dropdown on the page, wider only where an item needs it
+    private const double SettingsComboMinWidth = 200;
+
+    private void FitSettingsComboBoxes()
+    {
+        if (SettingsScrollViewer != null) FitComboBoxes(SettingsScrollViewer);
+    }
+
+    private static void FitComboBoxes(DependencyObject parent)
+    {
+        int count = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is ComboBox box)
+            {
+                Helpers.ComboBoxFit.Apply(box, SettingsComboMinWidth);
+                continue;
+            }
+            FitComboBoxes(child);
+        }
     }
 
     private bool IsSectionAtOrAbove(FrameworkElement? section, double threshold)

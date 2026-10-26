@@ -28,6 +28,35 @@ public sealed partial class SettingsPage
         SgdbKeyBox.Password = key;
         IgdbIdBox.Text = clientId;
         IgdbSecretBox.Password = clientSecret;
+        // Keys go back to dots every time the page is opened
+        SetKeyRevealed(SgdbKeyReveal, SgdbKeyBox, false);
+        SetKeyRevealed(IgdbSecretReveal, IgdbSecretBox, false);
+    }
+
+    /// <summary>
+    /// PasswordBox's own peek button only appears for text typed since the box got focus, so it is
+    /// missing for a stored key. This button is always there and toggles the key in place.
+    /// </summary>
+    private void OnRevealKeyClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Microsoft.UI.Xaml.Controls.Button button) return;
+        var box = button == SgdbKeyReveal ? SgdbKeyBox : IgdbSecretBox;
+        SetKeyRevealed(button, box, box.PasswordRevealMode != Microsoft.UI.Xaml.Controls.PasswordRevealMode.Visible);
+    }
+
+    private void SetKeyRevealed(Microsoft.UI.Xaml.Controls.Button button, Microsoft.UI.Xaml.Controls.PasswordBox box, bool revealed)
+    {
+        box.PasswordRevealMode = revealed
+            ? Microsoft.UI.Xaml.Controls.PasswordRevealMode.Visible
+            : Microsoft.UI.Xaml.Controls.PasswordRevealMode.Hidden;
+        if (button.Content is Microsoft.UI.Xaml.Controls.FontIcon icon)
+        {
+            icon.Glyph = revealed ? "" : "";
+        }
+        var loc = App.GetService<ILocalizationService>();
+        string label = loc[revealed ? "Appearance_IconHideKey" : "Appearance_IconShowKey"];
+        AutomationProperties.SetName(button, label);
+        Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(button, label);
     }
 
     /// <summary>Saves the keys when they changed; the stored ones are encrypted.</summary>
@@ -52,5 +81,7 @@ public sealed partial class SettingsPage
         IgdbSecretBox.Header = loc["Appearance_IconIgdbSecret"];
         IgdbHintText.Text = loc["Appearance_IconIgdbHint"];
         IgdbCredentialsLink.Content = loc["Appearance_IconGetCredentials"];
+        SetKeyRevealed(SgdbKeyReveal, SgdbKeyBox, SgdbKeyBox.PasswordRevealMode == Microsoft.UI.Xaml.Controls.PasswordRevealMode.Visible);
+        SetKeyRevealed(IgdbSecretReveal, IgdbSecretBox, IgdbSecretBox.PasswordRevealMode == Microsoft.UI.Xaml.Controls.PasswordRevealMode.Visible);
     }
 }

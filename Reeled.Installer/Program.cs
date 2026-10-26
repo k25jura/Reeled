@@ -213,6 +213,26 @@ public static class Program
         thread.Start();
     }
 
+    /// <summary>
+    /// Deletes a folder from a hidden cmd that retries for up to 30 s: this process (an Uninstall.exe in or
+    /// linked into that folder) holds a lock until it exits.
+    /// </summary>
+    private static void RemoveDirectoryWhenUnlocked(string dir)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c for /L %i in (1,1,30) do (rmdir /s /q \"{dir}\" 2>nul & if exist \"{dir}\" (timeout /t 1 /nobreak >nul) else (exit /b 0))",
+                WindowStyle = ProcessWindowStyle.Hidden,
+                CreateNoWindow = true,
+                UseShellExecute = false
+            });
+        }
+        catch { }
+    }
+
     [STAThread]
     static void Main(string[] args)
     {
@@ -335,25 +355,15 @@ public static class Program
                         // HKCU is the real user hive. Idempotent when the staged process already did it.
                         new Services.SystemIntegrationService().RemoveWindowsIntegration();
 
-                        try
+                        if (!string.IsNullOrEmpty(safeTargetDir) && Directory.Exists(safeTargetDir))
                         {
-                            if (!string.IsNullOrEmpty(safeTargetDir) && Directory.Exists(safeTargetDir))
-                            {
-                                var cleanupPsi = new ProcessStartInfo
-                                {
-                                    FileName = "cmd.exe",
-                                    // Retry: this very process (Uninstall.exe in that folder) holds a lock until it exits
-                                    Arguments = $"/c for /L %i in (1,1,30) do (rmdir /s /q \"{safeTargetDir}\" 2>nul & if exist \"{safeTargetDir}\" (timeout /t 1 /nobreak >nul) else (exit /b 0))",
-                                    WindowStyle = ProcessWindowStyle.Hidden,
-                                    CreateNoWindow = true,
-                                    UseShellExecute = false
-                                };
-                                Process.Start(cleanupPsi);
-                            }
+                            RemoveDirectoryWhenUnlocked(safeTargetDir);
                         }
-                        catch { }
                     }
 
+                    // The staged exe is a hard link to this very file, so the staged copy can't delete its own
+                    // folder while this process runs; this process exits last and removes it, done or cancelled
+                    RemoveDirectoryWhenUnlocked(stageDir);
                     return;
                 }
                 catch (Exception ex)

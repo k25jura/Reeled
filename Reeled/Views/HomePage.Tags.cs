@@ -20,7 +20,9 @@ public sealed partial class HomePage
 
     private void WireTags()
     {
-        EnsureTagsPicker();
+        // Built once the button is in the window: creating the flyout's text box from the page constructor
+        // intermittently failed inside XAML at startup
+        TagsFilterButton.Loaded += (s, e) => EnsureTagsPicker();
         ViewModel.TagsChanged += () => DispatcherQueue.TryEnqueue(UpdateTagsFilterButton);
         ViewModel.PropertyChanged += (s, e) =>
         {

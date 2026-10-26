@@ -519,8 +519,6 @@ public sealed partial class MainWindow : Window
         App.GetService<IThumbnailService>().SetBackgroundPaused(true);
         playerVM.LoadClip(clip, playlist);
 
-        _transitionStoryboard?.Stop();
-
         // Make player interactive and visible
         PlayerOverlayContainer.IsHitTestVisible = true;
         PlayerOverlayContainer.Visibility = Visibility.Visible;
@@ -532,72 +530,30 @@ public sealed partial class MainWindow : Window
         UpdateTitleBarTheme(ElementTheme.Dark);
         RefreshTitleBarRegions();
 
-        var sb = new Storyboard();
-        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-        var duration = TimeSpan.FromMilliseconds(180);
-
-        var fadeInPlayer = new DoubleAnimation
-        {
-            From = PlayerOverlayContainer.Opacity,
-            To = 1.0,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(fadeInPlayer, PlayerOverlayContainer);
-        Storyboard.SetTargetProperty(fadeInPlayer, "Opacity");
-
-        var fadeInBackdrop = new DoubleAnimation
-        {
-            From = PlayerBackdropLayer.Opacity,
-            To = 1.0,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(fadeInBackdrop, PlayerBackdropLayer);
-        Storyboard.SetTargetProperty(fadeInBackdrop, "Opacity");
-
-        var fadeOutRoot = new DoubleAnimation
-        {
-            From = RootFrame.Opacity,
-            To = 0.0,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(fadeOutRoot, RootFrame);
-        Storyboard.SetTargetProperty(fadeOutRoot, "Opacity");
-
-        sb.Children.Add(fadeInPlayer);
-        sb.Children.Add(fadeInBackdrop);
-        sb.Children.Add(fadeOutRoot);
-
-        sb.Completed += (s, e) =>
-        {
-            PlayerOverlayContainer.Opacity = 1.0;
-            PlayerBackdropLayer.Opacity = 1.0;
-            RootFrame.Opacity = 0.0;
-        };
-
-        _transitionStoryboard = sb;
-        Helpers.Motion.Begin(sb);
+        AnimatePlayerOpen();
     }
 
     private void OnNavigatedToHome()
     {
         App.GetService<IThumbnailService>().SetBackgroundPaused(false);
         _isPlayerClosing = true;
-        _transitionStoryboard?.Stop();
 
-        // If player is not open (e.g. returning from Settings), return to Home instantly without delay
+        // If player is not open (e.g. returning from Settings), go back to the library with the page motion
         if (PlayerOverlayContainer?.Visibility != Visibility.Visible)
         {
-            if (RootFrame.CanGoBack)
+            _transitionStoryboard?.Stop();
+            _transitionStoryboard = null;
+            NavigateFrameWithMotion(() =>
             {
-                RootFrame.GoBack();
-            }
-            else if (RootFrame.Content is not HomePage)
-            {
-                RootFrame.Navigate(typeof(HomePage), null, new SuppressNavigationTransitionInfo());
-            }
+                if (RootFrame.CanGoBack)
+                {
+                    RootFrame.GoBack(new SuppressNavigationTransitionInfo());
+                }
+                else if (RootFrame.Content is not HomePage)
+                {
+                    RootFrame.Navigate(typeof(HomePage), null, new SuppressNavigationTransitionInfo());
+                }
+            }, deeper: false);
             _isPlayerClosing = false;
             SetCaptionControlsVisible(true, force: true);
             UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
@@ -619,56 +575,7 @@ public sealed partial class MainWindow : Window
         UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
         EnsureWindowIcon();
 
-        var sb = new Storyboard();
-        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-        var duration = TimeSpan.FromMilliseconds(180);
-
-        var fadeOutPlayer = new DoubleAnimation
-        {
-            From = PlayerOverlayContainer.Opacity,
-            To = 0.0,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(fadeOutPlayer, PlayerOverlayContainer);
-        Storyboard.SetTargetProperty(fadeOutPlayer, "Opacity");
-
-        var fadeOutBackdrop = new DoubleAnimation
-        {
-            From = PlayerBackdropLayer.Opacity,
-            To = 0.0,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(fadeOutBackdrop, PlayerBackdropLayer);
-        Storyboard.SetTargetProperty(fadeOutBackdrop, "Opacity");
-
-        var fadeInRoot = new DoubleAnimation
-        {
-            From = RootFrame.Opacity,
-            To = 1.0,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(fadeInRoot, RootFrame);
-        Storyboard.SetTargetProperty(fadeInRoot, "Opacity");
-
-        var fadeInTitle = new DoubleAnimation
-        {
-            From = AppTitleBar.Opacity,
-            To = 1.0,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(fadeInTitle, AppTitleBar);
-        Storyboard.SetTargetProperty(fadeInTitle, "Opacity");
-
-        sb.Children.Add(fadeOutPlayer);
-        sb.Children.Add(fadeOutBackdrop);
-        sb.Children.Add(fadeInRoot);
-        sb.Children.Add(fadeInTitle);
-
-        sb.Completed += (s, e) =>
+        AnimatePlayerClose(() =>
         {
             _isPlayerClosing = false;
             PlayerOverlayContainer.Opacity = 0.0;
@@ -695,10 +602,7 @@ public sealed partial class MainWindow : Window
                 homePage.OnReturnedFromViewer();
             }
             RefreshTitleBarRegions();
-        };
-
-        _transitionStoryboard = sb;
-        Helpers.Motion.Begin(sb);
+        });
     }
 
     private void OnNavigatedToSettings()
@@ -713,6 +617,7 @@ public sealed partial class MainWindow : Window
             SetFullscreen(false);
         }
 
+        _transitionStoryboard = null;
         PlayerOverlayContainer.Opacity = 0.0;
         PlayerOverlayContainer.IsHitTestVisible = false;
         PlayerOverlayContainer.Visibility = Visibility.Collapsed;
@@ -729,7 +634,7 @@ public sealed partial class MainWindow : Window
         // Restore title bar buttons to the current app theme
         UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
 
-        RootFrame.Navigate(typeof(SettingsPage), null, new EntranceNavigationTransitionInfo());
+        NavigateFrameWithMotion(() => RootFrame.Navigate(typeof(SettingsPage), null, new SuppressNavigationTransitionInfo()), deeper: true);
     }
 
     public void ToggleFullscreen()

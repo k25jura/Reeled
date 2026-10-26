@@ -46,7 +46,7 @@
                             <Color x:Key="TextFillColorTertiary">#666666</Color>
                             <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
 
-                            <FontFamily x:Key="ContentControlThemeFontFamily">Century Gothic, Segoe UI Variable, Segoe UI, sans-serif</FontFamily>
+                            <FontFamily x:Key="ContentControlThemeFontFamily">ms-appx:///Assets/Fonts/DidactGothic-Regular.ttf#Didact Gothic, Segoe UI Variable Text, Segoe UI</FontFamily>
                         </ResourceDictionary>
 
                         <ResourceDictionary x:Key="Light">
@@ -85,20 +85,20 @@
                             <Color x:Key="TextFillColorTertiary">#8A8A8E</Color>
                             <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
 
-                            <FontFamily x:Key="ContentControlThemeFontFamily">Century Gothic, Segoe UI Variable, Segoe UI, sans-serif</FontFamily>
+                            <FontFamily x:Key="ContentControlThemeFontFamily">ms-appx:///Assets/Fonts/DidactGothic-Regular.ttf#Didact Gothic, Segoe UI Variable Text, Segoe UI</FontFamily>
                         </ResourceDictionary>
                     </ResourceDictionary.ThemeDictionaries>
                 </ResourceDictionary>
             </ResourceDictionary.MergedDictionaries>
 
             <!-- Global font and corner radii -->
-            <FontFamily x:Key="AppFontFamily">Century Gothic, Segoe UI Variable, Segoe UI, sans-serif</FontFamily>
-            <FontFamily x:Key="ContentControlThemeFontFamily">Century Gothic, Segoe UI Variable, Segoe UI, sans-serif</FontFamily>
+            <FontFamily x:Key="AppFontFamily">ms-appx:///Assets/Fonts/DidactGothic-Regular.ttf#Didact Gothic, Segoe UI Variable Text, Segoe UI</FontFamily>
+            <FontFamily x:Key="ContentControlThemeFontFamily">ms-appx:///Assets/Fonts/DidactGothic-Regular.ttf#Didact Gothic, Segoe UI Variable Text, Segoe UI</FontFamily>
 
             <CornerRadius x:Key="ControlCornerRadius">6</CornerRadius>
             <CornerRadius x:Key="OverlayCornerRadius">8</CornerRadius>
 
-            <!-- Text typography styles with Century Gothic -->
+            <!-- Text typography styles with Didact Gothic -->
             <Style TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
             </Style>

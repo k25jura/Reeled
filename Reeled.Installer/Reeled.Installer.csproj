@@ -34,6 +34,7 @@
   <ItemGroup>
     <Content Include="Assets\AppIcon.ico" />
     <Content Include="Assets\reeled.png" />
+    <Content Include="Assets\Fonts\DidactGothic-Regular.ttf" />
     <Content Include="Localization\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

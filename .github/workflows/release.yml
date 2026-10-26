@@ -18,6 +18,11 @@ jobs:
   build:
     name: Build Reeled Setup (Windows x64)
     runs-on: windows-latest
+    env:
+      # Set these in the repository settings once SignPath has approved the project; without the token the
+      # release is built unsigned as before. See docs/code-signing.md.
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+      SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
 
     steps:
       - name: Checkout Repository
@@ -45,7 +50,50 @@ jobs:
       - name: Build & Package Custom Installer
         shell: pwsh
         run: |
-          .\scripts\build-installer.ps1 -Configuration Release -Version "${{ steps.get_version.outputs.version }}"
+          $skip = if ($env:SIGNPATH_API_TOKEN) { @{ SkipSelfSigning = $true } } else { @{} }
+          .\scripts\build-installer.ps1 -Configuration Release -Version "${{ steps.get_version.outputs.version }}" @skip
+
+      # Code signing (SignPath Foundation, free for open source): the setup, the app and the uninstaller are
+      # signed, then the signed app and uninstaller go back into payload.zip before it is hashed and released.
+      - name: Collect binaries to sign
+        if: env.SIGNPATH_API_TOKEN != ''
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts\to-sign | Out-Null
+          Copy-Item artifacts\ReeledSetup.exe, artifacts\publish\Reeled.exe, artifacts\publish\Uninstall.exe artifacts\to-sign\
+
+      - name: Upload unsigned binaries
+        id: upload-unsigned
+        if: env.SIGNPATH_API_TOKEN != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned
+          path: artifacts/to-sign/
+          if-no-files-found: error
+
+      - name: Sign with SignPath
+        if: env.SIGNPATH_API_TOKEN != ''
+        uses: SignPath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'Reeled' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG || 'release-signing' }}
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: artifacts/signed
+
+      - name: Put signed binaries back and repackage
+        if: env.SIGNPATH_API_TOKEN != ''
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.get_version.outputs.version }}"
+          Copy-Item artifacts\signed\Reeled.exe, artifacts\signed\Uninstall.exe artifacts\publish\ -Force
+          Copy-Item artifacts\signed\ReeledSetup.exe artifacts\ReeledSetup.exe -Force
+          Copy-Item artifacts\signed\ReeledSetup.exe "artifacts\ReeledSetup-v$ver.exe" -Force
+          .\scripts\build-installer.ps1 -PackageOnly
+          Get-AuthenticodeSignature artifacts\ReeledSetup.exe, artifacts\publish\Reeled.exe, artifacts\publish\Uninstall.exe |
+            Format-Table Status, @{ n = 'Signer'; e = { $_.SignerCertificate.Subject } }, Path -AutoSize
 
       - name: Generate SHA256 Checksums
         shell: pwsh

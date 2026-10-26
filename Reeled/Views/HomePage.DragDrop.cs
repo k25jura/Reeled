@@ -55,7 +55,7 @@ public sealed partial class HomePage
     private List<GameClip>? _dragClips;
 
     /// <summary>The subfolder menu of a folder chip while it is open (a drag can rest on a chip to open it).</summary>
-    private MenuFlyout? _openSubfolderMenu;
+    private Microsoft.UI.Xaml.Controls.Primitives.FlyoutBase? _openSubfolderMenu;
 
     private object? _highlightKey;
     private Action<bool>? _highlightSetter;

@@ -30,9 +30,9 @@ public sealed partial class HomePage
     }
 
     /// <summary>The folder dropdown (top/bottom navigation) that is open, so a dialog can be shown on a clear screen.</summary>
-    private MenuFlyout? _folderDropdown;
+    private Microsoft.UI.Xaml.Controls.Primitives.FlyoutBase? _folderDropdown;
 
-    private void TrackFolderDropdown(MenuFlyout menu)
+    private void TrackFolderDropdown(Microsoft.UI.Xaml.Controls.Primitives.FlyoutBase menu)
     {
         _folderDropdown = menu;
         menu.Closed += (s, e) =>

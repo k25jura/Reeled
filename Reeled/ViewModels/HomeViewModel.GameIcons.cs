@@ -30,6 +30,11 @@ public partial class HomeViewModel
         }
     }
 
+    /// <summary>The game icon of the folder clips with this folder name sit in, for folder tags.</summary>
+    public Microsoft.UI.Xaml.Media.ImageSource? FolderIcon(string folderName) =>
+        AllNodes().FirstOrDefault(n => n.GameIcon != null &&
+            string.Equals(n.DisplayName, folderName, StringComparison.CurrentCultureIgnoreCase))?.GameIcon;
+
     private BitmapImage? LoadIconImage(string? path)
     {
         if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;

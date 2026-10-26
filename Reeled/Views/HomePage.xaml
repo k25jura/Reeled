@@ -1081,7 +1081,8 @@
                             </Button>
                         </Grid>
 
-                        <!-- Tags filter: the user's tags and games; the label carries the active filter count -->
+                        <!-- Tags filter: the user's tags and folder tags (a searchable picker, set in code);
+                             the label carries the active filter count -->
                         <DropDownButton x:Name="TagsFilterButton"
                                         Padding="12,5,10,6"
                                         VerticalAlignment="Center">
@@ -1089,9 +1090,6 @@
                                 <FontIcon x:Name="TagsFilterIcon" Glyph="&#xE1CB;" FontSize="13" />
                                 <TextBlock x:Name="TagsFilterText" Text="Tags" FontSize="12.5" />
                             </StackPanel>
-                            <DropDownButton.Flyout>
-                                <MenuFlyout x:Name="TagsFilterFlyout" Placement="BottomEdgeAlignedRight" Opening="OnTagsFilterOpening" Opened="OnFlyoutOpened" />
-                            </DropDownButton.Flyout>
                         </DropDownButton>
 
                         <!-- Sort DropDown Button -->

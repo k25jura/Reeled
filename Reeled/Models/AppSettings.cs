@@ -21,6 +21,8 @@ public class AppSettings
     public Dictionary<string, List<string>> ClipTags { get; set; } = new();
     /// <summary>Every tag the user has made, in their order (kept even when no clip uses it).</summary>
     public List<string> TagLibrary { get; set; } = new();
+    /// <summary>Icon glyph per tag (Segoe Fluent Icons); tags without one use the tag glyph.</summary>
+    public Dictionary<string, string> TagIcons { get; set; } = new(StringComparer.CurrentCultureIgnoreCase);
     /// <summary>Game icons per folder name (lower-case), found on Steam or picked by the user.</summary>
     public Dictionary<string, GameIconInfo> FolderGameIcons { get; set; } = new();
     /// <summary>Look up icons for game folders (Steam first, then SteamGridDB and IGDB when set up).</summary>

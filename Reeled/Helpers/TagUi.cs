@@ -35,6 +35,7 @@ internal static class TagUi
             var item = new ToggleMenuFlyoutItem
             {
                 Text = name,
+                Icon = new FontIcon { Glyph = home.TagGlyph(name) },
                 IsChecked = clip.Tags.Contains(name, StringComparer.CurrentCultureIgnoreCase)
             };
             item.Click += (s, e) => home.SetClipTag(clip, name, item.IsChecked);
@@ -75,6 +76,50 @@ internal static class TagUi
         var result = await dialog.ShowSafeAsync();
         string name = box.Text.Trim();
         return result == ContentDialogResult.Primary && name.Length > 0 ? name : null;
+    }
+
+    /// <summary>A grid of icons for a tag; picking one applies it and closes.</summary>
+    private static Flyout BuildGlyphPicker(HomeViewModel home, string tag, ElementTheme theme, Action changed)
+    {
+        var flyout = new Flyout();
+        var grid = new VariableSizedWrapGrid
+        {
+            Orientation = Orientation.Horizontal,
+            MaximumRowsOrColumns = 6,
+            ItemWidth = 40,
+            ItemHeight = 40,
+            RequestedTheme = theme
+        };
+        string current = home.TagGlyph(tag);
+        foreach (var glyph in HomeViewModel.TagGlyphs)
+        {
+            string g = glyph;
+            bool selected = g == current;
+            var b = new Button
+            {
+                Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
+                Width = 36,
+                Height = 36,
+                Padding = new Thickness(0),
+                Content = new FontIcon
+                {
+                    Glyph = g,
+                    FontSize = 16,
+                    Foreground = ThemeBrush(selected ? "AccentTextFillColorPrimaryBrush" : "TextFillColorPrimaryBrush", theme)
+                },
+                BorderThickness = new Thickness(selected ? 1.5 : 0),
+                BorderBrush = ThemeBrush("AccentFillColorDefaultBrush", theme)
+            };
+            b.Click += (s, e) =>
+            {
+                flyout.Hide();
+                home.SetTagGlyph(tag, g);
+                changed();
+            };
+            grid.Children.Add(b);
+        }
+        flyout.Content = grid;
+        return flyout;
     }
 
     /// <summary>The tag manager: rename, delete (with how many clips are affected) and add tags.</summary>
@@ -150,6 +195,8 @@ internal static class TagUi
         {
             int count = home.CountWithTag(tag);
             var row = new Grid { ColumnSpacing = 6, MinHeight = 36 };
+            // Column 0 is the tag's icon; the rest (name, count, two actions) are placed from 1 on
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             for (int i = 0; i < 4; i++)
             {
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = i == 0 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
@@ -157,10 +204,15 @@ internal static class TagUi
 
             void Place(FrameworkElement el, int column, int span = 1)
             {
-                Grid.SetColumn(el, column);
+                Grid.SetColumn(el, column + 1);
                 Grid.SetColumnSpan(el, span);
                 row.Children.Add(el);
             }
+
+            var iconButton = IconButton(home.TagGlyph(tag), loc["Tags_Icon"], () => { });
+            iconButton.IsEnabled = deleting != tag;
+            iconButton.Flyout = BuildGlyphPicker(home, tag, theme, Rebuild);
+            row.Children.Add(iconButton);
 
             if (deleting == tag)
             {

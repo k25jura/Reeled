@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -9,7 +11,7 @@ using Reeled.ViewModels;
 namespace Reeled.Views;
 
 /// <summary>
-/// Tags in the library: the header filter (tags and games), the "Tags" submenu in a clip's menu and the
+/// Tags in the library: the header filter (tags and folder tags), the "Tags" submenu in a clip's menu and the
 /// tag manager. Chips on cards and rows bind to the clip's own tags.
 /// </summary>
 public sealed partial class HomePage
@@ -18,6 +20,7 @@ public sealed partial class HomePage
 
     private void WireTags()
     {
+        EnsureTagsPicker();
         ViewModel.TagsChanged += () => DispatcherQueue.TryEnqueue(UpdateTagsFilterButton);
         ViewModel.PropertyChanged += (s, e) =>
         {
@@ -45,70 +48,90 @@ public sealed partial class HomePage
         }
     }
 
-    private void OnTagsFilterOpening(object? sender, object e)
+    private Controls.SearchPicker? _tagsPicker;
+
+    /// <summary>The filter is a searchable picker: a library can have dozens of folder tags.</summary>
+    private void EnsureTagsPicker()
     {
-        BuildTagsFilterMenu();
-        OnFlyoutOpening(sender, e);
+        if (_tagsPicker != null) return;
+        _tagsPicker = new Controls.SearchPicker();
+        _tagsPicker.Flyout.Opening += (s, e) => BuildTagsFilterPicker();
+        TagsFilterButton.Flyout = _tagsPicker.Flyout;
     }
 
     /// <summary>Built each time it opens so counts and new tags are always current.</summary>
-    private void BuildTagsFilterMenu()
+    private void BuildTagsFilterPicker()
     {
+        if (_tagsPicker == null) return;
         var loc = LayoutLoc;
-        var items = TagsFilterFlyout.Items;
-        items.Clear();
+        _tagsPicker.SetTexts(loc["Picker_Search"], loc["Picker_NoMatches"]);
+        _tagsPicker.Configure(DialogTheme, FlyoutPlacementMode.BottomEdgeAlignedRight);
 
+        var entries = new List<Controls.PickerEntry>();
         var tags = ViewModel.TagLibrary.ToList();
+        entries.Add(new Controls.PickerEntry { Text = loc["Tags_YourTags"], IsHeader = true });
         if (tags.Count == 0)
         {
-            items.Add(new MenuFlyoutItem { Text = loc["Tags_FilterEmpty"], IsEnabled = false });
+            entries.Add(new Controls.PickerEntry { Text = loc["Tags_FilterEmpty"], IsEnabled = false });
         }
         foreach (var tag in tags)
         {
             string name = tag;
-            var item = new ToggleMenuFlyoutItem
+            entries.Add(new Controls.PickerEntry
             {
                 Text = name,
-                // Shown at the trailing edge, where shortcuts normally sit
-                KeyboardAcceleratorTextOverride = ViewModel.CountWithTag(name).ToString(),
-                IsChecked = ViewModel.ActiveTagFilters.Contains(name, StringComparer.CurrentCultureIgnoreCase)
-            };
-            item.Click += (s, args) => ViewModel.SetTagFilter(name, item.IsChecked);
-            items.Add(item);
+                Glyph = ViewModel.TagGlyph(name),
+                Trailing = ViewModel.CountWithTag(name).ToString(),
+                IsChecked = ViewModel.ActiveTagFilters.Contains(name, StringComparer.CurrentCultureIgnoreCase),
+                Invoked = e =>
+                {
+                    ViewModel.SetTagFilter(name, e.IsChecked == true);
+                    _tagsPicker?.SetFooterEnabled(0, ViewModel.ActiveFilterCount > 0);
+                }
+            });
         }
 
-        var games = ViewModel.GamesWithCounts();
-        if (games.Count > 0)
+        var folders = ViewModel.GamesWithCounts();
+        if (folders.Count > 0)
         {
-            items.Add(new MenuFlyoutSeparator());
-            items.Add(new MenuFlyoutItem { Text = loc["Tags_Games"], IsEnabled = false });
-            foreach (var (game, count) in games)
+            entries.Add(new Controls.PickerEntry { Text = loc["Tags_Folders"], IsHeader = true });
+            foreach (var (folder, count) in folders)
             {
-                string name = game;
-                var item = new ToggleMenuFlyoutItem
+                string name = folder;
+                var icon = ViewModel.FolderIcon(name);
+                entries.Add(new Controls.PickerEntry
                 {
                     Text = name,
-                    KeyboardAcceleratorTextOverride = count.ToString(),
-                    IsChecked = ViewModel.ActiveGameFilters.Contains(name, StringComparer.CurrentCultureIgnoreCase)
-                };
-                item.Click += (s, args) => ViewModel.SetGameFilter(name, item.IsChecked);
-                items.Add(item);
+                    Image = icon,
+                    Glyph = icon == null ? "" : null,
+                    Trailing = count.ToString(),
+                    IsChecked = ViewModel.ActiveGameFilters.Contains(name, StringComparer.CurrentCultureIgnoreCase),
+                    Invoked = e =>
+                    {
+                        ViewModel.SetGameFilter(name, e.IsChecked == true);
+                        _tagsPicker?.SetFooterEnabled(0, ViewModel.ActiveFilterCount > 0);
+                    }
+                });
             }
         }
 
-        items.Add(new MenuFlyoutSeparator());
-        var clear = new MenuFlyoutItem
+        var footer = new List<Controls.PickerEntry>
         {
-            Text = loc["Tags_ClearFilters"],
-            Icon = new FontIcon { Glyph = "" },
-            IsEnabled = ViewModel.ActiveFilterCount > 0
+            new()
+            {
+                Text = loc["Tags_ClearFilters"],
+                Glyph = "",
+                IsEnabled = ViewModel.ActiveFilterCount > 0,
+                Invoked = _ => ViewModel.ClearFilters()
+            },
+            new()
+            {
+                Text = loc["Tags_Manage"],
+                Glyph = "",
+                Invoked = async _ => await Helpers.TagUi.ShowManageDialogAsync(ViewModel, XamlRoot, DialogTheme)
+            }
         };
-        clear.Click += (s, args) => ViewModel.ClearFilters();
-        items.Add(clear);
-
-        var manage = new MenuFlyoutItem { Text = loc["Tags_Manage"], Icon = new FontIcon { Glyph = "" } };
-        manage.Click += async (s, args) => await Helpers.TagUi.ShowManageDialogAsync(ViewModel, XamlRoot, DialogTheme);
-        items.Add(manage);
+        _tagsPicker.SetEntries(entries, footer);
     }
 
     /// <summary>The "Tags" submenu of a clip's context menu.</summary>

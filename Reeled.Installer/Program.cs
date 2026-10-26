@@ -151,6 +151,68 @@ public static class Program
     private static extern bool CloseHandle(IntPtr handle);
 
 
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern bool CreateHardLink(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
+
+    private const int ASFW_ANY = -1;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool AllowSetForegroundWindow(int processId);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr GetWindow(IntPtr hWnd, uint cmd);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out int processId);
+
+    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
+
+    /// <summary>
+    /// Watches for the staged uninstaller's window and gives it the foreground this process was granted
+    /// by Settings. Runs beside the wait for its exit; gives up after 20 s.
+    /// </summary>
+    private static void BringForwardWhenShown(int pid)
+    {
+        var thread = new System.Threading.Thread(() =>
+        {
+            var started = Stopwatch.StartNew();
+            while (started.ElapsedMilliseconds < 20000)
+            {
+                IntPtr found = IntPtr.Zero;
+                EnumWindows((hwnd, _) =>
+                {
+                    // Owned windows (tooltips, popups) aren't the main window
+                    if (GetWindowThreadProcessId(hwnd, out int owner) != 0 && owner == pid &&
+                        IsWindowVisible(hwnd) && GetWindow(hwnd, 4 /* GW_OWNER */) == IntPtr.Zero)
+                    {
+                        found = hwnd;
+                        return false;
+                    }
+                    return true;
+                }, IntPtr.Zero);
+
+                if (found != IntPtr.Zero)
+                {
+                    bool ok = SetForegroundWindow(found);
+                    Trace($"Staged window shown after {started.ElapsedMilliseconds} ms, foreground={ok}");
+                    return;
+                }
+                System.Threading.Thread.Sleep(50);
+            }
+        })
+        { IsBackground = true };
+        thread.Start();
+    }
+
     [STAThread]
     static void Main(string[] args)
     {
@@ -235,7 +297,12 @@ public static class Program
                     string stagedExe = Path.Combine(stageDir, "Uninstall.exe");
                     if (!string.IsNullOrEmpty(currentProcessPath) && File.Exists(currentProcessPath))
                     {
-                        File.Copy(currentProcessPath, stagedExe, overwrite: false);
+                        // A hard link is instant and is the file Defender already scanned; a fresh 90 MB
+                        // copy gets scanned again before it may start. Different volume: copy.
+                        if (!CreateHardLink(stagedExe, currentProcessPath, IntPtr.Zero))
+                        {
+                            File.Copy(currentProcessPath, stagedExe, overwrite: false);
+                        }
                     }
 
                     bool isSilent = args.Any(a => string.Equals(a, "/silent", StringComparison.OrdinalIgnoreCase) ||
@@ -247,8 +314,15 @@ public static class Program
                     string stagedArguments = $"/uninstall --staged --dir=\"{safeTargetDir}\"";
                     if (isSilent) stagedArguments += " /silent";
 
+                    // Settings started this process, so it may take the foreground; the staged one is
+                    // parented to WMI and may not, so its window would open behind Settings
+                    AllowSetForegroundWindow(ASFW_ANY);
                     var stagedProc = StartOutsideJob(stagedExe, stagedArguments, stageDir);
                     Trace($"Staged uninstaller started pid={stagedProc?.Id} target={safeTargetDir}");
+                    if (stagedProc != null && !isSilent)
+                    {
+                        BringForwardWhenShown(stagedProc.Id);
+                    }
                     // Process.ExitCode is unavailable for a process this object didn't start (the WMI path),
                     // so wait and read the exit code through a native handle instead
                     int exitCode = stagedProc != null ? WaitForExitCode(stagedProc.Id) : -1;

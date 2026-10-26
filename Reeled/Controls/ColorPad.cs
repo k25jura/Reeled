@@ -165,7 +165,9 @@ public sealed class ColorPad : UserControl
             rainbow.GradientStops.Add(new GradientStop { Color = HsvToRgb(i * 60, 1, 1), Offset = i / 6.0 });
         }
 
-        var content = new Grid { Width = _width, Height = HueThumb };
+        // Transparent, not null: the gradient below isn't hit-testable, and without a background only the
+        // thumb would take the pointer, so pressing anywhere else on the bar did nothing
+        var content = new Grid { Width = _width, Height = HueThumb, Background = new SolidColorBrush(Colors.Transparent) };
         content.Children.Add(new Rectangle
         {
             Height = HueHeight,

@@ -539,6 +539,30 @@ public sealed partial class PlayerPage : Page
     {
         _ = ViewModel.AttachVideoViewAsync(PlayerVideoView, e.SwapChainOptions);
         _videoGlass?.SetSwapChain(e.SwapChainOptions);
+        HookVideoScaleChanges();
+    }
+
+    private bool _videoScaleHooked;
+
+    /// <summary>
+    /// LibVLCSharp's VideoView only updates its scale matrix when the panel's composition scale changes,
+    /// not the render size it hands libvlc, and its size update runs on SizeChanged, before the new scale
+    /// is known. Interface zoom (a scale transform) and DPI changes then leave the video drawn at the old
+    /// size in a corner. Re-run its size update once the scale has changed.
+    /// </summary>
+    private void HookVideoScaleChanges()
+    {
+        if (_videoScaleHooked) return;
+        var panel = FindVisualChild<SwapChainPanel>(PlayerVideoView);
+        var updateSize = typeof(LibVLCSharp.Platforms.Windows.VideoViewBase).GetMethod("UpdateSize",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        if (panel == null || updateSize == null) return;
+        _videoScaleHooked = true;
+        panel.CompositionScaleChanged += (s, e) =>
+        {
+            try { updateSize.Invoke(PlayerVideoView, null); }
+            catch (Exception ex) { Helpers.Log.Error("VideoView.UpdateSize", ex); }
+        };
     }
 
     private void OnPagePointerExited(object sender, PointerRoutedEventArgs e)

@@ -219,9 +219,6 @@
   "Updates_PatchNotes": "Release notes",
   "Updates_NoUpdates": "Reeled is up to date (v{0})",
   "Updates_ErrorCheck": "Could not check updates: {0}",
-  "Updates_GitHubTokenTitle": "GitHub Token (Optional)",
-  "Updates_GitHubTokenSubtitle": "Use a personal access token for private repository releases or higher rate limits",
-  "Updates_GitHubTokenPlaceholder": "ghp_xxxxxxxxxxxxxxxxxxxx",
 
   "About_HeroTitle": "Reeled",
   "About_Tagline": "A local video player and library manager for gameplay clips on Windows.",

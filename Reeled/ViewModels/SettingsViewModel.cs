@@ -223,9 +223,6 @@ public partial class SettingsViewModel : ObservableObject
     }
 
     [ObservableProperty]
-    private string _gitHubToken = string.Empty;
-
-    [ObservableProperty]
     private string _updateAvailableVersion = string.Empty;
 
     [ObservableProperty]
@@ -324,7 +321,6 @@ public partial class SettingsViewModel : ObservableObject
         ResumePlayback = _storageService.CurrentSettings.ResumePlayback;
         CloseButtonReturnsToLibrary = _storageService.CurrentSettings.CloseButtonReturnsToLibrary;
         BackdropBlurLevel = _storageService.CurrentSettings.BackdropBlurLevel;
-        GitHubToken = _storageService.CurrentSettings.GitHubToken ?? string.Empty;
         if (!IsUpdateAvailable && !IsUpdateReadyToInstall && !IsCheckingForUpdates)
         {
             UpdateStatusFormatted = _localizationService["Updates_StatusTitle"];
@@ -1008,7 +1004,7 @@ public partial class SettingsViewModel : ObservableObject
 
         try
         {
-            var info = await _updateService.CheckForUpdatesAsync(GitHubToken);
+            var info = await _updateService.CheckForUpdatesAsync();
 
             if (info.IsUpdateAvailable)
             {
@@ -1363,13 +1359,6 @@ public partial class SettingsViewModel : ObservableObject
     {
         var settings = _storageService.CurrentSettings;
         settings.ReduceMotion = value;
-        _ = _storageService.SaveSettingsAsync(settings);
-    }
-
-    partial void OnGitHubTokenChanged(string value)
-    {
-        var settings = _storageService.CurrentSettings;
-        settings.GitHubToken = value;
         _ = _storageService.SaveSettingsAsync(settings);
     }
 

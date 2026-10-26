@@ -219,9 +219,6 @@
   "Updates_PatchNotes": "Список змін",
   "Updates_NoUpdates": "Reeled оновлено до останньої версії (v{0})",
   "Updates_ErrorCheck": "Не вдалося перевірити оновлення: {0}",
-  "Updates_GitHubTokenTitle": "Токен GitHub (Опціонально)",
-  "Updates_GitHubTokenSubtitle": "Використовуйте personal access token для релізів з приватного репозиторію або уникнення лімітів",
-  "Updates_GitHubTokenPlaceholder": "ghp_xxxxxxxxxxxxxxxxxxxx",
 
   "About_HeroTitle": "Reeled",
   "About_Tagline": "Локальний відеоплеєр і менеджер медіатеки для ігрових кліпів на Windows.",

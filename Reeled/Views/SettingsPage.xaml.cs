@@ -1622,8 +1622,6 @@ public sealed partial class SettingsPage : Page
         if (AutoCheckUpdatesSubtitleText != null) AutoCheckUpdatesSubtitleText.Text = loc["Updates_AutoCheckSubtitle"];
         if (AutoDownloadUpdatesTitleText != null) AutoDownloadUpdatesTitleText.Text = loc["Updates_AutoDownloadTitle"];
         if (AutoDownloadUpdatesSubtitleText != null) AutoDownloadUpdatesSubtitleText.Text = loc["Updates_AutoDownloadSubtitle"];
-        if (GitHubTokenTitleText != null) GitHubTokenTitleText.Text = loc["Updates_GitHubTokenTitle"];
-        if (GitHubTokenSubtitleText != null) GitHubTokenSubtitleText.Text = loc["Updates_GitHubTokenSubtitle"];
         if (PatchNotesText != null) PatchNotesText.Text = loc["Updates_PatchNotes"];
         if (DownloadUpdateButton != null) DownloadUpdateButton.Content = loc["Updates_DownloadButton"];
         if (InstallUpdateButton != null) InstallUpdateButton.Content = loc[ViewModel.CanSelfUpdate ? "Updates_InstallButton" : "Updates_RunInstallerButton"];

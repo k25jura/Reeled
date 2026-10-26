@@ -81,7 +81,6 @@ public class AppSettings
     /// <summary>0 newest, 1 oldest, 2 A-Z, 3 Z-A, 4 longest, 5 largest, 6 shortest, 7 smallest.</summary>
     public int SortIndex { get; set; } = 0;
     public bool ReduceMotion { get; set; } = false;
-    public string? GitHubToken { get; set; }
     public DateTime? LastUpdateCheckUtc { get; set; }
     /// <summary>Download updates in the background; they install when Reeled closes.</summary>
     public bool AutoDownloadUpdates { get; set; } = true;

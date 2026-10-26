@@ -2192,36 +2192,6 @@
                             </Grid>
                         </Border>
 
-                        <!-- Card 4: GitHub Token (Optional for private repos or rate limit avoidance) -->
-                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
-                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                                BorderThickness="1" 
-                                CornerRadius="8" 
-                                Padding="16,14">
-                            <Grid ColumnSpacing="16">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-
-                                <FontIcon Grid.Column="0" Glyph="&#xE72D;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
-
-                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                    <TextBlock x:Name="GitHubTokenTitleText" Text="GitHub Token (Optional)" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
-                                    <TextBlock x:Name="GitHubTokenSubtitleText" Text="Use a personal access token for private repository releases or higher rate limits" 
-                                               Style="{ThemeResource CaptionTextBlockStyle}" 
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </StackPanel>
-
-                                <PasswordBox Grid.Column="2" 
-                                             Password="{x:Bind ViewModel.GitHubToken, Mode=TwoWay}" 
-                                             PlaceholderText="ghp_xxxxxxxxxxxxxxxxxxxx" 
-                                             MinWidth="220" 
-                                             VerticalAlignment="Center" />
-                            </Grid>
-                        </Border>
-
                         <!-- Inline Status Banner for Updates (Cascading space reservation animation) -->
                         <Border x:Name="UpdatesStatusBorder"
                                 Height="0"

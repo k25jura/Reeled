@@ -527,7 +527,8 @@
                                                 HorizontalAlignment="Stretch"
                                                 Padding="0,5"
                                                 FontSize="11"
-                                                CornerRadius="4" />
+                                                CornerRadius="4"
+                                                Style="{ThemeResource DefaultButtonStyle}" />
                                         <Button x:Name="MarkRangeModeButton"
                                                 Grid.Column="1"
                                                 Content="Time Range"

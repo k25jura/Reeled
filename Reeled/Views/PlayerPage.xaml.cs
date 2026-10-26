@@ -1185,8 +1185,7 @@ public sealed partial class PlayerPage : Page
     private void OnMarkModePointClick(object sender, RoutedEventArgs e)
     {
         _isMarkRangeMode = false;
-        MarkPointModeButton.Style = null;
-        MarkRangeModeButton.Style = Application.Current.Resources["SubtleButtonStyle"] as Style;
+        Helpers.SegmentedButtons.Select(MarkPointModeButton, MarkPointModeButton, MarkRangeModeButton);
         AnimateMarkModeSwitch(MarkPointPanel, MarkPointTranslation, MarkRangePanel, isRangeMode: false);
         UpdateMarkMomentPlaceholder();
     }
@@ -1194,8 +1193,7 @@ public sealed partial class PlayerPage : Page
     private void OnMarkModeRangeClick(object sender, RoutedEventArgs e)
     {
         _isMarkRangeMode = true;
-        MarkRangeModeButton.Style = null;
-        MarkPointModeButton.Style = Application.Current.Resources["SubtleButtonStyle"] as Style;
+        Helpers.SegmentedButtons.Select(MarkRangeModeButton, MarkPointModeButton, MarkRangeModeButton);
         AnimateMarkModeSwitch(MarkRangePanel, MarkRangeTranslation, MarkPointPanel, isRangeMode: true);
         UpdateMarkMomentPlaceholder();
     }
@@ -1491,8 +1489,7 @@ public sealed partial class PlayerPage : Page
             {
                 _isMarkRangeMode = true;
                 _markEndTime = bm.EndTimestamp.Value;
-                if (MarkRangeModeButton != null) MarkRangeModeButton.Style = null;
-                if (MarkPointModeButton != null) MarkPointModeButton.Style = Application.Current.Resources["SubtleButtonStyle"] as Style;
+                Helpers.SegmentedButtons.Select(MarkRangeModeButton, MarkPointModeButton, MarkRangeModeButton);
                 if (MarkModeContainer != null) MarkModeContainer.Height = 146.0;
                 if (MarkPointPanel != null) MarkPointPanel.Visibility = Visibility.Collapsed;
                 if (MarkRangePanel != null)
@@ -1508,8 +1505,7 @@ public sealed partial class PlayerPage : Page
             {
                 _isMarkRangeMode = false;
                 _markEndTime = bm.Timestamp + TimeSpan.FromSeconds(5);
-                if (MarkPointModeButton != null) MarkPointModeButton.Style = null;
-                if (MarkRangeModeButton != null) MarkRangeModeButton.Style = Application.Current.Resources["SubtleButtonStyle"] as Style;
+                Helpers.SegmentedButtons.Select(MarkPointModeButton, MarkPointModeButton, MarkRangeModeButton);
                 if (MarkModeContainer != null) MarkModeContainer.Height = 36.0;
                 if (MarkRangePanel != null) MarkRangePanel.Visibility = Visibility.Collapsed;
                 if (MarkPointPanel != null)

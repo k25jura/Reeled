@@ -52,10 +52,13 @@ public sealed class ToolbarEditor : StackPanel
         Spacing = 12;
         var loc = App.GetService<Services.ILocalizationService>();
 
-        // Mode switch
-        var modeRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        // Mode switch: the same two-way switch as Point/Range in the moments flyout
+        var modeRow = new Grid { ColumnSpacing = 6, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 260 };
+        modeRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        modeRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         _classicButton = ModeButton(loc["Toolbar_ModeClassic"], ToolbarLayoutMode.Classic);
         _compactButton = ModeButton(loc["Toolbar_ModeCompact"], ToolbarLayoutMode.Compact);
+        Grid.SetColumn(_compactButton, 1);
         modeRow.Children.Add(_classicButton);
         modeRow.Children.Add(_compactButton);
         Children.Add(modeRow);
@@ -77,9 +80,9 @@ public sealed class ToolbarEditor : StackPanel
         _leftList = ZoneList(_left, loc["Toolbar_ZoneLeft"]);
         _centerList = ZoneList(_center, loc["Toolbar_ZoneCenter"]);
         _rightList = ZoneList(_right, loc["Toolbar_ZoneRight"]);
-        AddZone(bar, _leftList, 0, loc["Toolbar_ZoneLeft"]);
-        AddZone(bar, _centerList, 1, loc["Toolbar_ZoneCenter"]);
-        AddZone(bar, _rightList, 2, loc["Toolbar_ZoneRight"]);
+        AddZone(bar, _leftList, 0, loc["Toolbar_ZoneLeft"], HorizontalAlignment.Left);
+        AddZone(bar, _centerList, 1, loc["Toolbar_ZoneCenter"], HorizontalAlignment.Center);
+        AddZone(bar, _rightList, 2, loc["Toolbar_ZoneRight"], HorizontalAlignment.Right);
         Children.Add(bar);
 
         _trayLabel = new TextBlock
@@ -115,7 +118,14 @@ public sealed class ToolbarEditor : StackPanel
 
     private Button ModeButton(string text, ToolbarLayoutMode mode)
     {
-        var button = new Button { Content = text, Padding = new Thickness(14, 5, 14, 6), FontSize = 12.5 };
+        var button = new Button
+        {
+            Content = text,
+            Padding = new Thickness(14, 5, 14, 6),
+            FontSize = 12.5,
+            CornerRadius = new CornerRadius(4),
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
         button.Click += (s, e) =>
         {
             if (_mode == mode) return;
@@ -128,12 +138,12 @@ public sealed class ToolbarEditor : StackPanel
 
     private void UpdateModeButtons()
     {
-        var accent = (Style)Application.Current.Resources["AccentButtonStyle"];
-        _classicButton.Style = _mode == ToolbarLayoutMode.Classic ? accent : null;
-        _compactButton.Style = _mode == ToolbarLayoutMode.Compact ? accent : null;
+        Helpers.SegmentedButtons.Select(_mode == ToolbarLayoutMode.Classic ? _classicButton : _compactButton,
+            _classicButton, _compactButton);
     }
 
-    private static void AddZone(Grid bar, ListView list, int column, string label)
+    /// <summary>Each zone lines its buttons (and its label) up the way the bar does: left, centred, right.</summary>
+    private static void AddZone(Grid bar, ListView list, int column, string label, HorizontalAlignment align)
     {
         var zone = new Grid
         {
@@ -146,12 +156,16 @@ public sealed class ToolbarEditor : StackPanel
             Text = label,
             FontSize = 10.5,
             Opacity = 0.55,
-            Margin = new Thickness(8, 4, 0, 0),
+            Margin = new Thickness(8, 4, 8, 0),
+            HorizontalAlignment = align,
             IsHitTestVisible = false
         };
         Helpers.ThemeBrushes.Bind(zoneLabel, TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
         zone.Children.Add(zoneLabel);
         list.Margin = new Thickness(0, 16, 0, 0);
+        list.ItemsPanel = (ItemsPanelTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(
+            "<ItemsPanelTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'>" +
+            $"<ItemsStackPanel Orientation='Horizontal' HorizontalAlignment='{align}' /></ItemsPanelTemplate>");
         zone.Children.Add(list);
         Grid.SetColumn(zone, column);
         bar.Children.Add(zone);

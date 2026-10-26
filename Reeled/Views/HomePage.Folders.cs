@@ -221,7 +221,7 @@ public sealed partial class HomePage
         var parent = Reeled.ViewModels.HomeViewModel.FindNodeByPath(ViewModel.Directories, parentPath);
         if (parent != null && !parent.IsExpanded) ExpandDirectoryWithAnimation(parent);
         RefreshNavAfterFolderChange();
-        ShowFileOpMessage(string.Format(loc["Folder_Created"], name), autoHideMs: 2200);
+        ShowFileOpMessage(string.Format(loc["Folder_Created"], name), autoHideMs: 2200, glyph: "");
     }
 
     // ---------------------------------------------------------------------------------------------

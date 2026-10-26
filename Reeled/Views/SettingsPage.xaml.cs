@@ -24,10 +24,6 @@ public sealed partial class SettingsPage : Page
     private Storyboard? _indicatorStoryboard;
     private Storyboard? _updateCardStoryboard;
     private Storyboard? _downloadTransitionStoryboard;
-    private DispatcherTimer? _foldersStatusTimer;
-    private DispatcherTimer? _storageStatusTimer;
-    private DispatcherTimer? _updatesStatusTimer;
-    private DispatcherTimer? _aboutStatusTimer;
 
     public SettingsPage()
     {
@@ -38,29 +34,25 @@ public sealed partial class SettingsPage : Page
         {
             if (e.PropertyName == nameof(SettingsViewModel.FolderStatusMessage) && !string.IsNullOrEmpty(ViewModel.FolderStatusMessage))
             {
-                bool isError = ViewModel.FolderStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || ViewModel.FolderStatusMessage.StartsWith("Помилка", StringComparison.OrdinalIgnoreCase);
-                ShowStatusBanner(FoldersStatusBorder, FoldersStatusTranslation, FoldersStatusText, FoldersStatusIcon, ViewModel.FolderStatusMessage, isError, ref _foldersStatusTimer);
+                ShowStatusToast(ViewModel.FolderStatusMessage);
                 // Clear it so the same message (e.g. "up to date" twice) shows again
                 ViewModel.FolderStatusMessage = string.Empty;
             }
             else if (e.PropertyName == nameof(SettingsViewModel.StorageStatusMessage) && !string.IsNullOrEmpty(ViewModel.StorageStatusMessage))
             {
-                bool isError = ViewModel.StorageStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || ViewModel.StorageStatusMessage.StartsWith("Помилка", StringComparison.OrdinalIgnoreCase);
-                ShowStatusBanner(StorageStatusBorder, StorageStatusTranslation, StorageStatusText, StorageStatusIcon, ViewModel.StorageStatusMessage, isError, ref _storageStatusTimer);
+                ShowStatusToast(ViewModel.StorageStatusMessage);
                 // Clear it so the same message (e.g. "up to date" twice) shows again
                 ViewModel.StorageStatusMessage = string.Empty;
             }
             else if (e.PropertyName == nameof(SettingsViewModel.UpdatesStatusMessage) && !string.IsNullOrEmpty(ViewModel.UpdatesStatusMessage))
             {
-                bool isError = ViewModel.UpdatesStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || ViewModel.UpdatesStatusMessage.StartsWith("Помилка", StringComparison.OrdinalIgnoreCase);
-                ShowStatusBanner(UpdatesStatusBorder, UpdatesStatusTranslation, UpdatesStatusText, UpdatesStatusIcon, ViewModel.UpdatesStatusMessage, isError, ref _updatesStatusTimer);
+                ShowStatusToast(ViewModel.UpdatesStatusMessage);
                 // Clear it so the same message (e.g. "up to date" twice) shows again
                 ViewModel.UpdatesStatusMessage = string.Empty;
             }
             else if (e.PropertyName == nameof(SettingsViewModel.AboutStatusMessage) && !string.IsNullOrEmpty(ViewModel.AboutStatusMessage))
             {
-                bool isError = ViewModel.AboutStatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase) || ViewModel.AboutStatusMessage.StartsWith("Помилка", StringComparison.OrdinalIgnoreCase);
-                ShowStatusBanner(AboutStatusBorder, AboutStatusTranslation, AboutStatusText, AboutStatusIcon, ViewModel.AboutStatusMessage, isError, ref _aboutStatusTimer);
+                ShowStatusToast(ViewModel.AboutStatusMessage);
                 // Clear it so the same message (e.g. "up to date" twice) shows again
                 ViewModel.AboutStatusMessage = string.Empty;
             }
@@ -186,6 +178,7 @@ public sealed partial class SettingsPage : Page
             SyncControlsToViewModel();
             ApplyLocalization(loc);
             UpdateThemeVisuals(ActualTheme);
+            ViewModel.MarkStatus(SettingsViewModel.StatusGlyphs.Reset);
             ViewModel.AboutStatusMessage = loc["About_Reset_Success"];
         }
     }
@@ -848,10 +841,11 @@ public sealed partial class SettingsPage : Page
         catch { }
     }
 
-    private void ShowStatusBanner(Border border, TranslateTransform trans, TextBlock textBlock, FontIcon icon, string message, bool isError, ref DispatcherTimer? timer)
+    /// <summary>Section banners are replaced by one toast that is always in view.</summary>
+    private void ShowStatusToast(string message)
     {
-        // Section banners are replaced by one toast that is always in view
-        ShowToast(message, isError);
+        ShowToast(message, ViewModel.StatusGlyph, ViewModel.StatusIsError);
+        ViewModel.MarkStatus(SettingsViewModel.StatusGlyphs.Done);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -994,15 +988,21 @@ public sealed partial class SettingsPage : Page
     private DispatcherTimer? _toastTimer;
     private bool _isToastShown;
 
-    private void ShowToast(string message, bool isError)
+    private AcrylicBrush? _toastAcrylic;
+
+    private void ShowToast(string message, string glyph, bool isError)
     {
         if (SettingsToast == null) return;
-        bool isLight = ActualTheme == ElementTheme.Light;
         SettingsToastText.Text = message;
-        SettingsToastIcon.Glyph = isError ? "\uE783" : "\uE73E";
-        SettingsToastIcon.Foreground = new SolidColorBrush(isError
-            ? (isLight ? Windows.UI.Color.FromArgb(255, 196, 43, 28) : Windows.UI.Color.FromArgb(255, 255, 153, 164))
-            : (isLight ? Windows.UI.Color.FromArgb(255, 15, 123, 15) : Windows.UI.Color.FromArgb(255, 108, 203, 95)));
+        SettingsToastIcon.Glyph = isError ? SettingsViewModel.StatusGlyphs.Error : glyph;
+        // The action's icon in the accent colour; only errors stand out in red
+        SettingsToastIcon.Foreground = Helpers.ThemeBrushes.Get(isError ? "SystemFillColorCriticalBrush" : "AccentTextFillColorPrimaryBrush", this);
+        if (_toastAcrylic == null)
+        {
+            _toastAcrylic = new AcrylicBrush();
+            SettingsToast.Background = _toastAcrylic;
+        }
+        Helpers.Backdrop.ApplyAppSurface(_toastAcrylic, Helpers.ThemeBrushes.ThemeOf(this));
 
         _toastTimer?.Stop();
         if (!_isToastShown)

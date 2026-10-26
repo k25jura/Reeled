@@ -1125,6 +1125,12 @@ public sealed partial class MainWindow : Window
     {
         UpdateZoomIndicatorText();
         ZoomIndicator.RequestedTheme = IsPlayerVisible ? ElementTheme.Dark : App.CurrentTheme;
+        if (ZoomIndicator.Background is not Microsoft.UI.Xaml.Media.AcrylicBrush acrylic)
+        {
+            acrylic = new Microsoft.UI.Xaml.Media.AcrylicBrush();
+            ZoomIndicator.Background = acrylic;
+        }
+        Helpers.Backdrop.ApplyAppSurface(acrylic, ZoomIndicator.RequestedTheme, overVideo: IsPlayerVisible);
         if (!_isZoomIndicatorShown)
         {
             _isZoomIndicatorShown = true;

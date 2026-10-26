@@ -225,6 +225,32 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private string _updateAvailableVersion = string.Empty;
 
+    /// <summary>Icons for the status toast, one per kind of action.</summary>
+    public static class StatusGlyphs
+    {
+        public const string Done = "";
+        public const string Error = "";
+        public const string Copied = "";
+        public const string FolderAdded = "";
+        public const string FolderRemoved = "";
+        public const string Thumbnails = "";
+        public const string Cleared = "";
+        public const string Moments = "";
+        public const string UpdateAvailable = "";
+        public const string UpToDate = "";
+        public const string Reset = "";
+    }
+
+    /// <summary>Icon and kind of the next status message; set just before the message itself.</summary>
+    public string StatusGlyph { get; private set; } = StatusGlyphs.Done;
+    public bool StatusIsError { get; private set; }
+
+    public void MarkStatus(string glyph, bool error = false)
+    {
+        StatusGlyph = glyph;
+        StatusIsError = error;
+    }
+
     [ObservableProperty]
     private string _updateAvailableNotes = string.Empty;
 
@@ -787,10 +813,12 @@ public partial class SettingsViewModel : ObservableObject
             dataPackage.SetText(text);
             Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(dataPackage);
 
+            MarkStatus(StatusGlyphs.Copied);
             AboutStatusMessage = _localizationService["About_DiagnosticsCopied"];
         }
         catch (Exception ex)
         {
+            MarkStatus(StatusGlyphs.Error, error: true);
             AboutStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
         }
         return Task.CompletedTask;
@@ -819,12 +847,14 @@ public partial class SettingsViewModel : ObservableObject
                 await _storageService.SaveSettingsAsync(settings);
                 _indexerService.UpdateWatchers(settings.WatchDirectories);
                 _ = _homeViewModel.SyncDirectoriesAsync(forceReload: true);
+                MarkStatus(StatusGlyphs.FolderAdded);
                 FolderStatusMessage = string.Format(_localizationService["Folders_Status_Added"], folder.Path);
                 StatusMessage = FolderStatusMessage;
             }
         }
         catch (Exception ex)
         {
+            MarkStatus(StatusGlyphs.Error, error: true);
             FolderStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
             StatusMessage = FolderStatusMessage;
         }
@@ -879,6 +909,7 @@ public partial class SettingsViewModel : ObservableObject
             await _storageService.SaveSettingsAsync(settings);
             _indexerService.UpdateWatchers(settings.WatchDirectories);
             _ = _homeViewModel.SyncDirectoriesAsync(forceReload: true);
+            MarkStatus(StatusGlyphs.FolderRemoved);
             FolderStatusMessage = string.Format(_localizationService["Folders_Status_Removed"], folder);
             StatusMessage = FolderStatusMessage;
 
@@ -928,6 +959,7 @@ public partial class SettingsViewModel : ObservableObject
             CalculateCacheSize();
             double freedMb = freedBytes / (1024.0 * 1024.0);
             string mbUnit = _localizationService["Unit_MB"];
+            MarkStatus(StatusGlyphs.Thumbnails);
             StorageStatusMessage = deletedCount > 0
                 ? string.Format(_localizationService.CurrentCulture, _localizationService["Storage_Status_ThumbnailsCleared"], deletedCount, freedMb, mbUnit)
                 : _localizationService["Storage_Status_ThumbnailsEmpty"];
@@ -935,6 +967,7 @@ public partial class SettingsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            MarkStatus(StatusGlyphs.Error, error: true);
             StorageStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
             StatusMessage = StorageStatusMessage;
         }
@@ -947,11 +980,13 @@ public partial class SettingsViewModel : ObservableObject
         {
             await _clipMetadataCacheService.ClearAsync();
             CalculateClipCacheSize();
+            MarkStatus(StatusGlyphs.Cleared);
             StorageStatusMessage = _localizationService["Storage_Status_ClipMetadataCleared"];
             StatusMessage = StorageStatusMessage;
         }
         catch (Exception ex)
         {
+            MarkStatus(StatusGlyphs.Error, error: true);
             StorageStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
             StatusMessage = StorageStatusMessage;
         }
@@ -980,6 +1015,7 @@ public partial class SettingsViewModel : ObservableObject
             _homeViewModel.RefreshSavedMoments();
             CalculateMomentsStats();
 
+            MarkStatus(StatusGlyphs.Moments);
             StorageStatusMessage = totalMoments > 0
                 ? string.Format(_localizationService["Storage_Status_MomentsCleared"], totalMoments)
                 : _localizationService["Storage_Status_NoMoments"];
@@ -987,6 +1023,7 @@ public partial class SettingsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            MarkStatus(StatusGlyphs.Error, error: true);
             StorageStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
             StatusMessage = StorageStatusMessage;
         }
@@ -1026,6 +1063,7 @@ public partial class SettingsViewModel : ObservableObject
 
                 if (!silent)
                 {
+                    MarkStatus(StatusGlyphs.UpdateAvailable);
                     UpdatesStatusMessage = string.Format(_localizationService["Updates_StatusAvailableFormat"], tag);
                 }
 
@@ -1043,11 +1081,13 @@ public partial class SettingsViewModel : ObservableObject
             {
                 if (!silent)
                 {
+                    MarkStatus(StatusGlyphs.Error, error: true);
                     UpdatesStatusMessage = string.Format(_localizationService["Updates_ErrorCheck"], info.ErrorMessage);
                 }
             }
             else if (!silent && !IsUpdateAvailable)
             {
+                MarkStatus(StatusGlyphs.UpToDate);
                 UpdatesStatusMessage = string.Format(_localizationService["Updates_NoUpdates"], info.CurrentVersion);
             }
 
@@ -1063,6 +1103,7 @@ public partial class SettingsViewModel : ObservableObject
         {
             if (!silent)
             {
+                MarkStatus(StatusGlyphs.Error, error: true);
                 UpdatesStatusMessage = string.Format(_localizationService["Updates_ErrorCheck"], ex.Message);
             }
         }
@@ -1133,6 +1174,7 @@ public partial class SettingsViewModel : ObservableObject
             IsPreparingUpdate = false;
             if (!silent)
             {
+                MarkStatus(StatusGlyphs.Error, error: true);
                 UpdatesStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
             }
         }
@@ -1158,6 +1200,7 @@ public partial class SettingsViewModel : ObservableObject
             {
                 // Declined elevation prompt or a missing helper: keep running
                 _isApplyingUpdate = false;
+                MarkStatus(StatusGlyphs.Error, error: true);
                 UpdatesStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
             }
             return;
@@ -1171,6 +1214,7 @@ public partial class SettingsViewModel : ObservableObject
             }
             catch (Exception ex)
             {
+                MarkStatus(StatusGlyphs.Error, error: true);
                 UpdatesStatusMessage = string.Format(_localizationService["Common_Error_Format"], ex.Message);
             }
             return;

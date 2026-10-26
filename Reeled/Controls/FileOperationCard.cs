@@ -25,16 +25,18 @@ public sealed class FileOperationCard : UserControl
         MinWidth = 340;
         MaxWidth = 520;
         HorizontalAlignment = HorizontalAlignment.Center;
+        var acrylic = new Microsoft.UI.Xaml.Media.AcrylicBrush();
         var root = new Border
         {
             CornerRadius = new CornerRadius(8),
             BorderThickness = new Thickness(1),
-            Padding = new Thickness(14, 12, 10, 12)
+            Padding = new Thickness(14, 12, 10, 12),
+            Background = acrylic
         };
         ThemeBrushes.Track(root, () =>
         {
-            root.Background = ThemeBrushes.Get("SolidBackgroundFillColorSecondaryBrush", root);
-            root.BorderBrush = ThemeBrushes.Get("CardStrokeColorDefaultBrush", root);
+            Backdrop.ApplyAppSurface(acrylic, ThemeBrushes.ThemeOf(root));
+            root.BorderBrush = ThemeBrushes.Get("SurfaceStrokeColorFlyoutBrush", root);
         });
 
         _icon = new FontIcon { FontSize = 16, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 12, 0) };
@@ -99,11 +101,11 @@ public sealed class FileOperationCard : UserControl
         _detail.Visibility = Visibility.Visible;
     }
 
-    /// <summary>The operation is over: a message with a check mark, or an error mark.</summary>
-    public void ShowResult(string message, bool error)
+    /// <summary>The operation is over: a message with the action's icon (a check by default), or an error mark.</summary>
+    public void ShowResult(string message, bool error, string? glyph = null)
     {
-        _icon.Glyph = error ? "" : "";
-        _icon.Foreground = ThemeBrushes.Get(error ? "SystemFillColorCriticalBrush" : "SystemFillColorSuccessBrush", this);
+        _icon.Glyph = error ? "" : glyph ?? "";
+        _icon.Foreground = ThemeBrushes.Get(error ? "SystemFillColorCriticalBrush" : "AccentTextFillColorPrimaryBrush", this);
         _title.Text = message;
         _detail.Visibility = Visibility.Collapsed;
         _bar.Visibility = Visibility.Collapsed;

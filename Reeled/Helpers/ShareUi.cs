@@ -102,11 +102,11 @@ internal static class ShareUi
         qualityRow.Children.Add(compressedButton);
         qualityRow.Children.Add(originalButton);
         qualityRow.Children.Add(customButton);
-        var qualityHint = new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = Brush("TextFillColorTertiaryBrush") };
+        var qualityInfo = new InfoBlock(Brush);
 
         // ---- Custom quality: resolution, frame rate, bitrate (remembered) ----
-        int[] heights = { 0, 2160, 1440, 1080, 720, 540, 480 };
-        int[] frameRates = { 0, 120, 60, 30 };
+        int[] heights = CustomHeights;
+        int[] frameRates = CustomFrameRates;
         var heightBox = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, Header = loc["Share_CustomResolution"] };
         foreach (var h in heights) heightBox.Items.Add(h == 0 ? loc["Share_CustomSameAsClip"] : $"{h}p");
         heightBox.SelectedIndex = Math.Max(0, Array.IndexOf(heights, prefs.CustomHeight));
@@ -139,7 +139,7 @@ internal static class ShareUi
         var destinationBox = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
         foreach (var d in destinations) destinationBox.Items.Add(DestinationName(d, prefs));
         destinationBox.SelectedIndex = Math.Max(0, Array.IndexOf(destinations, prefs.Destination));
-        var destinationHint = new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = Brush("TextFillColorTertiaryBrush") };
+        var destinationInfo = new InfoBlock(Brush);
 
         // ---- Only the looped part ----
         CheckBox? rangeBox = null;
@@ -197,10 +197,10 @@ internal static class ShareUi
         options.Children.Add(Label(loc["Share_Quality"]));
         options.Children.Add(qualityRow);
         options.Children.Add(customPanel);
-        options.Children.Add(qualityHint);
+        options.Children.Add(qualityInfo.Root);
         options.Children.Add(Label(loc["Share_Destination"]));
         options.Children.Add(destinationBox);
-        options.Children.Add(destinationHint);
+        options.Children.Add(destinationInfo.Root);
         if (rangeBox != null) options.Children.Add(rangeBox);
 
         var panel = new StackPanel { Spacing = 14, Width = 440, RequestedTheme = theme };
@@ -263,14 +263,22 @@ internal static class ShareUi
             bool needsFfmpeg = ShareService.NeedsFfmpeg(quality, UseRange()) && !(quality == ShareQuality.Compressed && alreadySmall);
             bool hasFfmpeg = FfmpegLocator.IsAvailable;
             long customBytes = ClipCompressor.EstimateCustomBytes(TimeSpan.FromSeconds(seconds), prefs.CustomVideoKbps);
-            qualityHint.Text = quality switch
+            switch (quality)
             {
-                ShareQuality.Compressed => alreadySmall
-                    ? string.Format(loc["Share_HintAlreadySmall"], Mb(originalBytes))
-                    : string.Format(loc["Share_HintCompressed"], prefs.TargetSizeMb, PlanText(seconds, target, subject)),
-                ShareQuality.Custom => string.Format(loc["Share_HintCustom"], Mb(customBytes)),
-                _ => string.Format(loc["Share_HintOriginal"], Mb(originalBytes))
-            };
+                case ShareQuality.Compressed when !alreadySmall:
+                    qualityInfo.Set($"≤ {prefs.TargetSizeMb} {loc["Unit_MB"]}", PlanText(seconds, target, subject),
+                        string.Format(loc["Share_InfoCompressed"], prefs.TargetSizeMb));
+                    break;
+                case ShareQuality.Compressed:
+                    qualityInfo.Set(Mb(originalBytes), SourceText(subject), loc["Share_InfoAlreadySmall"]);
+                    break;
+                case ShareQuality.Custom:
+                    qualityInfo.Set($"≈ {Mb(customBytes)}", CustomText(subject, prefs), loc["Share_InfoCustom"]);
+                    break;
+                default:
+                    qualityInfo.Set(Mb(originalBytes), SourceText(subject), loc["Share_InfoOriginal"]);
+                    break;
+            }
 
             long uploadBytes = quality switch
             {
@@ -278,7 +286,8 @@ internal static class ShareUi
                 ShareQuality.Custom => customBytes,
                 _ => originalBytes
             };
-            destinationHint.Text = DestinationHint(destination, prefs);
+            var (hostTitle, hostFacts, hostDetail) = DestinationInfo(destination, prefs);
+            destinationInfo.Set(hostTitle, hostFacts, hostDetail);
 
             bool blocked = false;
             notice.IsOpen = false;
@@ -751,7 +760,7 @@ internal static class ShareUi
     // Texts
     // ---------------------------------------------------------------------------------------------
 
-    private static string Mb(long bytes) => $"{bytes / (1024.0 * 1024.0):0.#} MB";
+    private static string Mb(long bytes) => $"{(bytes / (1024.0 * 1024.0)).ToString("0.#", Loc.CurrentCulture)} {Loc["Unit_MB"]}";
 
     private static string FormatTime(TimeSpan t) => t.TotalHours >= 1 ? t.ToString(@"h\:mm\:ss") : t.ToString(@"mm\:ss");
 
@@ -769,30 +778,112 @@ internal static class ShareUi
         return string.Join("  ·  ", parts);
     }
 
-    /// <summary>"720p, 60 fps" — what the size limit buys for a clip this long.</summary>
+    /// <summary>"720p · 60 fps": what the size limit buys for a clip this long.</summary>
     private static string PlanText(double seconds, long target, GameClip clip)
     {
         var plan = ClipCompressor.PlanFor(TimeSpan.FromSeconds(seconds), target, (int)clip.VideoHeight);
         bool cap = plan.FpsCap > 0 && !(clip.Framerate is > 0 and <= 31);
         int fps = cap ? plan.FpsCap : (int)Math.Round(clip.Framerate > 0 ? clip.Framerate : 60);
-        return $"{plan.MaxHeight}p, {fps} fps";
+        return $"{plan.MaxHeight}p · {fps} fps";
     }
+
+    /// <summary>"1200p · 60 fps": the clip as it is.</summary>
+    private static string SourceText(GameClip clip)
+    {
+        if (clip.VideoHeight <= 0) return string.Empty;
+        string text = $"{clip.VideoHeight}p";
+        if (clip.Framerate > 0) text += $" · {ClipMetadataService.FormatFramerate(clip.Framerate)} fps";
+        return text;
+    }
+
+    /// <summary>"1080p · 60 fps · 8 Mbit/s": the custom settings as they apply to this clip (they only scale down).</summary>
+    private static string CustomText(GameClip clip, SharePreferences prefs)
+    {
+        int height = prefs.CustomHeight > 0 && (clip.VideoHeight <= 0 || prefs.CustomHeight < clip.VideoHeight)
+            ? prefs.CustomHeight : (int)clip.VideoHeight;
+        double fps = prefs.CustomFps > 0 && (clip.Framerate <= 0 || prefs.CustomFps < clip.Framerate)
+            ? prefs.CustomFps : clip.Framerate;
+        var parts = new System.Collections.Generic.List<string>();
+        if (height > 0) parts.Add($"{height}p");
+        if (fps > 0) parts.Add($"{ClipMetadataService.FormatFramerate(fps)} fps");
+        parts.Add(string.Format(Loc["Share_InfoBitrate"], (prefs.CustomVideoKbps / 1000.0).ToString("0.#", Loc.CurrentCulture)));
+        return string.Join(" · ", parts);
+    }
+
+    /// <summary>"72 h" / "72 год": how long Litterbox keeps a file.</summary>
+    public static string HoursText(string expiry) => string.Format(Loc["Sharing_Hours"], expiry.TrimEnd('h'));
 
     public static string DestinationName(ShareDestination destination, SharePreferences prefs) => destination switch
     {
-        ShareDestination.Litterbox => string.Format(Loc["Share_DestLitterbox"], prefs.LitterboxExpiry.Replace("h", " h")),
+        ShareDestination.Litterbox => string.Format(Loc["Share_DestLitterbox"], HoursText(prefs.LitterboxExpiry)),
         ShareDestination.Catbox => Loc["Share_DestCatbox"],
         ShareDestination.GoFile => Loc["Share_DestGoFile"],
         ShareDestination.PixelDrain => Loc["Share_DestPixelDrain"],
         _ => Loc["Share_DestFileOnly"]
     };
 
-    private static string DestinationHint(ShareDestination destination, SharePreferences prefs) => destination switch
+    /// <summary>What happens to a clip sent there: the main fact, the limits, and a sentence about the link.</summary>
+    public static (string Title, string Facts, string Detail) DestinationInfo(ShareDestination destination, SharePreferences prefs) => destination switch
     {
-        ShareDestination.Litterbox => string.Format(Loc["Share_HintLitterbox"], prefs.LitterboxExpiry.Replace("h", " h")),
-        ShareDestination.Catbox => Loc["Share_HintCatbox"],
-        ShareDestination.GoFile => Loc["Share_HintGoFile"],
-        ShareDestination.PixelDrain => Loc["Share_HintPixelDrain"],
-        _ => Loc["Share_HintFileOnly"]
+        ShareDestination.Litterbox => (string.Format(Loc["Share_InfoKeptFor"], HoursText(prefs.LitterboxExpiry)),
+            string.Format(Loc["Share_InfoAnonymousUpTo"], $"1 {Loc["Unit_GB"]}"), Loc["Share_InfoLitterbox"]),
+        ShareDestination.Catbox => (Loc["Share_InfoPermanent"],
+            string.Format(Loc["Share_InfoAnonymousUpTo"], $"200 {Loc["Unit_MB"]}"), Loc["Share_InfoCatbox"]),
+        ShareDestination.GoFile => (Loc["Share_InfoGoFileTitle"], Loc["Share_InfoAnonymousNoLimit"], Loc["Share_InfoGoFile"]),
+        ShareDestination.PixelDrain => (Loc["Share_InfoPixelDrainTitle"], Loc["Share_InfoPixelDrainFacts"], Loc["Share_InfoPixelDrain"]),
+        _ => (Loc["Share_InfoFileOnlyTitle"], Loc["Share_InfoFileOnlyFacts"], Loc["Share_InfoFileOnly"])
     };
+
+    /// <summary>The custom quality's choices, also offered in Settings.</summary>
+    public static readonly int[] CustomHeights = { 0, 2160, 1440, 1080, 720, 540, 480 };
+    public static readonly int[] CustomFrameRates = { 0, 120, 60, 30 };
+
+    /// <summary>The size or host first, large and bold; the resolution or limits beside it; a quieter sentence below.</summary>
+    private sealed class InfoBlock
+    {
+        private readonly TextBlock _title = new() { FontSize = 18, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Bottom };
+        private readonly TextBlock _facts;
+        private readonly TextBlock _detail;
+
+        public Border Root { get; }
+
+        public InfoBlock(Func<string, Brush> brush)
+        {
+            _facts = new TextBlock
+            {
+                FontSize = 13,
+                Foreground = brush("TextFillColorSecondaryBrush"),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Margin = new Thickness(0, 0, 0, 2)
+            };
+            _detail = new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = brush("TextFillColorTertiaryBrush") };
+            var line = new Grid { ColumnSpacing = 10 };
+            line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Grid.SetColumn(_facts, 1);
+            line.Children.Add(_title);
+            line.Children.Add(_facts);
+            var stack = new StackPanel { Spacing = 3 };
+            stack.Children.Add(line);
+            stack.Children.Add(_detail);
+            Root = new Border
+            {
+                Child = stack,
+                Background = brush("CardBackgroundFillColorSecondaryBrush"),
+                BorderBrush = brush("CardStrokeColorDefaultBrush"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(12, 9, 12, 10)
+            };
+        }
+
+        public void Set(string title, string facts, string detail)
+        {
+            _title.Text = title;
+            _facts.Text = facts;
+            _facts.Visibility = string.IsNullOrEmpty(facts) ? Visibility.Collapsed : Visibility.Visible;
+            _detail.Text = detail;
+        }
+    }
 }

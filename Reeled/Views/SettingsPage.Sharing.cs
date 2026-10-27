@@ -59,6 +59,11 @@ public sealed partial class SettingsPage
         StorageSharedSubtitleText.Text = loc["Storage_SharedSubtitle"];
         StorageSharedCopiesButton.Content = loc["Storage_SharedDeleteCopies"];
         StorageSharedHistoryButton.Content = loc["Storage_SharedClearHistory"];
+        ShareCustomLabel.Text = loc["Sharing_CustomLabel"];
+        ShareCustomHint.Text = loc["Sharing_CustomHint"];
+        ShareCustomHeightCombo.Header = loc["Share_CustomResolution"];
+        ShareCustomFpsCombo.Header = loc["Share_CustomFps"];
+        ShareCustomBitrateBox.Header = loc["Share_CustomBitrate"];
 
         _syncingShare = true;
         var prefs = SharePrefs;
@@ -81,6 +86,16 @@ public sealed partial class SettingsPage
         ShareDestinationCombo.SelectedIndex = Math.Max(0, Array.IndexOf(ShareDestinations, prefs.Destination));
         ShareExpiryCombo.ItemsSource = LitterboxExpiries.Select(e => string.Format(loc["Sharing_Hours"], e.TrimEnd('h'))).ToArray();
         ShareExpiryCombo.SelectedIndex = Math.Max(0, Array.IndexOf(LitterboxExpiries, prefs.LitterboxExpiry));
+        ShareCustomHeightCombo.ItemsSource = ShareUi.CustomHeights
+            .Select(h => h == 0 ? loc["Share_CustomSameAsClip"] : $"{h}p").ToArray();
+        ShareCustomHeightCombo.SelectedIndex = Math.Max(0, Array.IndexOf(ShareUi.CustomHeights, prefs.CustomHeight));
+        ShareCustomFpsCombo.ItemsSource = ShareUi.CustomFrameRates
+            .Select(f => f == 0 ? loc["Share_CustomSameAsClip"] : $"{f} fps").ToArray();
+        ShareCustomFpsCombo.SelectedIndex = Math.Max(0, Array.IndexOf(ShareUi.CustomFrameRates, prefs.CustomFps));
+        ShareCustomBitrateBox.NumberFormatter ??= new Windows.Globalization.NumberFormatting.DecimalFormatter { FractionDigits = 1, IntegerDigits = 1 };
+        ShareCustomBitrateBox.Value = Math.Round(prefs.CustomVideoKbps / 1000.0, 1);
+        ShareCustomPanel.Visibility = prefs.Quality == ShareQuality.Custom ? Visibility.Visible : Visibility.Collapsed;
+        ShareCustomPanel.Opacity = 1;
         _syncingShare = false;
 
         SetPixelDrainRevealed(PixelDrainKeyBox.PasswordRevealMode == PasswordRevealMode.Visible);
@@ -172,21 +187,23 @@ public sealed partial class SettingsPage
         if (ShareDestinationSubtitleText == null) return;
         var loc = ViewModel.Loc;
         var destination = ShareDestinations[Math.Max(0, ShareDestinationCombo.SelectedIndex)];
-        ShareDestinationSubtitleText.Text = destination switch
-        {
-            ShareDestination.Litterbox => string.Format(loc["Share_HintLitterbox"], SharePrefs.LitterboxExpiry.Replace("h", " h")),
-            ShareDestination.Catbox => loc["Share_HintCatbox"],
-            ShareDestination.GoFile => loc["Share_HintGoFile"],
-            ShareDestination.PixelDrain => loc["Share_HintPixelDrain"],
-            _ => loc["Share_HintFileOnly"]
-        };
+        var (title, facts, detail) = ShareUi.DestinationInfo(destination, SharePrefs);
+        ShareDestinationSubtitleText.Text = $"{title} · {facts}. {detail}";
     }
 
     private void OnShareSettingChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_syncingShare || _isInitializing) return;
         var prefs = SharePrefs;
-        if (ShareQualityCombo.SelectedIndex >= 0) prefs.Quality = ShareQualities[ShareQualityCombo.SelectedIndex];
+        if (ShareQualityCombo.SelectedIndex >= 0)
+        {
+            var quality = ShareQualities[ShareQualityCombo.SelectedIndex];
+            if (quality != prefs.Quality && ReferenceEquals(sender, ShareQualityCombo))
+            {
+                Helpers.Motion.Reveal(ShareCustomPanel, quality == ShareQuality.Custom, null, SettingsScrollViewer, OnRevealScrolling);
+            }
+            prefs.Quality = quality;
+        }
         if (ShareDestinationCombo.SelectedIndex >= 0) prefs.Destination = ShareDestinations[ShareDestinationCombo.SelectedIndex];
         if (ShareExpiryCombo.SelectedIndex >= 0) prefs.LitterboxExpiry = LitterboxExpiries[ShareExpiryCombo.SelectedIndex];
         bool sizeChanged = false;
@@ -211,6 +228,28 @@ public sealed partial class SettingsPage
         {
             UpdateShareDestinationHint();
         }
+    }
+
+    private void OnShareCustomChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_syncingShare || _isInitializing) return;
+        var prefs = SharePrefs;
+        if (ShareCustomHeightCombo.SelectedIndex >= 0) prefs.CustomHeight = ShareUi.CustomHeights[ShareCustomHeightCombo.SelectedIndex];
+        if (ShareCustomFpsCombo.SelectedIndex >= 0) prefs.CustomFps = ShareUi.CustomFrameRates[ShareCustomFpsCombo.SelectedIndex];
+        _ = Storage.SaveSettingsAsync(Storage.CurrentSettings);
+    }
+
+    private void OnShareCustomBitrateChanged(NumberBox sender, NumberBoxValueChangedEventArgs e)
+    {
+        if (_syncingShare || _isInitializing) return;
+        // A cleared box puts back the stored value
+        if (double.IsNaN(sender.Value))
+        {
+            sender.Value = Math.Round(SharePrefs.CustomVideoKbps / 1000.0, 1);
+            return;
+        }
+        SharePrefs.CustomVideoKbps = (int)Math.Round(Math.Clamp(sender.Value, 0.3, 100) * 1000);
+        _ = Storage.SaveSettingsAsync(Storage.CurrentSettings);
     }
 
     private void OnShareToggleChanged(object sender, RoutedEventArgs e)

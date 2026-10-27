@@ -59,7 +59,28 @@ public sealed partial class SettingsPage
         OsdTintToggle.IsOn = osd.TintByAction;
         OsdTintToggle.IsEnabled = osd.ShowBackdrop;
         OsdDetailsToggle.IsOn = osd.ShowDetails;
+
+        PauseMediaTitleText.Text = loc["Settings_PauseMediaTitle"];
+        PauseMediaSubtitleText.Text = loc["Settings_PauseMediaSubtitle"];
+        ResumeMediaLabel.Text = loc["Settings_ResumeMediaLabel"];
+        ResumeMediaHint.Text = loc["Settings_ResumeMediaHint"];
+        var settings = Storage.CurrentSettings;
+        PauseMediaToggle.IsOn = settings.PauseOtherMedia;
+        ResumeMediaToggle.IsOn = settings.ResumeOtherMedia;
+        ResumeMediaRow.Opacity = settings.PauseOtherMedia ? 1 : 0.5;
+        ResumeMediaToggle.IsEnabled = settings.PauseOtherMedia;
         _syncingPlayerSettings = false;
+    }
+
+    private void OnBackgroundMediaToggled(object sender, RoutedEventArgs e)
+    {
+        if (_syncingPlayerSettings || ResumeMediaToggle == null) return;
+        var settings = Storage.CurrentSettings;
+        settings.PauseOtherMedia = PauseMediaToggle.IsOn;
+        settings.ResumeOtherMedia = ResumeMediaToggle.IsOn;
+        ResumeMediaRow.Opacity = settings.PauseOtherMedia ? 1 : 0.5;
+        ResumeMediaToggle.IsEnabled = settings.PauseOtherMedia;
+        _ = Storage.SaveSettingsAsync(Storage.CurrentSettings);
     }
 
     private void OnToolbarResetClick(object sender, RoutedEventArgs e)

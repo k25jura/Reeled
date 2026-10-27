@@ -1548,6 +1548,8 @@ public partial class SettingsViewModel : ObservableObject
         settings.SortIndex = 0;
         settings.ReduceMotion = false;
         settings.ResumePlayback = true;
+        settings.PauseOtherMedia = true;
+        settings.ResumeOtherMedia = true;
         settings.BackdropBlurLevel = 1;
 
         settings.EnableSkeletonLoading = true;

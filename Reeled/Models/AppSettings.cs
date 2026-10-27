@@ -92,6 +92,10 @@ public class AppSettings
     /// <summary>Version that ran last, to greet the user after an update.</summary>
     public string? LastRunVersion { get; set; }
     public bool ResumePlayback { get; set; } = true;
+    /// <summary>Pause music and other media playing in other apps (Spotify, a browser) while a clip plays.</summary>
+    public bool PauseOtherMedia { get; set; } = true;
+    /// <summary>Play it again when the clip stops, if Reeled was what paused it.</summary>
+    public bool ResumeOtherMedia { get; set; } = true;
     /// <summary>Seconds the skip buttons and arrow keys jump.</summary>
     public int SkipSeconds { get; set; } = 5;
     public WheelAction PlayerWheelAction { get; set; } = WheelAction.Volume;

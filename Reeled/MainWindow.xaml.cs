@@ -296,6 +296,7 @@ public sealed partial class MainWindow : Window
             _isCursorHidden = false;
             Helpers.CursorHelper.Shutdown();
             FlushStateOnExit();
+            BackgroundMediaService.Instance?.ResumeBeforeExit();
             try
             {
                 var playbackService = App.GetService<ILibVlcPlaybackService>();

@@ -61,6 +61,7 @@ public partial class App : Application
         services.AddSingleton<ILocalizationService, LocalizationService>();
         services.AddSingleton<IUpdateService, UpdateService>();
         services.AddSingleton<Services.Sharing.ShareService>();
+        services.AddSingleton<BackgroundMediaService>();
 
         // ViewModels
         services.AddSingleton<HomeViewModel>();

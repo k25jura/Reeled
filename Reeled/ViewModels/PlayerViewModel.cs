@@ -252,6 +252,8 @@ public partial class PlayerViewModel : ObservableObject
         ILocalizationService localizationService)
     {
         _playbackService = playbackService;
+        // Listens for clips starting and stopping, to pause and resume other apps' music
+        App.GetService<BackgroundMediaService>();
         _storageService = storageService;
         _navigationService = navigationService;
         _localizationService = localizationService;

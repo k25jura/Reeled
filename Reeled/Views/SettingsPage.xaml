@@ -814,6 +814,44 @@
                             </Grid>
                         </Border>
 
+                        <!-- Card: Other apps' music (Services/BackgroundMediaService.cs; SettingsPage.Player.cs) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xEC4F;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="PauseMediaTitleText" Text="Pause other music while watching" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="PauseMediaSubtitleText" Text="Spotify, a browser tab or any other player pauses when a clip starts"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="PauseMediaToggle" Grid.Column="2" OnContent="" OffContent="" MinWidth="0" HorizontalAlignment="Right" VerticalAlignment="Center" Toggled="OnBackgroundMediaToggled" />
+                                </Grid>
+                                <Grid x:Name="ResumeMediaRow" ColumnSpacing="12" MinHeight="36" Margin="40,0,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock x:Name="ResumeMediaLabel" Text="Play it again when the clip stops" FontSize="13" />
+                                        <TextBlock x:Name="ResumeMediaHint" Text="Only what Reeled paused, when you leave the player or the clip ends"
+                                                   FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="ResumeMediaToggle" Grid.Column="1" OnContent="" OffContent="" MinWidth="0" VerticalAlignment="Center" Toggled="OnBackgroundMediaToggled" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Card 5: Default Repeat Mode -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
@@ -1775,6 +1813,23 @@
                                     </StackPanel>
                                     <ComboBox x:Name="ShareSizeCombo" Grid.Column="1" VerticalAlignment="Center" SelectionChanged="OnShareSettingChanged" />
                                 </Grid>
+                                <!-- Custom quality: shown while Custom is the chosen quality -->
+                                <StackPanel x:Name="ShareCustomPanel" Spacing="8" Margin="40,2,0,0" Visibility="Collapsed">
+                                    <TextBlock x:Name="ShareCustomLabel" Text="Custom quality" FontSize="13" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <ComboBox x:Name="ShareCustomHeightCombo" Header="Resolution" HorizontalAlignment="Stretch" SelectionChanged="OnShareCustomChanged" />
+                                        <ComboBox x:Name="ShareCustomFpsCombo" Grid.Column="1" Header="Frame rate" HorizontalAlignment="Stretch" SelectionChanged="OnShareCustomChanged" />
+                                        <NumberBox x:Name="ShareCustomBitrateBox" Grid.Column="2" Header="Bitrate (Mbit/s)"
+                                                   Minimum="0.3" Maximum="100" SmallChange="0.5" LargeChange="2"
+                                                   SpinButtonPlacementMode="Compact" ValueChanged="OnShareCustomBitrateChanged" />
+                                    </Grid>
+                                    <TextBlock x:Name="ShareCustomHint" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 

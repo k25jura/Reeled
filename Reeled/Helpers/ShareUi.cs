@@ -153,9 +153,31 @@ internal static class ShareUi
         }
 
         // ---- Problems ----
-        var notice = new InfoBar { IsClosable = false, IsOpen = false };
-        var noticeButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 14) };
-        notice.Content = noticeButtons;
+        // A plain card rather than an InfoBar: InfoBar measures a wrapped message too short inside a dialog
+        // and cuts off the buttons under it
+        var noticeIcon = new FontIcon { FontSize = 16, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 1, 0, 0) };
+        var noticeTitle = new TextBlock { FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
+        var noticeMessage = new TextBlock { FontSize = 13, TextWrapping = TextWrapping.Wrap, Foreground = Brush("TextFillColorSecondaryBrush") };
+        var noticeButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 6, 0, 0) };
+        var noticeText = new StackPanel { Spacing = 2 };
+        noticeText.Children.Add(noticeTitle);
+        noticeText.Children.Add(noticeMessage);
+        noticeText.Children.Add(noticeButtons);
+        var noticeGrid = new Grid { ColumnSpacing = 12 };
+        noticeGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        noticeGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        Grid.SetColumn(noticeText, 1);
+        noticeGrid.Children.Add(noticeIcon);
+        noticeGrid.Children.Add(noticeText);
+        var notice = new Border
+        {
+            Child = noticeGrid,
+            BorderThickness = new Thickness(1),
+            BorderBrush = Brush("CardStrokeColorDefaultBrush"),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(14, 12, 14, 14),
+            Visibility = Visibility.Collapsed
+        };
 
         // ---- Progress and result ----
         var status = new TextBlock { FontSize = 13, TextWrapping = TextWrapping.Wrap };
@@ -228,9 +250,12 @@ internal static class ShareUi
         // ---- State ----
         void ShowNotice(InfoBarSeverity severity, string title, string message, params (string Text, Action Click)[] actions)
         {
-            notice.Severity = severity;
-            notice.Title = title;
-            notice.Message = message;
+            bool warning = severity == InfoBarSeverity.Warning;
+            notice.Background = Brush(warning ? "SystemFillColorCautionBackgroundBrush" : "SystemFillColorAttentionBackgroundBrush");
+            noticeIcon.Glyph = warning ? "\uE7BA" : "\uE946";
+            noticeIcon.Foreground = Brush(warning ? "SystemFillColorCautionBrush" : "AccentTextFillColorPrimaryBrush");
+            noticeTitle.Text = title;
+            noticeMessage.Text = message;
             noticeButtons.Children.Clear();
             foreach (var (text, click) in actions)
             {
@@ -239,7 +264,7 @@ internal static class ShareUi
                 noticeButtons.Children.Add(b);
             }
             noticeButtons.Visibility = actions.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-            notice.IsOpen = true;
+            notice.Visibility = Visibility.Visible;
         }
 
         void Refresh()
@@ -290,7 +315,7 @@ internal static class ShareUi
             destinationInfo.Set(hostTitle, hostFacts, hostDetail);
 
             bool blocked = false;
-            notice.IsOpen = false;
+            notice.Visibility = Visibility.Collapsed;
             if (needsFfmpeg && !hasFfmpeg)
             {
                 blocked = true;
@@ -325,7 +350,7 @@ internal static class ShareUi
         {
             if (job == null) return;
             options.Visibility = Visibility.Collapsed;
-            notice.IsOpen = false;
+            notice.Visibility = Visibility.Collapsed;
             bool running = job.IsRunning;
             bool done = job.Stage == ShareStage.Done;
             progressPanel.Visibility = running ? Visibility.Visible : Visibility.Collapsed;

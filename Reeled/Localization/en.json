@@ -932,7 +932,7 @@
   "Share_InfoCompressed": "Compressed with FFmpeg to fit the {0} MB limit, at the best quality that fits.",
   "Share_InfoAlreadySmall": "Already under the limit, so it's sent as it is.",
   "Share_InfoOriginal": "The file as it is, without re-encoding.",
-  "Share_InfoCustom": "Encoded with your settings. Resolution and frame rate only scale down.",
+  "Share_InfoCustom": "Encoded with your settings. Resolution and frame rate only scale down, and the bitrate is capped at what they need.",
   "Share_InfoBitrate": "{0} Mbit/s",
   "Share_InfoKeptFor": "Kept for {0}",
   "Share_InfoAnonymousUpTo": "Anonymous · up to {0}",

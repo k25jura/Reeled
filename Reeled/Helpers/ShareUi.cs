@@ -154,7 +154,7 @@ internal static class ShareUi
 
         // ---- Problems ----
         var notice = new InfoBar { IsClosable = false, IsOpen = false };
-        var noticeButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        var noticeButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 14) };
         notice.Content = noticeButtons;
 
         // ---- Progress and result ----
@@ -262,7 +262,7 @@ internal static class ShareUi
             bool alreadySmall = !UseRange() && originalBytes > 0 && originalBytes <= target;
             bool needsFfmpeg = ShareService.NeedsFfmpeg(quality, UseRange()) && !(quality == ShareQuality.Compressed && alreadySmall);
             bool hasFfmpeg = FfmpegLocator.IsAvailable;
-            long customBytes = ClipCompressor.EstimateCustomBytes(TimeSpan.FromSeconds(seconds), prefs.CustomVideoKbps);
+            long customBytes = ClipCompressor.EstimateCustomBytes(TimeSpan.FromSeconds(seconds), CustomKbps(subject, prefs));
             switch (quality)
             {
                 case ShareQuality.Compressed when !alreadySmall:
@@ -806,9 +806,12 @@ internal static class ShareUi
         var parts = new System.Collections.Generic.List<string>();
         if (height > 0) parts.Add($"{height}p");
         if (fps > 0) parts.Add($"{ClipMetadataService.FormatFramerate(fps)} fps");
-        parts.Add(string.Format(Loc["Share_InfoBitrate"], (prefs.CustomVideoKbps / 1000.0).ToString("0.#", Loc.CurrentCulture)));
+        parts.Add(string.Format(Loc["Share_InfoBitrate"], (CustomKbps(clip, prefs) / 1000.0).ToString("0.#", Loc.CurrentCulture)));
         return string.Join(" · ", parts);
     }
+
+    private static int CustomKbps(GameClip clip, SharePreferences prefs) =>
+        ClipCompressor.CustomKbps(clip.VideoWidth, clip.VideoHeight, clip.Framerate, prefs.CustomHeight, prefs.CustomFps, prefs.CustomVideoKbps);
 
     /// <summary>"72 h" / "72 год": how long Litterbox keeps a file.</summary>
     public static string HoursText(string expiry) => string.Format(Loc["Sharing_Hours"], expiry.TrimEnd('h'));

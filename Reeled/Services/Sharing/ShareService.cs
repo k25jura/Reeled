@@ -248,7 +248,10 @@ public sealed class ShareService
                 });
                 var result = request.Quality == ShareQuality.Custom
                     ? await ClipCompressor.CompressCustomAsync(source, output, request.Clip.Duration, request.Clip.Framerate,
-                        request.Start, request.Length, prefs.CustomHeight, prefs.CustomFps, prefs.CustomVideoKbps, prefs.UseHardwareEncoder,
+                        request.Start, request.Length, prefs.CustomHeight, prefs.CustomFps,
+                        ClipCompressor.CustomKbps(request.Clip.VideoWidth, request.Clip.VideoHeight, request.Clip.Framerate,
+                            prefs.CustomHeight, prefs.CustomFps, prefs.CustomVideoKbps),
+                        prefs.UseHardwareEncoder,
                         progress, token)
                     : await ClipCompressor.CompressAsync(source, output, request.Clip.Duration, (int)request.Clip.VideoHeight,
                         request.Clip.Framerate, request.Start, request.Length, prefs.TargetSizeMb * 1024L * 1024L, prefs.UseHardwareEncoder,

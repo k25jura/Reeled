@@ -151,6 +151,22 @@ public static class ClipCompressor
         return new Result(output, new FileInfo(output).Length, encoder);
     }
 
+    /// <summary>
+    /// The bitrate a Custom encode really uses: the chosen one, but no more than its resolution and frame rate
+    /// need (about 0.1 bit per pixel per frame, where H.264 already looks clean). So picking 720p or 30 fps
+    /// makes the file smaller instead of spending the same bits on fewer pixels.
+    /// </summary>
+    public static int CustomKbps(double sourceWidth, double sourceHeight, double sourceFps, int height, int fps, int videoKbps)
+    {
+        double srcH = sourceHeight > 0 ? sourceHeight : 1080;
+        double aspect = sourceWidth > 0 && sourceHeight > 0 ? sourceWidth / sourceHeight : 16.0 / 9.0;
+        double outH = height > 0 && height < srcH ? height : srcH;
+        double srcFps = sourceFps > 0 ? sourceFps : 60;
+        double outFps = fps > 0 && fps < srcFps ? fps : srcFps;
+        double needed = outH * aspect * outH * outFps * 0.1 / 1000;
+        return (int)Math.Clamp(Math.Min(videoKbps, Math.Max(needed, 400)), 100, 200_000);
+    }
+
     /// <summary>Roughly how big a Custom encode of this length comes out, in bytes.</summary>
     public static long EstimateCustomBytes(TimeSpan duration, int videoKbps)
     {

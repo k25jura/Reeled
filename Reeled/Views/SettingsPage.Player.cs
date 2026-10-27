@@ -11,6 +11,7 @@ namespace Reeled.Views;
 public sealed partial class SettingsPage
 {
     private Controls.ToolbarEditor? _toolbarEditor;
+    private string? _toolbarEditorLanguage;
     private bool _syncingPlayerSettings;
 
     private static readonly int[] OsdDurations = { 700, 1100, 1800, 3000 };
@@ -30,15 +31,21 @@ public sealed partial class SettingsPage
         OsdTintLabel.Text = loc["Osd_Tint"];
         OsdDetailsLabel.Text = loc["Osd_Details"];
 
-        // The editor's labels are localized when it's built, so rebuild it with the language
-        _toolbarEditor = new Controls.ToolbarEditor { AllIds = PlayerPage.ToolbarItemIds };
-        _toolbarEditor.LayoutChanged += (s, layout) =>
+        // The editor's labels are localized when it's built, so it's rebuilt when the language changes. Building
+        // it (four lists from XAML strings) is the costliest part of opening Settings, so not on every visit.
+        if (_toolbarEditor == null || _toolbarEditorLanguage != loc.EffectiveLanguage)
         {
-            Storage.CurrentSettings.PlayerToolbar = layout.Clone();
-            _ = Storage.SaveSettingsAsync(Storage.CurrentSettings);
-        };
+            _toolbarEditorLanguage = loc.EffectiveLanguage;
+            _toolbarEditor = new Controls.ToolbarEditor { AllIds = PlayerPage.ToolbarItemIds };
+            _toolbarEditor.LayoutChanged += (s, layout) =>
+            {
+                Storage.CurrentSettings.PlayerToolbar = layout.Clone();
+                _ = Storage.SaveSettingsAsync(Storage.CurrentSettings);
+            };
+            ToolbarEditorHost.Content = _toolbarEditor;
+        }
+        // The bar may have been edited in the player since
         _toolbarEditor.SetLayout(Storage.CurrentSettings.PlayerToolbar ?? PlayerToolbarLayout.Default);
-        ToolbarEditorHost.Content = _toolbarEditor;
 
         _syncingPlayerSettings = true;
         OsdPositionCombo.ItemsSource = new[] { loc["Osd_PositionTop"], loc["Osd_PositionCenter"], loc["Osd_PositionBottom"] };

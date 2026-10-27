@@ -1535,6 +1535,7 @@ public partial class SettingsViewModel : ObservableObject
         settings.SidebarPosition = SidebarPosition.Left;
         settings.FavoritesNavVisibility = NavSectionVisibility.Always;
         settings.MomentsNavVisibility = NavSectionVisibility.Always;
+        settings.SharedNavVisibility = NavSectionVisibility.WhenNotEmpty;
         settings.LibraryViewMode = LibraryViewMode.Grid;
         settings.ShowMomentsBadges = true;
         settings.LookUpGameIcons = true;

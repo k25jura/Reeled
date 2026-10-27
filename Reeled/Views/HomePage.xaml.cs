@@ -427,6 +427,7 @@ public sealed partial class HomePage : Page
             if (HomeNavText != null) HomeNavText.Text = loc["Nav_Home"];
             if (FavoritesNavText != null) FavoritesNavText.Text = loc["Nav_Favorites"];
             if (SavedMomentsNavText != null) SavedMomentsNavText.Text = loc["Nav_SavedMoments"];
+            if (SharedNavText != null) SharedNavText.Text = loc["Nav_Shared"];
             if (FoldersHeaderNavText != null) FoldersHeaderNavText.Text = loc["Nav_Folders"];
             if (FoldersAddNavText != null) FoldersAddNavText.Text = loc["Nav_AddFolder"];
             if (SettingsNavText != null) SettingsNavText.Text = loc["Nav_Settings"];
@@ -517,6 +518,8 @@ public sealed partial class HomePage : Page
                 Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(FavoritesNavButton);
             if (SavedMomentsNavButton != null)
                 Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(SavedMomentsNavButton);
+            if (SharedNavButton != null)
+                Microsoft.UI.Xaml.Hosting.ElementCompositionPreview.GetElementVisual(SharedNavButton);
 
             // 2. Instantiate and pre-JIT all animation types, easings, and composition primitives
             var easeOut = new QuarticEase { EasingMode = EasingMode.EaseOut };
@@ -552,6 +555,7 @@ public sealed partial class HomePage : Page
         UpdateNavButtonState(HomeNavButton, HomeSelectedBg, HomeNavIcon, HomeNavText, ViewModel.IsHomeSelected, animate);
         UpdateNavButtonState(FavoritesNavButton, FavoritesSelectedBg, FavoritesNavIcon, FavoritesNavText, ViewModel.IsFavoritesSelected, animate);
         UpdateNavButtonState(SavedMomentsNavButton, SavedMomentsSelectedBg, SavedMomentsNavIcon, SavedMomentsNavText, ViewModel.IsSavedMomentsSelected, animate);
+        UpdateNavButtonState(SharedNavButton, SharedSelectedBg, SharedNavIcon, SharedNavText, ViewModel.IsSharedSelected, animate);
     }
 
     private void UpdateNavButtonState(Button? btn, Border? selBg, FontIcon? icon, TextBlock? text, bool isSelected, bool animate = true)
@@ -623,7 +627,7 @@ public sealed partial class HomePage : Page
             return;
 
         ActiveSectionKind newSection = ActiveSectionKind.None;
-        if (ViewModel.IsHomeSelected || ViewModel.IsFavoritesSelected || ViewModel.IsSavedMomentsSelected)
+        if (ViewModel.IsHomeSelected || ViewModel.IsFavoritesSelected || ViewModel.IsSavedMomentsSelected || ViewModel.IsSharedSelected)
         {
             newSection = ActiveSectionKind.TopNav;
         }
@@ -656,6 +660,14 @@ public sealed partial class HomePage : Page
         else if (ViewModel.IsSavedMomentsSelected)
         {
             double targetY = GetTargetIndicatorY(SavedMomentsNavButton, 130);
+            if (isCrossSection && animate)
+                AnimateCrossSectionTransition(targetY);
+            else
+                AnimateIndicatorTo(targetY, animate);
+        }
+        else if (ViewModel.IsSharedSelected)
+        {
+            double targetY = GetTargetIndicatorY(SharedNavButton, 171);
             if (isCrossSection && animate)
                 AnimateCrossSectionTransition(targetY);
             else
@@ -2659,6 +2671,28 @@ public sealed partial class HomePage : Page
         UpdateActiveIndicator(animate: true);
     }
 
+    /// <summary>The Shared badge on a card or row: that clip's links and copies (the badge is a button, so the clip doesn't play).</summary>
+    private async void OnShareBadgeClick(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is GameClip clip) await ShowSharesAsync(clip);
+    }
+
+    private Task ShowSharesAsync(GameClip clip) =>
+        Helpers.ShareUi.ShowHistoryAsync(clip, XamlRoot, DialogTheme, () => ViewModel.PlayClip(clip));
+
+    private async void OnSharedTabClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button && IsCtrlDown())
+        {
+            OpenSectionInNewTab(NavigationSection.Shared);
+            return;
+        }
+        DirectoriesTreeView.SelectedItem = null;
+        await ViewModel.SelectSharedAsync();
+        ScrollClipsToTop();
+        UpdateActiveIndicator(animate: true);
+    }
+
     private async void OnSavedMomentsTabClick(object sender, RoutedEventArgs e)
     {
         if (sender is Button && IsCtrlDown())
@@ -3781,6 +3815,12 @@ public sealed partial class HomePage : Page
             var shareItem = new MenuFlyoutItem { Text = loc?["ContextMenu_Share"] ?? "Share…", Icon = new FontIcon { Glyph = "" } };
             shareItem.Click += async (s, args) => await Helpers.ShareUi.ShowAsync(clip, XamlRoot, DialogTheme);
             flyout.Items.Add(shareItem);
+            if (clip.IsShared)
+            {
+                var sharesItem = new MenuFlyoutItem { Text = loc?["ContextMenu_SharedLinks"] ?? "Shared links…", Icon = new FontIcon { Glyph = "" } };
+                sharesItem.Click += async (s, args) => await ShowSharesAsync(clip);
+                flyout.Items.Add(sharesItem);
+            }
 
             var selectItem = new MenuFlyoutItem
             {

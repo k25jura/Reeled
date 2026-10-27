@@ -80,11 +80,17 @@ public sealed partial class SettingsPage : Page
             // (a click on a category that is already in view never produces a final ViewChanged to clear it)
             SettingsScrollViewer.AddHandler(UIElement.PointerWheelChangedEvent,
                 new PointerEventHandler((_, _) => _isProgrammaticScroll = false), true);
-            ApplyLocalization(ViewModel.Loc);
+            // OnNavigatedTo already localized and themed this visit (Loaded follows it on every visit, the
+            // page is cached); doing it twice made opening Settings visibly slower
+            if (!_preparedThisVisit)
+            {
+                ApplyLocalization(ViewModel.Loc);
+                UpdateThemeVisuals(ActualTheme);
+            }
+            _preparedThisVisit = false;
             // An update may have been found in the background while this page wasn't shown
             RenderUpdateNotes();
             SetUpdateCardState(ViewModel.IsUpdateAvailable);
-            UpdateThemeVisuals(ActualTheme);
             DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
             {
                 _isInitializing = false;
@@ -116,6 +122,8 @@ public sealed partial class SettingsPage : Page
         };
     }
 
+    private bool _preparedThisVisit;
+
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
@@ -124,6 +132,7 @@ public sealed partial class SettingsPage : Page
 
         ApplyLocalization(ViewModel.Loc);
         UpdateThemeVisuals(ActualTheme);
+        _preparedThisVisit = true;
         UpdateTitleBarDragArea();
 
         SyncControlsToViewModel();
@@ -1504,6 +1513,7 @@ public sealed partial class SettingsPage : Page
         if (NavSectionsSubtitleText != null) NavSectionsSubtitleText.Text = loc["Appearance_NavSectionsSubtitle"];
         if (NavFavoritesLabel != null) NavFavoritesLabel.Text = loc["Nav_Favorites"];
         if (NavMomentsLabel != null) NavMomentsLabel.Text = loc["Nav_SavedMoments"];
+        if (NavSharedLabel != null) NavSharedLabel.Text = loc["Nav_Shared"];
         BuildNavPositionTiles();
         FillNavSectionCombos();
         LocalizePlayerSettings(loc);

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -55,6 +56,9 @@ public sealed class ShareService
     /// <summary>Raised on the UI thread when a job ends (done, failed or cancelled).</summary>
     public event Action<ShareJob>? JobFinished;
 
+    /// <summary>The share history changed (on the UI thread); carries the clip's path, or null for many clips.</summary>
+    public event Action<string?>? HistoryChanged;
+
     public static string WorkFolder { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Reeled", "Shared");
 
@@ -62,20 +66,28 @@ public sealed class ShareService
     {
         _storage = storage;
         _loc = loc;
-        _ = Task.Run(CleanWorkFolder);
+        var known = History.Where(r => r.CopyPath != null).Select(r => r.CopyPath!).ToList();
+        _ = Task.Run(() => CleanOrphans(known));
     }
 
     private SharePreferences Prefs => _storage.CurrentSettings.Share ??= new SharePreferences();
 
-    /// <summary>Compressed copies are only needed until they've been pasted somewhere; keep a day's worth.</summary>
-    private static void CleanWorkFolder()
+    /// <summary>Every share, newest first.</summary>
+    public List<SharedLink> History => _storage.CurrentSettings.SharedLinks ??= new List<SharedLink>();
+
+    /// <summary>
+    /// Copies are kept as long as their share is in the history (Storage can delete them all); files no share
+    /// points at (an interrupted run, a removed entry) go after a day.
+    /// </summary>
+    private static void CleanOrphans(List<string> known)
     {
         try
         {
             if (!Directory.Exists(WorkFolder)) return;
+            var keep = new HashSet<string>(known, StringComparer.OrdinalIgnoreCase);
             foreach (var file in Directory.EnumerateFiles(WorkFolder))
             {
-                if (DateTime.UtcNow - File.GetLastWriteTimeUtc(file) > TimeSpan.FromDays(1))
+                if (!keep.Contains(file) && DateTime.UtcNow - File.GetLastWriteTimeUtc(file) > TimeSpan.FromDays(1))
                 {
                     try { File.Delete(file); } catch { }
                 }
@@ -84,8 +96,111 @@ public sealed class ShareService
         catch { }
     }
 
-    /// <summary>Whether this request needs FFmpeg (compressing, or cutting a range).</summary>
-    public static bool NeedsFfmpeg(ShareQuality quality, bool range) => quality == ShareQuality.Compressed || range;
+    /// <summary>Whether this request needs FFmpeg (compressing, cutting a range, or custom settings).</summary>
+    public static bool NeedsFfmpeg(ShareQuality quality, bool range) => quality != ShareQuality.Original || range;
+
+    public List<SharedLink> SharesOf(string clipPath) =>
+        History.Where(r => string.Equals(r.ClipPath, clipPath, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    public int CountFor(string clipPath) =>
+        History.Count(r => string.Equals(r.ClipPath, clipPath, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Takes a share off the history, and its copy off the disk.</summary>
+    public void Remove(SharedLink record)
+    {
+        DeleteCopyFile(record);
+        History.Remove(record);
+        Save(record.ClipPath);
+    }
+
+    /// <summary>Deletes a share's compressed copy; the link stays in the history.</summary>
+    public void DeleteCopy(SharedLink record)
+    {
+        DeleteCopyFile(record);
+        Save(record.ClipPath);
+    }
+
+    /// <summary>Number and size of the compressed copies on disk.</summary>
+    public static (int Files, long Bytes) CopyStats()
+    {
+        try
+        {
+            if (!Directory.Exists(WorkFolder)) return (0, 0);
+            var files = new DirectoryInfo(WorkFolder).GetFiles();
+            return (files.Length, files.Sum(f => f.Length));
+        }
+        catch
+        {
+            return (0, 0);
+        }
+    }
+
+    /// <summary>Frees the space: every compressed copy goes, links stay in the history.</summary>
+    public void DeleteAllCopies()
+    {
+        foreach (var record in History) record.CopyPath = null;
+        try
+        {
+            if (Directory.Exists(WorkFolder))
+            {
+                foreach (var file in Directory.EnumerateFiles(WorkFolder))
+                {
+                    try { File.Delete(file); } catch { }
+                }
+            }
+        }
+        catch { }
+        Save(null);
+    }
+
+    /// <summary>Forgets every share (and deletes the copies); links already given out keep working.</summary>
+    public void ClearHistory()
+    {
+        DeleteAllCopies();
+        History.Clear();
+        Save(null);
+    }
+
+    private static void DeleteCopyFile(SharedLink record)
+    {
+        if (record.CopyPath == null) return;
+        try { if (File.Exists(record.CopyPath)) File.Delete(record.CopyPath); } catch { }
+        record.CopyPath = null;
+    }
+
+    private void Save(string? clipPath)
+    {
+        _ = _storage.SaveSettingsAsync(_storage.CurrentSettings);
+        HistoryChanged?.Invoke(clipPath);
+    }
+
+    /// <summary>Adds a finished share to the history, newest first.</summary>
+    private void Record(ShareJob job, string source)
+    {
+        var request = job.Request;
+        DateTime now = DateTime.UtcNow;
+        DateTime? expires = null;
+        if (request.Destination == ShareDestination.Litterbox &&
+            int.TryParse(Prefs.LitterboxExpiry.TrimEnd('h'), out int hours))
+        {
+            expires = now.AddHours(hours);
+        }
+        bool isCopy = job.OutputPath != null && !string.Equals(job.OutputPath, source, StringComparison.OrdinalIgnoreCase);
+        History.Insert(0, new SharedLink
+        {
+            ClipPath = source,
+            Link = job.Link,
+            Destination = request.Destination,
+            Quality = request.Quality,
+            SharedUtc = now,
+            ExpiresUtc = expires,
+            CopyPath = isCopy ? job.OutputPath : null,
+            Bytes = job.OutputBytes,
+            StartMs = request.Start is TimeSpan s ? (long)s.TotalMilliseconds : null,
+            LengthMs = request.Length is TimeSpan l ? (long)l.TotalMilliseconds : null
+        });
+        Save(source);
+    }
 
     public ShareJob Start(ShareRequest request)
     {
@@ -117,10 +232,10 @@ public sealed class ShareService
 
             // A whole clip that already fits goes as it is: re-encoding would only lose quality
             bool alreadySmall = !range && new FileInfo(source).Length <= prefs.TargetSizeMb * 1024L * 1024L;
-            if (request.Quality == ShareQuality.Compressed && !alreadySmall)
+            if (request.Quality == ShareQuality.Custom || (request.Quality == ShareQuality.Compressed && !alreadySmall))
             {
                 Directory.CreateDirectory(WorkFolder);
-                string output = Path.Combine(WorkFolder, SafeName(request.Clip) + ".mp4");
+                string output = Path.Combine(WorkFolder, CopyName(request.Clip, ".mp4"));
                 workFile = output;
                 var encoder = await ClipCompressor.DetectEncoderAsync(prefs.UseHardwareEncoder, token);
                 job.Stage = ShareStage.Compressing;
@@ -131,15 +246,19 @@ public sealed class ShareService
                     job.Progress = p * prepWeight;
                     job.Status = $"{label}  ·  {p:P0}";
                 });
-                var result = await ClipCompressor.CompressAsync(source, output, request.Clip.Duration, (int)request.Clip.VideoHeight,
-                    request.Clip.Framerate, request.Start, request.Length, prefs.TargetSizeMb * 1024L * 1024L, prefs.UseHardwareEncoder,
-                    progress, token);
+                var result = request.Quality == ShareQuality.Custom
+                    ? await ClipCompressor.CompressCustomAsync(source, output, request.Clip.Duration, request.Clip.Framerate,
+                        request.Start, request.Length, prefs.CustomHeight, prefs.CustomFps, prefs.CustomVideoKbps, prefs.UseHardwareEncoder,
+                        progress, token)
+                    : await ClipCompressor.CompressAsync(source, output, request.Clip.Duration, (int)request.Clip.VideoHeight,
+                        request.Clip.Framerate, request.Start, request.Length, prefs.TargetSizeMb * 1024L * 1024L, prefs.UseHardwareEncoder,
+                        progress, token);
                 fileToShare = result.Path;
             }
             else if (range)
             {
                 Directory.CreateDirectory(WorkFolder);
-                string output = Path.Combine(WorkFolder, SafeName(request.Clip) + Path.GetExtension(source));
+                string output = Path.Combine(WorkFolder, CopyName(request.Clip, Path.GetExtension(source)));
                 workFile = output;
                 job.Stage = ShareStage.Trimming;
                 job.Status = _loc["Share_Status_Trimming"];
@@ -178,6 +297,7 @@ public sealed class ShareService
 
             job.Progress = 1;
             job.Stage = ShareStage.Done;
+            Record(job, source);
         }
         catch (Exception ex) when (token.IsCancellationRequested || ex is OperationCanceledException)
         {
@@ -215,6 +335,10 @@ public sealed class ShareService
     }
 
     private static string FormatMb(double bytes) => (bytes / (1024 * 1024)).ToString("0.0");
+
+    /// <summary>A copy's name: the clip's name and when it was made, so shares of one clip don't overwrite each other.</summary>
+    private static string CopyName(GameClip clip, string extension) =>
+        $"{SafeName(clip)} {DateTime.Now:yyyy-MM-dd HH.mm.ss}{extension}";
 
     /// <summary>The clip's name made safe for a file name and a URL.</summary>
     private static string SafeName(GameClip clip)

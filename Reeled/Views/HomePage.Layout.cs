@@ -272,6 +272,11 @@ public sealed partial class HomePage
             AddHorizontalTab("", loc["Nav_SavedMoments"], ViewModel.SavedMomentsCount, () => ViewModel.IsSavedMomentsSelected,
                 () => OnSavedMomentsTabClick(this, new RoutedEventArgs()), NavigationSection.SavedMoments);
         }
+        if (IsNavSectionShown(NavigationSection.Shared))
+        {
+            AddHorizontalTab("", loc["Nav_Shared"], ViewModel.SharedCount, () => ViewModel.IsSharedSelected,
+                () => OnSharedTabClick(this, new RoutedEventArgs()), NavigationSection.Shared);
+        }
 
         if (ViewModel.Directories.Count > 0)
         {
@@ -650,14 +655,19 @@ public sealed partial class HomePage
     }
 
     // ---------------------------------------------------------------------------------------------
-    // Section visibility (Favorites, Saved Moments)
+    // Section visibility (Favorites, Saved Moments, Shared)
     // ---------------------------------------------------------------------------------------------
 
     private bool IsNavSectionShown(NavigationSection section)
     {
         var settings = LayoutStorage.CurrentSettings;
-        var mode = section == NavigationSection.Favorites ? settings.FavoritesNavVisibility : settings.MomentsNavVisibility;
-        int count = section == NavigationSection.Favorites ? ViewModel.FavoritesCount : ViewModel.SavedMomentsCount;
+        var mode = NavVisibilityOf(section);
+        int count = section switch
+        {
+            NavigationSection.Favorites => ViewModel.FavoritesCount,
+            NavigationSection.Shared => ViewModel.SharedCount,
+            _ => ViewModel.SavedMomentsCount
+        };
         return mode switch
         {
             NavSectionVisibility.Hidden => false,
@@ -667,17 +677,32 @@ public sealed partial class HomePage
         };
     }
 
+    private NavSectionVisibility NavVisibilityOf(NavigationSection section)
+    {
+        var settings = LayoutStorage.CurrentSettings;
+        return section switch
+        {
+            NavigationSection.Favorites => settings.FavoritesNavVisibility,
+            NavigationSection.Shared => settings.SharedNavVisibility,
+            _ => settings.MomentsNavVisibility
+        };
+    }
+
     private void ApplyNavSectionVisibility()
     {
         bool favorites = IsNavSectionShown(NavigationSection.Favorites);
         bool moments = IsNavSectionShown(NavigationSection.SavedMoments);
+        bool shared = IsNavSectionShown(NavigationSection.Shared);
         bool changed = (FavoritesNavButton.Visibility == Visibility.Visible) != favorites ||
-                       (SavedMomentsNavButton.Visibility == Visibility.Visible) != moments;
+                       (SavedMomentsNavButton.Visibility == Visibility.Visible) != moments ||
+                       (SharedNavButton.Visibility == Visibility.Visible) != shared;
 
         FavoritesNavButton.Visibility = favorites ? Visibility.Visible : Visibility.Collapsed;
         SavedMomentsNavButton.Visibility = moments ? Visibility.Visible : Visibility.Collapsed;
+        SharedNavButton.Visibility = shared ? Visibility.Visible : Visibility.Collapsed;
 
-        if ((ViewModel.IsFavoritesSelected && !favorites) || (ViewModel.IsSavedMomentsSelected && !moments))
+        if ((ViewModel.IsFavoritesSelected && !favorites) || (ViewModel.IsSavedMomentsSelected && !moments) ||
+            (ViewModel.IsSharedSelected && !shared))
         {
             OnHomeTabClick(this, new RoutedEventArgs());
         }
@@ -713,8 +738,7 @@ public sealed partial class HomePage
         }
         menu.Opening += (s, e) =>
         {
-            var settings = LayoutStorage.CurrentSettings;
-            var current = section == NavigationSection.Favorites ? settings.FavoritesNavVisibility : settings.MomentsNavVisibility;
+            var current = NavVisibilityOf(section);
             foreach (var (item, mode) in radios) item.IsChecked = mode == current;
         };
         return menu;
@@ -724,6 +748,7 @@ public sealed partial class HomePage
     {
         var settings = LayoutStorage.CurrentSettings;
         if (section == NavigationSection.Favorites) settings.FavoritesNavVisibility = mode;
+        else if (section == NavigationSection.Shared) settings.SharedNavVisibility = mode;
         else settings.MomentsNavVisibility = mode;
         _ = LayoutStorage.SaveSettingsAsync(settings);
         ApplyNavSectionVisibility();
@@ -754,6 +779,7 @@ public sealed partial class HomePage
                 case nameof(HomeViewModel.AllClipsCount):
                 case nameof(HomeViewModel.FavoritesCount):
                 case nameof(HomeViewModel.SavedMomentsCount):
+                case nameof(HomeViewModel.SharedCount):
                     ApplyNavSectionVisibility();
                     BuildHorizontalNav();
                     break;

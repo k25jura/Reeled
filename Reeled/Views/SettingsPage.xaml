@@ -1338,6 +1338,7 @@
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                         <FontIcon Glyph="&#xEB52;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -1349,6 +1350,11 @@
                                         <TextBlock x:Name="NavMomentsLabel" Text="Saved Moments" FontSize="13" VerticalAlignment="Center" />
                                     </StackPanel>
                                     <ComboBox x:Name="NavMomentsComboBox" Grid.Row="1" Grid.Column="1" MinWidth="200" SelectionChanged="OnNavSectionVisibilityChanged" />
+                                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                        <FontIcon Glyph="&#xE72D;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock x:Name="NavSharedLabel" Text="Shared" FontSize="13" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <ComboBox x:Name="NavSharedComboBox" Grid.Row="2" Grid.Column="1" MinWidth="200" SelectionChanged="OnNavSectionVisibilityChanged" />
                                 </Grid>
                             </StackPanel>
                         </Border>
@@ -1840,45 +1846,63 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Card: PixelDrain key -->
+                        <!-- Card: PixelDrain key (folds open like Icon sources) -->
                         <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="16,14">
-                            <Grid ColumnSpacing="16">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0" Glyph="&#xE8D7;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Top" Margin="0,2,0,0" HorizontalAlignment="Center" Width="24" Height="24" />
-                                <StackPanel Grid.Column="1" Spacing="8">
-                                    <StackPanel Spacing="2">
+                            <StackPanel Spacing="0">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE8D7;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                         <TextBlock x:Name="PixelDrainTitleText" Text="PixelDrain API key" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
                                         <TextBlock x:Name="PixelDrainSubtitleText" Text="Only for uploading to PixelDrain. Stored encrypted for your Windows account"
                                                    Style="{ThemeResource CaptionTextBlockStyle}"
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                    TextWrapping="Wrap" />
                                     </StackPanel>
+                                    <Button x:Name="PixelDrainToggle"
+                                            Grid.Column="2"
+                                            Style="{ThemeResource SubtleButtonStyle}"
+                                            Padding="10,8"
+                                            VerticalAlignment="Center"
+                                            Click="OnPixelDrainToggleClick"
+                                            AutomationProperties.Name="Show or hide the PixelDrain key">
+                                        <FontIcon Glyph="&#xE70D;" FontSize="12" RenderTransformOrigin="0.5,0.5">
+                                            <FontIcon.RenderTransform>
+                                                <RotateTransform x:Name="PixelDrainChevronRotation" Angle="0" />
+                                            </FontIcon.RenderTransform>
+                                        </FontIcon>
+                                    </Button>
+                                </Grid>
+
+                                <StackPanel x:Name="PixelDrainBody" Spacing="4" Margin="40,0,0,0" Padding="0,16,0,0" Visibility="Collapsed" Opacity="0">
                                     <Grid ColumnSpacing="6">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <PasswordBox x:Name="PixelDrainKeyBox" PasswordRevealMode="Hidden" LostFocus="OnPixelDrainKeyLostFocus" />
+                                        <PasswordBox x:Name="PixelDrainKeyBox" Header="API key" PasswordRevealMode="Hidden" LostFocus="OnPixelDrainKeyLostFocus" />
                                         <Button x:Name="PixelDrainKeyReveal"
                                                 Grid.Column="1"
                                                 Style="{ThemeResource SubtleButtonStyle}"
                                                 Width="36"
                                                 Height="32"
                                                 Padding="0"
+                                                VerticalAlignment="Bottom"
                                                 Click="OnPixelDrainRevealClick">
                                             <FontIcon Glyph="&#xE7B3;" FontSize="14" />
                                         </Button>
                                     </Grid>
                                     <HyperlinkButton x:Name="PixelDrainKeyLink" Content="Get a key" NavigateUri="https://pixeldrain.com/user/api_keys" Padding="0" />
                                 </StackPanel>
-                            </Grid>
+                            </StackPanel>
                         </Border>
 
                         <TextBlock x:Name="SharePrivacyText"
@@ -2157,6 +2181,40 @@
                                         Command="{x:Bind ViewModel.ClearMomentsMetadataCommand}" 
                                         Content="Clear Moments" 
                                         VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card: Shared clips (compressed copies and the share history; SettingsPage.Sharing.cs) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE72D;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="StorageSharedTitleText" Text="Shared clips" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="StorageSharedSubtitleText" Text="Compressed copies made for sharing, and the list of shared links"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock x:Name="StorageSharedStatsText"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               FontWeight="SemiBold"
+                                               Margin="0,1,0,0" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <Button x:Name="StorageSharedCopiesButton" Content="Delete copies" Click="OnDeleteSharedCopiesClick" />
+                                    <Button x:Name="StorageSharedHistoryButton" Content="Clear history" Click="OnClearShareHistoryClick" />
+                                </StackPanel>
                             </Grid>
                         </Border>
 

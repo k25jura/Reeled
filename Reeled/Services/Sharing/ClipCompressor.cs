@@ -78,8 +78,8 @@ public static class ClipCompressor
         }
     }
 
-    /// <summary>Encoding settings for a clip of this length and source height.</summary>
-    public sealed record Plan(int VideoKbps, int AudioKbps, int MaxHeight, bool Cap30Fps);
+    /// <summary>Encoding settings: bitrates, the tallest output (0 = as the source) and a frame-rate cap (0 = none).</summary>
+    public sealed record Plan(int VideoKbps, int AudioKbps, int MaxHeight, int FpsCap);
 
     public static Plan PlanFor(TimeSpan duration, long targetBytes, int sourceHeight)
     {
@@ -92,7 +92,7 @@ public static class ClipCompressor
         // Height that still looks right at this bitrate (H.264, game footage)
         int height = video >= 9000 ? 1440 : video >= 4500 ? 1080 : video >= 2200 ? 720 : video >= 1100 ? 540 : 480;
         if (sourceHeight > 0) height = Math.Min(height, sourceHeight);
-        return new Plan(video, audio, height, video < 1100);
+        return new Plan(video, audio, height, video < 1100 ? 30 : 0);
     }
 
     public sealed record Result(string Path, long Bytes, VideoEncoder Encoder);
@@ -113,7 +113,7 @@ public static class ClipCompressor
 
         var plan = PlanFor(duration, targetBytes, sourceHeight);
         // Only slow down sources faster than 30 fps (or unknown ones)
-        if (sourceFps is > 0 and <= 31) plan = plan with { Cap30Fps = false };
+        if (sourceFps is > 0 and <= 31) plan = plan with { FpsCap = 0 };
         await EncodeAsync(ffmpeg, encoder, input, output, start, length, duration, plan, p => progress.Report(p * 0.85), token);
 
         long bytes = new FileInfo(output).Length;
@@ -127,6 +127,35 @@ public static class ClipCompressor
         }
         progress.Report(1);
         return new Result(output, bytes, encoder);
+    }
+
+    /// <summary>
+    /// Encodes at the user's own settings (Custom quality): no size target, so one pass. A frame-rate cap
+    /// at or above the source's is ignored, and the height only ever scales down.
+    /// </summary>
+    public static async Task<Result> CompressCustomAsync(string input, string output, TimeSpan clipDuration, double sourceFps,
+        TimeSpan? start, TimeSpan? length, int height, int fps, int videoKbps, bool allowHardware,
+        IProgress<double> progress, CancellationToken token)
+    {
+        var ffmpeg = FfmpegLocator.Find() ?? throw new InvalidOperationException("FFmpeg isn't installed.");
+        var encoder = await DetectEncoderAsync(allowHardware, token);
+        if (clipDuration <= TimeSpan.Zero) clipDuration = await ProbeDurationAsync(ffmpeg, input, token);
+        TimeSpan duration = length ?? (clipDuration - (start ?? TimeSpan.Zero));
+        if (duration <= TimeSpan.Zero) duration = clipDuration;
+
+        int fpsCap = fps > 0 && (sourceFps <= 0 || fps < sourceFps - 0.5) ? fps : 0;
+        int audio = videoKbps < 1500 ? 96 : 160;
+        var plan = new Plan(Math.Clamp(videoKbps, 100, 200_000), audio, Math.Max(0, height), fpsCap);
+        await EncodeAsync(ffmpeg, encoder, input, output, start, length, duration, plan, p => progress.Report(p), token);
+        progress.Report(1);
+        return new Result(output, new FileInfo(output).Length, encoder);
+    }
+
+    /// <summary>Roughly how big a Custom encode of this length comes out, in bytes.</summary>
+    public static long EstimateCustomBytes(TimeSpan duration, int videoKbps)
+    {
+        int audio = videoKbps < 1500 ? 96 : 160;
+        return (long)((videoKbps + audio) * 1000 / 8.0 * Math.Max(1, duration.TotalSeconds) * 1.02);
     }
 
     /// <summary>Cuts a range without re-encoding (Original quality with a loop set).</summary>
@@ -210,7 +239,10 @@ public static class ClipCompressor
             _ => $"-preset veryfast -b:v {v}k -maxrate {v}k -bufsize {v * 2}k"
         };
         // Scale only down, keep the aspect ratio, even width for 4:2:0
-        string video = $"[0:v:0]scale=-2:'min({plan.MaxHeight},ih)'" + (plan.Cap30Fps ? ",fps=30" : string.Empty) + "[v]";
+        var videoFilters = new System.Collections.Generic.List<string>();
+        if (plan.MaxHeight > 0) videoFilters.Add($"scale=-2:'min({plan.MaxHeight},ih)'");
+        if (plan.FpsCap > 0) videoFilters.Add($"fps={plan.FpsCap}");
+        string video = "[0:v:0]" + (videoFilters.Count > 0 ? string.Join(",", videoFilters) : "null") + "[v]";
         // Every audio track is heard, mixed at its own level (game + microphone, as recorded)
         string graph, audioMap;
         if (audioTracks > 1)

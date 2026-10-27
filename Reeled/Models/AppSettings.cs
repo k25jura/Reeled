@@ -43,6 +43,7 @@ public class AppSettings
     public SidebarPosition SidebarPosition { get; set; } = SidebarPosition.Left;
     public NavSectionVisibility FavoritesNavVisibility { get; set; } = NavSectionVisibility.Always;
     public NavSectionVisibility MomentsNavVisibility { get; set; } = NavSectionVisibility.Always;
+    public NavSectionVisibility SharedNavVisibility { get; set; } = NavSectionVisibility.WhenNotEmpty;
     /// <summary>Card grid or a details list.</summary>
     public LibraryViewMode LibraryViewMode { get; set; } = LibraryViewMode.Grid;
     /// <summary>Show the tab bar even with a single tab; otherwise it appears once a second tab is open.</summary>
@@ -100,6 +101,8 @@ public class AppSettings
     public OsdPreferences Osd { get; set; } = new();
     public PlayerSessionPreferences PlayerSession { get; set; } = new();
     public SharePreferences Share { get; set; } = new();
+    /// <summary>Every share made, newest first; the library's Shared section lists their clips.</summary>
+    public List<SharedLink> SharedLinks { get; set; } = new();
     /// <summary>Where snapshots go; empty = Pictures\Reeled.</summary>
     public string? SnapshotFolder { get; set; }
     /// <summary>Last playback position (ms) per clip path, for resuming long clips.</summary>

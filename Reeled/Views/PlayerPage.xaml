@@ -329,15 +329,29 @@
                 BorderThickness="0,0,0,1"
                 Padding="16,8,16,8">
             <Grid>
-                <!-- Centered File Title (Dead Center of Window) -->
-                <TextBlock Text="{x:Bind ViewModel.CurrentClip.DisplayName, Mode=OneWay}"
-                           FontSize="14"
-                           FontWeight="SemiBold"
-                           Foreground="White"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis"
-                           MaxWidth="550" />
+                <!-- Centered File Title (Dead Center of Window), with Share beside it -->
+                <StackPanel Orientation="Horizontal"
+                            Spacing="4"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind ViewModel.CurrentClip.DisplayName, Mode=OneWay}"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="White"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="550" />
+                    <Button x:Name="PlayerShareButton"
+                            Click="OnShareClick"
+                            Width="30"
+                            Height="30"
+                            Padding="0"
+                            IsTabStop="False"
+                            ToolTipService.ToolTip="Share clip"
+                            Style="{ThemeResource SubtleButtonStyle}">
+                        <FontIcon Glyph="&#xE72D;" FontSize="13" Foreground="White" />
+                    </Button>
+                </StackPanel>
 
                 <!-- Left: Back Button -->
                 <Button x:Name="BackToLibraryButton"
@@ -677,6 +691,9 @@
                 </Button>
                 <Button x:Name="SnapshotButton" Tag="snapshot" ToolTipService.ToolTip="Save a snapshot" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Click="OnSnapshotClick">
                     <FontIcon Glyph="&#xE722;" FontSize="14" Foreground="White" />
+                </Button>
+                <Button x:Name="ShareBarButton" Tag="share" ToolTipService.ToolTip="Share clip" Width="34" Height="34" Padding="0" MinWidth="0" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" IsTabStop="False" Style="{StaticResource PlayerIconButtonStyle}" Click="OnShareClick">
+                    <FontIcon Glyph="&#xE72D;" FontSize="14" Foreground="White" />
                 </Button>
                 <Button x:Name="SpeedButton" Tag="speed" ToolTipService.ToolTip="Playback speed" Click="OnSpeedButtonClick" Padding="8,0" Height="34" MinWidth="40" MinHeight="0" IsTabStop="False" Style="{ThemeResource SubtleButtonStyle}">
                     <TextBlock Text="{x:Bind ViewModel.FormattedPlaybackRate, Mode=OneWay}" FontSize="12.5" FontWeight="SemiBold" Foreground="White" />

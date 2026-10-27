@@ -60,6 +60,7 @@ public partial class App : Application
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
         services.AddSingleton<IUpdateService, UpdateService>();
+        services.AddSingleton<Services.Sharing.ShareService>();
 
         // ViewModels
         services.AddSingleton<HomeViewModel>();

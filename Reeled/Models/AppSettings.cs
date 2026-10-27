@@ -99,6 +99,7 @@ public class AppSettings
     public PlayerToolbarLayout PlayerToolbar { get; set; } = PlayerToolbarLayout.Default;
     public OsdPreferences Osd { get; set; } = new();
     public PlayerSessionPreferences PlayerSession { get; set; } = new();
+    public SharePreferences Share { get; set; } = new();
     /// <summary>Where snapshots go; empty = Pictures\Reeled.</summary>
     public string? SnapshotFolder { get; set; }
     /// <summary>Last playback position (ms) per clip path, for resuming long clips.</summary>

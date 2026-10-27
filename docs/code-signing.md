@@ -73,4 +73,5 @@ Push a `v*` tag as usual. The *Sign with SignPath* step waits until the request 
 > **Privacy:** Reeled doesn't send any information to other networked systems unless you ask it to, or
 > except for these features, which you can turn off: checking GitHub for new releases (Settings →
 > Updates), and looking up game icons for folder names on Steam, plus SteamGridDB and IGDB when you add
-> their keys (Settings → Appearance).
+> their keys (Settings → Appearance). When you share a clip, it is uploaded to the service you pick in
+> the Share dialog (Litterbox, Catbox, GoFile or PixelDrain), and only then.

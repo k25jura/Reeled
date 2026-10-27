@@ -128,6 +128,7 @@ public sealed partial class SettingsPage : Page
 
         SyncControlsToViewModel();
         LoadIconSources();
+        LoadSharing();
     }
 
     private void SyncControlsToViewModel()
@@ -187,6 +188,7 @@ public sealed partial class SettingsPage : Page
     {
         base.OnNavigatedFrom(e);
         CommitIconSources();
+        CommitPixelDrainKey();
         _isInitializing = true;
     }
 
@@ -523,6 +525,7 @@ public sealed partial class SettingsPage : Page
             "FoldersSection" => FoldersSection,
             "PlaybackSection" => PlaybackSection,
             "AppearanceSection" => AppearanceSection,
+            "SharingSection" => SharingSection,
             "LocalizationSection" => LocalizationSection,
             "StorageSection" => StorageSection,
             "UpdateSection" => UpdateSection,
@@ -553,9 +556,9 @@ public sealed partial class SettingsPage : Page
 
     private void UpdateCategoryButtonColors(ElementTheme theme)
     {
-        var buttons = new[] { CatFoldersBtn, CatPlaybackBtn, CatAppearanceBtn, CatLanguageBtn, CatStorageBtn, CatUpdatesBtn, CatAboutBtn };
-        var icons = new[] { CatFoldersIcon, CatPlaybackIcon, CatAppearanceIcon, CatLanguageIcon, CatStorageIcon, CatUpdatesIcon, CatAboutIcon };
-        var texts = new[] { CatFoldersText, CatPlaybackText, CatAppearanceText, CatLanguageText, CatStorageText, CatUpdatesText, CatAboutText };
+        var buttons = new[] { CatFoldersBtn, CatPlaybackBtn, CatAppearanceBtn, CatSharingBtn, CatLanguageBtn, CatStorageBtn, CatUpdatesBtn, CatAboutBtn };
+        var icons = new[] { CatFoldersIcon, CatPlaybackIcon, CatAppearanceIcon, CatSharingIcon, CatLanguageIcon, CatStorageIcon, CatUpdatesIcon, CatAboutIcon };
+        var texts = new[] { CatFoldersText, CatPlaybackText, CatAppearanceText, CatSharingText, CatLanguageText, CatStorageText, CatUpdatesText, CatAboutText };
 
         bool isLight = (theme == ElementTheme.Light);
         var selectedBrush = isLight
@@ -588,7 +591,7 @@ public sealed partial class SettingsPage : Page
         if (_activeSectionTag == sectionTag && _isIndicatorVisible) return;
         _activeSectionTag = sectionTag;
 
-        var buttons = new[] { CatFoldersBtn, CatPlaybackBtn, CatAppearanceBtn, CatLanguageBtn, CatStorageBtn, CatUpdatesBtn, CatAboutBtn };
+        var buttons = new[] { CatFoldersBtn, CatPlaybackBtn, CatAppearanceBtn, CatSharingBtn, CatLanguageBtn, CatStorageBtn, CatUpdatesBtn, CatAboutBtn };
         Button? selectedBtn = null;
 
         for (int i = 0; i < buttons.Length; i++)
@@ -857,6 +860,7 @@ public sealed partial class SettingsPage : Page
     {
         ("PlaybackSection", new[] { "SubPlaybackSpeed", "SubPlaybackBehavior", "SubPlaybackControls", "SubPlaybackBar", "SubPlaybackOsd", "SubPlaybackDecoding" }),
         ("AppearanceSection", new[] { "SubAppearanceTheme", "SubAppearanceLayout", "SubAppearanceLibrary", "SubAppearanceEffects" }),
+        ("SharingSection", new[] { "SubSharingCompression", "SubSharingUpload" }),
         ("StorageSection", new[] { "SubStoragePerformance", "SubStorageCaches" }),
         ("UpdateSection", new[] { "SubUpdatesStatus", "SubUpdatesPreferences" }),
     };
@@ -990,6 +994,9 @@ public sealed partial class SettingsPage : Page
 
     private AcrylicBrush? _toastAcrylic;
 
+    /// <summary>A share that finished in the background (its dialog was hidden).</summary>
+    public void ShowShareMessage(string message, bool error) => ShowToast(message, "", error);
+
     private void ShowToast(string message, string glyph, bool isError)
     {
         if (SettingsToast == null) return;
@@ -1091,6 +1098,7 @@ public sealed partial class SettingsPage : Page
                 (FoldersSection, "FoldersSection"),
                 (PlaybackSection, "PlaybackSection"),
                 (AppearanceSection, "AppearanceSection"),
+                (SharingSection, "SharingSection"),
                 (LocalizationSection, "LocalizationSection"),
                 (StorageSection, "StorageSection"),
                 (UpdateSection, "UpdateSection"),
@@ -1420,6 +1428,8 @@ public sealed partial class SettingsPage : Page
         if (CatPlaybackText != null) CatPlaybackText.Text = loc["Cat_Playback"];
         if (CatAppearanceText != null) CatAppearanceText.Text = loc["Cat_Appearance"];
         if (CatLanguageText != null) CatLanguageText.Text = loc["Cat_Language"];
+        if (CatSharingText != null) CatSharingText.Text = loc["Cat_Sharing"];
+        LocalizeSharing(loc);
         if (CatStorageText != null) CatStorageText.Text = loc["Cat_Storage"];
         if (CatUpdatesText != null) CatUpdatesText.Text = loc["Cat_Updates"];
         if (CatAboutText != null) CatAboutText.Text = loc["Cat_About"];

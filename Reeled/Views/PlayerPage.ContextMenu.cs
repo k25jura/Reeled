@@ -32,6 +32,19 @@ public sealed partial class PlayerPage
         }
     }
 
+    /// <summary>The Share dialog for the clip that's playing; a set A–B loop is offered as "only this part".</summary>
+    private async void ShareCurrentClip()
+    {
+        var clip = ViewModel.CurrentClip;
+        if (clip == null) return;
+        (TimeSpan, TimeSpan)? range = ViewModel.LoopStart is TimeSpan a && ViewModel.LoopEnd is TimeSpan b && b > a
+            ? (a, b - a)
+            : null;
+        await Helpers.ShareUi.ShowAsync(clip, XamlRoot, ElementTheme.Dark, range);
+    }
+
+    private void OnShareClick(object sender, RoutedEventArgs e) => ShareCurrentClip();
+
     private void OnVideoRightTapped(object sender, RightTappedRoutedEventArgs e)
     {
         var menu = BuildPlayerContextMenu();
@@ -79,6 +92,7 @@ public sealed partial class PlayerPage
         menu.Items.Add(Item(loc["Player_Tooltip_PreviousClip"], "", vm.PlayPrevious, "P", vm.HasPreviousClip));
         menu.Items.Add(Item(loc["Player_Tooltip_NextClip"], "", vm.PlayNext, "N", vm.HasNextClip));
         menu.Items.Add(Item(loc["Player_MarkMoment_Title"], "", () => ShowMomentsFlyout(MomentsTabMark), "B"));
+        menu.Items.Add(Item(loc["Player_Share"] + "…", "", ShareCurrentClip, enabled: vm.CurrentClip != null));
         menu.Items.Add(new MenuFlyoutSeparator());
 
         // Playback

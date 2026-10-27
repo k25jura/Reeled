@@ -443,6 +443,10 @@ public sealed partial class HomePage
     }
 
     /// <summary>A short line on the floating card (result of an operation, or why something can't be done).</summary>
+    /// <summary>A share that finished in the background (its dialog was hidden).</summary>
+    public void ShowShareMessage(string message, bool error) =>
+        ShowFileOpMessage(message, error, autoHideMs: error ? 7000 : 6000, glyph: "");
+
     /// <param name="glyph">The action's icon (copy, move, new folder...); a check when null.</param>
     private void ShowFileOpMessage(string message, bool error = false, int autoHideMs = 3500, string? glyph = null)
     {

@@ -250,6 +250,11 @@ public sealed partial class PlayerPage : Page
             // Header Back Button
             if (BackToLibraryText != null) BackToLibraryText.Text = loc["Player_BackToLibrary"];
             if (BackToLibraryButton != null) ToolTipService.SetToolTip(BackToLibraryButton, loc["Player_Tooltip_BackToLibrary"]);
+            if (PlayerShareButton != null)
+            {
+                ToolTipService.SetToolTip(PlayerShareButton, loc["Player_Share"]);
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(PlayerShareButton, loc["Player_Share"]);
+            }
 
             // Playback Tooltips
             if (PlayPauseButton != null) ToolTipService.SetToolTip(PlayPauseButton, loc["Player_Tooltip_PlayPause"]);
@@ -709,6 +714,8 @@ public sealed partial class PlayerPage : Page
             FrameBackButton,
             FrameForwardButton,
             SnapshotButton,
+            ShareBarButton,
+            PlayerShareButton,
             SpeedButton,
             MomentsButton,
             TracksButton,

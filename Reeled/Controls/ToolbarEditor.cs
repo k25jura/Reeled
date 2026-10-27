@@ -27,7 +27,7 @@ public sealed class ToolbarEditor : StackPanel
     {
         ["play"] = "", ["prev"] = "", ["next"] = "", ["moments"] = "", ["repeat"] = "",
         ["shuffle"] = "", ["tracks"] = "", ["queue"] = "", ["volume"] = "", ["fullscreen"] = "",
-        ["speed"] = "", ["session"] = "", ["snapshot"] = "", ["pip"] = "", ["stop"] = "",
+        ["share"] = "", ["speed"] = "", ["session"] = "", ["snapshot"] = "", ["pip"] = "", ["stop"] = "",
         ["skipback"] = "", ["skipforward"] = "", ["frameback"] = "", ["frameforward"] = "",
     };
 

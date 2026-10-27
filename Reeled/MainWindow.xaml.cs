@@ -226,6 +226,13 @@ public sealed partial class MainWindow : Window
         _navigationService.NavigatedToHome += OnNavigatedToHome;
         _navigationService.NavigatedToSettings += OnNavigatedToSettings;
 
+        App.GetService<Services.Sharing.ShareService>().JobFinished += OnShareFinished;
+        Helpers.ShareUi.OpenSettingsRequested += () =>
+        {
+            App.GetService<SettingsViewModel>().PendingSection = "SharingSection";
+            _navigationService.NavigateToSettings();
+        };
+
         AppWindow.Changed += (s, e) =>
         {
             if (e.DidPresenterChange)
@@ -635,6 +642,39 @@ public sealed partial class MainWindow : Window
         UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
 
         NavigateFrameWithMotion(() => RootFrame.Navigate(typeof(SettingsPage), null, new SuppressNavigationTransitionInfo()), deeper: true);
+    }
+
+    /// <summary>
+    /// A share finished while its dialog was closed: say so where the user is (the player's OSD, or the
+    /// page's own notice). The link is already on the clipboard when that's turned on.
+    /// </summary>
+    private void OnShareFinished(Services.Sharing.ShareJob job)
+    {
+        if (Helpers.ShareUi.IsOpen || job.Stage == Services.Sharing.ShareStage.Cancelled) return;
+        var loc = App.GetService<ILocalizationService>();
+        bool failed = job.Stage == Services.Sharing.ShareStage.Failed;
+        string message = failed
+            ? string.Format(loc["Share_Notify_Failed"], job.Error)
+            : job.Link == null
+                ? loc["Share_Notify_File"]
+                : job.LinkCopied
+                    ? string.Format(loc["Share_Notify_Done"], job.Link)
+                    : string.Format(loc["Share_Notify_DoneNoCopy"], job.Clip.DisplayName);
+
+        if (IsPlayerVisible)
+        {
+            // The OSD's big line stays short; the link goes on the details line
+            string title = failed ? loc["Share_Notify_Failed"].Split(':')[0] : job.Link == null ? loc["Share_Notify_File"] : loc[job.LinkCopied ? "Share_Status_DoneCopied" : "Share_Status_Done"];
+            App.GetService<PlayerViewModel>().ShowToast(title, failed ? job.Error : job.Link, ViewModels.OsdKind.Tracks);
+        }
+        else if (RootFrame.Content is HomePage home)
+        {
+            home.ShowShareMessage(message, failed);
+        }
+        else if (RootFrame.Content is SettingsPage settings)
+        {
+            settings.ShowShareMessage(message, failed);
+        }
     }
 
     public void ToggleFullscreen()

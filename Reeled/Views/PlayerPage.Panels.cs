@@ -65,6 +65,8 @@ public sealed partial class PlayerPage
         ToolTipService.SetToolTip(SessionBarButton, loc["Player_Tooltip_Session"]);
         ToolTipService.SetToolTip(SessionHeaderButton, loc["Player_Tooltip_Session"]);
         ToolTipService.SetToolTip(SnapshotButton, loc["Player_Tooltip_Snapshot"]);
+        ToolTipService.SetToolTip(ShareBarButton, loc["Player_Share"]);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(ShareBarButton, loc["Player_Share"]);
         ToolTipService.SetToolTip(PipButton, loc["Player_Tooltip_Pip"]);
         ToolTipService.SetToolTip(FrameBackButton, loc["Player_Tooltip_FrameBack"]);
         ToolTipService.SetToolTip(FrameForwardButton, loc["Player_Tooltip_FrameForward"]);

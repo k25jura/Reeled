@@ -3778,6 +3778,10 @@ public sealed partial class HomePage : Page
             playItem.Click += (s, args) => ViewModel.PlayClip(clip);
             flyout.Items.Add(playItem);
 
+            var shareItem = new MenuFlyoutItem { Text = loc?["ContextMenu_Share"] ?? "Share…", Icon = new FontIcon { Glyph = "" } };
+            shareItem.Click += async (s, args) => await Helpers.ShareUi.ShowAsync(clip, XamlRoot, DialogTheme);
+            flyout.Items.Add(shareItem);
+
             var selectItem = new MenuFlyoutItem
             {
                 Text = loc?[clip.IsSelected ? "ContextMenu_Deselect" : "ContextMenu_Select"] ?? "Select",

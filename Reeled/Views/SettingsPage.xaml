@@ -300,6 +300,24 @@
                         </Grid>
                     </Button>
 
+                    <!-- Sharing -->
+                    <Button x:Name="CatSharingBtn"
+                            Click="OnCategoryButtonClick"
+                            PointerPressed="OnCategoryPointerPressed"
+                            PointerReleased="OnCategoryPointerReleased"
+                            PointerCanceled="OnCategoryPointerReleased"
+                            Tag="SharingSection"
+                            Style="{StaticResource SettingsCategoryButtonStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon x:Name="CatSharingIcon" Grid.Column="0" Glyph="&#xE72D;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="CatSharingText" Grid.Column="1" Text="Sharing" FontSize="13" VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+
                     <!-- 4. Language & Region -->
                     <Button x:Name="CatLanguageBtn"
                             Click="OnCategoryButtonClick"
@@ -1674,6 +1692,201 @@
                                               VerticalAlignment="Center" />
                             </Grid>
                         </Border>
+                    </StackPanel>
+
+                    <!-- ========================================== -->
+                    <!-- Sharing Section (SettingsPage.Sharing.cs)  -->
+                    <!-- ========================================== -->
+                    <StackPanel x:Name="SharingSection" Spacing="8">
+                        <TextBlock x:Name="SharingSectionTitle"
+                                   Text="Sharing"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                   Margin="2,0,0,2" />
+
+                        <TextBlock x:Name="SubSharingCompression" Style="{StaticResource SettingsSubheaderStyle}" Text="Compression" />
+
+                        <!-- Card: FFmpeg -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon x:Name="FfmpegStatusIcon" Grid.Column="0" Glyph="&#xE7F6;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="FfmpegTitleText" Text="FFmpeg" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="FfmpegSubtitleText"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <Button x:Name="FfmpegInstallButton" Click="OnFfmpegInstallClick" Content="Install with winget" />
+                                    <Button x:Name="FfmpegLocateButton" Click="OnFfmpegLocateClick" Content="Locate…" />
+                                    <Button x:Name="FfmpegAutoButton" Click="OnFfmpegAutoClick" Content="Find automatically" Style="{ThemeResource SubtleButtonStyle}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Card: Quality and size limit -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE714;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="ShareQualityTitleText" Text="Quality" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="ShareQualitySubtitleText" Text="What the Share dialog starts with"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <ComboBox x:Name="ShareQualityCombo" Grid.Column="2" VerticalAlignment="Center" SelectionChanged="OnShareSettingChanged" />
+                                </Grid>
+                                <Grid ColumnSpacing="12" MinHeight="36" Margin="40,0,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock x:Name="ShareSizeLabel" Text="Size limit for compressed clips" FontSize="13" />
+                                        <TextBlock x:Name="ShareSizeHint" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                    </StackPanel>
+                                    <ComboBox x:Name="ShareSizeCombo" Grid.Column="1" VerticalAlignment="Center" SelectionChanged="OnShareSettingChanged" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card: Graphics card encoding -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE7F4;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="ShareGpuTitleText" Text="Compress on the graphics card" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="ShareGpuSubtitleText"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch x:Name="ShareGpuToggle" Grid.Column="2" OnContent="" OffContent="" MinWidth="0" HorizontalAlignment="Right" VerticalAlignment="Center" Toggled="OnShareToggleChanged" />
+                            </Grid>
+                        </Border>
+
+                        <TextBlock x:Name="SubSharingUpload" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Uploading" />
+
+                        <!-- Card: Destination -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE898;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="ShareDestinationTitleText" Text="Upload to" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="ShareDestinationSubtitleText"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <ComboBox x:Name="ShareDestinationCombo" Grid.Column="2" VerticalAlignment="Center" SelectionChanged="OnShareSettingChanged" />
+                                </Grid>
+                                <Grid ColumnSpacing="12" MinHeight="36" Margin="40,0,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="ShareExpiryLabel" Text="Litterbox keeps files for" FontSize="13" VerticalAlignment="Center" />
+                                    <ComboBox x:Name="ShareExpiryCombo" Grid.Column="1" VerticalAlignment="Center" SelectionChanged="OnShareSettingChanged" />
+                                </Grid>
+                                <Grid ColumnSpacing="12" MinHeight="36" Margin="40,0,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="ShareCopyLinkLabel" Text="Copy the link when the upload finishes" FontSize="13" VerticalAlignment="Center" />
+                                    <ToggleSwitch x:Name="ShareCopyLinkToggle" Grid.Column="1" OnContent="" OffContent="" MinWidth="0" Toggled="OnShareToggleChanged" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card: PixelDrain key -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE8D7;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Top" Margin="0,2,0,0" HorizontalAlignment="Center" Width="24" Height="24" />
+                                <StackPanel Grid.Column="1" Spacing="8">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock x:Name="PixelDrainTitleText" Text="PixelDrain API key" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="PixelDrainSubtitleText" Text="Only for uploading to PixelDrain. Stored encrypted for your Windows account"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Grid ColumnSpacing="6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <PasswordBox x:Name="PixelDrainKeyBox" PasswordRevealMode="Hidden" LostFocus="OnPixelDrainKeyLostFocus" />
+                                        <Button x:Name="PixelDrainKeyReveal"
+                                                Grid.Column="1"
+                                                Style="{ThemeResource SubtleButtonStyle}"
+                                                Width="36"
+                                                Height="32"
+                                                Padding="0"
+                                                Click="OnPixelDrainRevealClick">
+                                            <FontIcon Glyph="&#xE7B3;" FontSize="14" />
+                                        </Button>
+                                    </Grid>
+                                    <HyperlinkButton x:Name="PixelDrainKeyLink" Content="Get a key" NavigateUri="https://pixeldrain.com/user/api_keys" Padding="0" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock x:Name="SharePrivacyText"
+                                   Margin="2,4,0,0"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                   Text="Shared clips are uploaded to the service you pick, and anyone with the link can watch them. Nothing is uploaded unless you share." />
                     </StackPanel>
 
                     <!-- ========================================== -->

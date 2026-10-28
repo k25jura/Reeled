@@ -189,16 +189,22 @@ internal static class ShareUi
         var linkBox = new TextBox { IsReadOnly = true, HorizontalAlignment = HorizontalAlignment.Stretch };
         linkBox.GotFocus += (s, e) => linkBox.SelectAll();
         var copyLink = new Button { Content = loc["Share_CopyLink"] };
+        var copyPlayerLink = new Button { Content = loc["Share_CopyPlayerLink"], Visibility = Visibility.Collapsed };
+        ToolTipService.SetToolTip(copyPlayerLink, loc["Share_PlayerLinkTip"]);
+        string? playerLink = null;
         var openLink = new Button { Content = new FontIcon { Glyph = "", FontSize = 14 }, Padding = new Thickness(10, 7, 10, 7) };
         ToolTipService.SetToolTip(openLink, loc["Share_OpenLink"]);
         var linkRow = new Grid { ColumnSpacing = 6 };
         linkRow.ColumnDefinitions.Add(new ColumnDefinition());
         linkRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         linkRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        linkRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         Grid.SetColumn(copyLink, 1);
-        Grid.SetColumn(openLink, 2);
+        Grid.SetColumn(copyPlayerLink, 2);
+        Grid.SetColumn(openLink, 3);
         linkRow.Children.Add(linkBox);
         linkRow.Children.Add(copyLink);
+        linkRow.Children.Add(copyPlayerLink);
         linkRow.Children.Add(openLink);
         var copyFile = new HyperlinkButton { Content = loc["Share_CopyVideo"], Padding = new Thickness(0) };
         var showFile = new HyperlinkButton { Content = loc["Share_ShowFile"], Padding = new Thickness(0) };
@@ -366,7 +372,12 @@ internal static class ShareUi
 
             bool hasLink = !string.IsNullOrEmpty(job.Link);
             linkRow.Visibility = hasLink ? Visibility.Visible : Visibility.Collapsed;
+            if (linkBox.Text != (job.Link ?? string.Empty)) copyPlayerLink.Content = loc["Share_CopyPlayerLink"];
             linkBox.Text = job.Link ?? string.Empty;
+            // The finished share's record carries the expiry the player link needs
+            var record = hasLink ? service.History.FirstOrDefault(r => r.Link == job.Link) : null;
+            playerLink = record != null ? PlayerLink.For(record) : null;
+            copyPlayerLink.Visibility = playerLink != null ? Visibility.Visible : Visibility.Collapsed;
             bool hasFile = job.OutputPath != null && File.Exists(job.OutputPath);
             fileRow.Visibility = done && hasFile ? Visibility.Visible : Visibility.Collapsed;
             copyFile.Visibility = job.FileCopied ? Visibility.Collapsed : Visibility.Visible;
@@ -410,6 +421,10 @@ internal static class ShareUi
         copyLink.Click += (s, e) =>
         {
             if (job?.Link != null && ShareService.CopyText(job.Link)) copyLink.Content = loc["Share_Copied"];
+        };
+        copyPlayerLink.Click += (s, e) =>
+        {
+            if (playerLink != null && ShareService.CopyText(playerLink)) copyPlayerLink.Content = loc["Share_Copied"];
         };
         openLink.Click += (s, e) =>
         {
@@ -611,6 +626,15 @@ internal static class ShareUi
                     if (ShareService.CopyText(share.Link) && copyLink != null) ToolTipService.SetToolTip(copyLink, loc["Share_Copied"]);
                 }, !expired);
                 actions.Children.Add(copyLink);
+                if (PlayerLink.For(share) is string playerLink)
+                {
+                    Button? copyPlayer = null;
+                    copyPlayer = IconButton("", loc["Share_CopyPlayerLink"], () =>
+                    {
+                        if (ShareService.CopyText(playerLink) && copyPlayer != null) ToolTipService.SetToolTip(copyPlayer, loc["Share_Copied"]);
+                    }, !expired);
+                    actions.Children.Add(copyPlayer);
+                }
             }
             actions.Children.Add(IconButton("", hasCopy ? loc["Share_CopyVideo"] : loc["Share_History_NoCopy"], async () =>
             {

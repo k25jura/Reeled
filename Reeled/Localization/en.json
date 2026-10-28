@@ -849,6 +849,8 @@
   "Share_CopyLink": "Copy link",
   "Share_Copied": "Copied",
   "Share_OpenLink": "Open in browser",
+  "Share_CopyPlayerLink": "Copy player link",
+  "Share_PlayerLinkTip": "Opens in a player on reeled.app. The plain link plays right in Discord.",
   "Share_CopyVideo": "Copy video",
   "Share_VideoCopied": "Video copied",
   "Share_ShowFile": "Show in folder",

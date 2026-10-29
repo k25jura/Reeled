@@ -16,6 +16,19 @@
 
 Built with unpackaged WinUI 3 (Windows App SDK), .NET 8, and LibVLC 3.0.
 
+<p align="center">
+  <img src=".github/assets/screenshots/library.png" alt="The Reeled library: gameplay clips as cards with thumbnails, length and size" width="900">
+</p>
+
+<p align="center">
+  <img src=".github/assets/screenshots/player.png" alt="The player with a Counter-Strike 2 clip and its control bar" width="445">
+  <img src=".github/assets/screenshots/share.png" alt="Sharing a clip: compressed to 20 MB for Discord and uploaded to Litterbox" width="445">
+</p>
+
+<p align="center">
+  <a href="https://github.com/k25jura/Reeled/releases/latest"><b>Download the latest release</b></a>
+</p>
+
 ---
 
 ## Features

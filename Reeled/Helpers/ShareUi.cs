@@ -188,24 +188,34 @@ internal static class ShareUi
 
         var linkBox = new TextBox { IsReadOnly = true, HorizontalAlignment = HorizontalAlignment.Stretch };
         linkBox.GotFocus += (s, e) => linkBox.SelectAll();
-        var copyLink = new Button { Content = loc["Share_CopyLink"] };
-        var copyPlayerLink = new Button { Content = loc["Share_CopyPlayerLink"], Visibility = Visibility.Collapsed };
+        var copyLink = new Button { Content = loc["Share_CopyLink"], HorizontalAlignment = HorizontalAlignment.Stretch };
+        var copyPlayerLink = new Button
+        {
+            Content = loc["Share_CopyPlayerLink"],
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Visibility = Visibility.Collapsed
+        };
         ToolTipService.SetToolTip(copyPlayerLink, loc["Share_PlayerLinkTip"]);
         string? playerLink = null;
         var openLink = new Button { Content = new FontIcon { Glyph = "", FontSize = 14 }, Padding = new Thickness(10, 7, 10, 7) };
         ToolTipService.SetToolTip(openLink, loc["Share_OpenLink"]);
-        var linkRow = new Grid { ColumnSpacing = 6 };
-        linkRow.ColumnDefinitions.Add(new ColumnDefinition());
-        linkRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        linkRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        linkRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Grid.SetColumn(copyLink, 1);
-        Grid.SetColumn(copyPlayerLink, 2);
-        Grid.SetColumn(openLink, 3);
-        linkRow.Children.Add(linkBox);
-        linkRow.Children.Add(copyLink);
-        linkRow.Children.Add(copyPlayerLink);
-        linkRow.Children.Add(openLink);
+        // The link with its open button, then the copy buttons in halves below: side by side they overflow the dialog
+        var linkLine = new Grid { ColumnSpacing = 6 };
+        linkLine.ColumnDefinitions.Add(new ColumnDefinition());
+        linkLine.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(openLink, 1);
+        linkLine.Children.Add(linkBox);
+        linkLine.Children.Add(openLink);
+        var copyLine = new Grid { ColumnSpacing = 6 };
+        copyLine.ColumnDefinitions.Add(new ColumnDefinition());
+        copyLine.ColumnDefinitions.Add(new ColumnDefinition());
+        Grid.SetColumnSpan(copyLink, 2);
+        Grid.SetColumn(copyPlayerLink, 1);
+        copyLine.Children.Add(copyLink);
+        copyLine.Children.Add(copyPlayerLink);
+        var linkRow = new StackPanel { Spacing = 6 };
+        linkRow.Children.Add(linkLine);
+        linkRow.Children.Add(copyLine);
         var copyFile = new HyperlinkButton { Content = loc["Share_CopyVideo"], Padding = new Thickness(0) };
         var showFile = new HyperlinkButton { Content = loc["Share_ShowFile"], Padding = new Thickness(0) };
         var fileRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18 };
@@ -213,7 +223,10 @@ internal static class ShareUi
         fileRow.Children.Add(showFile);
         var resultIcon = new FontIcon { Glyph = "", FontSize = 16, Foreground = Brush("AccentTextFillColorPrimaryBrush") };
         var resultText = new TextBlock { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
-        var resultHead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        var resultHead = new Grid { ColumnSpacing = 10 };
+        resultHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        resultHead.ColumnDefinitions.Add(new ColumnDefinition());
+        Grid.SetColumn(resultText, 1);
         resultHead.Children.Add(resultIcon);
         resultHead.Children.Add(resultText);
         var resultPanel = new StackPanel { Spacing = 10, Visibility = Visibility.Collapsed };
@@ -378,6 +391,7 @@ internal static class ShareUi
             var record = hasLink ? service.History.FirstOrDefault(r => r.Link == job.Link) : null;
             playerLink = record != null ? PlayerLink.For(record) : null;
             copyPlayerLink.Visibility = playerLink != null ? Visibility.Visible : Visibility.Collapsed;
+            Grid.SetColumnSpan(copyLink, playerLink != null ? 1 : 2);
             bool hasFile = job.OutputPath != null && File.Exists(job.OutputPath);
             fileRow.Visibility = done && hasFile ? Visibility.Visible : Visibility.Collapsed;
             copyFile.Visibility = job.FileCopied ? Visibility.Collapsed : Visibility.Visible;

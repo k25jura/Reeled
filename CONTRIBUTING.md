@@ -25,7 +25,7 @@ The full installer is built with `scripts/build-installer.ps1 -Version x.y.z`.
 - Branch from `main` and keep each PR focused on one change.
 - Keep the WinUI 3 / Windows 11 look: Didact Gothic typography, the shared motion tokens in `Helpers/Motion.cs`
   (start storyboards with `Motion.Begin`), and no decorative pills or backgrounds that don't carry information.
-- Every visible string goes through `Localization/en.json` **and** `Localization/uk.json`.
+- Every visible string goes through `Localization/en.json` / could be without `Localization/uk.json` (eventually other languages will be added).
 - Check both Dark and Light themes, and Reduce motion on and off.
 - `dotnet build` should finish with no new warnings.
 

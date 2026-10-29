@@ -120,7 +120,8 @@ public sealed partial class HomePage
             }
         }
         string what = DescribeCount(clips.Count, clips[0].FileName);
-        ShowFileOpMessage(string.Format(loc[cut ? "FileOps_Cut" : "FileOps_Copied"], what), autoHideMs: 1800);
+        ShowFileOpMessage(string.Format(loc[cut ? "FileOps_Cut" : "FileOps_Copied"], what), autoHideMs: 1800,
+            glyph: cut ? "" : "");
     }
 
     private static bool ClipboardHasFiles()
@@ -424,7 +425,8 @@ public sealed partial class HomePage
         }
         else
         {
-            ShowFileOpMessage(summary, error: problem, autoHideMs: problem ? 7000 : 3500);
+            ShowFileOpMessage(summary, error: problem, autoHideMs: problem ? 7000 : 3500,
+                glyph: done == 0 ? "" : copy ? "" : "");
         }
 
         if (problem) await ShowTransferErrorsAsync(result);
@@ -441,11 +443,16 @@ public sealed partial class HomePage
     }
 
     /// <summary>A short line on the floating card (result of an operation, or why something can't be done).</summary>
-    private void ShowFileOpMessage(string message, bool error = false, int autoHideMs = 3500)
+    /// <summary>A share that finished in the background (its dialog was hidden).</summary>
+    public void ShowShareMessage(string message, bool error) =>
+        ShowFileOpMessage(message, error, autoHideMs: error ? 7000 : 6000, glyph: "");
+
+    /// <param name="glyph">The action's icon (copy, move, new folder...); a check when null.</param>
+    private void ShowFileOpMessage(string message, bool error = false, int autoHideMs = 3500, string? glyph = null)
     {
         if (_fileOpBusy) return;
         var card = EnsureOpCard();
-        card.ShowResult(message, error);
+        card.ShowResult(message, error, glyph);
         ShowFloating(card);
 
         _opCardTimer ??= DispatcherQueue.CreateTimer();

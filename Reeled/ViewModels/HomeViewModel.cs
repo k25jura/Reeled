@@ -22,7 +22,8 @@ public enum NavigationSection
     Home,
     Favorites,
     SavedMoments,
-    Folder
+    Folder,
+    Shared
 }
 
 public partial class HomeViewModel : ObservableObject
@@ -44,6 +45,7 @@ public partial class HomeViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsHomeSelected))]
     [NotifyPropertyChangedFor(nameof(IsFavoritesSelected))]
     [NotifyPropertyChangedFor(nameof(IsSavedMomentsSelected))]
+    [NotifyPropertyChangedFor(nameof(IsSharedSelected))]
     [NotifyPropertyChangedFor(nameof(IsFolderSelected))]
     [NotifyPropertyChangedFor(nameof(CurrentDirectoryTitle))]
     [NotifyPropertyChangedFor(nameof(CurrentDirectoryPath))]
@@ -179,6 +181,7 @@ public partial class HomeViewModel : ObservableObject
         NavigationSection.Home => _localizationService["Nav_Home"],
         NavigationSection.Favorites => _localizationService["Nav_Favorites"],
         NavigationSection.SavedMoments => _localizationService["Nav_SavedMoments"],
+        NavigationSection.Shared => _localizationService["Nav_Shared"],
         NavigationSection.Folder => SelectedDirectory != null
             ? (!string.IsNullOrEmpty(SelectedDirectory.Name) ? SelectedDirectory.Name : _localizationService["Breadcrumb_Library"])
             : _localizationService["Breadcrumb_GameplayLibrary"],
@@ -190,6 +193,7 @@ public partial class HomeViewModel : ObservableObject
         NavigationSection.Home => AllClips.Count > 0 ? _localizationService["Breadcrumb_AllWatchFolders"] : string.Empty,
         NavigationSection.Favorites => FavoritesCount > 0 ? string.Format(_localizationService["Breadcrumb_FavoriteClips"], FavoritesCount) : string.Empty,
         NavigationSection.SavedMoments => SavedMomentsCount > 0 ? string.Format(_localizationService["Breadcrumb_ClipsWithMoments"], SavedMomentsCount) : string.Empty,
+        NavigationSection.Shared => SharedCount > 0 ? string.Format(_localizationService["Breadcrumb_SharedClips"], SharedCount) : string.Empty,
         NavigationSection.Folder => SelectedDirectory?.FullPath ?? string.Empty,
         _ => string.Empty
     };
@@ -199,6 +203,7 @@ public partial class HomeViewModel : ObservableObject
         NavigationSection.Home => "\uE80F",
         NavigationSection.Favorites => "\uEB52",
         NavigationSection.SavedMoments => "\uE8A4",
+        NavigationSection.Shared => "\uE72D",
         _ => "\uE8B7"
     };
 
@@ -207,6 +212,7 @@ public partial class HomeViewModel : ObservableObject
         NavigationSection.Home => _localizationService["Empty_NoClipsTitle"],
         NavigationSection.Favorites => _localizationService["Empty_NoFavoritesTitle"],
         NavigationSection.SavedMoments => _localizationService["Empty_NoMomentsTitle"],
+        NavigationSection.Shared => _localizationService["Empty_NoSharedTitle"],
         _ => _localizationService["Empty_FolderTitle"]
     };
 
@@ -215,6 +221,7 @@ public partial class HomeViewModel : ObservableObject
         NavigationSection.Home => _localizationService["Empty_NoClipsSubtitle"],
         NavigationSection.Favorites => _localizationService["Empty_NoFavoritesSubtitle"],
         NavigationSection.SavedMoments => _localizationService["Empty_NoMomentsSubtitle"],
+        NavigationSection.Shared => _localizationService["Empty_NoSharedSubtitle"],
         _ => _localizationService["Empty_FolderSubtitle"]
     };
 
@@ -373,6 +380,7 @@ public partial class HomeViewModel : ObservableObject
         _localizationService = localizationService;
         _metadataService = metadataService;
         _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+        HookShareHistory();
 
         var settings = _storageService.CurrentSettings;
         _enableSkeletonLoading = settings.EnableSkeletonLoading;
@@ -657,6 +665,10 @@ public partial class HomeViewModel : ObservableObject
         {
             await SelectSavedMomentsAsync();
         }
+        else if (CurrentSection == NavigationSection.Shared)
+        {
+            await SelectSharedAsync();
+        }
         else
         {
             await SelectHomeAsync();
@@ -676,6 +688,11 @@ public partial class HomeViewModel : ObservableObject
             case NavigationSection.Favorites:
                 targetClips = AllClips.Where(c => c.IsFavorite).ToList();
                 StatusMessage = targetClips.Count > 0 ? $"{targetClips.Count} favorite clips" : "No favorites yet";
+                break;
+
+            case NavigationSection.Shared:
+                targetClips = AllClips.Where(c => c.IsShared).ToList();
+                StatusMessage = string.Empty;
                 break;
 
             case NavigationSection.SavedMoments:
@@ -716,6 +733,7 @@ public partial class HomeViewModel : ObservableObject
         OnPropertyChanged(nameof(AllClipsCount));
         OnPropertyChanged(nameof(FavoritesCount));
         OnPropertyChanged(nameof(SavedMomentsCount));
+        OnPropertyChanged(nameof(SharedCount));
         OnPropertyChanged(nameof(TotalClipsCount));
         OnPropertyChanged(nameof(ClipsCountSummary));
         OnPropertyChanged(nameof(ClipsUnitLabel));
@@ -961,6 +979,11 @@ public partial class HomeViewModel : ObservableObject
         {
             clip.CustomTitle = customTitle;
         }
+
+        if (settings.SharedLinks is { Count: > 0 } shares)
+        {
+            clip.ShareCount = shares.Count(r => string.Equals(r.ClipPath, clip.FilePath, StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     /// <summary>Moves per-clip settings (favorite, moments, custom title, resume position) to a new path.</summary>
@@ -992,6 +1015,12 @@ public partial class HomeViewModel : ObservableObject
         if (settings.ClipTags.Remove(oldPath, out var tags))
         {
             settings.ClipTags[newPath] = tags;
+            changed = true;
+        }
+        // Shares follow the clip (they stay in the history when it's deleted: the links still work)
+        foreach (var share in settings.SharedLinks.Where(r => string.Equals(r.ClipPath, oldPath, StringComparison.OrdinalIgnoreCase)))
+        {
+            share.ClipPath = newPath;
             changed = true;
         }
 
@@ -1074,6 +1103,7 @@ public partial class HomeViewModel : ObservableObject
         NavigationSection.Home => true,
         NavigationSection.Favorites => clip.IsFavorite,
         NavigationSection.SavedMoments => clip.Bookmarks.Count > 0,
+        NavigationSection.Shared => clip.IsShared,
         NavigationSection.Folder => SelectedDirectory != null && PathUtil.IsUnder(clip.FilePath, SelectedDirectory.FullPath),
         _ => false
     };

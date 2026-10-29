@@ -19,7 +19,7 @@ public sealed partial class PlayerPage
     public static readonly string[] ToolbarItemIds =
     {
         "play", "prev", "next", "moments", "repeat", "shuffle", "tracks", "queue", "volume", "fullscreen",
-        "speed", "session", "snapshot", "pip", "stop", "skipback", "skipforward", "frameback", "frameforward"
+        "speed", "session", "snapshot", "share", "pip", "stop", "skipback", "skipforward", "frameback", "frameforward"
     };
 
     private readonly Dictionary<string, FrameworkElement> _toolbarItems = new();

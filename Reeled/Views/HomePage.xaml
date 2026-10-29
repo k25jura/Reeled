@@ -397,6 +397,21 @@
                             <FontIcon Glyph="&#xE8A4;" FontSize="10" Foreground="#FFD700" />
                             <TextBlock Text="{x:Bind BookmarkCount, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
+                        <!-- Shared: opens the clip's links and copies (a button, so it doesn't play the clip) -->
+                        <Button Style="{ThemeResource SubtleButtonStyle}"
+                                Padding="4,1"
+                                MinWidth="0"
+                                MinHeight="0"
+                                CornerRadius="4"
+                                VerticalAlignment="Center"
+                                Click="OnShareBadgeClick"
+                                ToolTipService.ToolTip="Shared"
+                                Visibility="{x:Bind IsShared, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <FontIcon Glyph="&#xE72D;" FontSize="10" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                <TextBlock Text="{x:Bind ShareCount, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Button>
                         <ItemsControl ItemsSource="{x:Bind TagsPreview, Mode=OneWay}" IsTabStop="False" VerticalAlignment="Center"
                                       Visibility="{x:Bind HasTags, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
                             <ItemsControl.ItemsPanel>
@@ -667,6 +682,40 @@
                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                VerticalAlignment="Center"
                                                Visibility="{x:Bind ViewModel.SavedMomentsCount, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                </Grid>
+                            </Grid>
+                        </Button>
+                        <!-- Shared Tab -->
+                        <Button x:Name="SharedNavButton"
+                                Click="OnSharedTabClick"
+                                Style="{StaticResource NavTabButtonStyle}"
+                                PointerPressed="OnItemPointerPressed">
+                            <Grid Height="38">
+                                <Border x:Name="SharedSelectedBg"
+                                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        CornerRadius="6"
+                                        Opacity="0"
+                                        IsHitTestVisible="False" />
+                                <Grid Padding="14,0,12,0" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Icon -->
+                                    <FontIcon x:Name="SharedNavIcon" Grid.Column="0" Glyph="&#xE72D;" FontSize="16" Margin="0,0,12,0" />
+
+                                    <!-- Label -->
+                                    <TextBlock x:Name="SharedNavText" Grid.Column="1" Text="Shared" FontSize="13" VerticalAlignment="Center" />
+
+                                    <!-- Counter (Clean text, brightened) -->
+                                    <controls:RollingCounter Grid.Column="2" 
+                                               Value="{x:Bind ViewModel.SharedCount, Mode=OneWay}" 
+                                               FontSize="12" 
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               VerticalAlignment="Center"
+                                               Visibility="{x:Bind ViewModel.SharedCount, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                 </Grid>
                             </Grid>
                         </Button>
@@ -1081,7 +1130,8 @@
                             </Button>
                         </Grid>
 
-                        <!-- Tags filter: the user's tags and games; the label carries the active filter count -->
+                        <!-- Tags filter: the user's tags and folder tags (a searchable picker, set in code);
+                             the label carries the active filter count -->
                         <DropDownButton x:Name="TagsFilterButton"
                                         Padding="12,5,10,6"
                                         VerticalAlignment="Center">
@@ -1089,9 +1139,6 @@
                                 <FontIcon x:Name="TagsFilterIcon" Glyph="&#xE1CB;" FontSize="13" />
                                 <TextBlock x:Name="TagsFilterText" Text="Tags" FontSize="12.5" />
                             </StackPanel>
-                            <DropDownButton.Flyout>
-                                <MenuFlyout x:Name="TagsFilterFlyout" Placement="BottomEdgeAlignedRight" Opening="OnTagsFilterOpening" Opened="OnFlyoutOpened" />
-                            </DropDownButton.Flyout>
                         </DropDownButton>
 
                         <!-- Sort DropDown Button -->
@@ -1365,6 +1412,24 @@
                                                            FontSize="11" FontWeight="SemiBold" Foreground="#FFF0A0" VerticalAlignment="Center" />
                                             </StackPanel>
                                         </Border>
+                                        <!-- Shared: same frosted badge; a button, so it opens the shares instead of playing -->
+                                        <Button VerticalAlignment="Top"
+                                                Background="#80000000"
+                                                BorderBrush="#33FFFFFF"
+                                                BorderThickness="1"
+                                                CornerRadius="10"
+                                                Padding="6,2"
+                                                MinWidth="0"
+                                                MinHeight="0"
+                                                Click="OnShareBadgeClick"
+                                                ToolTipService.ToolTip="Shared"
+                                                Visibility="{x:Bind IsShared, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE72D;" FontSize="10" Foreground="#8FD8FF" VerticalAlignment="Center" />
+                                                <TextBlock Text="{x:Bind ShareCount, Mode=OneWay}"
+                                                           FontSize="11" FontWeight="SemiBold" Foreground="#D6F1FF" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Button>
                                         <ItemsControl ItemsSource="{x:Bind TagsPreview, Mode=OneWay}"
                                                       IsTabStop="False"
                                                       VerticalAlignment="Top"

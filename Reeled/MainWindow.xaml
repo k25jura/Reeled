@@ -110,7 +110,7 @@
                 <TranslateTransform x:Name="DragPillMove" />
             </Grid.RenderTransform>
             <Border x:Name="DragPill"
-                    CornerRadius="10"
+                    CornerRadius="8"
                     Padding="10,7,14,7"
                     BorderThickness="1"
                     BorderBrush="{ThemeResource SurfaceStrokeColorFlyoutBrush}"
@@ -146,7 +146,7 @@
             <TranslateTransform x:Name="ZoomIndicatorTranslation" Y="-8" />
         </Border.RenderTransform>
         <StackPanel Orientation="Horizontal" Spacing="4">
-            <FontIcon Glyph="&#xE71E;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <FontIcon Glyph="&#xE71E;" FontSize="13" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
             <TextBlock x:Name="ZoomIndicatorText" Text="100%" FontSize="13" FontWeight="SemiBold" MinWidth="42" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
             <Button x:Name="ZoomOutIndicatorButton" Click="OnZoomOutIndicatorClick" Style="{ThemeResource SubtleButtonStyle}" Width="30" Height="28" Padding="0">
                 <FontIcon Glyph="&#xE738;" FontSize="11" />

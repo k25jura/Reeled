@@ -1,6 +1,10 @@
 param (
     [string]$Configuration = "Release",
-    [string]$Version = "1.0.0"
+    [string]$Version = "1.0.0",
+    # CI signs through SignPath instead of the local self-signed certificate
+    [switch]$SkipSelfSigning,
+    # Only rebuild payload.zip from artifacts\publish (after signed binaries were copied back in)
+    [switch]$PackageOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,6 +19,20 @@ $ArtifactsDir = Join-Path $RootDir "artifacts"
 $PublishDir = Join-Path $ArtifactsDir "publish"
 $InstallerPublishDir = Join-Path $ArtifactsDir "installer"
 $PayloadZip = Join-Path $ArtifactsDir "payload.zip"
+
+function New-Payload {
+    if (Test-Path $PayloadZip) { Remove-Item $PayloadZip -Force }
+    [System.Reflection.Assembly]::LoadWithPartialName("System.IO.Compression.FileSystem") | Out-Null
+    [System.IO.Compression.ZipFile]::CreateFromDirectory($PublishDir, $PayloadZip, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+    $PayloadSizeMB = [math]::Round((Get-Item $PayloadZip).Length / 1MB, 2)
+    Write-Host "Payload archive created: $PayloadZip ($PayloadSizeMB MB)" -ForegroundColor Green
+}
+
+if ($PackageOnly) {
+    Write-Host "`nRepackaging payload.zip from $PublishDir..." -ForegroundColor Yellow
+    New-Payload
+    return
+}
 
 # Ensure output directories exist
 if (Test-Path $ArtifactsDir) { Remove-Item -Path $ArtifactsDir -Recurse -Force }
@@ -129,6 +147,9 @@ $VersionedSetupExe = Join-Path $ArtifactsDir "ReeledSetup-v$Version.exe"
 Copy-Item $SetupExe $FinalSetupExe -Force
 Copy-Item $SetupExe $VersionedSetupExe -Force
 
+if ($SkipSelfSigning) {
+    Write-Host "Skipping local signing (signed later by SignPath)." -ForegroundColor Cyan
+} else {
 try {
     $CertSubject = "CN=k25jura, O=k25jura"
     $Cert = Get-ChildItem -Path Cert:\CurrentUser\My -CodeSigningCert | Where-Object { $_.Subject -like "*$CertSubject*" } | Select-Object -First 1
@@ -155,16 +176,10 @@ try {
 } catch {
     Write-Warning "Code signing warning: $_"
 }
+}
 
 Write-Host "`n[5/5] Compressing payload archive into payload.zip..." -ForegroundColor Yellow
-if (Test-Path $PayloadZip) { Remove-Item $PayloadZip -Force }
-
-# Use .NET ZipFile for fast and optimal compression
-[System.Reflection.Assembly]::LoadWithPartialName("System.IO.Compression.FileSystem") | Out-Null
-[System.IO.Compression.ZipFile]::CreateFromDirectory($PublishDir, $PayloadZip, [System.IO.Compression.CompressionLevel]::Optimal, $false)
-
-$PayloadSizeMB = [math]::Round((Get-Item $PayloadZip).Length / 1MB, 2)
-Write-Host "Payload archive created: $PayloadZip ($PayloadSizeMB MB)" -ForegroundColor Green
+New-Payload
 
 
 

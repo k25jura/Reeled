@@ -97,6 +97,7 @@ public sealed partial class HomePage
         AttachMiddleClickToOpen(HomeNavButton, () => OpenSectionInNewTab(NavigationSection.Home));
         AttachMiddleClickToOpen(FavoritesNavButton, () => OpenSectionInNewTab(NavigationSection.Favorites));
         AttachMiddleClickToOpen(SavedMomentsNavButton, () => OpenSectionInNewTab(NavigationSection.SavedMoments));
+        AttachMiddleClickToOpen(SharedNavButton, () => OpenSectionInNewTab(NavigationSection.Shared));
         DirectoriesTreeView.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnFolderTreePointerPressed), handledEventsToo: true);
 
         ParentTabStrip();
@@ -128,6 +129,7 @@ public sealed partial class HomePage
         HomeNavButton.ContextFlyout = CreateSectionVisibilityMenu(NavigationSection.Home);
         FavoritesNavButton.ContextFlyout = CreateSectionVisibilityMenu(NavigationSection.Favorites);
         SavedMomentsNavButton.ContextFlyout = CreateSectionVisibilityMenu(NavigationSection.SavedMoments);
+        SharedNavButton.ContextFlyout = CreateSectionVisibilityMenu(NavigationSection.Shared);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -141,6 +143,7 @@ public sealed partial class HomePage
         {
             case NavigationSection.Favorites: return (loc["Nav_Favorites"], "", null, null);
             case NavigationSection.SavedMoments: return (loc["Nav_SavedMoments"], "", null, null);
+            case NavigationSection.Shared: return (loc["Nav_Shared"], "", null, null);
             case NavigationSection.Folder:
                 var node = tab.FolderPath != null ? HomeViewModel.FindNodeByPath(ViewModel.Directories, tab.FolderPath) : null;
                 string name = node?.DisplayName ?? System.IO.Path.GetFileName((tab.FolderPath ?? string.Empty).TrimEnd('\\', '/'));

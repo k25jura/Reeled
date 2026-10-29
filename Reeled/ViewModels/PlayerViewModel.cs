@@ -252,6 +252,8 @@ public partial class PlayerViewModel : ObservableObject
         ILocalizationService localizationService)
     {
         _playbackService = playbackService;
+        // Listens for clips starting and stopping, to pause and resume other apps' music
+        App.GetService<BackgroundMediaService>();
         _storageService = storageService;
         _navigationService = navigationService;
         _localizationService = localizationService;
@@ -335,12 +337,12 @@ public partial class PlayerViewModel : ObservableObject
         RepeatMode = settings.DefaultRepeatMode;
     }
 
-    public void AttachVideoView(LibVLCSharp.Platforms.Windows.VideoView videoView, string[] swapChainOptions)
+    public async Task AttachVideoViewAsync(LibVLCSharp.Platforms.Windows.VideoView videoView, string[] swapChainOptions)
     {
-        _playbackService.AttachToVideoView(videoView, swapChainOptions);
         _playbackService.SetVolume(Volume);
         _playbackService.SetMute(IsMuted);
         _playbackService.SetPlaybackRate(PlaybackRate);
+        await _playbackService.AttachToVideoViewAsync(videoView, swapChainOptions);
     }
 
     private void UpdateActivePlaylistItem(GameClip clip)

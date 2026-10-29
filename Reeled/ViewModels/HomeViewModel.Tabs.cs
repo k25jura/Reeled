@@ -187,6 +187,7 @@ public partial class HomeViewModel
                 {
                     case NavigationSection.Favorites: await SelectFavoritesAsync(); break;
                     case NavigationSection.SavedMoments: await SelectSavedMomentsAsync(); break;
+                    case NavigationSection.Shared: await SelectSharedAsync(); break;
                     case NavigationSection.Folder: await SelectDirectoryAsync(node!); break;
                     default: await SelectHomeAsync(); break;
                 }

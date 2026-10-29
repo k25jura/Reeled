@@ -66,7 +66,7 @@
                             <Color x:Key="TextFillColorTertiary">#666666</Color>
                             <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
 
-                            <FontFamily x:Key="ContentControlThemeFontFamily">Century Gothic, ms-appx:///Assets/Fonts/centurygothic.ttf#Century Gothic</FontFamily>
+                            <FontFamily x:Key="ContentControlThemeFontFamily">ms-appx:///Assets/Fonts/DidactGothic-Regular.ttf#Didact Gothic, Segoe UI Variable Text, Segoe UI</FontFamily>
                         </ResourceDictionary>
 
                         <ResourceDictionary x:Key="Dark">
@@ -120,7 +120,7 @@
                             <Color x:Key="TextFillColorTertiary">#666666</Color>
                             <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
 
-                            <FontFamily x:Key="ContentControlThemeFontFamily">Century Gothic, ms-appx:///Assets/Fonts/centurygothic.ttf#Century Gothic</FontFamily>
+                            <FontFamily x:Key="ContentControlThemeFontFamily">ms-appx:///Assets/Fonts/DidactGothic-Regular.ttf#Didact Gothic, Segoe UI Variable Text, Segoe UI</FontFamily>
                         </ResourceDictionary>
 
                         <ResourceDictionary x:Key="Light">
@@ -174,17 +174,17 @@
                             <Color x:Key="TextFillColorTertiary">#8A8A8E</Color>
                             <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="{StaticResource TextFillColorTertiary}" />
 
-                            <FontFamily x:Key="ContentControlThemeFontFamily">Century Gothic, ms-appx:///Assets/Fonts/centurygothic.ttf#Century Gothic</FontFamily>
+                            <FontFamily x:Key="ContentControlThemeFontFamily">ms-appx:///Assets/Fonts/DidactGothic-Regular.ttf#Didact Gothic, Segoe UI Variable Text, Segoe UI</FontFamily>
                         </ResourceDictionary>
                     </ResourceDictionary.ThemeDictionaries>
                 </ResourceDictionary>
             </ResourceDictionary.MergedDictionaries>
             
-            <!-- Global Century Gothic Font Resources -->
-            <FontFamily x:Key="AppFontFamily">Century Gothic, ms-appx:///Assets/Fonts/centurygothic.ttf#Century Gothic</FontFamily>
-            <FontFamily x:Key="ContentControlThemeFontFamily">Century Gothic, ms-appx:///Assets/Fonts/centurygothic.ttf#Century Gothic</FontFamily>
+            <!-- Global font: Didact Gothic (OFL, Latin and Cyrillic); Segoe UI covers anything it lacks -->
+            <FontFamily x:Key="AppFontFamily">ms-appx:///Assets/Fonts/DidactGothic-Regular.ttf#Didact Gothic, Segoe UI Variable Text, Segoe UI</FontFamily>
+            <FontFamily x:Key="ContentControlThemeFontFamily">ms-appx:///Assets/Fonts/DidactGothic-Regular.ttf#Didact Gothic, Segoe UI Variable Text, Segoe UI</FontFamily>
 
-            <!-- Standard Typography Styles using Century Gothic -->
+            <!-- Standard Typography Styles using Didact Gothic -->
             <Style x:Key="BaseTextBlockStyle" TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
                 <!-- Re-declared here because this style replaces the WinUI one, which carries the primary text colour -->
@@ -231,7 +231,7 @@
                 <Setter Property="FontSize" Value="{StaticResource DisplayTextBlockFontSize}" />
             </Style>
 
-            <!-- Implicit Styles for Century Gothic -->
+            <!-- Implicit Styles for the app font -->
             <Style TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
             </Style>

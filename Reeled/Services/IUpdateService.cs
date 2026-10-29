@@ -59,7 +59,7 @@ public interface IUpdateService
     /// </summary>
     bool CanSelfUpdate { get; }
 
-    Task<UpdateInfo> CheckForUpdatesAsync(string? githubToken = null, CancellationToken cancellationToken = default);
+    Task<UpdateInfo> CheckForUpdatesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Downloads, verifies and unpacks the package into a staging folder.</summary>
     Task<StagedUpdate> DownloadAndStageAsync(UpdateInfo updateInfo, IProgress<DownloadProgressReport>? progress = null, CancellationToken cancellationToken = default);

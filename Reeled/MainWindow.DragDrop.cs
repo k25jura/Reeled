@@ -316,12 +316,10 @@ public sealed partial class MainWindow
 
         if (_pillAcrylic == null)
         {
-            _pillAcrylic = Helpers.Backdrop.Create(Colors.Gray, Helpers.Backdrop.Surface.Flyout);
+            _pillAcrylic = new AcrylicBrush();
             DragPill.Background = _pillAcrylic;
         }
-        // A gray surface in both themes, in the manner of the player's flyouts
-        bool dark = RootWindowGrid.ActualTheme != ElementTheme.Light;
-        Helpers.Backdrop.Apply(_pillAcrylic, dark ? Color.FromArgb(0xFF, 0x2B, 0x2B, 0x2B) : Color.FromArgb(0xFF, 0xE6, 0xE6, 0xE6), Helpers.Backdrop.Surface.Flyout);
+        Helpers.Backdrop.ApplyAppSurface(_pillAcrylic, RootWindowGrid.ActualTheme);
 
         DragPillText.Text = text;
         DragPillIcon.Glyph = glyph;

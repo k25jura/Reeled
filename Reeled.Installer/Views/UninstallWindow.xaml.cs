@@ -24,6 +24,25 @@ public sealed partial class UninstallWindow : Window
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool BringWindowToTop(IntPtr hWnd);
 
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr processId);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
+
+    private static readonly IntPtr HWND_TOPMOST = new(-1);
+    private static readonly IntPtr HWND_NOTOPMOST = new(-2);
+    private const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_SHOWWINDOW = 0x40;
+
     public UninstallWindow()
     {
         InitializeComponent();
@@ -34,26 +53,50 @@ public sealed partial class UninstallWindow : Window
         RootGrid.Loaded += (s, e) =>
         {
             UpdateTitleBarTheme(RootGrid.ActualTheme);
-            try
-            {
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-                ShowWindow(hwnd, 9); // SW_RESTORE
-                SetForegroundWindow(hwnd);
-                BringWindowToTop(hwnd);
-            }
-            catch { }
+            BringToFront();
         };
     }
 
     public void ActivateAndBringToForeground()
     {
         Activate();
+        BringToFront();
+    }
+
+    /// <summary>
+    /// The uninstaller is started by WMI (outside Settings' job), so Windows doesn't count it as launched
+    /// by the user and keeps it behind. The stager hands its foreground right over; if that hasn't
+    /// arrived, join the foreground thread's input queue, which lets SetForegroundWindow through, and
+    /// pass through topmost so the window is at least on top of Settings.
+    /// </summary>
+    private void BringToFront()
+    {
         try
         {
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             ShowWindow(hwnd, 9); // SW_RESTORE
-            SetForegroundWindow(hwnd);
+            if (GetForegroundWindow() == hwnd) return;
+
+            if (!SetForegroundWindow(hwnd))
+            {
+                uint foregroundThread = GetWindowThreadProcessId(GetForegroundWindow(), IntPtr.Zero);
+                uint thisThread = GetCurrentThreadId();
+                bool attached = foregroundThread != 0 && foregroundThread != thisThread &&
+                                AttachThreadInput(thisThread, foregroundThread, true);
+                try
+                {
+                    SetForegroundWindow(hwnd);
+                }
+                finally
+                {
+                    if (attached) AttachThreadInput(thisThread, foregroundThread, false);
+                }
+            }
+
+            SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+            SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
             BringWindowToTop(hwnd);
+            Program.Trace($"Uninstall window shown, foreground={GetForegroundWindow() == hwnd}");
         }
         catch { }
     }

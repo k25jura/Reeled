@@ -66,4 +66,13 @@ public static class Backdrop
         Apply(brush, tintColor, surface);
         return brush;
     }
+
+    /// <summary>
+    /// The gray glass of popups over the library and settings (toasts, the file operation card, the drag
+    /// caption), in the manner of the player's flyouts.
+    /// </summary>
+    public static void ApplyAppSurface(AcrylicBrush brush, Microsoft.UI.Xaml.ElementTheme theme, bool overVideo = false) =>
+        Apply(brush, theme == Microsoft.UI.Xaml.ElementTheme.Light
+            ? Color.FromArgb(0xFF, 0xE6, 0xE6, 0xE6)
+            : Color.FromArgb(0xFF, 0x2B, 0x2B, 0x2B), Surface.Flyout, overVideo);
 }

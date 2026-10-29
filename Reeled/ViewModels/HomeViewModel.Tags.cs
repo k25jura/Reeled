@@ -6,8 +6,8 @@ using Reeled.Models;
 namespace Reeled.ViewModels;
 
 /// <summary>
-/// Tags: user labels on clips ("clutch", "funny", "send to Max"), plus each clip's game (its folder)
-/// as an automatic filter. Filtering shows clips matching any selected tag or game.
+/// Tags: user labels on clips ("clutch", "funny", "send to Max"), plus each clip's folder as an automatic
+/// "folder tag". Filtering shows clips matching any selected tag or folder.
 /// </summary>
 public partial class HomeViewModel
 {
@@ -26,9 +26,32 @@ public partial class HomeViewModel
     /// <summary>The library's instance of a clip, or null when the file isn't in the library (e.g. opened from disk).</summary>
     public GameClip? FindLibraryClip(string path) => FindClip(path);
 
+    /// <summary>Glyph shown for a tag (its chosen icon, or the tag glyph).</summary>
+    public const string DefaultTagGlyph = "";
+
+    /// <summary>Icons a tag can wear (Segoe Fluent Icons).</summary>
+    public static readonly string[] TagGlyphs =
+    {
+        "", "", "", "", "", "", "", "",
+        "", "", "", "", "", "", "", "",
+        "", "", "", "", "", "", "", ""
+    };
+
+    public string TagGlyph(string tag) =>
+        _storageService.CurrentSettings.TagIcons.TryGetValue(tag, out var glyph) && !string.IsNullOrEmpty(glyph) ? glyph : DefaultTagGlyph;
+
+    public void SetTagGlyph(string tag, string glyph)
+    {
+        var icons = _storageService.CurrentSettings.TagIcons;
+        if (glyph == DefaultTagGlyph) icons.Remove(tag);
+        else icons[tag] = glyph;
+        _ = _storageService.SaveSettingsAsync(_storageService.CurrentSettings);
+        TagsChanged?.Invoke();
+    }
+
     public int CountWithTag(string tag) => AllClips.Count(c => c.Tags.Contains(tag, StringComparer.CurrentCultureIgnoreCase));
 
-    /// <summary>Games (clip folders) with clip counts, most clips first.</summary>
+    /// <summary>Folder tags (each clip's folder) with clip counts, most clips first.</summary>
     public IReadOnlyList<(string Game, int Count)> GamesWithCounts() => AllClips
         .Where(c => !string.IsNullOrEmpty(c.FolderName))
         .GroupBy(c => c.FolderName, StringComparer.CurrentCultureIgnoreCase)
@@ -91,6 +114,7 @@ public partial class HomeViewModel
         var settings = _storageService.CurrentSettings;
         int i = settings.TagLibrary.FindIndex(t => string.Equals(t, oldName, StringComparison.CurrentCultureIgnoreCase));
         if (i >= 0) settings.TagLibrary[i] = newName;
+        if (settings.TagIcons.Remove(oldName, out var glyph)) settings.TagIcons[newName] = glyph;
         foreach (var clip in AllClips.Where(c => c.Tags.Contains(oldName, StringComparer.CurrentCultureIgnoreCase)))
         {
             var tags = clip.Tags.Select(t => string.Equals(t, oldName, StringComparison.CurrentCultureIgnoreCase) ? newName : t).ToList();
@@ -107,6 +131,7 @@ public partial class HomeViewModel
     {
         var settings = _storageService.CurrentSettings;
         settings.TagLibrary.RemoveAll(t => string.Equals(t, name, StringComparison.CurrentCultureIgnoreCase));
+        settings.TagIcons.Remove(name);
         foreach (var clip in AllClips.Where(c => c.Tags.Contains(name, StringComparer.CurrentCultureIgnoreCase)))
         {
             var tags = clip.Tags.Where(t => !string.Equals(t, name, StringComparison.CurrentCultureIgnoreCase)).ToList();

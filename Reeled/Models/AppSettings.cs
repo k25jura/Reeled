@@ -21,6 +21,8 @@ public class AppSettings
     public Dictionary<string, List<string>> ClipTags { get; set; } = new();
     /// <summary>Every tag the user has made, in their order (kept even when no clip uses it).</summary>
     public List<string> TagLibrary { get; set; } = new();
+    /// <summary>Icon glyph per tag (Segoe Fluent Icons); tags without one use the tag glyph.</summary>
+    public Dictionary<string, string> TagIcons { get; set; } = new(StringComparer.CurrentCultureIgnoreCase);
     /// <summary>Game icons per folder name (lower-case), found on Steam or picked by the user.</summary>
     public Dictionary<string, GameIconInfo> FolderGameIcons { get; set; } = new();
     /// <summary>Look up icons for game folders (Steam first, then SteamGridDB and IGDB when set up).</summary>
@@ -41,6 +43,7 @@ public class AppSettings
     public SidebarPosition SidebarPosition { get; set; } = SidebarPosition.Left;
     public NavSectionVisibility FavoritesNavVisibility { get; set; } = NavSectionVisibility.Always;
     public NavSectionVisibility MomentsNavVisibility { get; set; } = NavSectionVisibility.Always;
+    public NavSectionVisibility SharedNavVisibility { get; set; } = NavSectionVisibility.WhenNotEmpty;
     /// <summary>Card grid or a details list.</summary>
     public LibraryViewMode LibraryViewMode { get; set; } = LibraryViewMode.Grid;
     /// <summary>Show the tab bar even with a single tab; otherwise it appears once a second tab is open.</summary>
@@ -81,7 +84,6 @@ public class AppSettings
     /// <summary>0 newest, 1 oldest, 2 A-Z, 3 Z-A, 4 longest, 5 largest, 6 shortest, 7 smallest.</summary>
     public int SortIndex { get; set; } = 0;
     public bool ReduceMotion { get; set; } = false;
-    public string? GitHubToken { get; set; }
     public DateTime? LastUpdateCheckUtc { get; set; }
     /// <summary>Download updates in the background; they install when Reeled closes.</summary>
     public bool AutoDownloadUpdates { get; set; } = true;
@@ -90,6 +92,10 @@ public class AppSettings
     /// <summary>Version that ran last, to greet the user after an update.</summary>
     public string? LastRunVersion { get; set; }
     public bool ResumePlayback { get; set; } = true;
+    /// <summary>Pause music and other media playing in other apps (Spotify, a browser) while a clip plays.</summary>
+    public bool PauseOtherMedia { get; set; } = true;
+    /// <summary>Play it again when the clip stops, if Reeled was what paused it.</summary>
+    public bool ResumeOtherMedia { get; set; } = true;
     /// <summary>Seconds the skip buttons and arrow keys jump.</summary>
     public int SkipSeconds { get; set; } = 5;
     public WheelAction PlayerWheelAction { get; set; } = WheelAction.Volume;
@@ -98,6 +104,9 @@ public class AppSettings
     public PlayerToolbarLayout PlayerToolbar { get; set; } = PlayerToolbarLayout.Default;
     public OsdPreferences Osd { get; set; } = new();
     public PlayerSessionPreferences PlayerSession { get; set; } = new();
+    public SharePreferences Share { get; set; } = new();
+    /// <summary>Every share made, newest first; the library's Shared section lists their clips.</summary>
+    public List<SharedLink> SharedLinks { get; set; } = new();
     /// <summary>Where snapshots go; empty = Pictures\Reeled.</summary>
     public string? SnapshotFolder { get; set; }
     /// <summary>Last playback position (ms) per clip path, for resuming long clips.</summary>

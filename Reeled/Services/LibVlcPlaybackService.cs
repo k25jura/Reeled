@@ -11,7 +11,7 @@ public partial class LibVlcPlaybackService : ILibVlcPlaybackService
 {
     private LibVLC? _libVLC;
 
-    public string? EngineVersion => _libVLC?.Version;
+    public string? EngineVersion => _engineVersion;
     private MediaPlayer? _mediaPlayer;
     private Media? _currentMedia;
     private DispatcherQueue? _dispatcherQueue;
@@ -403,35 +403,82 @@ public partial class LibVlcPlaybackService : ILibVlcPlaybackService
         }
     }
 
+    // Holds libvlc's plugin bank loaded until the real engine exists. The bank is refcounted, so
+    // without a live instance every new LibVLC rescans the plugins folder.
+    private LibVLC? _warmLibVLC;
+    private readonly Task _warmTask;
+    private string? _engineVersion;
+    private int _engineGeneration;
+
     public LibVlcPlaybackService()
     {
         _dispatcherQueue = App.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
-        Task.Run(() =>
-        {
-            EnsureCoreInitialized();
-            try
-            {
-                using var prewarm = new LibVLC(
-                    "--no-audio",
-                    "--no-video",
-                    "--no-osd",
-                    "--no-sub-autodetect",
-                    "--no-lua",
-                    "--no-stats"
-                );
-            }
-            catch (Exception ex)
-            {
-                Helpers.Log.Error("LibVLC Prewarm Error", ex);
-            }
-        });
+        _warmTask = Task.Run(WarmUp);
     }
 
-    public void InitializeEngine(string[]? swapChainOptions = null)
+    /// <summary>
+    /// Loads libvlc in the background so the first clip doesn't pay for it. The packaged libvlc has no
+    /// plugins.dat, so without one every launch LoadLibrary's all ~320 plugin DLLs to read their
+    /// descriptors; the first run after install (or update) writes the cache next to the plugins.
+    /// </summary>
+    private void WarmUp()
     {
-        if (_libVLC != null) return;
+        EnsureCoreInitialized();
+        try
+        {
+            var options = new List<string> { "--no-audio", "--no-video", "--no-osd", "--no-sub-autodetect", "--no-lua", "--no-stats" };
+            bool rebuildCache = PluginCacheIsStale(out string? marker);
+            if (rebuildCache) options.Add("--reset-plugins-cache");
+            _warmLibVLC = new LibVLC(options.ToArray());
+            _engineVersion = _warmLibVLC.Version;
+            if (rebuildCache && marker != null)
+            {
+                try { File.WriteAllText(marker, CacheStamp()); } catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            Helpers.Log.Error("LibVLC Prewarm Error", ex);
+        }
+    }
+
+    private static string PluginsDirectory()
+    {
+        string arch = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
+        return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "libvlc", $"win-{arch}", "plugins");
+    }
+
+    private static string CacheStamp() =>
+        typeof(LibVlcPlaybackService).Assembly.GetName().Version?.ToString() ?? "0";
+
+    /// <summary>
+    /// True when plugins.dat is missing or was written for another build. libvlc only discards cache
+    /// entries whose DLL changed, it never rewrites the file, so an update would otherwise leave every
+    /// launch scanning again.
+    /// </summary>
+    private static bool PluginCacheIsStale(out string? marker)
+    {
+        marker = null;
+        try
+        {
+            string dir = PluginsDirectory();
+            if (!Directory.Exists(dir)) return false;
+            marker = Path.Combine(dir, "plugins.reeled");
+            return !File.Exists(Path.Combine(dir, "plugins.dat")) ||
+                   !File.Exists(marker) ||
+                   File.ReadAllText(marker).Trim() != CacheStamp();
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static (LibVLC, MediaPlayer) CreateEngine(string[] swapChainOptions, IEnumerable<string> subtitleOptions)
+    {
         EnsureCoreInitialized();
 
+        LibVLC libVlc;
         try
         {
             var options = new List<string>
@@ -451,23 +498,16 @@ public partial class LibVlcPlaybackService : ILibVlcPlaybackService
                 "--network-caching=150"
             };
 
-            if (swapChainOptions != null && swapChainOptions.Length > 0)
-            {
-                options.AddRange(swapChainOptions);
-            }
+            options.AddRange(swapChainOptions);
             // Subtitles built into a video use the saved style; libvlc reads it once, at start
-            options.AddRange(SubtitleStyleEngineOptions(App.GetService<ILocalStorageService>().CurrentSettings.PlayerSession?.Subtitles));
+            options.AddRange(subtitleOptions);
 
-            _libVLC = new LibVLC(enableDebugLogs: false, options.ToArray());
-            _mediaPlayer = new MediaPlayer(_libVLC);
-            _mediaPlayer.EnableMouseInput = false;
-            _mediaPlayer.EnableKeyInput = false;
-            RegisterPlayerEvents(_mediaPlayer);
+            libVlc = new LibVLC(enableDebugLogs: false, options.ToArray());
         }
         catch (Exception ex)
         {
             Helpers.Log.Error("InitializeEngine Error", ex);
-            _libVLC = new LibVLC(
+            libVlc = new LibVLC(
                 "--no-osd",
                 "--no-sub-autodetect",
                 "--no-lua",
@@ -476,29 +516,63 @@ public partial class LibVlcPlaybackService : ILibVlcPlaybackService
                 "--avcodec-fast",
                 "--file-caching=150"
             );
-            _mediaPlayer = new MediaPlayer(_libVLC);
-            _mediaPlayer.EnableMouseInput = false;
-            _mediaPlayer.EnableKeyInput = false;
-            RegisterPlayerEvents(_mediaPlayer);
         }
+
+        var player = new MediaPlayer(libVlc)
+        {
+            EnableMouseInput = false,
+            EnableKeyInput = false
+        };
+        return (libVlc, player);
     }
 
-    public void AttachToVideoView(LibVLCSharp.Platforms.Windows.VideoView videoView, string[] swapChainOptions)
+    /// <summary>
+    /// Builds the engine for the video view's swap chain on a worker thread (libvlc startup can take a
+    /// while on a cold disk) and plays whatever was requested in the meantime.
+    /// </summary>
+    public async Task AttachToVideoViewAsync(LibVLCSharp.Platforms.Windows.VideoView videoView, string[] swapChainOptions)
     {
         _dispatcherQueue ??= App.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
 
         if (_libVLC == null || _currentSwapChainOptions == null || !AreOptionsEqual(_currentSwapChainOptions, swapChainOptions))
         {
-            if (_libVLC != null)
+            int generation = ++_engineGeneration;
+            var oldPlayer = _mediaPlayer;
+            var oldLibVlc = _libVLC;
+            _libVLC = null;
+            _mediaPlayer = null;
+            _currentSwapChainOptions = (string[])swapChainOptions.Clone();
+            var options = _currentSwapChainOptions;
+            var subtitleOptions = SubtitleStyleEngineOptions(App.GetService<ILocalStorageService>().CurrentSettings.PlayerSession?.Subtitles).ToArray();
+
+            var (libVlc, player) = await Task.Run(async () =>
             {
-                try { _mediaPlayer?.Dispose(); } catch { }
-                try { _libVLC?.Dispose(); } catch { }
-                _libVLC = null;
-                _mediaPlayer = null;
+                try { oldPlayer?.Dispose(); } catch { }
+                try { oldLibVlc?.Dispose(); } catch { }
+                await _warmTask.ConfigureAwait(false);
+                return CreateEngine(options, subtitleOptions);
+            });
+
+            if (generation != _engineGeneration || _isDisposed)
+            {
+                // A newer swap chain arrived while this one was starting
+                _ = Task.Run(() =>
+                {
+                    try { player.Dispose(); } catch { }
+                    try { libVlc.Dispose(); } catch { }
+                });
+                return;
             }
 
-            _currentSwapChainOptions = (string[])swapChainOptions.Clone();
-            InitializeEngine(swapChainOptions);
+            _libVLC = libVlc;
+            _mediaPlayer = player;
+            _engineVersion = libVlc.Version;
+            RegisterPlayerEvents(player);
+
+            // The real instance now holds the plugin bank
+            var warm = _warmLibVLC;
+            _warmLibVLC = null;
+            if (warm != null) _ = Task.Run(() => { try { warm.Dispose(); } catch { } });
         }
 
         if (_mediaPlayer != null)
@@ -507,6 +581,11 @@ public partial class LibVlcPlaybackService : ILibVlcPlaybackService
             {
                 videoView.MediaPlayer = _mediaPlayer;
             }
+
+            // Volume, mute and speed chosen while the engine was starting
+            ApplyAllVolumes();
+            _mediaPlayer.Mute = _storedMute;
+            _mediaPlayer.SetRate(_storedPlaybackRate);
 
             if (!string.IsNullOrEmpty(_pendingFilePath))
             {
@@ -968,6 +1047,7 @@ public partial class LibVlcPlaybackService : ILibVlcPlaybackService
             _mediaPlayer?.Dispose();
             _currentMedia?.Dispose();
             _libVLC?.Dispose();
+            _warmLibVLC?.Dispose();
         }
         catch (Exception)
         {

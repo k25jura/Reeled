@@ -22,10 +22,10 @@
 
         <!-- Category Navigation Rail Button Style with Smooth Transitions -->
         <Style x:Key="SettingsCategoryButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="42" />
-            <Setter Property="Padding" Value="14,0" />
-            <Setter Property="Margin" Value="0,2" />
-            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Padding" Value="14,0,12,0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="CornerRadius" Value="6" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Stretch" />
@@ -34,7 +34,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Grid x:Name="RootGrid" Background="Transparent" CornerRadius="7">
+                        <Grid x:Name="RootGrid" Background="Transparent" CornerRadius="6">
                             <Grid.RenderTransform>
                                 <ScaleTransform x:Name="ButtonScale" ScaleX="1.0" ScaleY="1.0" />
                             </Grid.RenderTransform>
@@ -74,7 +74,7 @@
                                     </VisualState>
                                     <VisualState x:Name="Disabled">
                                         <VisualState.Setters>
-                                            <Setter Target="RootGrid.Opacity" Value="0.4" />
+                                            <Setter Target="RootGrid.Opacity" Value="0.5" />
                                         </VisualState.Setters>
                                     </VisualState>
                                 </VisualStateGroup>
@@ -83,14 +83,14 @@
                             <!-- Hover background -->
                             <Border x:Name="HoverBorder"
                                     Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                    CornerRadius="7"
+                                    CornerRadius="6"
                                     Opacity="0"
                                     IsHitTestVisible="False" />
 
                             <!-- Selected background highlight (ThemeResource aware - light in light mode, dark in dark mode) -->
                             <Border x:Name="SelectedBorder"
                                     Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                    CornerRadius="7"
+                                    CornerRadius="6"
                                     Opacity="0"
                                     IsHitTestVisible="False" />
 
@@ -172,8 +172,9 @@
                     x:Name="BackToHomeButton"
                     Command="{x:Bind ViewModel.BackToHomeCommand}" 
                     Style="{ThemeResource SubtleButtonStyle}"
-                    Padding="10"
-                    CornerRadius="8"
+                    Width="36"
+                    Height="34"
+                    Padding="0"
                     ToolTipService.ToolTip="Back to Library"
                     Margin="0,0,16,0">
                 <FontIcon Glyph="&#xE72B;" FontSize="16" />
@@ -188,6 +189,7 @@
                                Style="{ThemeResource TitleTextBlockStyle}" 
                                FontSize="24" 
                                FontWeight="SemiBold" 
+                               TextLineBounds="Tight"
                                VerticalAlignment="Center" />
                 </StackPanel>
 
@@ -196,7 +198,6 @@
                         Click="OnResetSettingsClick"
                         Style="{ThemeResource SubtleButtonStyle}"
                         Padding="10,6"
-                        CornerRadius="8"
                         VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <FontIcon Glyph="&#xE777;" FontSize="13" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -223,10 +224,13 @@
                   VerticalAlignment="Center">
 
                 <!-- Sliding Active Handle Indicator Pill (Matching main page sidebar) -->
+                <!-- Drawn above the rows (ZIndex): it sits on the selected row's edge, over its background -->
                 <Border x:Name="ActiveIndicatorPill"
+                        Canvas.ZIndex="1"
                         Width="3"
-                        Height="18"
+                        Height="16"
                         CornerRadius="1.5"
+                        Margin="10,0,0,0"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
                         Background="{ThemeResource AccentFillColorDefaultBrush}"
@@ -235,13 +239,13 @@
                     <Border.RenderTransform>
                         <TransformGroup>
                             <TranslateTransform x:Name="IndicatorTranslation" Y="0" />
-                            <ScaleTransform x:Name="IndicatorScale" ScaleY="0" CenterY="9" />
+                            <ScaleTransform x:Name="IndicatorScale" ScaleY="0" CenterY="8" />
                         </TransformGroup>
                     </Border.RenderTransform>
                 </Border>
 
                 <!-- Category Buttons Stack -->
-                <StackPanel x:Name="CategoriesStackPanel" Spacing="4" Margin="10,0,0,0">
+                <StackPanel x:Name="CategoriesStackPanel" Spacing="3" Margin="10,0,0,0">
                     <!-- 1. Folders -->
                     <Button x:Name="CatFoldersBtn"
                             Click="OnCategoryButtonClick"
@@ -293,6 +297,24 @@
                             </Grid.ColumnDefinitions>
                             <FontIcon x:Name="CatAppearanceIcon" Grid.Column="0" Glyph="&#xE790;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
                             <TextBlock x:Name="CatAppearanceText" Grid.Column="1" Text="Appearance" FontSize="13" VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+
+                    <!-- Sharing -->
+                    <Button x:Name="CatSharingBtn"
+                            Click="OnCategoryButtonClick"
+                            PointerPressed="OnCategoryPointerPressed"
+                            PointerReleased="OnCategoryPointerReleased"
+                            PointerCanceled="OnCategoryPointerReleased"
+                            Tag="SharingSection"
+                            Style="{StaticResource SettingsCategoryButtonStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon x:Name="CatSharingIcon" Grid.Column="0" Glyph="&#xE72D;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="CatSharingText" Grid.Column="1" Text="Sharing" FontSize="13" VerticalAlignment="Center" />
                         </Grid>
                     </Button>
 
@@ -668,7 +690,7 @@
                                             SnapsTo="StepValues"
                                             Value="{x:Bind ViewModel.Volume, Mode=OneWay}"
                                             ValueChanged="OnDefaultVolumeSliderValueChanged"
-                                            Width="130"
+                                            Width="150"
                                             VerticalAlignment="Center" />
                                     <TextBlock Text="{x:Bind ViewModel.VolumeFormatted, Mode=OneWay}"
                                                FontSize="12.5"
@@ -713,7 +735,7 @@
                                             SnapsTo="StepValues"
                                             Value="{x:Bind ViewModel.MaxVolume, Mode=OneWay}"
                                             ValueChanged="OnMaxVolumeSliderValueChanged"
-                                            Width="130"
+                                            Width="150"
                                             VerticalAlignment="Center" />
                                     <TextBlock Text="{x:Bind ViewModel.MaxVolumeFormatted, Mode=OneWay}"
                                                FontSize="12.5"
@@ -790,6 +812,44 @@
                                               HorizontalAlignment="Right"
                                               VerticalAlignment="Center" />
                             </Grid>
+                        </Border>
+
+                        <!-- Card: Other apps' music (Services/BackgroundMediaService.cs; SettingsPage.Player.cs) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xEC4F;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="PauseMediaTitleText" Text="Pause other music while watching" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="PauseMediaSubtitleText" Text="Spotify, a browser tab or any other player pauses when a clip starts"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="PauseMediaToggle" Grid.Column="2" OnContent="" OffContent="" MinWidth="0" HorizontalAlignment="Right" VerticalAlignment="Center" Toggled="OnBackgroundMediaToggled" />
+                                </Grid>
+                                <Grid x:Name="ResumeMediaRow" ColumnSpacing="12" MinHeight="36" Margin="40,0,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock x:Name="ResumeMediaLabel" Text="Play it again when the clip stops" FontSize="13" />
+                                        <TextBlock x:Name="ResumeMediaHint" Text="Only what Reeled paused, when you leave the player or the clip ends"
+                                                   FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                    </StackPanel>
+                                    <ToggleSwitch x:Name="ResumeMediaToggle" Grid.Column="1" OnContent="" OffContent="" MinWidth="0" VerticalAlignment="Center" Toggled="OnBackgroundMediaToggled" />
+                                </Grid>
+                            </StackPanel>
                         </Border>
 
                         <!-- Card 5: Default Repeat Mode -->
@@ -1074,7 +1134,7 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock x:Name="OsdSizeLabel" Text="Text size" FontSize="13" VerticalAlignment="Center" />
-                                        <Slider x:Name="OsdSizeSlider" Grid.Column="1" Width="180" Minimum="28" Maximum="88" StepFrequency="2" Value="52" ValueChanged="OnOsdSizeChanged" VerticalAlignment="Center" />
+                                        <Slider x:Name="OsdSizeSlider" Grid.Column="1" Width="200" Minimum="28" Maximum="88" StepFrequency="2" Value="52" ValueChanged="OnOsdSizeChanged" VerticalAlignment="Center" />
                                     </Grid>
                                     <Grid ColumnSpacing="12" MinHeight="36">
                                         <Grid.ColumnDefinitions>
@@ -1316,6 +1376,7 @@
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                         <FontIcon Glyph="&#xEB52;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -1327,6 +1388,11 @@
                                         <TextBlock x:Name="NavMomentsLabel" Text="Saved Moments" FontSize="13" VerticalAlignment="Center" />
                                     </StackPanel>
                                     <ComboBox x:Name="NavMomentsComboBox" Grid.Row="1" Grid.Column="1" MinWidth="200" SelectionChanged="OnNavSectionVisibilityChanged" />
+                                    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                        <FontIcon Glyph="&#xE72D;" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock x:Name="NavSharedLabel" Text="Shared" FontSize="13" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <ComboBox x:Name="NavSharedComboBox" Grid.Row="2" Grid.Column="1" MinWidth="200" SelectionChanged="OnNavSectionVisibilityChanged" />
                                 </Grid>
                             </StackPanel>
                         </Border>
@@ -1440,10 +1506,28 @@
                                 <StackPanel x:Name="IconSourcesBody" Spacing="20" Margin="40,0,0,0" Padding="0,16,0,0" Visibility="Collapsed" Opacity="0">
                                     <!-- SteamGridDB -->
                                     <StackPanel Spacing="4">
-                                        <PasswordBox x:Name="SgdbKeyBox"
-                                                     Header="SteamGridDB API key"
-                                                     PlaceholderText="API key"
-                                                     LostFocus="OnIconSourcesLostFocus" />
+                                        <Grid ColumnSpacing="6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <PasswordBox x:Name="SgdbKeyBox"
+                                                         Header="SteamGridDB API key"
+                                                         PlaceholderText="API key"
+                                                         PasswordRevealMode="Hidden"
+                                                         LostFocus="OnIconSourcesLostFocus" />
+                                            <Button x:Name="SgdbKeyReveal"
+                                                    Grid.Column="1"
+                                                    Tag="SgdbKeyBox"
+                                                    Style="{ThemeResource SubtleButtonStyle}"
+                                                    Width="36"
+                                                    Height="32"
+                                                    Padding="0"
+                                                    VerticalAlignment="Bottom"
+                                                    Click="OnRevealKeyClick">
+                                                <FontIcon Glyph="&#xE7B3;" FontSize="14" />
+                                            </Button>
+                                        </Grid>
                                         <HyperlinkButton x:Name="SgdbKeyLink"
                                                          Content="Get a key"
                                                          NavigateUri="https://www.steamgriddb.com/profile/preferences/api"
@@ -1455,9 +1539,27 @@
                                         <TextBox x:Name="IgdbIdBox"
                                                  Header="IGDB Client ID"
                                                  LostFocus="OnIconSourcesLostFocus" />
-                                        <PasswordBox x:Name="IgdbSecretBox"
-                                                     Header="IGDB Client Secret"
-                                                     LostFocus="OnIconSourcesLostFocus" />
+                                        <Grid ColumnSpacing="6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <PasswordBox x:Name="IgdbSecretBox"
+                                                         Header="IGDB Client Secret"
+                                                         PasswordRevealMode="Hidden"
+                                                         LostFocus="OnIconSourcesLostFocus" />
+                                            <Button x:Name="IgdbSecretReveal"
+                                                    Grid.Column="1"
+                                                    Tag="IgdbSecretBox"
+                                                    Style="{ThemeResource SubtleButtonStyle}"
+                                                    Width="36"
+                                                    Height="32"
+                                                    Padding="0"
+                                                    VerticalAlignment="Bottom"
+                                                    Click="OnRevealKeyClick">
+                                                <FontIcon Glyph="&#xE7B3;" FontSize="14" />
+                                            </Button>
+                                        </Grid>
                                         <TextBlock x:Name="IgdbHintText"
                                                    Text="IGDB uses Twitch credentials: register an application in the Twitch developer console to get both"
                                                    Style="{ThemeResource CaptionTextBlockStyle}"
@@ -1634,6 +1736,236 @@
                                               VerticalAlignment="Center" />
                             </Grid>
                         </Border>
+                    </StackPanel>
+
+                    <!-- ========================================== -->
+                    <!-- Sharing Section (SettingsPage.Sharing.cs)  -->
+                    <!-- ========================================== -->
+                    <StackPanel x:Name="SharingSection" Spacing="8">
+                        <TextBlock x:Name="SharingSectionTitle"
+                                   Text="Sharing"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                   Margin="2,0,0,2" />
+
+                        <TextBlock x:Name="SubSharingCompression" Style="{StaticResource SettingsSubheaderStyle}" Text="Compression" />
+
+                        <!-- Card: FFmpeg -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon x:Name="FfmpegStatusIcon" Grid.Column="0" Glyph="&#xE7F6;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="FfmpegTitleText" Text="FFmpeg" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="FfmpegSubtitleText"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <Button x:Name="FfmpegInstallButton" Click="OnFfmpegInstallClick" Content="Install with winget" />
+                                    <Button x:Name="FfmpegLocateButton" Click="OnFfmpegLocateClick" Content="Locate…" />
+                                    <Button x:Name="FfmpegAutoButton" Click="OnFfmpegAutoClick" Content="Find automatically" Style="{ThemeResource SubtleButtonStyle}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Card: Quality and size limit -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE714;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="ShareQualityTitleText" Text="Quality" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="ShareQualitySubtitleText" Text="What the Share dialog starts with"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <ComboBox x:Name="ShareQualityCombo" Grid.Column="2" VerticalAlignment="Center" SelectionChanged="OnShareSettingChanged" />
+                                </Grid>
+                                <Grid ColumnSpacing="12" MinHeight="36" Margin="40,0,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock x:Name="ShareSizeLabel" Text="Size limit for compressed clips" FontSize="13" />
+                                        <TextBlock x:Name="ShareSizeHint" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                    </StackPanel>
+                                    <ComboBox x:Name="ShareSizeCombo" Grid.Column="1" VerticalAlignment="Center" SelectionChanged="OnShareSettingChanged" />
+                                </Grid>
+                                <!-- Custom quality: shown while Custom is the chosen quality -->
+                                <StackPanel x:Name="ShareCustomPanel" Spacing="8" Margin="40,2,0,0" Visibility="Collapsed">
+                                    <TextBlock x:Name="ShareCustomLabel" Text="Custom quality" FontSize="13" />
+                                    <Grid ColumnSpacing="8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <ComboBox x:Name="ShareCustomHeightCombo" Header="Resolution" HorizontalAlignment="Stretch" SelectionChanged="OnShareCustomChanged" />
+                                        <ComboBox x:Name="ShareCustomFpsCombo" Grid.Column="1" Header="Frame rate" HorizontalAlignment="Stretch" SelectionChanged="OnShareCustomChanged" />
+                                        <NumberBox x:Name="ShareCustomBitrateBox" Grid.Column="2" Header="Bitrate (Mbit/s)"
+                                                   Minimum="0.3" Maximum="100" SmallChange="0.5" LargeChange="2"
+                                                   SpinButtonPlacementMode="Compact" ValueChanged="OnShareCustomBitrateChanged" />
+                                    </Grid>
+                                    <TextBlock x:Name="ShareCustomHint" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card: Graphics card encoding -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE7F4;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="ShareGpuTitleText" Text="Compress on the graphics card" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="ShareGpuSubtitleText"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                                <ToggleSwitch x:Name="ShareGpuToggle" Grid.Column="2" OnContent="" OffContent="" MinWidth="0" HorizontalAlignment="Right" VerticalAlignment="Center" Toggled="OnShareToggleChanged" />
+                            </Grid>
+                        </Border>
+
+                        <TextBlock x:Name="SubSharingUpload" Style="{StaticResource SettingsSubheaderStyle}" Margin="2,14,0,0" Text="Uploading" />
+
+                        <!-- Card: Destination -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE898;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="ShareDestinationTitleText" Text="Upload to" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="ShareDestinationSubtitleText"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <ComboBox x:Name="ShareDestinationCombo" Grid.Column="2" VerticalAlignment="Center" SelectionChanged="OnShareSettingChanged" />
+                                </Grid>
+                                <Grid ColumnSpacing="12" MinHeight="36" Margin="40,0,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="ShareExpiryLabel" Text="Litterbox keeps files for" FontSize="13" VerticalAlignment="Center" />
+                                    <ComboBox x:Name="ShareExpiryCombo" Grid.Column="1" VerticalAlignment="Center" SelectionChanged="OnShareSettingChanged" />
+                                </Grid>
+                                <Grid ColumnSpacing="12" MinHeight="36" Margin="40,0,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="ShareCopyLinkLabel" Text="Copy the link when the upload finishes" FontSize="13" VerticalAlignment="Center" />
+                                    <ToggleSwitch x:Name="ShareCopyLinkToggle" Grid.Column="1" OnContent="" OffContent="" MinWidth="0" Toggled="OnShareToggleChanged" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Card: PixelDrain key (folds open like Icon sources) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <StackPanel Spacing="0">
+                                <Grid ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE8D7;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock x:Name="PixelDrainTitleText" Text="PixelDrain API key" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                        <TextBlock x:Name="PixelDrainSubtitleText" Text="Only for uploading to PixelDrain. Stored encrypted for your Windows account"
+                                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Button x:Name="PixelDrainToggle"
+                                            Grid.Column="2"
+                                            Style="{ThemeResource SubtleButtonStyle}"
+                                            Padding="10,8"
+                                            VerticalAlignment="Center"
+                                            Click="OnPixelDrainToggleClick"
+                                            AutomationProperties.Name="Show or hide the PixelDrain key">
+                                        <FontIcon Glyph="&#xE70D;" FontSize="12" RenderTransformOrigin="0.5,0.5">
+                                            <FontIcon.RenderTransform>
+                                                <RotateTransform x:Name="PixelDrainChevronRotation" Angle="0" />
+                                            </FontIcon.RenderTransform>
+                                        </FontIcon>
+                                    </Button>
+                                </Grid>
+
+                                <StackPanel x:Name="PixelDrainBody" Spacing="4" Margin="40,0,0,0" Padding="0,16,0,0" Visibility="Collapsed" Opacity="0">
+                                    <Grid ColumnSpacing="6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <PasswordBox x:Name="PixelDrainKeyBox" Header="API key" PasswordRevealMode="Hidden" LostFocus="OnPixelDrainKeyLostFocus" />
+                                        <Button x:Name="PixelDrainKeyReveal"
+                                                Grid.Column="1"
+                                                Style="{ThemeResource SubtleButtonStyle}"
+                                                Width="36"
+                                                Height="32"
+                                                Padding="0"
+                                                VerticalAlignment="Bottom"
+                                                Click="OnPixelDrainRevealClick">
+                                            <FontIcon Glyph="&#xE7B3;" FontSize="14" />
+                                        </Button>
+                                    </Grid>
+                                    <HyperlinkButton x:Name="PixelDrainKeyLink" Content="Get a key" NavigateUri="https://pixeldrain.com/user/api_keys" Padding="0" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock x:Name="SharePrivacyText"
+                                   Margin="2,4,0,0"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                   Text="Shared clips are uploaded to the service you pick, and anyone with the link can watch them. Nothing is uploaded unless you share." />
                     </StackPanel>
 
                     <!-- ========================================== -->
@@ -1904,6 +2236,40 @@
                                         Command="{x:Bind ViewModel.ClearMomentsMetadataCommand}" 
                                         Content="Clear Moments" 
                                         VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Card: Shared clips (compressed copies and the share history; SettingsPage.Sharing.cs) -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,14">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <FontIcon Grid.Column="0" Glyph="&#xE72D;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
+
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="StorageSharedTitleText" Text="Shared clips" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
+                                    <TextBlock x:Name="StorageSharedSubtitleText" Text="Compressed copies made for sharing, and the list of shared links"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock x:Name="StorageSharedStatsText"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               FontWeight="SemiBold"
+                                               Margin="0,1,0,0" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <Button x:Name="StorageSharedCopiesButton" Content="Delete copies" Click="OnDeleteSharedCopiesClick" />
+                                    <Button x:Name="StorageSharedHistoryButton" Content="Clear history" Click="OnClearShareHistoryClick" />
+                                </StackPanel>
                             </Grid>
                         </Border>
 
@@ -2189,36 +2555,6 @@
                                               MinWidth="0"
                                               HorizontalAlignment="Right"
                                               VerticalAlignment="Center" />
-                            </Grid>
-                        </Border>
-
-                        <!-- Card 4: GitHub Token (Optional for private repos or rate limit avoidance) -->
-                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
-                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-                                BorderThickness="1" 
-                                CornerRadius="8" 
-                                Padding="16,14">
-                            <Grid ColumnSpacing="16">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-
-                                <FontIcon Grid.Column="0" Glyph="&#xE72D;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Center" Width="24" Height="24" />
-
-                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                    <TextBlock x:Name="GitHubTokenTitleText" Text="GitHub Token (Optional)" Style="{ThemeResource BodyStrongTextBlockStyle}" FontSize="14" />
-                                    <TextBlock x:Name="GitHubTokenSubtitleText" Text="Use a personal access token for private repository releases or higher rate limits" 
-                                               Style="{ThemeResource CaptionTextBlockStyle}" 
-                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                </StackPanel>
-
-                                <PasswordBox Grid.Column="2" 
-                                             Password="{x:Bind ViewModel.GitHubToken, Mode=TwoWay}" 
-                                             PlaceholderText="ghp_xxxxxxxxxxxxxxxxxxxx" 
-                                             MinWidth="220" 
-                                             VerticalAlignment="Center" />
                             </Grid>
                         </Border>
 
@@ -2545,7 +2881,7 @@
                 HorizontalAlignment="Center"
                 VerticalAlignment="Bottom"
                 Margin="0,0,0,28"
-                Padding="16,11,18,12"
+                Padding="14,12,16,12"
                 MaxWidth="560"
                 CornerRadius="8"
                 Background="{ThemeResource SolidBackgroundFillColorQuarternaryBrush}"
@@ -2557,12 +2893,12 @@
             <Border.RenderTransform>
                 <TranslateTransform x:Name="SettingsToastTranslation" Y="16" />
             </Border.RenderTransform>
-            <Grid ColumnSpacing="10">
+            <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <FontIcon x:Name="SettingsToastIcon" Glyph="&#xE73E;" FontSize="14" VerticalAlignment="Center" />
+                <FontIcon x:Name="SettingsToastIcon" Glyph="&#xE73E;" FontSize="16" VerticalAlignment="Center" />
                 <TextBlock x:Name="SettingsToastText" Grid.Column="1" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" />
             </Grid>
         </Border>

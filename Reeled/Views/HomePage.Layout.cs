@@ -272,6 +272,11 @@ public sealed partial class HomePage
             AddHorizontalTab("", loc["Nav_SavedMoments"], ViewModel.SavedMomentsCount, () => ViewModel.IsSavedMomentsSelected,
                 () => OnSavedMomentsTabClick(this, new RoutedEventArgs()), NavigationSection.SavedMoments);
         }
+        if (IsNavSectionShown(NavigationSection.Shared))
+        {
+            AddHorizontalTab("", loc["Nav_Shared"], ViewModel.SharedCount, () => ViewModel.IsSharedSelected,
+                () => OnSharedTabClick(this, new RoutedEventArgs()), NavigationSection.Shared);
+        }
 
         if (ViewModel.Directories.Count > 0)
         {
@@ -380,18 +385,19 @@ public sealed partial class HomePage
 
         void ShowSubfolderMenu()
         {
-            var menu = new MenuFlyout
-            {
-                Placement = _sidebarPosition == SidebarPosition.Bottom ? FlyoutPlacementMode.TopEdgeAlignedLeft : FlyoutPlacementMode.BottomEdgeAlignedLeft
-            };
-            AddSubfolderItems(menu.Items, root, isRoot: true);
+            if (_openSubfolderMenu?.IsOpen == true) return;
+            var picker = new Controls.SearchPicker();
+            picker.SetTexts(LayoutLoc["Picker_Search"], LayoutLoc["Picker_NoMatches"]);
+            picker.Configure(DialogTheme, _sidebarPosition == SidebarPosition.Bottom ? FlyoutPlacementMode.TopEdgeAlignedLeft : FlyoutPlacementMode.BottomEdgeAlignedLeft);
+            picker.SetEntries(SubfolderEntries(root));
+            var menu = picker.Flyout;
             _openSubfolderMenu = menu;
             TrackFolderDropdown(menu);
             menu.Closed += (s, e) =>
             {
                 if (ReferenceEquals(_openSubfolderMenu, menu)) _openSubfolderMenu = null;
             };
-            menu.ShowAt(button);
+            picker.ShowAt(button);
         }
 
         // Clips can be dropped on a folder chip; resting on one opens its subfolders to drop into
@@ -418,59 +424,59 @@ public sealed partial class HomePage
     private static bool IsDescendantPath(string path, string rootPath) =>
         path.StartsWith(rootPath.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Subfolders as a menu: folders with children become submenus that start with the folder itself.</summary>
-    private void AddSubfolderItems(IList<MenuFlyoutItemBase> items, DirectoryNode node, bool isRoot)
+    /// <summary>
+    /// A watch folder's subfolders for its dropdown: the folder itself first, then the whole tree indented,
+    /// each with its game icon, clip count, folder menu and drop target. Searching flattens it and shows
+    /// where each match lives.
+    /// </summary>
+    private List<Controls.PickerEntry> SubfolderEntries(DirectoryNode root)
     {
-        var self = new MenuFlyoutItem
-        {
-            Text = isRoot ? string.Format(LayoutLoc["Nav_AllOfFolder"], node.DisplayName) : node.DisplayName,
-            Icon = new FontIcon { Glyph = ViewModel.SelectedDirectory == node && ViewModel.CurrentSection == NavigationSection.Folder ? "" : "" }
-        };
-        self.Click += async (s, e) =>
-        {
-            await ViewModel.SelectDirectoryAsync(node);
-            ScrollClipsToTop();
-        };
-        self.ContextFlyout = CreateFolderMenu(node);
-        WireFolderDropTarget(self, () => node);
-        items.Add(self);
-        if (isRoot && node.SubDirectories.Count > 0) items.Add(new MenuFlyoutSeparator());
+        var entries = new List<Controls.PickerEntry>();
+        bool IsOpen(DirectoryNode n) => ViewModel.SelectedDirectory == n && ViewModel.CurrentSection == NavigationSection.Folder;
 
-        foreach (var child in node.SubDirectories)
+        Controls.PickerEntry Entry(DirectoryNode node, string text, int depth, string? detail) => new()
         {
-            if (child.SubDirectories.Count > 0)
+            Text = text,
+            Detail = detail,
+            Depth = depth,
+            Image = node.GameIcon,
+            Glyph = node.GameIcon == null ? "" : null,
+            Trailing = node.ClipCount > 0 ? node.ClipCount.ToString() : null,
+            IsCurrent = IsOpen(node),
+            Invoked = async _ =>
             {
-                var sub = new MenuFlyoutSubItem { Text = child.DisplayName, Icon = new FontIcon { Glyph = "" } };
-                AddSubfolderItems(sub.Items, child, isRoot: false);
-                sub.ContextFlyout = CreateFolderMenu(child);
-                items.Add(sub);
+                await ViewModel.SelectDirectoryAsync(node);
+                ScrollClipsToTop();
+            },
+            Prepare = row =>
+            {
+                row.ContextFlyout = CreateFolderRowMenu(node);
+                WireFolderDropTarget(row, () => node);
             }
-            else
+        };
+
+        void AddChildren(DirectoryNode parent, int depth, string path)
+        {
+            foreach (var child in parent.SubDirectories)
             {
-                bool selected = ViewModel.SelectedDirectory == child && ViewModel.CurrentSection == NavigationSection.Folder;
-                var item = new MenuFlyoutItem
-                {
-                    Text = child.DisplayName,
-                    Icon = !selected && child.GameIcon != null
-                        ? new ImageIcon { Source = child.GameIcon }
-                        : new FontIcon { Glyph = selected ? "" : "" }
-                };
-                // Game icons can be set from here too, not only from the sidebar
-                var context = new MenuFlyout();
-                context.Items.Add(CreateOpenInNewTabItem(child));
-                AddGameIconMenu(context.Items, child);
-                AddFolderFileMenuItems(context.Items, child);
-                if (context.Items.Count > 0 && context.Items[0] is MenuFlyoutSeparator) context.Items.RemoveAt(0);
-                item.ContextFlyout = context;
-                WireFolderDropTarget(item, () => child);
-                item.Click += async (s, e) =>
-                {
-                    await ViewModel.SelectDirectoryAsync(child);
-                    ScrollClipsToTop();
-                };
-                items.Add(item);
+                entries.Add(Entry(child, child.DisplayName, depth, path));
+                AddChildren(child, depth + 1, $"{path}  ›  {child.DisplayName}");
             }
         }
+
+        entries.Add(Entry(root, string.Format(LayoutLoc["Nav_AllOfFolder"], root.DisplayName), 0, null));
+        AddChildren(root, 0, root.DisplayName);
+        return entries;
+    }
+
+    /// <summary>A folder row's menu in the dropdown: open in a new tab, game icon, file commands.</summary>
+    private MenuFlyout CreateFolderRowMenu(DirectoryNode node)
+    {
+        var menu = new MenuFlyout();
+        menu.Items.Add(CreateOpenInNewTabItem(node));
+        AddGameIconMenu(menu.Items, node);
+        AddFolderFileMenuItems(menu.Items, node);
+        return menu;
     }
 
     private MenuFlyout CreateHorizontalFolderMenu(DirectoryNode root)
@@ -649,14 +655,19 @@ public sealed partial class HomePage
     }
 
     // ---------------------------------------------------------------------------------------------
-    // Section visibility (Favorites, Saved Moments)
+    // Section visibility (Favorites, Saved Moments, Shared)
     // ---------------------------------------------------------------------------------------------
 
     private bool IsNavSectionShown(NavigationSection section)
     {
         var settings = LayoutStorage.CurrentSettings;
-        var mode = section == NavigationSection.Favorites ? settings.FavoritesNavVisibility : settings.MomentsNavVisibility;
-        int count = section == NavigationSection.Favorites ? ViewModel.FavoritesCount : ViewModel.SavedMomentsCount;
+        var mode = NavVisibilityOf(section);
+        int count = section switch
+        {
+            NavigationSection.Favorites => ViewModel.FavoritesCount,
+            NavigationSection.Shared => ViewModel.SharedCount,
+            _ => ViewModel.SavedMomentsCount
+        };
         return mode switch
         {
             NavSectionVisibility.Hidden => false,
@@ -666,17 +677,32 @@ public sealed partial class HomePage
         };
     }
 
+    private NavSectionVisibility NavVisibilityOf(NavigationSection section)
+    {
+        var settings = LayoutStorage.CurrentSettings;
+        return section switch
+        {
+            NavigationSection.Favorites => settings.FavoritesNavVisibility,
+            NavigationSection.Shared => settings.SharedNavVisibility,
+            _ => settings.MomentsNavVisibility
+        };
+    }
+
     private void ApplyNavSectionVisibility()
     {
         bool favorites = IsNavSectionShown(NavigationSection.Favorites);
         bool moments = IsNavSectionShown(NavigationSection.SavedMoments);
+        bool shared = IsNavSectionShown(NavigationSection.Shared);
         bool changed = (FavoritesNavButton.Visibility == Visibility.Visible) != favorites ||
-                       (SavedMomentsNavButton.Visibility == Visibility.Visible) != moments;
+                       (SavedMomentsNavButton.Visibility == Visibility.Visible) != moments ||
+                       (SharedNavButton.Visibility == Visibility.Visible) != shared;
 
         FavoritesNavButton.Visibility = favorites ? Visibility.Visible : Visibility.Collapsed;
         SavedMomentsNavButton.Visibility = moments ? Visibility.Visible : Visibility.Collapsed;
+        SharedNavButton.Visibility = shared ? Visibility.Visible : Visibility.Collapsed;
 
-        if ((ViewModel.IsFavoritesSelected && !favorites) || (ViewModel.IsSavedMomentsSelected && !moments))
+        if ((ViewModel.IsFavoritesSelected && !favorites) || (ViewModel.IsSavedMomentsSelected && !moments) ||
+            (ViewModel.IsSharedSelected && !shared))
         {
             OnHomeTabClick(this, new RoutedEventArgs());
         }
@@ -712,8 +738,7 @@ public sealed partial class HomePage
         }
         menu.Opening += (s, e) =>
         {
-            var settings = LayoutStorage.CurrentSettings;
-            var current = section == NavigationSection.Favorites ? settings.FavoritesNavVisibility : settings.MomentsNavVisibility;
+            var current = NavVisibilityOf(section);
             foreach (var (item, mode) in radios) item.IsChecked = mode == current;
         };
         return menu;
@@ -723,6 +748,7 @@ public sealed partial class HomePage
     {
         var settings = LayoutStorage.CurrentSettings;
         if (section == NavigationSection.Favorites) settings.FavoritesNavVisibility = mode;
+        else if (section == NavigationSection.Shared) settings.SharedNavVisibility = mode;
         else settings.MomentsNavVisibility = mode;
         _ = LayoutStorage.SaveSettingsAsync(settings);
         ApplyNavSectionVisibility();
@@ -753,6 +779,7 @@ public sealed partial class HomePage
                 case nameof(HomeViewModel.AllClipsCount):
                 case nameof(HomeViewModel.FavoritesCount):
                 case nameof(HomeViewModel.SavedMomentsCount):
+                case nameof(HomeViewModel.SharedCount):
                     ApplyNavSectionVisibility();
                     BuildHorizontalNav();
                     break;

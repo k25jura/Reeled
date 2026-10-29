@@ -246,8 +246,10 @@ public sealed partial class SettingsPage
         var options = new[] { loc["Nav_ShowAlways"], loc["Nav_ShowWhenNotEmpty"], loc["Nav_HideSection"] };
         NavFavoritesComboBox.ItemsSource = options;
         NavMomentsComboBox.ItemsSource = options.ToArray();
+        NavSharedComboBox.ItemsSource = options.ToArray();
         NavFavoritesComboBox.SelectedIndex = (int)Storage.CurrentSettings.FavoritesNavVisibility;
         NavMomentsComboBox.SelectedIndex = (int)Storage.CurrentSettings.MomentsNavVisibility;
+        NavSharedComboBox.SelectedIndex = (int)Storage.CurrentSettings.SharedNavVisibility;
         _isInitializing = prev;
     }
 
@@ -257,6 +259,7 @@ public sealed partial class SettingsPage
         var settings = Storage.CurrentSettings;
         var value = (Models.NavSectionVisibility)combo.SelectedIndex;
         if (combo == NavFavoritesComboBox) settings.FavoritesNavVisibility = value;
+        else if (combo == NavSharedComboBox) settings.SharedNavVisibility = value;
         else settings.MomentsNavVisibility = value;
         _ = Storage.SaveSettingsAsync(settings);
     }

@@ -226,6 +226,13 @@ public sealed partial class MainWindow : Window
         _navigationService.NavigatedToHome += OnNavigatedToHome;
         _navigationService.NavigatedToSettings += OnNavigatedToSettings;
 
+        App.GetService<Services.Sharing.ShareService>().JobFinished += OnShareFinished;
+        Helpers.ShareUi.OpenSettingsRequested += () =>
+        {
+            App.GetService<SettingsViewModel>().PendingSection = "SharingSection";
+            _navigationService.NavigateToSettings();
+        };
+
         AppWindow.Changed += (s, e) =>
         {
             if (e.DidPresenterChange)
@@ -289,6 +296,7 @@ public sealed partial class MainWindow : Window
             _isCursorHidden = false;
             Helpers.CursorHelper.Shutdown();
             FlushStateOnExit();
+            BackgroundMediaService.Instance?.ResumeBeforeExit();
             try
             {
                 var playbackService = App.GetService<ILibVlcPlaybackService>();
@@ -516,9 +524,8 @@ public sealed partial class MainWindow : Window
         }
 
         _isPlayerClosing = false;
+        App.GetService<IThumbnailService>().SetBackgroundPaused(true);
         playerVM.LoadClip(clip, playlist);
-
-        _transitionStoryboard?.Stop();
 
         // Make player interactive and visible
         PlayerOverlayContainer.IsHitTestVisible = true;
@@ -531,71 +538,30 @@ public sealed partial class MainWindow : Window
         UpdateTitleBarTheme(ElementTheme.Dark);
         RefreshTitleBarRegions();
 
-        var sb = new Storyboard();
-        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-        var duration = TimeSpan.FromMilliseconds(180);
-
-        var fadeInPlayer = new DoubleAnimation
-        {
-            From = PlayerOverlayContainer.Opacity,
-            To = 1.0,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(fadeInPlayer, PlayerOverlayContainer);
-        Storyboard.SetTargetProperty(fadeInPlayer, "Opacity");
-
-        var fadeInBackdrop = new DoubleAnimation
-        {
-            From = PlayerBackdropLayer.Opacity,
-            To = 1.0,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(fadeInBackdrop, PlayerBackdropLayer);
-        Storyboard.SetTargetProperty(fadeInBackdrop, "Opacity");
-
-        var fadeOutRoot = new DoubleAnimation
-        {
-            From = RootFrame.Opacity,
-            To = 0.0,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(fadeOutRoot, RootFrame);
-        Storyboard.SetTargetProperty(fadeOutRoot, "Opacity");
-
-        sb.Children.Add(fadeInPlayer);
-        sb.Children.Add(fadeInBackdrop);
-        sb.Children.Add(fadeOutRoot);
-
-        sb.Completed += (s, e) =>
-        {
-            PlayerOverlayContainer.Opacity = 1.0;
-            PlayerBackdropLayer.Opacity = 1.0;
-            RootFrame.Opacity = 0.0;
-        };
-
-        _transitionStoryboard = sb;
-        Helpers.Motion.Begin(sb);
+        AnimatePlayerOpen();
     }
 
     private void OnNavigatedToHome()
     {
+        App.GetService<IThumbnailService>().SetBackgroundPaused(false);
         _isPlayerClosing = true;
-        _transitionStoryboard?.Stop();
 
-        // If player is not open (e.g. returning from Settings), return to Home instantly without delay
+        // If player is not open (e.g. returning from Settings), go back to the library with the page motion
         if (PlayerOverlayContainer?.Visibility != Visibility.Visible)
         {
-            if (RootFrame.CanGoBack)
+            _transitionStoryboard?.Stop();
+            _transitionStoryboard = null;
+            NavigateFrameWithMotion(() =>
             {
-                RootFrame.GoBack();
-            }
-            else if (RootFrame.Content is not HomePage)
-            {
-                RootFrame.Navigate(typeof(HomePage), null, new SuppressNavigationTransitionInfo());
-            }
+                if (RootFrame.CanGoBack)
+                {
+                    RootFrame.GoBack(new SuppressNavigationTransitionInfo());
+                }
+                else if (RootFrame.Content is not HomePage)
+                {
+                    RootFrame.Navigate(typeof(HomePage), null, new SuppressNavigationTransitionInfo());
+                }
+            }, deeper: false);
             _isPlayerClosing = false;
             SetCaptionControlsVisible(true, force: true);
             UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
@@ -617,56 +583,7 @@ public sealed partial class MainWindow : Window
         UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
         EnsureWindowIcon();
 
-        var sb = new Storyboard();
-        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-        var duration = TimeSpan.FromMilliseconds(180);
-
-        var fadeOutPlayer = new DoubleAnimation
-        {
-            From = PlayerOverlayContainer.Opacity,
-            To = 0.0,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(fadeOutPlayer, PlayerOverlayContainer);
-        Storyboard.SetTargetProperty(fadeOutPlayer, "Opacity");
-
-        var fadeOutBackdrop = new DoubleAnimation
-        {
-            From = PlayerBackdropLayer.Opacity,
-            To = 0.0,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(fadeOutBackdrop, PlayerBackdropLayer);
-        Storyboard.SetTargetProperty(fadeOutBackdrop, "Opacity");
-
-        var fadeInRoot = new DoubleAnimation
-        {
-            From = RootFrame.Opacity,
-            To = 1.0,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(fadeInRoot, RootFrame);
-        Storyboard.SetTargetProperty(fadeInRoot, "Opacity");
-
-        var fadeInTitle = new DoubleAnimation
-        {
-            From = AppTitleBar.Opacity,
-            To = 1.0,
-            Duration = duration,
-            EasingFunction = ease
-        };
-        Storyboard.SetTarget(fadeInTitle, AppTitleBar);
-        Storyboard.SetTargetProperty(fadeInTitle, "Opacity");
-
-        sb.Children.Add(fadeOutPlayer);
-        sb.Children.Add(fadeOutBackdrop);
-        sb.Children.Add(fadeInRoot);
-        sb.Children.Add(fadeInTitle);
-
-        sb.Completed += (s, e) =>
+        AnimatePlayerClose(() =>
         {
             _isPlayerClosing = false;
             PlayerOverlayContainer.Opacity = 0.0;
@@ -693,14 +610,12 @@ public sealed partial class MainWindow : Window
                 homePage.OnReturnedFromViewer();
             }
             RefreshTitleBarRegions();
-        };
-
-        _transitionStoryboard = sb;
-        Helpers.Motion.Begin(sb);
+        });
     }
 
     private void OnNavigatedToSettings()
     {
+        App.GetService<IThumbnailService>().SetBackgroundPaused(false);
         _isPlayerClosing = true;
         _transitionStoryboard?.Stop();
 
@@ -710,6 +625,7 @@ public sealed partial class MainWindow : Window
             SetFullscreen(false);
         }
 
+        _transitionStoryboard = null;
         PlayerOverlayContainer.Opacity = 0.0;
         PlayerOverlayContainer.IsHitTestVisible = false;
         PlayerOverlayContainer.Visibility = Visibility.Collapsed;
@@ -726,7 +642,40 @@ public sealed partial class MainWindow : Window
         // Restore title bar buttons to the current app theme
         UpdateTitleBarTheme(RootWindowGrid.ActualTheme);
 
-        RootFrame.Navigate(typeof(SettingsPage), null, new EntranceNavigationTransitionInfo());
+        NavigateFrameWithMotion(() => RootFrame.Navigate(typeof(SettingsPage), null, new SuppressNavigationTransitionInfo()), deeper: true);
+    }
+
+    /// <summary>
+    /// A share finished while its dialog was closed: say so where the user is (the player's OSD, or the
+    /// page's own notice). The link is already on the clipboard when that's turned on.
+    /// </summary>
+    private void OnShareFinished(Services.Sharing.ShareJob job)
+    {
+        if (Helpers.ShareUi.IsOpen || job.Stage == Services.Sharing.ShareStage.Cancelled) return;
+        var loc = App.GetService<ILocalizationService>();
+        bool failed = job.Stage == Services.Sharing.ShareStage.Failed;
+        string message = failed
+            ? string.Format(loc["Share_Notify_Failed"], job.Error)
+            : job.Link == null
+                ? loc["Share_Notify_File"]
+                : job.LinkCopied
+                    ? string.Format(loc["Share_Notify_Done"], job.Link)
+                    : string.Format(loc["Share_Notify_DoneNoCopy"], job.Clip.DisplayName);
+
+        if (IsPlayerVisible)
+        {
+            // The OSD's big line stays short; the link goes on the details line
+            string title = failed ? loc["Share_Notify_Failed"].Split(':')[0] : job.Link == null ? loc["Share_Notify_File"] : loc[job.LinkCopied ? "Share_Status_DoneCopied" : "Share_Status_Done"];
+            App.GetService<PlayerViewModel>().ShowToast(title, failed ? job.Error : job.Link, ViewModels.OsdKind.Tracks);
+        }
+        else if (RootFrame.Content is HomePage home)
+        {
+            home.ShowShareMessage(message, failed);
+        }
+        else if (RootFrame.Content is SettingsPage settings)
+        {
+            settings.ShowShareMessage(message, failed);
+        }
     }
 
     public void ToggleFullscreen()
@@ -1122,6 +1071,12 @@ public sealed partial class MainWindow : Window
     {
         UpdateZoomIndicatorText();
         ZoomIndicator.RequestedTheme = IsPlayerVisible ? ElementTheme.Dark : App.CurrentTheme;
+        if (ZoomIndicator.Background is not Microsoft.UI.Xaml.Media.AcrylicBrush acrylic)
+        {
+            acrylic = new Microsoft.UI.Xaml.Media.AcrylicBrush();
+            ZoomIndicator.Background = acrylic;
+        }
+        Helpers.Backdrop.ApplyAppSurface(acrylic, ZoomIndicator.RequestedTheme, overVideo: IsPlayerVisible);
         if (!_isZoomIndicatorShown)
         {
             _isZoomIndicatorShown = true;

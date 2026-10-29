@@ -163,6 +163,13 @@ public partial class GameClip : ObservableObject
 
     public void NotifyMomentsBadgeChanged() => OnPropertyChanged(nameof(ShowBookmarkBadge));
 
+    /// <summary>How many times this clip was shared (links and copies kept in the share history).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsShared))]
+    private int _shareCount;
+
+    public bool IsShared => ShareCount > 0;
+
     public string FormattedDuration =>
         Duration.Hours > 0
             ? Duration.ToString(@"hh\:mm\:ss")

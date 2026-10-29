@@ -250,6 +250,11 @@ public sealed partial class PlayerPage : Page
             // Header Back Button
             if (BackToLibraryText != null) BackToLibraryText.Text = loc["Player_BackToLibrary"];
             if (BackToLibraryButton != null) ToolTipService.SetToolTip(BackToLibraryButton, loc["Player_Tooltip_BackToLibrary"]);
+            if (PlayerShareButton != null)
+            {
+                ToolTipService.SetToolTip(PlayerShareButton, loc["Player_Share"]);
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(PlayerShareButton, loc["Player_Share"]);
+            }
 
             // Playback Tooltips
             if (PlayPauseButton != null) ToolTipService.SetToolTip(PlayPauseButton, loc["Player_Tooltip_PlayPause"]);
@@ -537,8 +542,32 @@ public sealed partial class PlayerPage : Page
 
     private void OnVideoViewInitialized(object? sender, LibVLCSharp.Platforms.Windows.InitializedEventArgs e)
     {
-        ViewModel.AttachVideoView(PlayerVideoView, e.SwapChainOptions);
+        _ = ViewModel.AttachVideoViewAsync(PlayerVideoView, e.SwapChainOptions);
         _videoGlass?.SetSwapChain(e.SwapChainOptions);
+        HookVideoScaleChanges();
+    }
+
+    private bool _videoScaleHooked;
+
+    /// <summary>
+    /// LibVLCSharp's VideoView only updates its scale matrix when the panel's composition scale changes,
+    /// not the render size it hands libvlc, and its size update runs on SizeChanged, before the new scale
+    /// is known. Interface zoom (a scale transform) and DPI changes then leave the video drawn at the old
+    /// size in a corner. Re-run its size update once the scale has changed.
+    /// </summary>
+    private void HookVideoScaleChanges()
+    {
+        if (_videoScaleHooked) return;
+        var panel = FindVisualChild<SwapChainPanel>(PlayerVideoView);
+        var updateSize = typeof(LibVLCSharp.Platforms.Windows.VideoViewBase).GetMethod("UpdateSize",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        if (panel == null || updateSize == null) return;
+        _videoScaleHooked = true;
+        panel.CompositionScaleChanged += (s, e) =>
+        {
+            try { updateSize.Invoke(PlayerVideoView, null); }
+            catch (Exception ex) { Helpers.Log.Error("VideoView.UpdateSize", ex); }
+        };
     }
 
     private void OnPagePointerExited(object sender, PointerRoutedEventArgs e)
@@ -685,6 +714,8 @@ public sealed partial class PlayerPage : Page
             FrameBackButton,
             FrameForwardButton,
             SnapshotButton,
+            ShareBarButton,
+            PlayerShareButton,
             SpeedButton,
             MomentsButton,
             TracksButton,
@@ -1185,8 +1216,7 @@ public sealed partial class PlayerPage : Page
     private void OnMarkModePointClick(object sender, RoutedEventArgs e)
     {
         _isMarkRangeMode = false;
-        MarkPointModeButton.Style = null;
-        MarkRangeModeButton.Style = Application.Current.Resources["SubtleButtonStyle"] as Style;
+        Helpers.SegmentedButtons.Select(MarkPointModeButton, MarkPointModeButton, MarkRangeModeButton);
         AnimateMarkModeSwitch(MarkPointPanel, MarkPointTranslation, MarkRangePanel, isRangeMode: false);
         UpdateMarkMomentPlaceholder();
     }
@@ -1194,8 +1224,7 @@ public sealed partial class PlayerPage : Page
     private void OnMarkModeRangeClick(object sender, RoutedEventArgs e)
     {
         _isMarkRangeMode = true;
-        MarkRangeModeButton.Style = null;
-        MarkPointModeButton.Style = Application.Current.Resources["SubtleButtonStyle"] as Style;
+        Helpers.SegmentedButtons.Select(MarkRangeModeButton, MarkPointModeButton, MarkRangeModeButton);
         AnimateMarkModeSwitch(MarkRangePanel, MarkRangeTranslation, MarkPointPanel, isRangeMode: true);
         UpdateMarkMomentPlaceholder();
     }
@@ -1491,8 +1520,7 @@ public sealed partial class PlayerPage : Page
             {
                 _isMarkRangeMode = true;
                 _markEndTime = bm.EndTimestamp.Value;
-                if (MarkRangeModeButton != null) MarkRangeModeButton.Style = null;
-                if (MarkPointModeButton != null) MarkPointModeButton.Style = Application.Current.Resources["SubtleButtonStyle"] as Style;
+                Helpers.SegmentedButtons.Select(MarkRangeModeButton, MarkPointModeButton, MarkRangeModeButton);
                 if (MarkModeContainer != null) MarkModeContainer.Height = 146.0;
                 if (MarkPointPanel != null) MarkPointPanel.Visibility = Visibility.Collapsed;
                 if (MarkRangePanel != null)
@@ -1508,8 +1536,7 @@ public sealed partial class PlayerPage : Page
             {
                 _isMarkRangeMode = false;
                 _markEndTime = bm.Timestamp + TimeSpan.FromSeconds(5);
-                if (MarkPointModeButton != null) MarkPointModeButton.Style = null;
-                if (MarkRangeModeButton != null) MarkRangeModeButton.Style = Application.Current.Resources["SubtleButtonStyle"] as Style;
+                Helpers.SegmentedButtons.Select(MarkPointModeButton, MarkPointModeButton, MarkRangeModeButton);
                 if (MarkModeContainer != null) MarkModeContainer.Height = 36.0;
                 if (MarkRangePanel != null) MarkRangePanel.Visibility = Visibility.Collapsed;
                 if (MarkPointPanel != null)

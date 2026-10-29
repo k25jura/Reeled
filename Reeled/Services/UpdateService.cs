@@ -46,19 +46,15 @@ public class UpdateService : IUpdateService
         CurrentVersion = ver != null ? new Version(ver.Major, ver.Minor, ver.Build >= 0 ? ver.Build : 0) : new Version(1, 0, 0);
     }
 
-    private HttpRequestMessage CreateApiRequest(string url, string? githubToken)
+    private HttpRequestMessage CreateApiRequest(string url)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.UserAgent.Add(new ProductInfoHeaderValue("ReeledApp", CurrentVersion.ToString()));
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
-        if (!string.IsNullOrWhiteSpace(githubToken))
-        {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", githubToken.Trim());
-        }
         return request;
     }
 
-    public async Task<UpdateInfo> CheckForUpdatesAsync(string? githubToken = null, CancellationToken cancellationToken = default)
+    public async Task<UpdateInfo> CheckForUpdatesAsync(CancellationToken cancellationToken = default)
     {
         var info = new UpdateInfo
         {
@@ -68,12 +64,12 @@ public class UpdateService : IUpdateService
 
         try
         {
-            using var request = CreateApiRequest($"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases/latest", githubToken);
+            using var request = CreateApiRequest($"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases/latest");
             using var response = await HttpClient.SendAsync(request, cancellationToken);
 
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                return await CheckReleasesListFallbackAsync(githubToken, cancellationToken);
+                return await CheckReleasesListFallbackAsync(cancellationToken);
             }
 
             if (!response.IsSuccessStatusCode)
@@ -100,7 +96,7 @@ public class UpdateService : IUpdateService
         }
     }
 
-    private async Task<UpdateInfo> CheckReleasesListFallbackAsync(string? githubToken, CancellationToken cancellationToken)
+    private async Task<UpdateInfo> CheckReleasesListFallbackAsync(CancellationToken cancellationToken)
     {
         var info = new UpdateInfo
         {
@@ -110,7 +106,7 @@ public class UpdateService : IUpdateService
 
         try
         {
-            using var request = CreateApiRequest($"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases?per_page=5", githubToken);
+            using var request = CreateApiRequest($"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases?per_page=5");
             using var response = await HttpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {

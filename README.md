@@ -23,12 +23,21 @@ Built with unpackaged WinUI 3 (Windows App SDK), .NET 8, and LibVLC 3.0.
 ### Library & Folders
 - **Folder Watching**: Add your recording directories (e.g. Shadowplay or OBS output folders). Newly recorded, renamed, or deleted clips update automatically.
 - **Organization**: Filter clips by date, group by month, and search by title or tags.
-- **Tags**: Label clips with your own tags and filter the library by tag or by game.
+- **Tags**: Label clips with your own tags, give tags and folders icons, and filter the library by tag or by game with searchable pickers.
 - **Game Icons**: Game folders get their icon automatically from Steam, then SteamGridDB or IGDB if you add your own keys (only confident matches; can be turned off), or pick one yourself.
 - **Tabs**: Keep several folders open side by side in tabs, reopened on the next start.
 - **Grid or List**: Browse as cards or as a sortable details list.
 - **File Management**: Select several clips, copy, cut and paste them (also to and from File Explorer), drag them onto folders or out to other apps, and create, rename or delete folders. Deletes always go to the Recycle Bin.
+- **Favorites, Saved Moments and Shared**: Sections for clips you starred, clips with bookmarks, and clips you've shared, each shown always, only when not empty, or hidden.
 - **Clip Context Menu**: View video metadata (resolution, bitrate, codecs, audio tracks), favorite clips, tag, rename, open in File Explorer, or delete to the Windows Recycle Bin.
+
+### Sharing
+- **Share in two clicks**: From a clip's menu or the player's title bar, send it compressed to fit Discord (20 MB, 50 MB with Nitro Basic, or any limit you set), as it is, or with your own resolution, frame rate and bitrate.
+- **Only the loop**: With an A-B loop set, share just that part.
+- **Where it goes**: Litterbox (deleted after 1 to 72 hours), Catbox (permanent), GoFile, PixelDrain with your API key, or just copy the video to paste into Discord. Links from Litterbox and Catbox play right in Discord.
+- **Graphics card encoding**: Compression runs on NVIDIA, AMD or Intel encoders when available, with FFmpeg (installed for you through winget if you allow it).
+- **Shared section**: Every share keeps its link, how long until it expires, and the compressed copy, with a badge on the clip. Copy a link again, open the original, or clean up the copies from Settings › Storage.
+- **Player link**: Catbox and Litterbox shares also get a link to a clean browser player on the Reeled website.
 
 ### Customization
 - **Accent Colour**: Follow Windows, pick a preset, or choose any colour.
@@ -46,6 +55,7 @@ Built with unpackaged WinUI 3 (Windows App SDK), .NET 8, and LibVLC 3.0.
 - **Playback Tools**: Frame-by-frame stepping, playback speed controls, snapshots, mini player, and repeat modes (off, loop one, loop all).
 - **Clip Queue**: Quick slide-out drawer (`Q`) to switch, sort, shuffle or reorder clips without heading back to the library.
 - **Right-click Menu**: Everything the player can do, one right-click away.
+- **Background Music**: Spotify or any other app's music pauses while a clip plays and starts again when you're done (can be turned off).
 
 ### Moments & Bookmarks
 - **Mark Highlights**: Press `B` during playback to mark a moment at the current timestamp.
